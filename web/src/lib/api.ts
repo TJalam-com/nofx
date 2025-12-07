@@ -329,6 +329,28 @@ export const api = {
     return result.data!
   },
 
+  // 手动平仓
+  async closePosition(
+    traderId: string,
+    symbol: string,
+    side: 'long' | 'short',
+    quantity: number = 0
+  ): Promise<{ success: boolean; message: string; result: any }> {
+    const result = await httpClient.post<{
+      success: boolean
+      message: string
+      result: any
+    }>(`${API_BASE}/positions/close?trader_id=${traderId}`, {
+      symbol,
+      side,
+      quantity,
+    })
+    if (!result.success) {
+      throw new Error(result.message || '平仓失败')
+    }
+    return result.data!
+  },
+
   // 获取决策日志（支持trader_id）
   async getDecisions(traderId?: string): Promise<DecisionRecord[]> {
     const url = traderId

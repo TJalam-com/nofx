@@ -178,6 +178,49 @@ body {
   }
 }
 
+@keyframes trophy-glow {
+  0%,
+  100% {
+    box-shadow: 0 4px 14px rgba(240, 185, 11, 0.4),
+      0 0 20px rgba(240, 185, 11, 0.2);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(240, 185, 11, 0.6),
+      0 0 30px rgba(240, 185, 11, 0.4);
+  }
+}
+
+@keyframes pulse-live {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes rank-badge {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes shimmer-border {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }
@@ -673,6 +716,142 @@ tr:hover {
   box-shadow: var(--shadow-sm);
 }
 
+/* Competition page specific styles */
+.competition-header {
+  background: linear-gradient(
+    135deg,
+    rgba(240, 185, 11, 0.05) 0%,
+    rgba(11, 14, 17, 0.8) 50%,
+    rgba(11, 14, 17, 1) 100%
+  );
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  border: 1px solid rgba(240, 185, 11, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.competition-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(240, 185, 11, 0.5),
+    transparent
+  );
+}
+
+.trophy-icon {
+  animation: trophy-glow 3s ease-in-out infinite;
+}
+
+.pulse-live {
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+.rank-badge-gold {
+  background: linear-gradient(135deg, #f0b90b 0%, #fcd535 100%);
+  color: #000;
+  box-shadow: 0 4px 12px rgba(240, 185, 11, 0.4);
+}
+
+.rank-badge-silver {
+  background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+  color: #000;
+  box-shadow: 0 4px 12px rgba(192, 192, 192, 0.3);
+}
+
+.rank-badge-bronze {
+  background: linear-gradient(135deg, #cd7f32 0%, #e6a057 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(205, 127, 50, 0.3);
+}
+
+.leaderboard-item-top {
+  background: linear-gradient(
+    135deg,
+    rgba(240, 185, 11, 0.12) 0%,
+    rgba(11, 14, 17, 1) 100%
+  );
+  border: 1px solid rgba(240, 185, 11, 0.4);
+  box-shadow: 0 4px 20px rgba(240, 185, 11, 0.15),
+    0 0 0 1px rgba(240, 185, 11, 0.2);
+}
+
+.leaderboard-item-top:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(240, 185, 11, 0.25),
+    0 0 0 1px rgba(240, 185, 11, 0.3);
+}
+
+.leaderboard-item-silver {
+  background: linear-gradient(
+    135deg,
+    rgba(192, 192, 192, 0.08) 0%,
+    rgba(11, 14, 17, 1) 100%
+  );
+  border: 1px solid rgba(192, 192, 192, 0.3);
+  box-shadow: 0 3px 15px rgba(192, 192, 192, 0.1);
+}
+
+.leaderboard-item-bronze {
+  background: linear-gradient(
+    135deg,
+    rgba(205, 127, 50, 0.08) 0%,
+    rgba(11, 14, 17, 1) 100%
+  );
+  border: 1px solid rgba(205, 127, 50, 0.3);
+  box-shadow: 0 3px 15px rgba(205, 127, 50, 0.1);
+}
+
+.binance-card-enhanced {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.binance-card-enhanced::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(240, 185, 11, 0.3),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.binance-card-enhanced:hover {
+  border-color: rgba(240, 185, 11, 0.3);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.binance-card-enhanced:hover::before {
+  opacity: 1;
+}
+
+.glass-effect {
+  background: rgba(11, 14, 17, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 /* Responsive utilities */
 @media (max-width: 768px) {
   .binance-card {
@@ -681,5 +860,9 @@ tr:hover {
 
   .stat-card {
     padding: 1rem;
+  }
+
+  .competition-header {
+    padding: 1.25rem 1.5rem;
   }
 }

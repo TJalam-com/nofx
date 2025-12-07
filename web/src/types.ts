@@ -137,6 +137,8 @@ export interface Exchange {
   lighterWalletAddr?: string
   lighterPrivateKey?: string
   lighterApiKeyPrivateKey?: string
+  // OKX 特定字段
+  okxPassphrase?: string
 }
 
 export interface CreateTraderRequest {

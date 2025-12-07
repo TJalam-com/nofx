@@ -14,6 +14,7 @@ import (
 type CombinedStreamsClient struct {
 	conn        *websocket.Conn
 	mu          sync.RWMutex
+	writeMu     sync.Mutex // 防止并发写入
 	subscribers map[string]chan []byte
 	reconnect   bool
 	done        chan struct{}
@@ -100,14 +101,18 @@ func (c *CombinedStreamsClient) subscribeStreams(streams []string) error {
 	}
 
 	c.mu.RLock()
-	defer c.mu.RUnlock()
+	conn := c.conn
+	c.mu.RUnlock()
 
-	if c.conn == nil {
+	if conn == nil {
 		return fmt.Errorf("WebSocket未连接")
 	}
 
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
 	log.Printf("订阅流: %v", streams)
-	return c.conn.WriteJSON(subscribeMsg)
+	return conn.WriteJSON(subscribeMsg)
 }
 
 func (c *CombinedStreamsClient) readMessages() {

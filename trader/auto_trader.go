@@ -34,6 +34,11 @@ type AutoTraderConfig struct {
 	BybitAPIKey    string
 	BybitSecretKey string
 
+	// OKX API配置
+	OkxAPIKey     string
+	OkxSecretKey string
+	OkxPassphrase string // OKX requires passphrase
+
 	// Hyperliquid配置
 	HyperliquidPrivateKey string
 	HyperliquidWalletAddr string
@@ -213,6 +218,9 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 	case "bybit":
 		log.Printf("🏦 [%s] 使用Bybit合约交易", config.Name)
 		trader = NewBybitTrader(config.BybitAPIKey, config.BybitSecretKey)
+	case "okx":
+		log.Printf("🏦 [%s] 使用OKX合约交易", config.Name)
+		trader = NewOKXTrader(config.OkxAPIKey, config.OkxSecretKey, config.OkxPassphrase)
 	case "hyperliquid":
 		log.Printf("🏦 [%s] 使用Hyperliquid交易", config.Name)
 		trader, err = NewHyperliquidTrader(config.HyperliquidPrivateKey, config.HyperliquidWalletAddr, config.HyperliquidTestnet)
@@ -1079,6 +1087,16 @@ func (at *AutoTrader) executeCloseLongWithRecord(decision *decision.Decision, ac
 
 	log.Printf("  ✓ 平仓成功")
 	return nil
+}
+
+// CloseLong 手动平多仓（公开方法，供API调用）
+func (at *AutoTrader) CloseLong(symbol string, quantity float64) (map[string]interface{}, error) {
+	return at.trader.CloseLong(symbol, quantity)
+}
+
+// CloseShort 手动平空仓（公开方法，供API调用）
+func (at *AutoTrader) CloseShort(symbol string, quantity float64) (map[string]interface{}, error) {
+	return at.trader.CloseShort(symbol, quantity)
 }
 
 // executeCloseShortWithRecord 执行平空仓并记录详细信息

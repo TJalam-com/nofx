@@ -30,7 +30,8 @@ interface ExchangeConfigModalProps {
     asterPrivateKey?: string,
     lighterWalletAddr?: string,
     lighterPrivateKey?: string,
-    lighterApiKeyPrivateKey?: string
+    lighterApiKeyPrivateKey?: string,
+    okxPassphrase?: string
   ) => Promise<void>
   onDelete: (exchangeId: string) => void
   onClose: () => void
@@ -262,7 +263,7 @@ export function ExchangeConfigModal({
       )
     } else if (selectedExchange?.id === 'okx') {
       if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) return
-      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
+      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, passphrase.trim())
     } else {
       // 默认情况（其他CEX交易所）
       if (!apiKey.trim() || !secretKey.trim()) return

@@ -369,8 +369,8 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// TODO: 启动数据库中配置为运行状态的交易员
-	// traderManager.StartAll()
+	// 启动数据库中配置为运行状态的交易员
+	traderManager.StartRunningTraders(database)
 
 	// 等待退出信号
 	<-sigChan

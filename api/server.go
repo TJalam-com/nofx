@@ -188,11 +188,12 @@ func (s *Server) setupRoutes() {
 			protected.GET("/status", s.handleStatus)
 			protected.GET("/account", s.handleAccount)
 			protected.GET("/positions", s.handlePositions)
+			protected.POST("/positions/close", s.handleClosePosition)
 			protected.GET("/decisions", s.handleDecisions)
 			protected.GET("/decisions/latest", s.handleLatestDecisions)
 			protected.GET("/statistics", s.handleStatistics)
 			protected.GET("/performance", s.handlePerformance)
-			
+
 			// 复制交易相关接口
 			protected.GET("/traders/:id/replication-status", s.handleGetReplicationStatus)
 			protected.POST("/traders/:id/test-signal", s.handleTestSignal)
@@ -421,7 +422,7 @@ type CreateTraderRequest struct {
 	UseCoinPool          bool    `json:"use_coin_pool"`
 	UseOITop             bool    `json:"use_oi_top"`
 	UseTradingView       bool    `json:"use_tradingview"`
-	FollowedTraderID     string  `json:"followed_trader_id"`    // 跟随的交易员ID（用于follower角色）
+	FollowedTraderID     string  `json:"followed_trader_id"` // 跟随的交易员ID（用于follower角色）
 }
 
 type ModelConfig struct {
@@ -476,16 +477,18 @@ type UpdateModelConfigRequest struct {
 
 type UpdateExchangeConfigRequest struct {
 	Exchanges map[string]struct {
-		Enabled               bool   `json:"enabled"`
-		APIKey                string `json:"api_key"`
-		SecretKey             string `json:"secret_key"`
-		Testnet               bool   `json:"testnet"`
-		HyperliquidWalletAddr string `json:"hyperliquid_wallet_addr"`
-		AsterUser             string `json:"aster_user"`
-		AsterSigner           string `json:"aster_signer"`
-		AsterPrivateKey       string `json:"aster_private_key"`
-		LighterWalletAddr     string `json:"lighter_wallet_addr"`
-		LighterPrivateKey     string `json:"lighter_private_key"`
+		Enabled                 bool   `json:"enabled"`
+		APIKey                  string `json:"api_key"`
+		SecretKey               string `json:"secret_key"`
+		Testnet                 bool   `json:"testnet"`
+		HyperliquidWalletAddr   string `json:"hyperliquid_wallet_addr"`
+		AsterUser               string `json:"aster_user"`
+		AsterSigner             string `json:"aster_signer"`
+		AsterPrivateKey         string `json:"aster_private_key"`
+		LighterWalletAddr       string `json:"lighter_wallet_addr"`
+		LighterPrivateKey       string `json:"lighter_private_key"`
+		LighterAPIKeyPrivateKey string `json:"lighter_api_key_private_key"`
+		OkxPassphrase           string `json:"okx_passphrase"`
 	} `json:"exchanges"`
 }
 
@@ -529,7 +532,7 @@ func (s *Server) getDefaultAIModelForUser(userID string) string {
 			return models[0].ID
 		}
 	}
-	
+
 	// 尝试从default用户获取
 	defaultModels, err := s.database.GetAIModels("default")
 	if err == nil {
@@ -542,7 +545,7 @@ func (s *Server) getDefaultAIModelForUser(userID string) string {
 			return defaultModels[0].ID
 		}
 	}
-	
+
 	// 最后回退到常见的模型ID
 	return "deepseek" // 默认使用deepseek
 }
@@ -578,7 +581,7 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 						if req.Name == "" {
 							req.Name = trader.Name + " (Copy)"
 						}
-						
+
 						// 检查AI模型ID是否是提示词模板名称
 						if req.AIModelID == "" {
 							if isPromptTemplateName(trader.AIModelID) {
@@ -594,7 +597,7 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 								req.AIModelID = trader.AIModelID
 							}
 						}
-						
+
 						if req.ExchangeID == "" {
 							req.ExchangeID = trader.ExchangeID
 						}
@@ -866,18 +869,18 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 
 // UpdateTraderRequest 更新交易员请求
 type UpdateTraderRequest struct {
-	Name                string  `json:"name" binding:"required"`
-	AIModelID           string  `json:"ai_model_id" binding:"required"`
-	ExchangeID          string  `json:"exchange_id" binding:"required"`
-	InitialBalance      float64 `json:"initial_balance"`
-	ScanIntervalMinutes int     `json:"scan_interval_minutes"`
-	BTCETHLeverage      int     `json:"btc_eth_leverage"`
-	AltcoinLeverage     int     `json:"altcoin_leverage"`
-	TradingSymbols      string  `json:"trading_symbols"`
-	UseCoinPool         bool    `json:"use_coin_pool"`
-	UseOITop            bool    `json:"use_oi_top"`
-	UseTradingView      bool    `json:"use_tradingview"`
-	FollowedTraderID    string  `json:"followed_trader_id"`    // 跟随的交易员ID（用于follower角色）
+	Name                 string  `json:"name" binding:"required"`
+	AIModelID            string  `json:"ai_model_id" binding:"required"`
+	ExchangeID           string  `json:"exchange_id" binding:"required"`
+	InitialBalance       float64 `json:"initial_balance"`
+	ScanIntervalMinutes  int     `json:"scan_interval_minutes"`
+	BTCETHLeverage       int     `json:"btc_eth_leverage"`
+	AltcoinLeverage      int     `json:"altcoin_leverage"`
+	TradingSymbols       string  `json:"trading_symbols"`
+	UseCoinPool          bool    `json:"use_coin_pool"`
+	UseOITop             bool    `json:"use_oi_top"`
+	UseTradingView       bool    `json:"use_tradingview"`
+	FollowedTraderID     string  `json:"followed_trader_id"` // 跟随的交易员ID（用于follower角色）
 	CustomPrompt         string  `json:"custom_prompt"`
 	OverrideBasePrompt   bool    `json:"override_base_prompt"`
 	SystemPromptTemplate string  `json:"system_prompt_template"` // 系统提示词模板名称
@@ -1100,19 +1103,19 @@ func (s *Server) handleStartTrader(c *gin.Context) {
 			// 检查是否需要修复：如果ai_model_id是提示词模板名称
 			if isPromptTemplateName(t.AIModelID) {
 				log.Printf("🔧 检测到需要修复的交易员配置: traderID=%s, ai_model_id=%s (应为提示词模板)", traderID, t.AIModelID)
-				
+
 				// 修复：将ai_model_id映射到system_prompt_template，使用默认AI模型
 				fixedAIModelID := s.getDefaultAIModelForUser(traderOwnerID)
 				fixedSystemPromptTemplate := t.AIModelID
-				
+
 				// 如果system_prompt_template已经存在，使用它；否则使用ai_model_id的值
 				if t.SystemPromptTemplate != "" {
 					fixedSystemPromptTemplate = t.SystemPromptTemplate
 				}
-				
-				log.Printf("🔧 修复交易员配置: ai_model_id: %s -> %s, system_prompt_template: %s", 
+
+				log.Printf("🔧 修复交易员配置: ai_model_id: %s -> %s, system_prompt_template: %s",
 					t.AIModelID, fixedAIModelID, fixedSystemPromptTemplate)
-				
+
 				// 更新交易员配置
 				t.AIModelID = fixedAIModelID
 				t.SystemPromptTemplate = fixedSystemPromptTemplate
@@ -1131,7 +1134,7 @@ func (s *Server) handleStartTrader(c *gin.Context) {
 	if err != nil {
 		// 添加详细错误日志以帮助诊断问题
 		log.Printf("❌ [%s] GetTraderConfig失败: %v (traderID=%s, userID=%s)", userID, err, traderID, userID)
-		
+
 		// 尝试获取基本信息以提供更详细的错误信息
 		traders, _ := s.database.GetTraders(traderOwnerID)
 		traderExists := false
@@ -1140,13 +1143,13 @@ func (s *Server) handleStartTrader(c *gin.Context) {
 			if t.ID == traderID {
 				traderExists = true
 				log.Printf("⚠️ 交易员存在但配置不完整: traderID=%s, ai_model_id=%s, exchange_id=%s", traderID, t.AIModelID, t.ExchangeID)
-				
+
 				// 检查AI模型是否存在
 				_, err := s.database.GetAIModel(traderOwnerID, t.AIModelID)
 				if err != nil {
 					missingConfig = append(missingConfig, fmt.Sprintf("AI模型 '%s'", t.AIModelID))
 				}
-				
+
 				// 检查交易所是否存在
 				_, err = s.database.GetExchangeByID(traderOwnerID, t.ExchangeID)
 				if err != nil {
@@ -1155,7 +1158,7 @@ func (s *Server) handleStartTrader(c *gin.Context) {
 				break
 			}
 		}
-		
+
 		if !traderExists {
 			c.JSON(http.StatusNotFound, gin.H{"error": "交易员不存在或无访问权限"})
 		} else if len(missingConfig) > 0 {
@@ -1167,7 +1170,7 @@ func (s *Server) handleStartTrader(c *gin.Context) {
 		}
 		return
 	}
-	
+
 	// 记录成功获取配置的信息（用于调试）
 	log.Printf("✓ [%s] 成功获取交易员配置: traderID=%s, ai_model=%s, exchange=%s", userID, traderID, aiModelCfg.Name, exchangeCfg.Name)
 
@@ -1275,7 +1278,7 @@ func (s *Server) handleStopTrader(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取交易员列表失败"})
 		return
 	}
-	
+
 	traderExists := false
 	for _, t := range traders {
 		if t.ID == traderID {
@@ -1283,7 +1286,7 @@ func (s *Server) handleStopTrader(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if !traderExists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "交易员不存在或无访问权限"})
 		return
@@ -1662,7 +1665,7 @@ func (s *Server) handleUpdateExchangeConfigs(c *gin.Context) {
 
 	// 更新每个交易所的配置
 	for exchangeID, exchangeData := range req.Exchanges {
-		err := s.database.UpdateExchange(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.LighterWalletAddr, exchangeData.LighterPrivateKey)
+		err := s.database.UpdateExchange(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.LighterWalletAddr, exchangeData.LighterPrivateKey, exchangeData.LighterAPIKeyPrivateKey, exchangeData.OkxPassphrase)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("更新交易所 %s 失败: %v", exchangeID, err)})
 			return
@@ -1971,24 +1974,24 @@ func (s *Server) handleGetTraderConfig(c *gin.Context) {
 	}
 
 	result := map[string]interface{}{
-		"trader_id":             traderConfig.ID,
-		"trader_name":           traderConfig.Name,
-		"ai_model":              aiModelID,
-		"exchange_id":           traderConfig.ExchangeID,
-		"initial_balance":       traderConfig.InitialBalance,
-		"scan_interval_minutes": traderConfig.ScanIntervalMinutes,
-		"btc_eth_leverage":      traderConfig.BTCETHLeverage,
-		"altcoin_leverage":      traderConfig.AltcoinLeverage,
-		"trading_symbols":       traderConfig.TradingSymbols,
-		"custom_prompt":         traderConfig.CustomPrompt,
-		"override_base_prompt":  traderConfig.OverrideBasePrompt,
+		"trader_id":              traderConfig.ID,
+		"trader_name":            traderConfig.Name,
+		"ai_model":               aiModelID,
+		"exchange_id":            traderConfig.ExchangeID,
+		"initial_balance":        traderConfig.InitialBalance,
+		"scan_interval_minutes":  traderConfig.ScanIntervalMinutes,
+		"btc_eth_leverage":       traderConfig.BTCETHLeverage,
+		"altcoin_leverage":       traderConfig.AltcoinLeverage,
+		"trading_symbols":        traderConfig.TradingSymbols,
+		"custom_prompt":          traderConfig.CustomPrompt,
+		"override_base_prompt":   traderConfig.OverrideBasePrompt,
 		"system_prompt_template": systemPromptTemplate,
-		"is_cross_margin":       traderConfig.IsCrossMargin,
-		"use_coin_pool":         traderConfig.UseCoinPool,
-		"use_oi_top":            traderConfig.UseOITop,
-		"use_tradingview":       traderConfig.UseTradingView,
-		"followed_trader_id":    traderConfig.FollowedTraderID,
-		"is_running":            isRunning,
+		"is_cross_margin":        traderConfig.IsCrossMargin,
+		"use_coin_pool":          traderConfig.UseCoinPool,
+		"use_oi_top":             traderConfig.UseOITop,
+		"use_tradingview":        traderConfig.UseTradingView,
+		"followed_trader_id":     traderConfig.FollowedTraderID,
+		"is_running":             isRunning,
 	}
 
 	log.Printf("🔍 DEBUG [handleGetTraderConfig]: Returning trader config - trader_id: %s, system_prompt_template: '%s' (original: '%s')", traderConfig.ID, systemPromptTemplate, traderConfig.SystemPromptTemplate)
@@ -2070,6 +2073,85 @@ func (s *Server) handlePositions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, positions)
+}
+
+// handleClosePosition 手动平仓
+func (s *Server) handleClosePosition(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权"})
+		return
+	}
+
+	// 获取trader_id（从query参数或body）
+	traderID := c.Query("trader_id")
+	if traderID == "" {
+		var req struct {
+			TraderID string `json:"trader_id"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "缺少 trader_id 参数"})
+			return
+		}
+		traderID = req.TraderID
+	}
+
+	// 获取请求体
+	var closeReq struct {
+		Symbol   string  `json:"symbol" binding:"required"`
+		Side     string  `json:"side" binding:"required"` // "long" or "short"
+		Quantity float64 `json:"quantity"`                // 0 = close all
+	}
+
+	if err := c.ShouldBindJSON(&closeReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("请求参数错误: %v", err)})
+		return
+	}
+
+	// 验证side参数
+	if closeReq.Side != "long" && closeReq.Side != "short" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "side 必须是 'long' 或 'short'"})
+		return
+	}
+
+	// 获取交易员
+	trader, err := s.traderManager.GetTrader(traderID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "交易员不存在"})
+		return
+	}
+
+	// 验证交易员所有权（检查数据库）
+	traderCfg, _, _, err := s.database.GetTraderConfig(userID, traderID)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "无权操作此交易员"})
+		return
+	}
+
+	log.Printf("📊 [%s] 手动平仓请求: symbol=%s, side=%s, quantity=%.4f", traderCfg.Name, closeReq.Symbol, closeReq.Side, closeReq.Quantity)
+
+	// 执行平仓
+	var result map[string]interface{}
+	if closeReq.Side == "long" {
+		result, err = trader.CloseLong(closeReq.Symbol, closeReq.Quantity)
+	} else {
+		result, err = trader.CloseShort(closeReq.Symbol, closeReq.Quantity)
+	}
+
+	if err != nil {
+		log.Printf("❌ [%s] 平仓失败: %v", traderCfg.Name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("平仓失败: %v", err),
+		})
+		return
+	}
+
+	log.Printf("✓ [%s] 平仓成功: symbol=%s, side=%s", traderCfg.Name, closeReq.Symbol, closeReq.Side)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "平仓成功",
+		"result":  result,
+	})
 }
 
 // handleDecisions 决策日志列表
@@ -2294,10 +2376,10 @@ func (s *Server) handleGetReplicationStatus(c *gin.Context) {
 	}
 
 	result := gin.H{
-		"trader_id": traderID,
+		"trader_id":   traderID,
 		"trader_name": trader.GetName(),
-		"is_child": followedTraderID != "",
-		"is_parent": false,
+		"is_child":    followedTraderID != "",
+		"is_parent":   false,
 	}
 
 	// If this is a child trader, get parent info
@@ -2310,16 +2392,16 @@ func (s *Server) handleGetReplicationStatus(c *gin.Context) {
 				isRunning = running
 			}
 			result["parent"] = gin.H{
-				"trader_id": followedTraderID,
+				"trader_id":   followedTraderID,
 				"trader_name": parentTrader.GetName(),
-				"is_running": isRunning,
+				"is_running":  isRunning,
 			}
 		} else {
 			result["parent"] = gin.H{
-				"trader_id": followedTraderID,
+				"trader_id":   followedTraderID,
 				"trader_name": "Unknown",
-				"is_running": false,
-				"error": "Parent trader not found in memory",
+				"is_running":  false,
+				"error":       "Parent trader not found in memory",
 			}
 		}
 		result["followers"] = []gin.H{}
@@ -2337,18 +2419,18 @@ func (s *Server) handleGetReplicationStatus(c *gin.Context) {
 						isRunning = running
 					}
 					followersList = append(followersList, gin.H{
-						"trader_id": followerRecord.ID,
+						"trader_id":   followerRecord.ID,
 						"trader_name": followerRecord.Name,
-						"is_running": isRunning,
-						"user_id": followerRecord.UserID,
+						"is_running":  isRunning,
+						"user_id":     followerRecord.UserID,
 					})
 				} else {
 					followersList = append(followersList, gin.H{
-						"trader_id": followerRecord.ID,
+						"trader_id":   followerRecord.ID,
 						"trader_name": followerRecord.Name,
-						"is_running": false,
-						"user_id": followerRecord.UserID,
-						"error": "Follower trader not found in memory",
+						"is_running":  false,
+						"user_id":     followerRecord.UserID,
+						"error":       "Follower trader not found in memory",
 					})
 				}
 			}
@@ -2393,13 +2475,13 @@ func (s *Server) handleTestSignal(c *gin.Context) {
 
 	// Parse request body
 	var testSignal struct {
-		Symbol         string  `json:"symbol"`
-		Action         string  `json:"action"`
-		Leverage       int     `json:"leverage"`
+		Symbol          string  `json:"symbol"`
+		Action          string  `json:"action"`
+		Leverage        int     `json:"leverage"`
 		PositionSizeUSD float64 `json:"position_size_usd"`
-		StopLoss       float64 `json:"stop_loss"`
-		TakeProfit     float64 `json:"take_profit"`
-		Reasoning      string  `json:"reasoning"`
+		StopLoss        float64 `json:"stop_loss"`
+		TakeProfit      float64 `json:"take_profit"`
+		Reasoning       string  `json:"reasoning"`
 	}
 
 	if err := c.ShouldBindJSON(&testSignal); err != nil {
@@ -2415,14 +2497,14 @@ func (s *Server) handleTestSignal(c *gin.Context) {
 
 	// Create test decision
 	testDecision := &decision.Decision{
-		Symbol:         testSignal.Symbol,
-		Action:         testSignal.Action,
-		Leverage:       testSignal.Leverage,
+		Symbol:          testSignal.Symbol,
+		Action:          testSignal.Action,
+		Leverage:        testSignal.Leverage,
 		PositionSizeUSD: testSignal.PositionSizeUSD,
-		StopLoss:       testSignal.StopLoss,
-		TakeProfit:     testSignal.TakeProfit,
-		Reasoning:      testSignal.Reasoning,
-		Confidence:     85, // Default confidence for test signals
+		StopLoss:        testSignal.StopLoss,
+		TakeProfit:      testSignal.TakeProfit,
+		Reasoning:       testSignal.Reasoning,
+		Confidence:      85, // Default confidence for test signals
 	}
 
 	if testDecision.Reasoning == "" {
@@ -2433,8 +2515,8 @@ func (s *Server) handleTestSignal(c *gin.Context) {
 	s.traderManager.ReplicateTradeToFollowers(traderID, testDecision, s.database)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("Test signal sent to %d followers", len(followers)),
-		"signal": testDecision,
+		"message":         fmt.Sprintf("Test signal sent to %d followers", len(followers)),
+		"signal":          testDecision,
 		"followers_count": len(followers),
 	})
 }
@@ -2472,7 +2554,7 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 
 	// 构建响应数据
 	parentTradersList := make([]gin.H, 0, len(parentTraders))
-	
+
 	for _, parentTrader := range parentTraders {
 		// 获取该父交易员的所有跟随者
 		followers, err := s.database.GetFollowerTraders(parentTrader.ID)
@@ -2488,7 +2570,7 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 
 		// 构建跟随者列表
 		followersList := make([]gin.H, 0, len(followers))
-		
+
 		for _, followerRecord := range followers {
 			// 获取跟随者交易员实例
 			followerTrader, err := s.traderManager.GetTrader(followerRecord.ID)
@@ -2558,13 +2640,13 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 
 			// 构建跟随者信息
 			followerInfo := gin.H{
-				"trader_id":       followerRecord.ID,
-				"trader_name":     followerRecord.Name,
-				"user_id":         followerRecord.UserID,
-				"is_running":      isRunning,
-				"account":         accountInfo,
+				"trader_id":        followerRecord.ID,
+				"trader_name":      followerRecord.Name,
+				"user_id":          followerRecord.UserID,
+				"is_running":       isRunning,
+				"account":          accountInfo,
 				"latest_decisions": latestDecisions,
-				"positions":       positions,
+				"positions":        positions,
 			}
 
 			followersList = append(followersList, followerInfo)

@@ -7,6 +7,7 @@ import AILearning from '../components/AILearning'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { t, type Language } from '../i18n/translations'
+import { toast } from 'sonner'
 import {
   AlertTriangle,
   Bot,
@@ -53,6 +54,8 @@ export default function TraderDashboard() {
     searchParams.get('trader') || undefined
   )
   const [lastUpdate, setLastUpdate] = useState<string>('--:--:--')
+  const [closingPositions, setClosingPositions] = useState<Set<string>>(new Set())
+  const [activeChartTab, setActiveChartTab] = useState<'equity' | 'performance'>('equity')
 
   // 决策记录数量选择（从 localStorage 读取，默认 5）
   const [decisionLimit, setDecisionLimit] = useState<number>(() => {
@@ -112,7 +115,7 @@ export default function TraderDashboard() {
     }
   )
 
-  const { data: positions } = useSWR<Position[]>(
+  const { data: positions, mutate: mutatePositions } = useSWR<Position[]>(
     user && token && selectedTraderId ? `positions-${selectedTraderId}` : null,
     () => api.getPositions(selectedTraderId),
     {
@@ -155,6 +158,54 @@ export default function TraderDashboard() {
   }, [account])
 
   const selectedTrader = traders?.find((t) => t.trader_id === selectedTraderId)
+
+  // Handle close position
+  const handleClosePosition = async (symbol: string, side: 'long' | 'short') => {
+    if (!selectedTraderId) {
+      toast.error(t('selectTraderFirst', language) || 'Please select a trader first')
+      return
+    }
+
+    const positionKey = `${symbol}-${side}`
+    if (closingPositions.has(positionKey)) {
+      return // Already closing
+    }
+
+    // Confirmation dialog
+    const sideText = side === 'long' ? t('long', language) : t('short', language)
+    const confirmed = window.confirm(
+      t('confirmClosePosition', language, { symbol, side: sideText }) ||
+        `Are you sure you want to close ${side} position for ${symbol}?`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setClosingPositions((prev) => new Set(prev).add(positionKey))
+
+    try {
+      await api.closePosition(selectedTraderId, symbol, side, 0) // 0 = close all
+      toast.success(
+        t('positionClosed', language, { symbol, side: sideText }) ||
+          `Successfully closed ${side} position for ${symbol}`
+      )
+      // Refresh positions
+      setTimeout(() => {
+        mutatePositions()
+      }, 1000)
+    } catch (error: any) {
+      toast.error(
+        error.message || t('closePositionFailed', language) || 'Failed to close position'
+      )
+    } finally {
+      setClosingPositions((prev) => {
+        const next = new Set(prev)
+        next.delete(positionKey)
+        return next
+      })
+    }
+  }
 
   // If API failed with error, show empty state
   if (tradersError) {
@@ -419,9 +470,57 @@ export default function TraderDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* 左侧：图表 + 持仓 */}
         <div className="space-y-6">
-          {/* Equity Chart */}
-          <div className="animate-slide-in" style={{ animationDelay: '0.1s' }}>
-            <EquityChart traderId={selectedTrader.trader_id} />
+          {/* Chart Tabs */}
+          <div className="binance-card-enhanced animate-slide-in" style={{ animationDelay: '0.1s' }}>
+            {/* Tab Headers */}
+            <div className="flex border-b border-[#2B3139]">
+              <button
+                onClick={() => setActiveChartTab('equity')}
+                className={`px-6 py-3 text-sm font-semibold transition-all duration-200 relative ${
+                  activeChartTab === 'equity' ? '' : 'opacity-60 hover:opacity-100'
+                }`}
+                style={{
+                  color: activeChartTab === 'equity' ? '#F0B90B' : '#848E9C',
+                  borderBottom: activeChartTab === 'equity' ? '2px solid #F0B90B' : '2px solid transparent',
+                }}
+              >
+                {t('equityChart', language) || 'Equity Chart'}
+              </button>
+              <button
+                onClick={() => setActiveChartTab('performance')}
+                className={`px-6 py-3 text-sm font-semibold transition-all duration-200 relative ${
+                  activeChartTab === 'performance' ? '' : 'opacity-60 hover:opacity-100'
+                }`}
+                style={{
+                  color: activeChartTab === 'performance' ? '#F0B90B' : '#848E9C',
+                  borderBottom: activeChartTab === 'performance' ? '2px solid #F0B90B' : '2px solid transparent',
+                }}
+              >
+                {t('performanceChart', language) || 'Performance'}
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="p-0">
+              {activeChartTab === 'equity' && (
+                <div className="animate-fade-in">
+                  <EquityChart traderId={selectedTrader.trader_id} />
+                </div>
+              )}
+              {activeChartTab === 'performance' && (
+                <div className="p-6 animate-fade-in">
+                  <div className="text-center py-16" style={{ color: '#848E9C' }}>
+                    <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <div className="text-lg font-semibold mb-2">
+                      {t('performanceChart', language) || 'Performance Chart'}
+                    </div>
+                    <div className="text-sm">
+                      {t('comingSoon', language) || 'Coming soon...'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Current Positions */}
@@ -481,6 +580,9 @@ export default function TraderDashboard() {
                       </th>
                       <th className="pb-3 font-semibold text-gray-400">
                         {t('liqPrice', language)}
+                      </th>
+                      <th className="pb-3 font-semibold text-gray-400 text-right">
+                        {t('action', language) || 'Action'}
                       </th>
                     </tr>
                   </thead>
@@ -562,6 +664,50 @@ export default function TraderDashboard() {
                           style={{ color: '#848E9C' }}
                         >
                           {pos.liquidation_price.toFixed(4)}
+                        </td>
+                        <td className="py-3 text-right">
+                          <button
+                            onClick={() => handleClosePosition(pos.symbol, pos.side as 'long' | 'short')}
+                            disabled={closingPositions.has(`${pos.symbol}-${pos.side}`)}
+                            className="px-3 py-1.5 rounded text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                              background: closingPositions.has(`${pos.symbol}-${pos.side}`)
+                                ? 'rgba(132, 142, 156, 0.2)'
+                                : 'rgba(246, 70, 93, 0.15)',
+                              color: closingPositions.has(`${pos.symbol}-${pos.side}`)
+                                ? '#848E9C'
+                                : '#F6465D',
+                              border: `1px solid ${
+                                closingPositions.has(`${pos.symbol}-${pos.side}`)
+                                  ? 'rgba(132, 142, 156, 0.3)'
+                                  : 'rgba(246, 70, 93, 0.3)'
+                              }`,
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!closingPositions.has(`${pos.symbol}-${pos.side}`)) {
+                                e.currentTarget.style.background = 'rgba(246, 70, 93, 0.25)'
+                                e.currentTarget.style.borderColor = 'rgba(246, 70, 93, 0.5)'
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!closingPositions.has(`${pos.symbol}-${pos.side}`)) {
+                                e.currentTarget.style.background = 'rgba(246, 70, 93, 0.15)'
+                                e.currentTarget.style.borderColor = 'rgba(246, 70, 93, 0.3)'
+                              }
+                            }}
+                          >
+                            {closingPositions.has(`${pos.symbol}-${pos.side}`) ? (
+                              <>
+                                <RefreshCw className="w-3 h-3 inline-block animate-spin mr-1" />
+                                {t('closing', language) || 'Closing...'}
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="w-3 h-3 inline-block mr-1" />
+                                {t('close', language) || 'Close'}
+                              </>
+                            )}
+                          </button>
                         </td>
                       </tr>
                     ))}

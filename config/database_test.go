@@ -33,6 +33,8 @@ func TestUpdateExchange_EmptyValuesShouldNotOverwrite(t *testing.T) {
 		"",
 		"", // lighter_wallet_addr
 		"", // lighter_private_key
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("初始化失败: %v", err)
@@ -67,6 +69,8 @@ func TestUpdateExchange_EmptyValuesShouldNotOverwrite(t *testing.T) {
 		"", // 空 aster_private_key - 不应该覆盖
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("更新失败: %v", err)
@@ -118,6 +122,8 @@ func TestUpdateExchange_AsterEmptyValuesShouldNotOverwrite(t *testing.T) {
 		initialAsterKey,
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("初始化 Aster 失败: %v", err)
@@ -137,6 +143,8 @@ func TestUpdateExchange_AsterEmptyValuesShouldNotOverwrite(t *testing.T) {
 		"", // 空 aster_private_key
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("更新失败: %v", err)
@@ -174,6 +182,8 @@ func TestUpdateExchange_NonEmptyValuesShouldUpdate(t *testing.T) {
 		"",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("初始化失败: %v", err)
@@ -196,6 +206,8 @@ func TestUpdateExchange_NonEmptyValuesShouldUpdate(t *testing.T) {
 		"",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("更新失败: %v", err)
@@ -239,6 +251,8 @@ func TestUpdateExchange_PartialUpdateShouldWork(t *testing.T) {
 		"",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("初始化失败: %v", err)
@@ -258,6 +272,8 @@ func TestUpdateExchange_PartialUpdateShouldWork(t *testing.T) {
 		"",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("部分更新失败: %v", err)
@@ -322,6 +338,8 @@ func TestUpdateExchange_MultipleExchangeTypes(t *testing.T) {
 				"",
 				"",
 				"",
+				"", // lighter_api_key_private_key
+				"", // okx_passphrase
 			)
 			if err != nil {
 				t.Fatalf("创建 %s 失败: %v", tc.exchangeID, err)
@@ -378,6 +396,8 @@ func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 		"",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("初始化失败: %v", err)
@@ -397,6 +417,8 @@ func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 		"",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("更新1失败: %v", err)
@@ -424,6 +446,8 @@ func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 		"",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("更新2失败: %v", err)
@@ -465,6 +489,8 @@ func TestUpdateExchange_OnlyNonSensitiveFields(t *testing.T) {
 		"aster-private-key-1",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("初始化失败: %v", err)
@@ -484,6 +510,8 @@ func TestUpdateExchange_OnlyNonSensitiveFields(t *testing.T) {
 		"",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("更新失败: %v", err)
@@ -537,6 +565,8 @@ func TestUpdateExchange_AllSensitiveFieldsUpdate(t *testing.T) {
 		"old-aster-key",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("初始化失败: %v", err)
@@ -556,6 +586,8 @@ func TestUpdateExchange_AllSensitiveFieldsUpdate(t *testing.T) {
 		"new-aster-key",
 		"",
 		"",
+		"", // lighter_api_key_private_key
+		"", // okx_passphrase
 	)
 	if err != nil {
 		t.Fatalf("更新失败: %v", err)
@@ -717,6 +749,8 @@ func TestDataPersistenceAcrossReopen(t *testing.T) {
 			"",
 			"",
 			"",
+			"", // lighter_api_key_private_key
+			"", // okx_passphrase
 		)
 		if err != nil {
 			t.Fatalf("写入数据失败: %v", err)
@@ -794,6 +828,8 @@ func TestConcurrentWritesWithWAL(t *testing.T) {
 				"",
 				"",
 				"",
+				"", // lighter_api_key_private_key
+				"", // okx_passphrase
 			)
 			if err != nil {
 				errors <- err
@@ -820,6 +856,8 @@ func TestConcurrentWritesWithWAL(t *testing.T) {
 				"",
 				"",
 				"",
+				"", // lighter_api_key_private_key
+				"", // okx_passphrase
 			)
 			if err != nil {
 				errors <- err

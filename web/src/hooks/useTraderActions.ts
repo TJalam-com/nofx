@@ -509,7 +509,8 @@ export function useTraderActions({
     asterPrivateKey?: string,
     lighterWalletAddr?: string,
     lighterPrivateKey?: string,
-    lighterApiKeyPrivateKey?: string
+    lighterApiKeyPrivateKey?: string,
+    okxPassphrase?: string
   ) => {
     try {
       // 找到要配置的交易所(从supportedExchanges中)
@@ -542,6 +543,7 @@ export function useTraderActions({
                   lighterWalletAddr,
                   lighterPrivateKey,
                   lighterApiKeyPrivateKey,
+                  okxPassphrase,
                   enabled: true,
                 }
               : e
@@ -560,6 +562,7 @@ export function useTraderActions({
           lighterWalletAddr,
           lighterPrivateKey,
           lighterApiKeyPrivateKey,
+          okxPassphrase,
           enabled: true,
         }
         updatedExchanges = [...(allExchanges || []), newExchange]
@@ -581,6 +584,7 @@ export function useTraderActions({
               lighter_wallet_addr: exchange.lighterWalletAddr || '',
               lighter_private_key: exchange.lighterPrivateKey || '',
               lighter_api_key_private_key: exchange.lighterApiKeyPrivateKey || '',
+              okx_passphrase: exchange.okxPassphrase || '',
             },
           ])
         ),

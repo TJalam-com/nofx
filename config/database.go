@@ -30,7 +30,7 @@ type DatabaseInterface interface {
 	GetAIModels(userID string) ([]*AIModelConfig, error)
 	UpdateAIModel(userID, id string, enabled bool, apiKey, customAPIURL, customModelName string) error
 	GetExchanges(userID string) ([]*ExchangeConfig, error)
-	UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, lighterWalletAddr, lighterPrivateKey string) error
+	UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, lighterWalletAddr, lighterPrivateKey, lighterAPIKeyPrivateKey, okxPassphrase string) error
 	CreateAIModel(userID, id, name, provider string, enabled bool, apiKey, customAPIURL string) error
 	CreateExchange(userID, id, name, typ string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey string) error
 	CreateTrader(trader *TraderRecord) error
@@ -184,6 +184,8 @@ func (d *Database) createTables() error {
 			lighter_wallet_addr TEXT DEFAULT '',
 			lighter_private_key TEXT DEFAULT '',
 			lighter_api_key_private_key TEXT DEFAULT '',
+			-- OKX 特定字段
+			okx_passphrase TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -457,6 +459,7 @@ func (d *Database) createTables() error {
 		{"exchanges", "lighter_wallet_addr", `ALTER TABLE exchanges ADD COLUMN lighter_wallet_addr TEXT DEFAULT ''`},
 		{"exchanges", "lighter_private_key", `ALTER TABLE exchanges ADD COLUMN lighter_private_key TEXT DEFAULT ''`},
 		{"exchanges", "lighter_api_key_private_key", `ALTER TABLE exchanges ADD COLUMN lighter_api_key_private_key TEXT DEFAULT ''`},
+		{"exchanges", "okx_passphrase", `ALTER TABLE exchanges ADD COLUMN okx_passphrase TEXT DEFAULT ''`},
 		{"traders", "custom_prompt", `ALTER TABLE traders ADD COLUMN custom_prompt TEXT DEFAULT ''`},
 		{"traders", "override_base_prompt", `ALTER TABLE traders ADD COLUMN override_base_prompt BOOLEAN DEFAULT 0`},
 		{"traders", "is_cross_margin", `ALTER TABLE traders ADD COLUMN is_cross_margin BOOLEAN DEFAULT 1`},
@@ -605,6 +608,7 @@ func (d *Database) initDefaultData() error {
 		{"hyperliquid", "Hyperliquid", "hyperliquid"},
 		{"aster", "Aster DEX", "aster"},
 		{"lighter", "LIGHTER DEX", "lighter"},
+		{"okx", "OKX Futures", "okx"},
 	}
 
 	for _, exchange := range exchanges {
@@ -924,8 +928,10 @@ type ExchangeConfig struct {
 	LighterWalletAddr       string `json:"lighterWalletAddr"`       // Ethereum 钱包地址 (L1)
 	LighterPrivateKey       string `json:"lighterPrivateKey"`       // L1私钥（用于识别账户）
 	LighterAPIKeyPrivateKey string `json:"lighterAPIKeyPrivateKey"` // API Key私钥（40字节，用于签名交易）
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	// OKX 特定字段
+	OkxPassphrase string    `json:"okxPassphrase"` // OKX passphrase (required for OKX)
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // TraderRecord 交易员配置（数据库实体）
@@ -1468,11 +1474,12 @@ func (d *Database) UpdateAIModel(userID, id string, enabled bool, apiKey, custom
 	`, provider).Scan(&name)
 	if err != nil {
 		// 如果找不到基本信息，使用默认值
-		if provider == "deepseek" {
+		switch provider {
+		case "deepseek":
 			name = "DeepSeek AI"
-		} else if provider == "qwen" {
+		case "qwen":
 			name = "Qwen AI"
-		} else {
+		default:
 			name = provider + " AI"
 		}
 	}
@@ -1506,6 +1513,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 		       COALESCE(lighter_wallet_addr, '') as lighter_wallet_addr,
 		       COALESCE(lighter_private_key, '') as lighter_private_key,
 		       COALESCE(lighter_api_key_private_key, '') as lighter_api_key_private_key,
+		       COALESCE(okx_passphrase, '') as okx_passphrase,
 		       created_at, updated_at
 		FROM exchanges WHERE user_id = ? ORDER BY id
 	`, userID)
@@ -1525,7 +1533,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 			&exchange.HyperliquidWalletAddr, &exchange.AsterUser,
 			&exchange.AsterSigner, &exchange.AsterPrivateKey,
 			&exchange.LighterWalletAddr, &exchange.LighterPrivateKey,
-			&exchange.LighterAPIKeyPrivateKey,
+			&exchange.LighterAPIKeyPrivateKey, &exchange.OkxPassphrase,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
@@ -1542,6 +1550,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 		exchange.AsterPrivateKey = d.decryptSensitiveData(exchange.AsterPrivateKey)
 		exchange.LighterPrivateKey = d.decryptSensitiveData(exchange.LighterPrivateKey)
 		exchange.LighterAPIKeyPrivateKey = d.decryptSensitiveData(exchange.LighterAPIKeyPrivateKey)
+		exchange.OkxPassphrase = d.decryptSensitiveData(exchange.OkxPassphrase)
 
 		exchanges = append(exchanges, &exchange)
 	}
@@ -1550,8 +1559,8 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 }
 
 // UpdateExchange 更新交易所配置，如果不存在则创建用户特定配置
-// 🔒 安全特性：空值不会覆盖现有的敏感字段（api_key, secret_key, aster_private_key, lighter_private_key）
-func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, lighterWalletAddr, lighterPrivateKey string) error {
+// 🔒 安全特性：空值不会覆盖现有的敏感字段（api_key, secret_key, aster_private_key, lighter_private_key, lighter_api_key_private_key, okx_passphrase）
+func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, lighterWalletAddr, lighterPrivateKey, lighterAPIKeyPrivateKey, okxPassphrase string) error {
 	log.Printf("🔧 UpdateExchange: userID=%s, id=%s, enabled=%v", userID, id, enabled)
 
 	// 构建动态 UPDATE SET 子句
@@ -1592,6 +1601,18 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		args = append(args, encryptedLighterPrivateKey)
 	}
 
+	if lighterAPIKeyPrivateKey != "" {
+		encryptedLighterAPIKeyPrivateKey := d.encryptSensitiveData(lighterAPIKeyPrivateKey)
+		setClauses = append(setClauses, "lighter_api_key_private_key = ?")
+		args = append(args, encryptedLighterAPIKeyPrivateKey)
+	}
+
+	if okxPassphrase != "" {
+		encryptedOkxPassphrase := d.encryptSensitiveData(okxPassphrase)
+		setClauses = append(setClauses, "okx_passphrase = ?")
+		args = append(args, encryptedOkxPassphrase)
+	}
+
 	// WHERE 条件
 	args = append(args, id, userID)
 
@@ -1623,22 +1644,26 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 
 		// 根据交易所ID确定基本信息
 		var name, typ string
-		if id == "binance" {
+		switch id {
+		case "binance":
 			name = "Binance Futures"
 			typ = "cex"
-		} else if id == "bybit" {
+		case "bybit":
 			name = "Bybit Futures"
 			typ = "cex"
-		} else if id == "hyperliquid" {
+		case "hyperliquid":
 			name = "Hyperliquid"
 			typ = "dex"
-		} else if id == "aster" {
+		case "aster":
 			name = "Aster DEX"
 			typ = "dex"
-		} else if id == "lighter" {
+		case "lighter":
 			name = "LIGHTER DEX"
 			typ = "dex"
-		} else {
+		case "okx":
+			name = "OKX Futures"
+			typ = "cex"
+		default:
 			name = id + " Exchange"
 			typ = "cex"
 		}
@@ -1650,14 +1675,16 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		encryptedSecretKey := d.encryptSensitiveData(secretKey)
 		encryptedAsterPrivateKey := d.encryptSensitiveData(asterPrivateKey)
 		encryptedLighterPrivateKey := d.encryptSensitiveData(lighterPrivateKey)
+		encryptedLighterAPIKeyPrivateKey := d.encryptSensitiveData(lighterAPIKeyPrivateKey)
+		encryptedOkxPassphrase := d.encryptSensitiveData(okxPassphrase)
 
 		// 创建用户特定的配置，使用原始的交易所ID
 		_, err = d.db.Exec(`
 			INSERT INTO exchanges (id, user_id, name, type, enabled, api_key, secret_key, testnet,
 			                       hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
-			                       lighter_wallet_addr, lighter_private_key, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-		`, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey)
+			                       lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, okx_passphrase, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+		`, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey, encryptedLighterAPIKeyPrivateKey, encryptedOkxPassphrase)
 
 		if err != nil {
 			log.Printf("❌ UpdateExchange: 创建记录失败: %v", err)
@@ -1711,6 +1738,7 @@ func (d *Database) GetExchangeByID(userID, exchangeID string) (*ExchangeConfig, 
 		       COALESCE(lighter_wallet_addr, '') as lighter_wallet_addr,
 		       COALESCE(lighter_private_key, '') as lighter_private_key,
 		       COALESCE(lighter_api_key_private_key, '') as lighter_api_key_private_key,
+		       COALESCE(okx_passphrase, '') as okx_passphrase,
 		       created_at, updated_at
 		FROM exchanges
 		WHERE user_id = ? AND id = ?
@@ -1721,7 +1749,7 @@ func (d *Database) GetExchangeByID(userID, exchangeID string) (*ExchangeConfig, 
 		&exchange.HyperliquidWalletAddr, &exchange.AsterUser,
 		&exchange.AsterSigner, &exchange.AsterPrivateKey,
 		&exchange.LighterWalletAddr, &exchange.LighterPrivateKey,
-		&exchange.LighterAPIKeyPrivateKey,
+		&exchange.LighterAPIKeyPrivateKey, &exchange.OkxPassphrase,
 		&createdAt, &updatedAt,
 	)
 	if err != nil {
@@ -1738,6 +1766,7 @@ func (d *Database) GetExchangeByID(userID, exchangeID string) (*ExchangeConfig, 
 	exchange.AsterPrivateKey = d.decryptSensitiveData(exchange.AsterPrivateKey)
 	exchange.LighterPrivateKey = d.decryptSensitiveData(exchange.LighterPrivateKey)
 	exchange.LighterAPIKeyPrivateKey = d.decryptSensitiveData(exchange.LighterAPIKeyPrivateKey)
+	exchange.OkxPassphrase = d.decryptSensitiveData(exchange.OkxPassphrase)
 
 	return &exchange, nil
 }
@@ -2167,6 +2196,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 			COALESCE(e.lighter_wallet_addr, '') as lighter_wallet_addr,
 			COALESCE(e.lighter_private_key, '') as lighter_private_key,
 			COALESCE(e.lighter_api_key_private_key, '') as lighter_api_key_private_key,
+			COALESCE(e.okx_passphrase, '') as okx_passphrase,
 			e.created_at, e.updated_at
 		FROM traders t
 		JOIN ai_models a ON t.ai_model_id = a.id AND t.user_id = a.user_id
@@ -2188,6 +2218,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 		&exchange.APIKey, &exchange.SecretKey, &exchange.Testnet,
 		&exchange.HyperliquidWalletAddr, &exchange.AsterUser, &exchange.AsterSigner, &exchange.AsterPrivateKey,
 		&exchange.LighterWalletAddr, &exchange.LighterPrivateKey, &exchange.LighterAPIKeyPrivateKey,
+		&exchange.OkxPassphrase,
 		&exchangeCreatedAt, &exchangeUpdatedAt,
 	)
 
@@ -2210,6 +2241,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 	exchange.AsterPrivateKey = d.decryptSensitiveData(exchange.AsterPrivateKey)
 	exchange.LighterPrivateKey = d.decryptSensitiveData(exchange.LighterPrivateKey)
 	exchange.LighterAPIKeyPrivateKey = d.decryptSensitiveData(exchange.LighterAPIKeyPrivateKey)
+	exchange.OkxPassphrase = d.decryptSensitiveData(exchange.OkxPassphrase)
 
 	return &trader, &aiModel, &exchange, nil
 }

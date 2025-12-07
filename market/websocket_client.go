@@ -13,6 +13,7 @@ import (
 type WSClient struct {
 	conn        *websocket.Conn
 	mu          sync.RWMutex
+	writeMu     sync.Mutex // 防止并发写入
 	subscribers map[string]chan []byte
 	reconnect   bool
 	done        chan struct{}
@@ -121,13 +122,17 @@ func (w *WSClient) subscribe(stream string) error {
 	}
 
 	w.mu.RLock()
-	defer w.mu.RUnlock()
+	conn := w.conn
+	w.mu.RUnlock()
 
-	if w.conn == nil {
+	if conn == nil {
 		return fmt.Errorf("WebSocket未连接")
 	}
 
-	err := w.conn.WriteJSON(subscribeMsg)
+	w.writeMu.Lock()
+	defer w.writeMu.Unlock()
+
+	err := conn.WriteJSON(subscribeMsg)
 	if err != nil {
 		return err
 	}

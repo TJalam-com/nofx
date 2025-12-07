@@ -71,6 +71,16 @@ export const translations = {
     short: 'SHORT',
     noPositions: 'No Positions',
     noActivePositions: 'No active trading positions',
+    action: 'Action',
+    close: 'Close',
+    closing: 'Closing...',
+    confirmClosePosition: 'Are you sure you want to close {side} position for {symbol}?',
+    positionClosed: 'Successfully closed {side} position for {symbol}',
+    closePositionFailed: 'Failed to close position',
+    selectTraderFirst: 'Please select a trader first',
+    equityChart: 'Equity Chart',
+    performanceChart: 'Performance',
+    comingSoon: 'Coming soon...',
 
     // Recent Decisions
     recentDecisions: 'Recent Decisions',
@@ -1290,6 +1300,16 @@ export const translations = {
     short: '空头',
     noPositions: '无持仓',
     noActivePositions: '当前没有活跃的交易持仓',
+    action: '操作',
+    close: '平仓',
+    closing: '平仓中...',
+    confirmClosePosition: '确定要平掉 {symbol} 的 {side} 仓位吗？',
+    positionClosed: '成功平掉 {symbol} 的 {side} 仓位',
+    closePositionFailed: '平仓失败',
+    selectTraderFirst: '请先选择交易员',
+    equityChart: '净值曲线',
+    performanceChart: '性能',
+    comingSoon: '即将推出...',
 
     // Recent Decisions
     recentDecisions: '最近决策',

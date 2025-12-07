@@ -253,6 +253,10 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 	} else if exchangeCfg.ID == "bybit" {
 		traderConfig.BybitAPIKey = exchangeCfg.APIKey
 		traderConfig.BybitSecretKey = exchangeCfg.SecretKey
+	} else if exchangeCfg.ID == "okx" {
+		traderConfig.OkxAPIKey = exchangeCfg.APIKey
+		traderConfig.OkxSecretKey = exchangeCfg.SecretKey
+		traderConfig.OkxPassphrase = exchangeCfg.OkxPassphrase
 	} else if exchangeCfg.ID == "hyperliquid" {
 		traderConfig.HyperliquidPrivateKey = exchangeCfg.APIKey // hyperliquid用APIKey存储private key
 		traderConfig.HyperliquidWalletAddr = exchangeCfg.HyperliquidWalletAddr
@@ -263,6 +267,7 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 	} else if exchangeCfg.ID == "lighter" {
 		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
 		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
+		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
 		traderConfig.LighterTestnet = exchangeCfg.Testnet
 	}
 
@@ -373,6 +378,10 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 	} else if exchangeCfg.ID == "bybit" {
 		traderConfig.BybitAPIKey = exchangeCfg.APIKey
 		traderConfig.BybitSecretKey = exchangeCfg.SecretKey
+	} else if exchangeCfg.ID == "okx" {
+		traderConfig.OkxAPIKey = exchangeCfg.APIKey
+		traderConfig.OkxSecretKey = exchangeCfg.SecretKey
+		traderConfig.OkxPassphrase = exchangeCfg.OkxPassphrase
 	} else if exchangeCfg.ID == "hyperliquid" {
 		traderConfig.HyperliquidPrivateKey = exchangeCfg.APIKey // hyperliquid用APIKey存储private key
 		traderConfig.HyperliquidWalletAddr = exchangeCfg.HyperliquidWalletAddr
@@ -383,6 +392,7 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 	} else if exchangeCfg.ID == "lighter" {
 		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
 		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
+		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
 		traderConfig.LighterTestnet = exchangeCfg.Testnet
 	}
 
@@ -470,6 +480,70 @@ func (tm *TraderManager) StartAll() {
 			}
 		}(id, t)
 	}
+}
+
+// StartRunningTraders 启动数据库中标记为运行状态的交易员
+func (tm *TraderManager) StartRunningTraders(database *config.Database) {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	log.Println("🚀 检查并启动数据库中标记为运行状态的交易员...")
+
+	// 获取所有用户
+	userIDs, err := database.GetAllUsers()
+	if err != nil {
+		log.Printf("⚠️ 获取用户列表失败: %v", err)
+		return
+	}
+
+	var startedCount int
+	var skippedCount int
+
+	// 遍历所有用户，查找标记为运行状态的交易员
+	for _, userID := range userIDs {
+		traders, err := database.GetTraders(userID)
+		if err != nil {
+			log.Printf("⚠️ 获取用户 %s 的交易员失败: %v", userID, err)
+			continue
+		}
+
+		for _, traderCfg := range traders {
+			// 只启动标记为运行状态的交易员
+			if !traderCfg.IsRunning {
+				skippedCount++
+				continue
+			}
+
+			// 检查交易员是否已在内存中
+			at, err := tm.GetTrader(traderCfg.ID)
+			if err != nil {
+				log.Printf("⚠️ 交易员 %s (%s) 不在内存中，跳过启动", traderCfg.Name, traderCfg.ID)
+				skippedCount++
+				continue
+			}
+
+			// 检查交易员是否已经在运行
+			status := at.GetStatus()
+			if isRunning, ok := status["is_running"].(bool); ok && isRunning {
+				log.Printf("ℹ️ 交易员 %s (%s) 已在运行中，跳过", traderCfg.Name, traderCfg.ID)
+				skippedCount++
+				continue
+			}
+
+			// 启动交易员
+			startedCount++
+			go func(traderID string, traderName string, at *trader.AutoTrader) {
+				log.Printf("▶️  启动交易员 %s (%s)...", traderName, traderID)
+				if err := at.Run(); err != nil {
+					log.Printf("❌ 交易员 %s (%s) 运行错误: %v", traderName, traderID, err)
+					// 更新数据库状态为停止（启动失败）
+					_ = database.UpdateTraderStatus(traderCfg.UserID, traderID, false)
+				}
+			}(traderCfg.ID, traderCfg.Name, at)
+		}
+	}
+
+	log.Printf("✅ 启动完成: 已启动 %d 个交易员，跳过 %d 个", startedCount, skippedCount)
 }
 
 // StopAll 停止所有trader
@@ -1246,6 +1320,10 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 	} else if exchangeCfg.ID == "bybit" {
 		traderConfig.BybitAPIKey = exchangeCfg.APIKey
 		traderConfig.BybitSecretKey = exchangeCfg.SecretKey
+	} else if exchangeCfg.ID == "okx" {
+		traderConfig.OkxAPIKey = exchangeCfg.APIKey
+		traderConfig.OkxSecretKey = exchangeCfg.SecretKey
+		traderConfig.OkxPassphrase = exchangeCfg.OkxPassphrase
 	} else if exchangeCfg.ID == "hyperliquid" {
 		traderConfig.HyperliquidPrivateKey = exchangeCfg.APIKey // hyperliquid用APIKey存储private key
 		traderConfig.HyperliquidWalletAddr = exchangeCfg.HyperliquidWalletAddr
@@ -1256,6 +1334,7 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 	} else if exchangeCfg.ID == "lighter" {
 		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
 		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
+		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
 		traderConfig.LighterTestnet = exchangeCfg.Testnet
 	}
 
