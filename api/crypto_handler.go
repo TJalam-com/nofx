@@ -58,15 +58,3 @@ func (h *CryptoHandler) HandleDecryptSensitiveData(c *gin.Context) {
 // ==================== 審計日誌查詢端點 ====================
 
 // 删除审计日志相关功能，在当前简化的实现中不需要
-
-// ==================== 工具函數 ====================
-
-// isValidPrivateKey 驗證私鑰格式
-func isValidPrivateKey(key string) bool {
-	// EVM 私鑰: 64 位十六進制 (可選 0x 前綴)
-	if len(key) == 64 || (len(key) == 66 && key[:2] == "0x") {
-		return true
-	}
-	// TODO: 添加其他鏈的驗證
-	return false
-}

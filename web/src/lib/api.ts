@@ -19,6 +19,14 @@ import type {
   BacktestTradeEvent,
   BacktestMetrics,
   BacktestRunMetadata,
+  PromptTemplate,
+  CreatePromptTemplateRequest,
+  UpdatePromptTemplateRequest,
+  RunningTrader,
+  ReplicationStatus,
+  TestSignalRequest,
+  TestSignalResponse,
+  UserFollowersResponse,
 } from '../types'
 import { CryptoService } from './crypto'
 import { httpClient } from './httpClient'
@@ -74,6 +82,15 @@ export const api = {
     return result.data!
   },
 
+  // 获取所有运行中的交易员（用于follower选择信号源）
+  async getRunningTraders(): Promise<RunningTrader[]> {
+    const result = await httpClient.get<RunningTrader[]>(
+      `${API_BASE}/running-traders`
+    )
+    if (!result.success) throw new Error('获取运行中的交易员列表失败')
+    return result.data!
+  },
+
   async createTrader(request: CreateTraderRequest): Promise<TraderInfo> {
     const result = await httpClient.post<TraderInfo>(
       `${API_BASE}/traders`,
@@ -92,12 +109,16 @@ export const api = {
     const result = await httpClient.post(
       `${API_BASE}/traders/${traderId}/start`
     )
-    if (!result.success) throw new Error('启动交易员失败')
+    if (!result.success) {
+      throw new Error(result.message || '启动交易员失败')
+    }
   },
 
   async stopTrader(traderId: string): Promise<void> {
     const result = await httpClient.post(`${API_BASE}/traders/${traderId}/stop`)
-    if (!result.success) throw new Error('停止交易员失败')
+    if (!result.success) {
+      throw new Error(result.message || '停止交易员失败')
+    }
   },
 
   async updateTraderPrompt(
@@ -155,6 +176,51 @@ export const api = {
       return data.templates.map((item: { name: string }) => item.name)
     }
     return []
+  },
+
+  // 提示词模板管理接口（需要认证）
+  async getUserPromptTemplates(): Promise<PromptTemplate[]> {
+    const result = await httpClient.get<{ templates: PromptTemplate[] }>(
+      `${API_BASE}/user/prompt-templates`
+    )
+    if (!result.success) throw new Error('获取提示词模板列表失败')
+    return result.data!.templates
+  },
+
+  async getPromptTemplate(id: string): Promise<PromptTemplate> {
+    const result = await httpClient.get<PromptTemplate>(
+      `${API_BASE}/user/prompt-templates/${id}`
+    )
+    if (!result.success) throw new Error('获取提示词模板失败')
+    return result.data!
+  },
+
+  async createPromptTemplate(
+    request: CreatePromptTemplateRequest
+  ): Promise<PromptTemplate> {
+    const result = await httpClient.post<PromptTemplate>(
+      `${API_BASE}/user/prompt-templates`,
+      request
+    )
+    if (!result.success) throw new Error('创建提示词模板失败')
+    return result.data!
+  },
+
+  async updatePromptTemplate(
+    id: string,
+    request: UpdatePromptTemplateRequest
+  ): Promise<PromptTemplate> {
+    const result = await httpClient.put<PromptTemplate>(
+      `${API_BASE}/user/prompt-templates/${id}`,
+      request
+    )
+    if (!result.success) throw new Error('更新提示词模板失败')
+    return result.data!
+  },
+
+  async deletePromptTemplate(id: string): Promise<void> {
+    const result = await httpClient.delete(`${API_BASE}/user/prompt-templates/${id}`)
+    if (!result.success) throw new Error('删除提示词模板失败')
   },
 
   async updateModelConfigs(request: UpdateModelConfigRequest): Promise<void> {
@@ -301,6 +367,37 @@ export const api = {
     return result.data!
   },
 
+  // 获取复制交易状态
+  async getReplicationStatus(traderId: string): Promise<ReplicationStatus> {
+    const result = await httpClient.get<ReplicationStatus>(
+      `${API_BASE}/traders/${traderId}/replication-status`
+    )
+    if (!result.success) throw new Error('获取复制交易状态失败')
+    return result.data!
+  },
+
+  // 获取用户所有交易员的跟随者列表及其活动
+  async getUserFollowers(): Promise<UserFollowersResponse> {
+    const result = await httpClient.get<UserFollowersResponse>(
+      `${API_BASE}/user/followers`
+    )
+    if (!result.success) throw new Error('获取跟随者列表失败')
+    return result.data!
+  },
+
+  // 发送测试信号
+  async sendTestSignal(
+    traderId: string,
+    signal: TestSignalRequest
+  ): Promise<TestSignalResponse> {
+    const result = await httpClient.post<TestSignalResponse>(
+      `${API_BASE}/traders/${traderId}/test-signal`,
+      signal
+    )
+    if (!result.success) throw new Error('发送测试信号失败')
+    return result.data!
+  },
+
   // 获取收益率历史数据（支持trader_id）
   async getEquityHistory(traderId?: string): Promise<any[]> {
     const url = traderId
@@ -331,7 +428,7 @@ export const api = {
   // 获取公开交易员配置（无需认证）
   async getPublicTraderConfig(traderId: string): Promise<any> {
     const result = await httpClient.get<any>(
-      `${API_BASE}/trader/${traderId}/config`
+      `${API_BASE}/traders/${traderId}/public-config`
     )
     if (!result.success) throw new Error('获取公开交易员配置失败')
     return result.data!
@@ -378,6 +475,31 @@ export const api = {
       oi_top_url: oiTopUrl,
     })
     if (!result.success) throw new Error('保存用户信号源配置失败')
+  },
+
+  // Webhook管理
+  async getWebhookInfo(): Promise<{ webhook_url: string; api_key: string }> {
+    const result = await httpClient.get<{
+      webhook_url: string
+      api_key: string
+    }>(`${API_BASE}/user/webhook`)
+    if (!result.success) throw new Error('获取webhook信息失败')
+    return result.data!
+  },
+
+  async testWebhook(payload: object): Promise<any> {
+    const result = await httpClient.post(`${API_BASE}/webhook/tradingview`, payload)
+    if (!result.success) throw new Error('测试webhook失败')
+    return result.data
+  },
+
+  async getRecentAlerts(traderId?: string): Promise<any[]> {
+    const url = traderId
+      ? `${API_BASE}/user/tradingview-alerts?trader_id=${traderId}`
+      : `${API_BASE}/user/tradingview-alerts`
+    const result = await httpClient.get<{ alerts: any[] }>(url)
+    if (!result.success) throw new Error('获取警报列表失败')
+    return result.data!.alerts || []
   },
 
   // 获取服务器IP（需要认证，用于白名单配置）
@@ -562,5 +684,42 @@ export const api = {
       }
     }
     return res.blob()
+  },
+
+  // Admin APIs
+  async getAllTraders(): Promise<any[]> {
+    const result = await httpClient.get<any[]>(`${API_BASE}/admin/traders`)
+    if (!result.success) {
+      throw new Error(result.message || '获取所有交易员失败')
+    }
+    return result.data!
+  },
+
+  async getAllUsers(): Promise<any[]> {
+    const result = await httpClient.get<any[]>(`${API_BASE}/admin/users`)
+    if (!result.success) {
+      throw new Error(result.message || '获取所有用户失败')
+    }
+    return result.data!
+  },
+
+  async updateUserRole(userId: string, role: string): Promise<void> {
+    const result = await httpClient.put(`${API_BASE}/admin/users/${userId}/role`, {
+      role,
+    })
+    if (!result.success) {
+      throw new Error(result.message || '更新用户角色失败')
+    }
+  },
+
+  // 获取当前用户信息（用于刷新角色等）
+  async getCurrentUser(): Promise<{ id: string; email: string; role: string }> {
+    const result = await httpClient.get<{ id: string; email: string; role: string }>(
+      `${API_BASE}/user/me`
+    )
+    if (!result.success) {
+      throw new Error(result.message || '获取用户信息失败')
+    }
+    return result.data!
   },
 }

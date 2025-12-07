@@ -3,6 +3,7 @@ package decision
 import (
 	"fmt"
 	"log"
+	"nofx/config"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,7 @@ type PromptTemplate struct {
 // PromptManager 提示词管理器
 type PromptManager struct {
 	templates map[string]*PromptTemplate
+	database  config.DatabaseInterface // 可选的数据库接口
 	mu        sync.RWMutex
 }
 
@@ -42,7 +44,15 @@ func init() {
 func NewPromptManager() *PromptManager {
 	return &PromptManager{
 		templates: make(map[string]*PromptTemplate),
+		database:  nil,
 	}
+}
+
+// SetDatabase 设置数据库接口（用于从数据库加载模板）
+func (pm *PromptManager) SetDatabase(db config.DatabaseInterface) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	pm.database = db
 }
 
 // LoadTemplates 从指定目录加载所有提示词模板
@@ -91,8 +101,28 @@ func (pm *PromptManager) LoadTemplates(dir string) error {
 	return nil
 }
 
-// GetTemplate 获取指定名称的提示词模板
+// GetTemplate 获取指定名称的提示词模板（优先从数据库获取，然后从文件）
 func (pm *PromptManager) GetTemplate(name string) (*PromptTemplate, error) {
+	pm.mu.RLock()
+	db := pm.database
+	pm.mu.RUnlock()
+
+	// 优先从数据库获取（如果数据库可用）
+	if db != nil {
+		// 使用default用户获取系统模板，或当前用户获取自己的模板
+		// 这里使用"default"作为fallback，实际使用时应该传入正确的userID
+		// 但由于这是全局函数，暂时使用default
+		templateConfig, err := db.GetPromptTemplate("default", name)
+		if err == nil {
+			return &PromptTemplate{
+				Name:    templateConfig.Name,
+				Content: templateConfig.Content,
+			}, nil
+		}
+		// 如果数据库中没有找到，继续尝试文件系统
+	}
+
+	// 从文件系统获取（fallback）
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
@@ -104,30 +134,94 @@ func (pm *PromptManager) GetTemplate(name string) (*PromptTemplate, error) {
 	return template, nil
 }
 
-// GetAllTemplateNames 获取所有模板名称列表
+// GetAllTemplateNames 获取所有模板名称列表（合并数据库和文件系统）
 func (pm *PromptManager) GetAllTemplateNames() []string {
 	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	names := make([]string, 0, len(pm.templates))
+	db := pm.database
+	fileNames := make(map[string]bool)
 	for name := range pm.templates {
+		fileNames[name] = true
+	}
+	pm.mu.RUnlock()
+
+	// 如果数据库可用，从数据库获取模板名称
+	if db != nil {
+		dbTemplates, err := db.GetPromptTemplates("default")
+		if err == nil {
+			names := make([]string, 0, len(dbTemplates)+len(fileNames))
+			nameSet := make(map[string]bool)
+
+			// 先添加数据库模板名称
+			for _, dbTemplate := range dbTemplates {
+				names = append(names, dbTemplate.ID)
+				nameSet[dbTemplate.ID] = true
+			}
+
+			// 再添加文件模板名称（如果数据库中没有）
+			for name := range fileNames {
+				if !nameSet[name] {
+					names = append(names, name)
+				}
+			}
+
+			return names
+		}
+	}
+
+	// 只返回文件模板名称
+	names := make([]string, 0, len(fileNames))
+	for name := range fileNames {
 		names = append(names, name)
 	}
 
 	return names
 }
 
-// GetAllTemplates 获取所有模板
+// GetAllTemplates 获取所有模板（合并数据库和文件系统的模板）
 func (pm *PromptManager) GetAllTemplates() []*PromptTemplate {
 	pm.mu.RLock()
-	defer pm.mu.RUnlock()
+	db := pm.database
+	fileTemplates := make(map[string]*PromptTemplate)
+	for k, v := range pm.templates {
+		fileTemplates[k] = v
+	}
+	pm.mu.RUnlock()
 
-	templates := make([]*PromptTemplate, 0, len(pm.templates))
-	for _, template := range pm.templates {
-		templates = append(templates, template)
+	// 如果数据库可用，从数据库获取模板
+	if db != nil {
+		dbTemplates, err := db.GetPromptTemplates("default")
+		if err == nil {
+			// 合并数据库模板和文件模板（数据库优先）
+			result := make([]*PromptTemplate, 0, len(dbTemplates)+len(fileTemplates))
+			templateMap := make(map[string]bool)
+
+			// 先添加数据库模板
+			for _, dbTemplate := range dbTemplates {
+				result = append(result, &PromptTemplate{
+					Name:    dbTemplate.Name,
+					Content: dbTemplate.Content,
+				})
+				templateMap[dbTemplate.ID] = true
+			}
+
+			// 再添加文件模板（如果数据库中没有）
+			for name, fileTemplate := range fileTemplates {
+				if !templateMap[name] {
+					result = append(result, fileTemplate)
+				}
+			}
+
+			return result
+		}
 	}
 
-	return templates
+	// 只返回文件模板
+	result := make([]*PromptTemplate, 0, len(fileTemplates))
+	for _, template := range fileTemplates {
+		result = append(result, template)
+	}
+
+	return result
 }
 
 // ReloadTemplates 重新加载所有模板
@@ -159,4 +253,9 @@ func GetAllPromptTemplates() []*PromptTemplate {
 // ReloadPromptTemplates 重新加载所有模板（全局函数）
 func ReloadPromptTemplates() error {
 	return globalPromptManager.ReloadTemplates(promptsDir)
+}
+
+// GetGlobalPromptManager 获取全局提示词管理器（用于设置数据库）
+func GetGlobalPromptManager() *PromptManager {
+	return globalPromptManager
 }

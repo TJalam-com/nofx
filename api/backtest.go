@@ -510,19 +510,6 @@ func writeBacktestAccessError(c *gin.Context, err error) bool {
 	return true
 }
 
-func (s *Server) resolveBacktestAIConfig(cfg *backtest.BacktestConfig, userID string) error {
-	if cfg == nil {
-		return fmt.Errorf("config is nil")
-	}
-	if s.database == nil {
-		return fmt.Errorf("系统数据库未就绪，无法加载AI模型配置")
-	}
-
-	cfg.UserID = normalizeUserID(userID)
-
-	return s.hydrateBacktestAIConfig(cfg)
-}
-
 func (s *Server) hydrateBacktestAIConfig(cfg *backtest.BacktestConfig) error {
 	if cfg == nil {
 		return fmt.Errorf("config is nil")

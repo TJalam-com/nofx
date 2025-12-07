@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
+import { AlertTriangle } from 'lucide-react'
 import { api } from './lib/api'
 import { EquityChart } from './components/EquityChart'
 import { AITradersPage } from './components/AITradersPage'
@@ -18,6 +19,9 @@ import { t, type Language } from './i18n/translations'
 import { useSystemConfig } from './hooks/useSystemConfig'
 import { DecisionCard } from './components/DecisionCard'
 import { BacktestPage } from './components/BacktestPage'
+import WebhookPage from './pages/WebhookPage'
+import FollowersPage from './pages/FollowersPage'
+import StatsPage from './pages/StatsPage'
 import type {
   SystemStatus,
   AccountInfo,
@@ -31,8 +35,11 @@ type Page =
   | 'competition'
   | 'traders'
   | 'trader'
+  | 'followers'
   | 'backtest'
+  | 'webhook'
   | 'faq'
+  | 'stats'
   | 'login'
   | 'register'
 
@@ -62,7 +69,10 @@ function App() {
     const hash = window.location.hash.slice(1) // 去掉 #
 
     if (path === '/traders' || hash === 'traders') return 'traders'
+    if (path === '/followers' || hash === 'followers') return 'followers'
     if (path === '/backtest' || hash === 'backtest') return 'backtest'
+    if (path === '/webhook' || hash === 'webhook') return 'webhook'
+    if (path === '/stats' || hash === 'stats') return 'stats'
     if (path === '/dashboard' || hash === 'trader' || hash === 'details')
       return 'trader'
     return 'competition' // 默认为竞赛页面
@@ -71,6 +81,34 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>(getInitialPage())
   const [selectedTraderId, setSelectedTraderId] = useState<string | undefined>()
   const [lastUpdate, setLastUpdate] = useState<string>('--:--:--')
+  const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null)
+
+  // 检查后端连接状态
+  useEffect(() => {
+    const checkBackendHealth = async () => {
+      try {
+        const response = await fetch('/api/health', {
+          method: 'GET',
+          signal: AbortSignal.timeout(3000), // 3秒超时
+        })
+        if (response.ok) {
+          setBackendAvailable(true)
+        } else {
+          setBackendAvailable(false)
+        }
+      } catch (error) {
+        setBackendAvailable(false)
+      }
+    }
+
+    // 初始检查
+    checkBackendHealth()
+
+    // 每10秒检查一次
+    const interval = setInterval(checkBackendHealth, 10000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   // 监听URL变化，同步页面状态
   useEffect(() => {
@@ -82,6 +120,10 @@ function App() {
         setCurrentPage('traders')
       } else if (path === '/backtest' || hash === 'backtest') {
         setCurrentPage('backtest')
+      } else if (path === '/webhook' || hash === 'webhook') {
+        setCurrentPage('webhook')
+      } else if (path === '/stats' || hash === 'stats') {
+        setCurrentPage('stats')
       } else if (
         path === '/dashboard' ||
         hash === 'trader' ||
@@ -216,6 +258,8 @@ function App() {
       setCurrentPage('traders')
     } else if (route === '/dashboard') {
       setCurrentPage('trader')
+    } else if (route === '/followers') {
+      setCurrentPage('followers')
     }
   }, [route])
 
@@ -292,6 +336,16 @@ function App() {
               window.history.pushState({}, '', '/backtest')
               setRoute('/backtest')
               setCurrentPage('backtest')
+            } else if (page === 'webhook') {
+              console.log('Navigating to webhook')
+              window.history.pushState({}, '', '/webhook')
+              setRoute('/webhook')
+              setCurrentPage('webhook')
+          } else if (page === 'followers') {
+            console.log('Navigating to followers')
+            window.history.pushState({}, '', '/followers')
+            setRoute('/followers')
+            setCurrentPage('followers')
             }
 
             console.log(
@@ -388,9 +442,52 @@ function App() {
           } else if (page === 'faq') {
             window.history.pushState({}, '', '/faq')
             setRoute('/faq')
+          } else if (page === 'webhook') {
+            window.history.pushState({}, '', '/webhook')
+            setRoute('/webhook')
+            setCurrentPage('webhook')
+          } else if (page === 'followers') {
+            window.history.pushState({}, '', '/followers')
+            setRoute('/followers')
+            setCurrentPage('followers')
+          } else if (page === 'stats') {
+            window.history.pushState({}, '', '/stats')
+            setRoute('/stats')
+            setCurrentPage('stats')
           }
         }}
       />
+
+      {/* Backend Connection Status Banner */}
+      {backendAvailable === false && (
+        <div
+          className="mx-auto max-w-[1920px] px-6 pt-4"
+          style={{ marginTop: '80px' }}
+        >
+          <div
+            className="flex items-center gap-3 rounded-lg border p-4"
+            style={{
+              background: 'rgba(246, 70, 93, 0.1)',
+              borderColor: 'rgba(246, 70, 93, 0.3)',
+              color: '#F6465D',
+            }}
+          >
+            <AlertTriangle size={20} />
+            <div className="flex-1">
+              <div className="font-semibold">
+                {language === 'zh'
+                  ? '后端服务器未运行'
+                  : 'Backend Server Not Running'}
+              </div>
+              <div className="mt-1 text-sm opacity-90">
+                {language === 'zh'
+                  ? '请启动后端服务器：在项目根目录运行 ./nofx 或 go run main.go'
+                  : 'Please start the backend server: Run ./nofx or go run main.go from the project root'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-[1920px] mx-auto px-6 py-6 pt-24">
@@ -405,8 +502,14 @@ function App() {
               setCurrentPage('trader')
             }}
           />
+        ) : currentPage === 'followers' ? (
+          <FollowersPage />
         ) : currentPage === 'backtest' ? (
           <BacktestPage />
+        ) : currentPage === 'webhook' ? (
+          <WebhookPage />
+        ) : currentPage === 'stats' ? (
+          <StatsPage />
         ) : (
           <TraderDetailsPage
             selectedTrader={selectedTrader}

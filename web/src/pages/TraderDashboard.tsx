@@ -725,6 +725,72 @@ function StatCard({
   )
 }
 
+// Helper function to translate AI error messages
+function translateAIErrorMessage(message: string, language: 'en' | 'zh'): string {
+  if (!message) return message
+
+  // If message contains Chinese characters and language is English, try to translate
+  if (language === 'en' && /[\u4e00-\u9fff]/.test(message)) {
+    // Translate "AI拒绝: " prefix
+    let translated = message.replace(/^AI拒绝:\s*/i, t('aiRejected', language))
+
+    // Pattern: 信号价格X与当前市场价Y严重不符（相差Z%）
+    const priceMismatchPattern = /信号价格([\d.]+)与当前市场价([\d.]+)严重不符（相差([\d.]+)%）/
+    while (priceMismatchPattern.test(translated)) {
+      const match = translated.match(priceMismatchPattern)
+      if (match) {
+        const signalPrice = match[1]
+        const marketPrice = match[2]
+        const diff = match[3]
+        translated = translated.replace(
+          priceMismatchPattern,
+          t('signalPriceMismatch', language, {
+            signalPrice,
+            marketPrice,
+            diff,
+          })
+        )
+      } else {
+        break
+      }
+    }
+
+    // Pattern: 账户资金仅X USDT,无法满足最小交易要求
+    const balancePattern = /账户资金仅([\d.]+)\s*USDT,无法满足最小交易要求/
+    if (balancePattern.test(translated)) {
+      const match = translated.match(balancePattern)
+      if (match) {
+        const balance = match[1]
+        translated = translated.replace(
+          balancePattern,
+          t('insufficientBalance', language, { balance })
+        )
+      }
+    }
+
+    // Pattern: 当前技术面（...）也不支持...操作
+    const techAnalysisPattern = /当前技术面（([^）]+)）也不支持([^。]+)操作/
+    if (techAnalysisPattern.test(translated)) {
+      const match = translated.match(techAnalysisPattern)
+      if (match) {
+        const details = match[1]
+        const action = match[2]
+        translated = translated.replace(
+          techAnalysisPattern,
+          t('technicalAnalysisNotSupport', language, { details, action })
+        )
+      }
+    }
+
+    // Clean up any remaining Chinese punctuation/conjunctions
+    translated = translated.replace(/，/g, ', ').replace(/。/g, '.')
+
+    return translated
+  }
+
+  return message
+}
+
 // Decision Card Component
 function DecisionCard({
   decision,
@@ -981,7 +1047,7 @@ function DecisionCard({
           className="text-sm rounded px-3 py-2 mt-3 flex items-center gap-2"
           style={{ color: '#F6465D', background: 'rgba(246, 70, 93, 0.1)' }}
         >
-          <XCircle className="w-4 h-4" /> {decision.error_message}
+          <XCircle className="w-4 h-4" /> {translateAIErrorMessage(decision.error_message, language)}
         </div>
       )}
     </div>

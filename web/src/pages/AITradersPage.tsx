@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
+import { toast } from 'sonner'
 import { api } from '../lib/api'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -72,6 +73,61 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   useEffect(() => {
     loadConfigs(user, token)
   }, [user, token, loadConfigs])
+
+  // Check if we should open create modal with a trader to copy (from CompetitionPage)
+  useEffect(() => {
+    const copyTraderId = sessionStorage.getItem('copyTraderId')
+    const urlParams = new URLSearchParams(window.location.search)
+    const action = urlParams.get('action')
+    
+    console.log('🔍 AITradersPage - Checking copy action:', {
+      copyTraderId,
+      action,
+      user: user ? { id: user.id, email: user.email, role: user.role } : null,
+      token: !!token,
+      showCreateModal,
+      currentPath: window.location.pathname,
+      currentSearch: window.location.search
+    })
+    
+    if (copyTraderId && action === 'copy' && user && token && !showCreateModal) {
+      // Check if AI models and exchanges are configured
+      const enabledModels = allModels?.filter((m) => m.enabled) || []
+      const enabledExchanges =
+        allExchanges?.filter((e) => {
+          if (!e.enabled) return false
+          if (e.id === 'aster') {
+            return e.asterUser?.trim() && e.asterSigner?.trim()
+          }
+          if (e.id === 'hyperliquid') {
+            return e.hyperliquidWalletAddr?.trim()
+          }
+          return true
+        }) || []
+      
+      if (enabledModels.length === 0 || enabledExchanges.length === 0) {
+        console.log('❌ AITradersPage - Missing AI model or exchange configuration')
+        toast.error('Please configure an AI model and exchange first')
+        // Clear copyTraderId from sessionStorage
+        sessionStorage.removeItem('copyTraderId')
+        // Clean up URL query params
+        window.history.replaceState({}, '', '/traders')
+        return
+      }
+      
+      console.log('✅ AITradersPage - All conditions met, opening create modal with copyTraderId:', copyTraderId)
+      setShowCreateModal(true)
+      // Clean up URL query param but keep copyTraderId in sessionStorage for TraderConfigModal
+      window.history.replaceState({}, '', '/traders')
+      // The TraderConfigModal will handle the copyTraderId from sessionStorage
+    } else {
+      if (!copyTraderId) console.log('❌ AITradersPage - No copyTraderId found in sessionStorage')
+      if (action !== 'copy') console.log('❌ AITradersPage - Action is not "copy", got:', action)
+      if (!user) console.log('❌ AITradersPage - User not available')
+      if (!token) console.log('❌ AITradersPage - Token not available')
+      if (showCreateModal) console.log('⚠️ AITradersPage - Create modal already open')
+    }
+  }, [user, token, showCreateModal, setShowCreateModal, allModels, allExchanges])
 
   // Business logic hook
   const {
@@ -241,6 +297,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           onSave={handleSaveSignalSource}
           onClose={() => setShowSignalSourceModal(false)}
           language={language}
+          configuredModels={configuredModels}
+          configuredExchanges={configuredExchanges}
         />
       )}
     </div>

@@ -8,6 +8,48 @@ import { Input } from './ui/input'
 import { toast } from 'sonner'
 import { useSystemConfig } from '../hooks/useSystemConfig'
 
+// Helper function to translate backend error messages
+function translateBackendError(message: string, language: 'en' | 'zh'): string {
+  if (!message) return message
+  
+  const errorMap: Record<string, { en: string; zh: string }> = {
+    '邮箱已被注册': { en: 'Email already registered', zh: '邮箱已被注册' },
+    'email already registered': { en: 'Email already registered', zh: '邮箱已被注册' },
+    '登录失败': { en: 'Login failed', zh: '登录失败' },
+    '登录失败，请重试': { en: 'Login failed, please try again', zh: '登录失败，请重试' },
+    '未知错误': { en: 'Unknown error', zh: '未知错误' },
+    '注册失败': { en: 'Registration failed', zh: '注册失败' },
+  }
+  
+  // Check for exact matches first
+  if (errorMap[message]) {
+    return errorMap[message][language]
+  }
+  
+  // Check for partial matches
+  const lowerMessage = message.toLowerCase()
+  for (const [key, translations] of Object.entries(errorMap)) {
+    if (lowerMessage.includes(key.toLowerCase()) || message.includes(key)) {
+      return translations[language]
+    }
+  }
+  
+  // If message contains Chinese characters and language is English, try to translate common patterns
+  if (language === 'en' && /[\u4e00-\u9fff]/.test(message)) {
+    if (message.includes('邮箱已被注册') || message.includes('已注册')) {
+      return 'Email already registered'
+    }
+    if (message.includes('登录失败')) {
+      return 'Login failed, please try again'
+    }
+    if (message.includes('注册失败')) {
+      return 'Registration failed'
+    }
+  }
+  
+  return message
+}
+
 export function LoginPage() {
   const { language } = useLanguage()
   const { login, loginAdmin, verifyOTP } = useAuth()
@@ -43,7 +85,9 @@ export function LoginPage() {
     setLoading(true)
     const result = await loginAdmin(adminPassword)
     if (!result.success) {
-      const msg = result.message || t('loginFailed', language)
+      const backendMsg = result.message || ''
+      const translatedMsg = translateBackendError(backendMsg, language)
+      const msg = translatedMsg || t('loginFailed', language)
       setError(msg)
       toast.error(msg)
     } else {
@@ -73,7 +117,9 @@ export function LoginPage() {
         }
       }
     } else {
-      const msg = result.message || t('loginFailed', language)
+      const backendMsg = result.message || ''
+      const translatedMsg = translateBackendError(backendMsg, language)
+      const msg = translatedMsg || t('loginFailed', language)
       setError(msg)
       toast.error(msg)
     }
@@ -89,7 +135,9 @@ export function LoginPage() {
     const result = await verifyOTP(userID, otpCode)
 
     if (!result.success) {
-      const msg = result.message || t('verificationFailed', language)
+      const backendMsg = result.message || ''
+      const translatedMsg = translateBackendError(backendMsg, language)
+      const msg = translatedMsg || t('verificationFailed', language)
       setError(msg)
       toast.error(msg)
     } else {
@@ -346,13 +394,18 @@ export function LoginPage() {
         {!adminMode && registrationEnabled && (
           <div className="text-center mt-6">
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              还没有账户？{' '}
+              {t('noAccount', language)}{' '}
               <button
-                onClick={() => navigate('/register')}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  navigate('/register')
+                }}
                 className="font-semibold hover:underline transition-colors"
                 style={{ color: 'var(--brand-yellow)' }}
               >
-                立即注册
+                {t('registerNowButton', language)}
               </button>
             </p>
           </div>

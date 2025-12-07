@@ -5,13 +5,17 @@ import { Menu, X, ChevronDown } from 'lucide-react'
 import { t, type Language } from '../i18n/translations'
 import { Container } from './Container'
 import { useSystemConfig } from '../hooks/useSystemConfig'
+import { useAuth, isFollower, isAdmin } from '../contexts/AuthContext'
 
 type Page =
   | 'competition'
   | 'traders'
   | 'trader'
+  | 'followers'
   | 'backtest'
+  | 'webhook'
   | 'faq'
+  | 'stats'
   | 'login'
   | 'register'
 
@@ -31,13 +35,14 @@ export default function HeaderBar({
   isLoggedIn = false,
   isHomePage = false,
   currentPage,
-  language = 'zh' as Language,
+  language = 'en' as Language,
   onLanguageChange,
   user,
   onLogout,
   onPageChange,
 }: HeaderBarProps) {
   const navigate = useNavigate()
+  const { user: authUser } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
@@ -45,6 +50,8 @@ export default function HeaderBar({
   const userDropdownRef = useRef<HTMLDivElement>(null)
   const { config: systemConfig } = useSystemConfig()
   const registrationEnabled = systemConfig?.registration_enabled !== false
+  const userIsFollower = isFollower(authUser)
+  const userIsAdmin = isAdmin(authUser)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -100,6 +107,7 @@ export default function HeaderBar({
               // Main app navigation when logged in
               <>
                 <button
+                  key="competition-tab"
                   onClick={() => {
                     if (onPageChange) {
                       onPageChange('competition')
@@ -128,20 +136,21 @@ export default function HeaderBar({
                   }}
                 >
                   {/* Background for selected state */}
-                  {currentPage === 'competition' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                      opacity: currentPage === 'competition' ? 1 : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
 
                   {t('realtimeNav', language)}
                 </button>
 
                 <button
+                  key="traders-tab"
                   onClick={() => {
                     if (onPageChange) {
                       onPageChange('traders')
@@ -170,20 +179,21 @@ export default function HeaderBar({
                   }}
                 >
                   {/* Background for selected state */}
-                  {currentPage === 'traders' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                      opacity: currentPage === 'traders' ? 1 : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
 
                   {t('configNav', language)}
                 </button>
 
                 <button
+                  key="trader-tab"
                   onClick={() => {
                     if (onPageChange) {
                       onPageChange('trader')
@@ -212,61 +222,197 @@ export default function HeaderBar({
                   }}
                 >
                   {/* Background for selected state */}
-                  {currentPage === 'trader' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                      opacity: currentPage === 'trader' ? 1 : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
 
                   {t('dashboardNav', language)}
                 </button>
 
-                <button
-                  onClick={() => {
-                    if (onPageChange) {
-                      onPageChange('backtest')
-                    }
-                    navigate('/backtest')
-                  }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'backtest'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'backtest') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'backtest') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {currentPage === 'backtest' && (
+                {userIsAdmin && (
+                  <button
+                    key="stats-tab"
+                    onClick={() => {
+                      if (onPageChange) {
+                        onPageChange('stats')
+                      }
+                      navigate('/stats')
+                    }}
+                    className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                    style={{
+                      color:
+                        currentPage === 'stats'
+                          ? 'var(--brand-yellow)'
+                          : 'var(--brand-light-gray)',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      position: 'relative',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (currentPage !== 'stats') {
+                        e.currentTarget.style.color = 'var(--brand-yellow)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (currentPage !== 'stats') {
+                        e.currentTarget.style.color = 'var(--brand-light-gray)'
+                      }
+                    }}
+                  >
+                    {/* Background for selected state */}
                     <span
-                      className="absolute inset-0 rounded-lg"
+                      className="absolute inset-0 rounded-lg transition-opacity duration-300"
                       style={{
                         background: 'rgba(240, 185, 11, 0.15)',
                         zIndex: -1,
+                        opacity: currentPage === 'stats' ? 1 : 0,
+                        pointerEvents: 'none',
                       }}
                     />
-                  )}
 
-                  Backtest
-                </button>
+                    Stats
+                  </button>
+                )}
+
+                {!userIsFollower && (
+                  <>
+                    <button
+                      key="followers-tab"
+                      onClick={() => {
+                        if (onPageChange) {
+                          onPageChange('followers')
+                        }
+                        navigate('/followers')
+                      }}
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      style={{
+                        color:
+                          currentPage === 'followers'
+                            ? 'var(--brand-yellow)'
+                            : 'var(--brand-light-gray)',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        position: 'relative',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== 'followers') {
+                          e.currentTarget.style.color = 'var(--brand-yellow)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== 'followers') {
+                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                        }
+                      }}
+                    >
+                      {/* Background for selected state */}
+                      <span
+                        className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                        style={{
+                          background: 'rgba(240, 185, 11, 0.15)',
+                          zIndex: -1,
+                          opacity: currentPage === 'followers' ? 1 : 0,
+                          pointerEvents: 'none',
+                        }}
+                      />
+
+                      Followers
+                    </button>
+
+                    <button
+                      key="backtest-tab"
+                      onClick={() => {
+                        if (onPageChange) {
+                          onPageChange('backtest')
+                        }
+                        navigate('/backtest')
+                      }}
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      style={{
+                        color:
+                          currentPage === 'backtest'
+                            ? 'var(--brand-yellow)'
+                            : 'var(--brand-light-gray)',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        position: 'relative',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== 'backtest') {
+                          e.currentTarget.style.color = 'var(--brand-yellow)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== 'backtest') {
+                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                        }
+                      }}
+                    >
+                      <span
+                        className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                        style={{
+                          background: 'rgba(240, 185, 11, 0.15)',
+                          zIndex: -1,
+                          opacity: currentPage === 'backtest' ? 1 : 0,
+                          pointerEvents: 'none',
+                        }}
+                      />
+
+                      Backtest
+                    </button>
+
+                    <button
+                      key="webhook-tab"
+                      onClick={() => {
+                        if (onPageChange) {
+                          onPageChange('webhook')
+                        }
+                        navigate('/webhook')
+                      }}
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      style={{
+                        color:
+                          currentPage === 'webhook'
+                            ? 'var(--brand-yellow)'
+                            : 'var(--brand-light-gray)',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        position: 'relative',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== 'webhook') {
+                          e.currentTarget.style.color = 'var(--brand-yellow)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== 'webhook') {
+                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                        }
+                      }}
+                    >
+                      <span
+                        className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                        style={{
+                          background: 'rgba(240, 185, 11, 0.15)',
+                          zIndex: -1,
+                          opacity: currentPage === 'webhook' ? 1 : 0,
+                          pointerEvents: 'none',
+                        }}
+                      />
+
+                      Webhook
+                    </button>
+                  </>
+                )}
 
                 <button
+                  key="faq-tab"
                   onClick={() => {
                     if (onPageChange) {
                       onPageChange('faq')
@@ -295,15 +441,15 @@ export default function HeaderBar({
                   }}
                 >
                   {/* Background for selected state */}
-                  {currentPage === 'faq' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                      opacity: currentPage === 'faq' ? 1 : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
 
                   {t('faqNav', language)}
                 </button>
@@ -312,6 +458,7 @@ export default function HeaderBar({
               // Landing page navigation when not logged in
               <>
                 <a
+                  key="competition-link"
                   href="/competition"
                   className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
                   style={{
@@ -335,20 +482,21 @@ export default function HeaderBar({
                   }}
                 >
                   {/* Background for selected state */}
-                  {currentPage === 'competition' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                      opacity: currentPage === 'competition' ? 1 : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
 
                   {t('realtimeNav', language)}
                 </a>
 
                 <a
+                  key="faq-link"
                   href="/faq"
                   className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
                   style={{
@@ -372,15 +520,15 @@ export default function HeaderBar({
                   }}
                 >
                   {/* Background for selected state */}
-                  {currentPage === 'faq' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                      opacity: currentPage === 'faq' ? 1 : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
 
                   {t('faqNav', language)}
                 </a>
@@ -542,23 +690,33 @@ export default function HeaderBar({
             )}
 
             {/* Language Toggle - Always at the rightmost */}
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative z-50" ref={dropdownRef}>
               <button
                 onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded transition-colors"
-                style={{ color: 'var(--brand-light-gray)' }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background =
-                    'rgba(255, 255, 255, 0.05)')
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = 'transparent')
-                }
+                className="flex items-center gap-2 px-3 py-2 rounded transition-all min-w-[50px] justify-center"
+                style={{ 
+                  color: 'var(--brand-light-gray)',
+                  background: languageDropdownOpen ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                  cursor: 'pointer',
+                  border: '1px solid transparent'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                  e.currentTarget.style.borderColor = 'rgba(240, 185, 11, 0.3)'
+                }}
+                onMouseLeave={(e) => {
+                  if (!languageDropdownOpen) {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.borderColor = 'transparent'
+                  }
+                }}
+                aria-label="Language selector"
+                type="button"
               >
-                <span className="text-lg">
+                <span className="text-xl leading-none" style={{ fontSize: '1.5rem', lineHeight: '1', display: 'inline-block' }}>
                   {language === 'zh' ? '🇨🇳' : '🇺🇸'}
                 </span>
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ opacity: 0.7 }} />
               </button>
 
               {languageDropdownOpen && (
@@ -586,7 +744,7 @@ export default function HeaderBar({
                     }}
                   >
                     <span className="text-base">🇨🇳</span>
-                    <span className="text-sm">中文</span>
+                    <span className="text-sm">{t('chinese', language)}</span>
                   </button>
                   <button
                     onClick={() => {
@@ -613,10 +771,86 @@ export default function HeaderBar({
           </div>
         </div>
 
+        {/* Language Toggle for Tablet/Small Desktop - Visible when desktop menu is hidden */}
+        <div className="hidden sm:flex md:hidden items-center ml-4">
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
+              className="flex items-center gap-2 px-3 py-2 rounded transition-colors min-w-[44px] min-h-[44px] justify-center"
+              style={{ 
+                color: 'var(--brand-light-gray)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background =
+                  'rgba(255, 255, 255, 0.05)')
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = 'transparent')
+              }
+              aria-label="Language selector"
+            >
+              <span className="text-lg" style={{ fontSize: '1.25rem' }}>
+                {language === 'zh' ? '🇨🇳' : '🇺🇸'}
+              </span>
+              <ChevronDown className="w-4 h-4" style={{ flexShrink: 0 }} />
+            </button>
+
+            {languageDropdownOpen && (
+              <div
+                className="absolute right-0 top-full mt-2 w-32 rounded-lg shadow-lg overflow-hidden z-50"
+                style={{
+                  background: 'var(--brand-dark-gray)',
+                  border: '1px solid var(--panel-border)',
+                }}
+              >
+                <button
+                  onClick={() => {
+                    onLanguageChange?.('zh')
+                    setLanguageDropdownOpen(false)
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 transition-colors ${
+                    language === 'zh' ? '' : 'hover:opacity-80'
+                  }`}
+                  style={{
+                    color: 'var(--brand-light-gray)',
+                    background:
+                      language === 'zh'
+                        ? 'rgba(240, 185, 11, 0.1)'
+                        : 'transparent',
+                  }}
+                >
+                  <span className="text-base">🇨🇳</span>
+                  <span className="text-sm">中文</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onLanguageChange?.('en')
+                    setLanguageDropdownOpen(false)
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 transition-colors ${
+                    language === 'en' ? '' : 'hover:opacity-80'
+                  }`}
+                  style={{
+                    color: 'var(--brand-light-gray)',
+                    background:
+                      language === 'en'
+                        ? 'rgba(240, 185, 11, 0.1)'
+                        : 'transparent',
+                  }}
+                >
+                  <span className="text-base">🇺🇸</span>
+                  <span className="text-sm">English</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Mobile Menu Button */}
         <motion.button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden"
+          className="sm:hidden"
           style={{ color: 'var(--brand-light-gray)' }}
           whileTap={{ scale: 0.9 }}
         >
@@ -637,7 +871,7 @@ export default function HeaderBar({
             : { height: 0, opacity: 0 }
         }
         transition={{ duration: 0.3 }}
-        className="md:hidden overflow-hidden"
+        className="sm:hidden overflow-hidden"
         style={{
           background: 'var(--brand-dark-gray)',
           borderTop: '1px solid rgba(240, 185, 11, 0.1)',
@@ -647,6 +881,7 @@ export default function HeaderBar({
           {/* New Navigation Tabs */}
           {isLoggedIn ? (
             <button
+              key="mobile-competition-tab"
               onClick={() => {
                 console.log(
                   '移动端 实时 button clicked, onPageChange:',
@@ -669,20 +904,21 @@ export default function HeaderBar({
               }}
             >
               {/* Background for selected state */}
-              {currentPage === 'competition' && (
-                <span
-                  className="absolute inset-0 rounded-lg"
-                  style={{
-                    background: 'rgba(240, 185, 11, 0.15)',
-                    zIndex: -1,
-                  }}
-                />
-              )}
+              <span
+                className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                style={{
+                  background: 'rgba(240, 185, 11, 0.15)',
+                  zIndex: -1,
+                  opacity: currentPage === 'competition' ? 1 : 0,
+                  pointerEvents: 'none',
+                }}
+              />
 
               {t('realtimeNav', language)}
             </button>
           ) : (
             <a
+              key="mobile-competition-link"
               href="/competition"
               className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
               style={{
@@ -696,15 +932,15 @@ export default function HeaderBar({
               }}
             >
               {/* Background for selected state */}
-              {currentPage === 'competition' && (
-                <span
-                  className="absolute inset-0 rounded-lg"
-                  style={{
-                    background: 'rgba(240, 185, 11, 0.15)',
-                    zIndex: -1,
-                  }}
-                />
-              )}
+              <span
+                className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                style={{
+                  background: 'rgba(240, 185, 11, 0.15)',
+                  zIndex: -1,
+                  opacity: currentPage === 'competition' ? 1 : 0,
+                  pointerEvents: 'none',
+                }}
+              />
 
               {t('realtimeNav', language)}
             </a>
@@ -713,6 +949,7 @@ export default function HeaderBar({
           {isLoggedIn && (
             <>
               <button
+                key="mobile-traders-tab"
                 onClick={() => {
                   if (onPageChange) {
                     onPageChange('traders')
@@ -734,19 +971,20 @@ export default function HeaderBar({
                 }}
               >
                 {/* Background for selected state */}
-                {currentPage === 'traders' && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                    }}
-                  />
-                )}
+                <span
+                  className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                  style={{
+                    background: 'rgba(240, 185, 11, 0.15)',
+                    zIndex: -1,
+                    opacity: currentPage === 'traders' ? 1 : 0,
+                    pointerEvents: 'none',
+                  }}
+                />
 
                 {t('configNav', language)}
               </button>
               <button
+                key="mobile-trader-tab"
                 onClick={() => {
                   if (onPageChange) {
                     onPageChange('trader')
@@ -768,19 +1006,90 @@ export default function HeaderBar({
                 }}
               >
                 {/* Background for selected state */}
-                {currentPage === 'trader' && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                    }}
-                  />
-                )}
+                <span
+                  className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                  style={{
+                    background: 'rgba(240, 185, 11, 0.15)',
+                    zIndex: -1,
+                    opacity: currentPage === 'trader' ? 1 : 0,
+                    pointerEvents: 'none',
+                  }}
+                />
 
                 {t('dashboardNav', language)}
               </button>
+              {userIsAdmin && (
+                <button
+                  key="mobile-stats-tab"
+                  onClick={() => {
+                    if (onPageChange) {
+                      onPageChange('stats')
+                    }
+                    navigate('/stats')
+                    setMobileMenuOpen(false)
+                  }}
+                  className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                  style={{
+                    color:
+                      currentPage === 'stats'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    position: 'relative',
+                    width: '100%',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                      opacity: currentPage === 'stats' ? 1 : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  Stats
+                </button>
+              )}
+              {!userIsFollower && (
+                <button
+                  key="mobile-webhook-tab"
+                  onClick={() => {
+                    if (onPageChange) {
+                      onPageChange('webhook')
+                    }
+                    navigate('/webhook')
+                    setMobileMenuOpen(false)
+                  }}
+                  className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                  style={{
+                    color:
+                      currentPage === 'webhook'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    position: 'relative',
+                    width: '100%',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                      opacity: currentPage === 'webhook' ? 1 : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  Webhook
+                </button>
+              )}
               <button
+                key="mobile-faq-tab"
                 onClick={() => {
                   if (onPageChange) {
                     onPageChange('faq')
@@ -802,15 +1111,15 @@ export default function HeaderBar({
                 }}
               >
                 {/* Background for selected state */}
-                {currentPage === 'faq' && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                    }}
-                  />
-                )}
+                <span
+                  className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                  style={{
+                    background: 'rgba(240, 185, 11, 0.15)',
+                    zIndex: -1,
+                    opacity: currentPage === 'faq' ? 1 : 0,
+                    pointerEvents: 'none',
+                  }}
+                />
 
                 {t('faqNav', language)}
               </button>

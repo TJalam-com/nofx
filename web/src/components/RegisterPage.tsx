@@ -11,6 +11,48 @@ import { Input } from './ui/input'
 import PasswordChecklist from 'react-password-checklist'
 import { RegistrationDisabled } from './RegistrationDisabled'
 
+// Helper function to translate backend error messages
+function translateBackendError(message: string, language: 'en' | 'zh'): string {
+  if (!message) return message
+  
+  const errorMap: Record<string, { en: string; zh: string }> = {
+    '邮箱已被注册': { en: 'Email already registered', zh: '邮箱已被注册' },
+    'email already registered': { en: 'Email already registered', zh: '邮箱已被注册' },
+    '登录失败': { en: 'Login failed', zh: '登录失败' },
+    '登录失败，请重试': { en: 'Login failed, please try again', zh: '登录失败，请重试' },
+    '未知错误': { en: 'Unknown error', zh: '未知错误' },
+    '注册失败': { en: 'Registration failed', zh: '注册失败' },
+  }
+  
+  // Check for exact matches first
+  if (errorMap[message]) {
+    return errorMap[message][language]
+  }
+  
+  // Check for partial matches
+  const lowerMessage = message.toLowerCase()
+  for (const [key, translations] of Object.entries(errorMap)) {
+    if (lowerMessage.includes(key.toLowerCase()) || message.includes(key)) {
+      return translations[language]
+    }
+  }
+  
+  // If message contains Chinese characters and language is English, try to translate common patterns
+  if (language === 'en' && /[\u4e00-\u9fff]/.test(message)) {
+    if (message.includes('邮箱已被注册') || message.includes('已注册')) {
+      return 'Email already registered'
+    }
+    if (message.includes('登录失败')) {
+      return 'Login failed, please try again'
+    }
+    if (message.includes('注册失败')) {
+      return 'Registration failed'
+    }
+  }
+  
+  return message
+}
+
 export function RegisterPage() {
   const { language } = useLanguage()
   const { register, completeRegistration } = useAuth()
@@ -62,7 +104,7 @@ export function RegisterPage() {
     }
 
     if (betaMode && !betaCode.trim()) {
-      setError('内测期间，注册需要提供内测码')
+      setError(t('betaCodeRequired', language))
       return
     }
 
@@ -77,7 +119,10 @@ export function RegisterPage() {
       setStep('setup-otp')
     } else {
       // Only business errors reach here (system/network errors shown via toast)
-      const msg = result.message || t('registrationFailed', language)
+      // Translate backend error messages
+      const backendMsg = result.message || ''
+      const translatedMsg = translateBackendError(backendMsg, language)
+      const msg = translatedMsg || t('registrationFailed', language)
       setError(msg)
     }
 
@@ -96,7 +141,9 @@ export function RegisterPage() {
     const result = await completeRegistration(userID, otpCode)
 
     if (!result.success) {
-      const msg = result.message || t('registrationFailed', language)
+      const backendMsg = result.message || ''
+      const translatedMsg = translateBackendError(backendMsg, language)
+      const msg = translatedMsg || t('registrationFailed', language)
       setError(msg)
       toast.error(msg)
     }
@@ -178,7 +225,7 @@ export function RegisterPage() {
                   />
                   <button
                     type="button"
-                    aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                    aria-label={showPassword ? t('hidePassword', language) : t('showPassword', language)}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute inset-y-0 right-2 w-8 h-10 flex items-center justify-center rounded bg-transparent p-0 m-0 border-0 outline-none focus:outline-none focus:ring-0 appearance-none cursor-pointer btn-icon"
@@ -264,7 +311,7 @@ export function RegisterPage() {
                     className="block text-sm font-semibold mb-2"
                     style={{ color: '#EAECEF' }}
                   >
-                    内测码 *
+                    {t('betaCodeLabel', language)} *
                   </label>
                   <input
                     type="text"
@@ -280,12 +327,12 @@ export function RegisterPage() {
                       border: '1px solid #2B3139',
                       color: '#EAECEF',
                     }}
-                    placeholder="请输入6位内测码"
+                    placeholder={t('betaCodePlaceholder', language)}
                     maxLength={6}
                     required={betaMode}
                   />
                   <p className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                    内测码由6位字母数字组成，区分大小写
+                    {t('betaCodeDescription', language)}
                   </p>
                 </div>
               )}
@@ -528,13 +575,13 @@ export function RegisterPage() {
         {step === 'register' && (
           <div className="text-center mt-6">
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              已有账户？{' '}
+              {t('hasAccount', language)}{' '}
               <button
                 onClick={() => navigate('/login')}
                 className="font-semibold hover:underline transition-colors"
                 style={{ color: 'var(--brand-yellow)' }}
               >
-                立即登录
+                {t('loginNow', language)}
               </button>
             </p>
           </div>

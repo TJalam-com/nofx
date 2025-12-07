@@ -686,6 +686,12 @@ VITE v5.x.x  ready in xxx ms
 - No error messages
 - Keep this terminal window open too!
 
+**⚠️ If you see connection errors in the frontend terminal:**
+- Errors like `ECONNREFUSED` or `http proxy error: /api/*` mean the backend is not running
+- **Solution**: Make sure you started the backend server first (Step 1)
+- Verify backend is running: `curl http://localhost:8080/api/health` should return `{"status":"ok"}`
+- The frontend will show a red banner at the top if the backend is unavailable
+
 ---
 
 #### **Step 3: Access the Dashboard**
@@ -1011,7 +1017,32 @@ GET /api/health                   # Health check
 
 > 📖 **For detailed troubleshooting:** See the comprehensive [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md) ([中文版](docs/guides/TROUBLESHOOTING.zh-CN.md))
 
-### 1. Compilation error: TA-Lib not found
+### 1. Frontend shows connection errors (ECONNREFUSED)
+
+**Symptoms:**
+- Frontend terminal shows `http proxy error: /api/*` with `ECONNREFUSED`
+- Red banner appears at top of web page saying "Backend Server Not Running"
+- All API calls fail
+
+**Solution:**
+1. **Start the backend server first** (required before frontend):
+   ```bash
+   # From project root
+   go build -o nofx
+   ./nofx
+   ```
+2. Verify backend is running:
+   ```bash
+   curl http://localhost:8080/api/health
+   ```
+   Should return: `{"status":"ok"}`
+3. **Important**: Both backend and frontend must run simultaneously:
+   - Backend: Terminal 1 (port 8080)
+   - Frontend: Terminal 2 (port 3000)
+
+**Note**: The frontend automatically checks backend connection every 10 seconds and shows a banner if unavailable.
+
+### 2. Compilation error: TA-Lib not found
 
 **Solution**: Install TA-Lib library
 ```bash

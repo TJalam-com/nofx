@@ -187,6 +187,7 @@ export function useTraderActions({
         is_cross_margin: data.is_cross_margin,
         use_coin_pool: data.use_coin_pool,
         use_oi_top: data.use_oi_top,
+        use_tradingview: data.use_tradingview,
       }
 
       await toast.promise(api.updateTrader(editingTrader.trader_id, request), {
@@ -226,6 +227,10 @@ export function useTraderActions({
   }
 
   const handleToggleTrader = async (traderId: string, running: boolean) => {
+    // Note: Optimistic update handled by component calling this hook
+    // mutateTraders signature is () => Promise<any>, so we can't pass data directly
+    // The optimistic update will be handled by the component that calls this hook
+
     try {
       if (running) {
         await toast.promise(api.stopTrader(traderId), {
@@ -241,10 +246,14 @@ export function useTraderActions({
         })
       }
 
-      // Immediately refresh traders list to update running status
-      await mutateTraders()
+      // Wait longer for backend to update state, then refresh from server
+      setTimeout(async () => {
+        await mutateTraders() // Force revalidation
+      }, 1000) // Increased from immediate to 1000ms
     } catch (error) {
       console.error('Failed to toggle trader:', error)
+      // Revert optimistic update on error
+      await mutateTraders() // Force revalidation to get correct state
       toast.error(t('operationFailed', language))
     }
   }

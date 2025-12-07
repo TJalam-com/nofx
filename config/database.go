@@ -11,6 +11,7 @@ import (
 	"nofx/crypto"
 	"nofx/market"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -45,11 +46,23 @@ type DatabaseInterface interface {
 	CreateUserSignalSource(userID, coinPoolURL, oiTopURL string) error
 	GetUserSignalSource(userID string) (*UserSignalSource, error)
 	UpdateUserSignalSource(userID, coinPoolURL, oiTopURL string) error
+	GenerateWebhookAPIKey(userID string) (string, error)
+	GetUserByWebhookAPIKey(apiKey string) (*User, error)
+	CreateTradingViewAlert(userID, traderID string, payload map[string]interface{}) (string, error)
+	GetPendingTradingViewAlerts(traderID string) ([]TradingViewAlert, error)
+	GetRecentTradingViewAlerts(userID string, traderID string, limit int) ([]TradingViewAlert, error)
+	UpdateAlertStatus(alertID string, status string) error
+	GetTradersWithTradingViewEnabled(userID string) ([]*TraderRecord, error)
 	GetCustomCoins() []string
 	LoadBetaCodesFromFile(filePath string) error
 	ValidateBetaCode(code string) (bool, error)
 	UseBetaCode(code, userEmail string) error
 	GetBetaCodeStats() (total, used int, err error)
+	GetPromptTemplates(userID string) ([]*PromptTemplateConfig, error)
+	GetPromptTemplate(userID, templateID string) (*PromptTemplateConfig, error)
+	CreatePromptTemplate(userID, id, name, content string, isSystem bool) error
+	UpdatePromptTemplate(userID, id, name, content string) error
+	DeletePromptTemplate(userID, id string) error
 	Close() error
 }
 
@@ -102,8 +115,8 @@ func NewDatabase(dbPath string) (*Database, error) {
 
 	// 确保存在默认用户（用于外键约束和默认配置种子）
 	if _, err := db.Exec(`
-		INSERT OR IGNORE INTO users (id, email, password_hash, otp_secret, otp_verified)
-		VALUES ('default', 'default@local', '__default__', '', 1)
+		INSERT OR IGNORE INTO users (id, email, password_hash, otp_secret, otp_verified, role)
+		VALUES ('default', 'default@local', '__default__', '', 1, 'user')
 	`); err != nil {
 		return nil, fmt.Errorf("创建默认用户失败: %w", err)
 	}
@@ -112,8 +125,27 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, fmt.Errorf("初始化默认数据失败: %w", err)
 	}
 
+	// 迁移提示词模板从文件到数据库
+	if err := database.migratePromptTemplatesFromFiles(); err != nil {
+		log.Printf("⚠️  提示词模板迁移失败: %v", err)
+		// 不返回错误，允许系统继续运行
+	}
+
 	log.Printf("✅ 数据库已启用 WAL 模式和 FULL 同步,数据持久性得到保证")
 	return database, nil
+}
+
+// columnExists 检查表中是否存在指定列
+func (d *Database) columnExists(tableName, columnName string) (bool, error) {
+	var count int
+	err := d.db.QueryRow(`
+		SELECT COUNT(*) FROM pragma_table_info(?)
+		WHERE name = ?
+	`, tableName, columnName).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 // createTables 创建数据库表
@@ -184,6 +216,8 @@ func (d *Database) createTables() error {
 			trading_symbols TEXT DEFAULT '',
 			use_coin_pool BOOLEAN DEFAULT 0,
 			use_oi_top BOOLEAN DEFAULT 0,
+			use_tradingview BOOLEAN DEFAULT 0,
+			followed_trader_id TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -196,6 +230,7 @@ func (d *Database) createTables() error {
 			password_hash TEXT NOT NULL,
 			otp_secret TEXT,
 			otp_verified BOOLEAN DEFAULT 0,
+			role TEXT DEFAULT 'follower',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
@@ -205,6 +240,18 @@ func (d *Database) createTables() error {
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		// 提示词模板表
+		`CREATE TABLE IF NOT EXISTS prompt_templates (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL DEFAULT 'default',
+			name TEXT NOT NULL,
+			content TEXT NOT NULL,
+			is_system BOOLEAN DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
 		// 回测运行主表
@@ -345,6 +392,49 @@ func (d *Database) createTables() error {
 			BEGIN
 				UPDATE system_config SET updated_at = CURRENT_TIMESTAMP WHERE key = NEW.key;
 			END`,
+
+		// Webhook API Keys表
+		`CREATE TABLE IF NOT EXISTS webhook_api_keys (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id TEXT UNIQUE NOT NULL,
+			api_key TEXT UNIQUE NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+
+		// TradingView Alerts表
+		`CREATE TABLE IF NOT EXISTS tradingview_alerts (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			trader_id TEXT,
+			raw_payload TEXT NOT NULL,
+			symbol TEXT NOT NULL,
+			action TEXT NOT NULL,
+			exchange TEXT,
+			entry REAL,
+			sl REAL,
+			tp REAL,
+			quantity REAL,
+			position_size REAL,
+			pricetype TEXT,
+			status TEXT DEFAULT 'pending',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			processed_at DATETIME,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+
+		// 索引
+		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_user ON tradingview_alerts(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_trader ON tradingview_alerts(trader_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_status ON tradingview_alerts(status)`,
+
+		// 触发器：自动更新 webhook_api_keys updated_at
+		`CREATE TRIGGER IF NOT EXISTS update_webhook_api_keys_updated_at
+			AFTER UPDATE ON webhook_api_keys
+			BEGIN
+				UPDATE webhook_api_keys SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+			END`,
 	}
 
 	for _, query := range queries {
@@ -354,32 +444,54 @@ func (d *Database) createTables() error {
 	}
 
 	// 为现有数据库添加新字段（向后兼容）
-	alterQueries := []string{
-		`ALTER TABLE exchanges ADD COLUMN hyperliquid_wallet_addr TEXT DEFAULT ''`,
-		`ALTER TABLE exchanges ADD COLUMN aster_user TEXT DEFAULT ''`,
-		`ALTER TABLE exchanges ADD COLUMN aster_signer TEXT DEFAULT ''`,
-		`ALTER TABLE exchanges ADD COLUMN aster_private_key TEXT DEFAULT ''`,
-		`ALTER TABLE exchanges ADD COLUMN lighter_wallet_addr TEXT DEFAULT ''`,
-		`ALTER TABLE exchanges ADD COLUMN lighter_private_key TEXT DEFAULT ''`,
-		`ALTER TABLE exchanges ADD COLUMN lighter_api_key_private_key TEXT DEFAULT ''`,
-		`ALTER TABLE traders ADD COLUMN custom_prompt TEXT DEFAULT ''`,
-		`ALTER TABLE traders ADD COLUMN override_base_prompt BOOLEAN DEFAULT 0`,
-		`ALTER TABLE traders ADD COLUMN is_cross_margin BOOLEAN DEFAULT 1`,             // 默认为全仓模式
-		`ALTER TABLE traders ADD COLUMN use_default_coins BOOLEAN DEFAULT 1`,           // 默认使用默认币种
-		`ALTER TABLE traders ADD COLUMN custom_coins TEXT DEFAULT ''`,                  // 自定义币种列表（JSON格式）
-		`ALTER TABLE traders ADD COLUMN btc_eth_leverage INTEGER DEFAULT 5`,            // BTC/ETH杠杆倍数
-		`ALTER TABLE traders ADD COLUMN altcoin_leverage INTEGER DEFAULT 5`,            // 山寨币杠杆倍数
-		`ALTER TABLE traders ADD COLUMN trading_symbols TEXT DEFAULT ''`,               // 交易币种，逗号分隔
-		`ALTER TABLE traders ADD COLUMN use_coin_pool BOOLEAN DEFAULT 0`,               // 是否使用COIN POOL信号源
-		`ALTER TABLE traders ADD COLUMN use_oi_top BOOLEAN DEFAULT 0`,                  // 是否使用OI TOP信号源
-		`ALTER TABLE traders ADD COLUMN system_prompt_template TEXT DEFAULT 'default'`, // 系统提示词模板名称
-		`ALTER TABLE ai_models ADD COLUMN custom_api_url TEXT DEFAULT ''`,              // 自定义API地址
-		`ALTER TABLE ai_models ADD COLUMN custom_model_name TEXT DEFAULT ''`,           // 自定义模型名称
+	alterQueries := []struct {
+		table  string
+		column string
+		query  string
+	}{
+		{"users", "role", `ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'follower'`},
+		{"exchanges", "hyperliquid_wallet_addr", `ALTER TABLE exchanges ADD COLUMN hyperliquid_wallet_addr TEXT DEFAULT ''`},
+		{"exchanges", "aster_user", `ALTER TABLE exchanges ADD COLUMN aster_user TEXT DEFAULT ''`},
+		{"exchanges", "aster_signer", `ALTER TABLE exchanges ADD COLUMN aster_signer TEXT DEFAULT ''`},
+		{"exchanges", "aster_private_key", `ALTER TABLE exchanges ADD COLUMN aster_private_key TEXT DEFAULT ''`},
+		{"exchanges", "lighter_wallet_addr", `ALTER TABLE exchanges ADD COLUMN lighter_wallet_addr TEXT DEFAULT ''`},
+		{"exchanges", "lighter_private_key", `ALTER TABLE exchanges ADD COLUMN lighter_private_key TEXT DEFAULT ''`},
+		{"exchanges", "lighter_api_key_private_key", `ALTER TABLE exchanges ADD COLUMN lighter_api_key_private_key TEXT DEFAULT ''`},
+		{"traders", "custom_prompt", `ALTER TABLE traders ADD COLUMN custom_prompt TEXT DEFAULT ''`},
+		{"traders", "override_base_prompt", `ALTER TABLE traders ADD COLUMN override_base_prompt BOOLEAN DEFAULT 0`},
+		{"traders", "is_cross_margin", `ALTER TABLE traders ADD COLUMN is_cross_margin BOOLEAN DEFAULT 1`},
+		{"traders", "use_default_coins", `ALTER TABLE traders ADD COLUMN use_default_coins BOOLEAN DEFAULT 1`},
+		{"traders", "custom_coins", `ALTER TABLE traders ADD COLUMN custom_coins TEXT DEFAULT ''`},
+		{"traders", "btc_eth_leverage", `ALTER TABLE traders ADD COLUMN btc_eth_leverage INTEGER DEFAULT 5`},
+		{"traders", "altcoin_leverage", `ALTER TABLE traders ADD COLUMN altcoin_leverage INTEGER DEFAULT 5`},
+		{"traders", "trading_symbols", `ALTER TABLE traders ADD COLUMN trading_symbols TEXT DEFAULT ''`},
+		{"traders", "use_coin_pool", `ALTER TABLE traders ADD COLUMN use_coin_pool BOOLEAN DEFAULT 0`},
+		{"traders", "use_oi_top", `ALTER TABLE traders ADD COLUMN use_oi_top BOOLEAN DEFAULT 0`},
+		{"traders", "use_tradingview", `ALTER TABLE traders ADD COLUMN use_tradingview BOOLEAN DEFAULT 0`},
+		{"traders", "system_prompt_template", `ALTER TABLE traders ADD COLUMN system_prompt_template TEXT DEFAULT 'default'`},
+		{"traders", "followed_trader_id", `ALTER TABLE traders ADD COLUMN followed_trader_id TEXT`},
+		{"ai_models", "custom_api_url", `ALTER TABLE ai_models ADD COLUMN custom_api_url TEXT DEFAULT ''`},
+		{"ai_models", "custom_model_name", `ALTER TABLE ai_models ADD COLUMN custom_model_name TEXT DEFAULT ''`},
 	}
 
-	for _, query := range alterQueries {
-		// 忽略已存在字段的错误
-		d.db.Exec(query)
+	for _, alterQuery := range alterQueries {
+		// 检查列是否已存在，如果不存在则添加
+		exists, err := d.columnExists(alterQuery.table, alterQuery.column)
+		if err != nil {
+			log.Printf("⚠️  检查列 %s.%s 是否存在时出错: %v", alterQuery.table, alterQuery.column, err)
+			// 继续尝试添加列，可能表不存在或列已存在
+		}
+
+		if !exists {
+			if _, err := d.db.Exec(alterQuery.query); err != nil {
+				// 记录错误，但继续执行（列可能已存在或表不存在）
+				log.Printf("⚠️  ALTER TABLE 警告 (可能已存在列 %s.%s): %v", alterQuery.table, alterQuery.column, err)
+			} else {
+				log.Printf("✅ 成功添加列 %s.%s", alterQuery.table, alterQuery.column)
+			}
+		} else {
+			log.Printf("ℹ️  列 %s.%s 已存在，跳过", alterQuery.table, alterQuery.column)
+		}
 	}
 
 	// 检查是否需要迁移exchanges表的主键结构
@@ -471,6 +583,7 @@ func (d *Database) initDefaultData() error {
 	}{
 		{"deepseek", "DeepSeek", "deepseek"},
 		{"qwen", "Qwen", "qwen"},
+		// Note: "risk_management" is a prompt template, not an AI model
 	}
 
 	for _, model := range aiModels {
@@ -702,6 +815,68 @@ func (d *Database) migrateTradersTable() error {
 	return nil
 }
 
+// migratePromptTemplatesFromFiles 从文件系统迁移提示词模板到数据库
+func (d *Database) migratePromptTemplatesFromFiles() error {
+	// 检查是否已经有模板在数据库中
+	var count int
+	err := d.db.QueryRow(`SELECT COUNT(*) FROM prompt_templates`).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("检查提示词模板表失败: %w", err)
+	}
+
+	// 如果已经有模板，跳过迁移
+	if count > 0 {
+		log.Printf("✓ 提示词模板已存在于数据库，跳过迁移")
+		return nil
+	}
+
+	log.Printf("🔄 开始从文件系统迁移提示词模板到数据库...")
+
+	// 读取prompts目录下的所有.txt文件
+	promptsDir := "prompts"
+	files, err := filepath.Glob(filepath.Join(promptsDir, "*.txt"))
+	if err != nil {
+		return fmt.Errorf("扫描提示词目录失败: %w", err)
+	}
+
+	if len(files) == 0 {
+		log.Printf("⚠️  提示词目录 %s 中没有找到 .txt 文件", promptsDir)
+		return nil
+	}
+
+	// 迁移每个模板文件
+	migratedCount := 0
+	for _, file := range files {
+		// 读取文件内容
+		content, err := os.ReadFile(file)
+		if err != nil {
+			log.Printf("⚠️  读取提示词文件失败 %s: %v", file, err)
+			continue
+		}
+
+		// 提取文件名（不含扩展名）作为模板ID和名称
+		fileName := filepath.Base(file)
+		templateID := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+		templateName := templateID
+
+		// 插入到数据库（使用default用户，标记为系统模板）
+		_, err = d.db.Exec(`
+			INSERT INTO prompt_templates (id, user_id, name, content, is_system, created_at, updated_at)
+			VALUES (?, 'default', ?, ?, 1, datetime('now'), datetime('now'))
+		`, templateID, templateName, string(content))
+		if err != nil {
+			log.Printf("⚠️  插入提示词模板失败 %s: %v", templateID, err)
+			continue
+		}
+
+		migratedCount++
+		log.Printf("  📄 已迁移提示词模板: %s", templateID)
+	}
+
+	log.Printf("✅ 提示词模板迁移完成，共迁移 %d 个模板", migratedCount)
+	return nil
+}
+
 // User 用户配置
 type User struct {
 	ID           string    `json:"id"`
@@ -709,6 +884,7 @@ type User struct {
 	PasswordHash string    `json:"-"` // 不返回到前端
 	OTPSecret    string    `json:"-"` // 不返回到前端
 	OTPVerified  bool      `json:"otp_verified"`
+	Role         string    `json:"role"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -767,12 +943,25 @@ type TraderRecord struct {
 	TradingSymbols       string    `json:"trading_symbols"`        // 交易币种，逗号分隔
 	UseCoinPool          bool      `json:"use_coin_pool"`          // 是否使用COIN POOL信号源
 	UseOITop             bool      `json:"use_oi_top"`             // 是否使用OI TOP信号源
+	UseTradingView       bool      `json:"use_tradingview"`        // 是否使用TradingView信号源
+	FollowedTraderID     string    `json:"followed_trader_id"`     // 跟随的交易员ID（用于follower角色）
 	CustomPrompt         string    `json:"custom_prompt"`          // 自定义交易策略prompt
 	OverrideBasePrompt   bool      `json:"override_base_prompt"`   // 是否覆盖基础prompt
 	SystemPromptTemplate string    `json:"system_prompt_template"` // 系统提示词模板名称
 	IsCrossMargin        bool      `json:"is_cross_margin"`        // 是否为全仓模式（true=全仓，false=逐仓）
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
+}
+
+// PromptTemplateConfig 提示词模板配置
+type PromptTemplateConfig struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	Name      string    `json:"name"`
+	Content   string    `json:"content"`
+	IsSystem  bool      `json:"is_system"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // UserSignalSource 用户信号源配置
@@ -783,6 +972,26 @@ type UserSignalSource struct {
 	OITopURL    string    `json:"oi_top_url"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// TradingViewAlert TradingView警报
+type TradingViewAlert struct {
+	ID           string     `json:"id"`
+	UserID       string     `json:"user_id"`
+	TraderID     string     `json:"trader_id"`
+	RawPayload   string     `json:"raw_payload"`
+	Symbol       string     `json:"symbol"`
+	Action       string     `json:"action"`
+	Exchange     string     `json:"exchange"`
+	Entry        float64    `json:"entry"`
+	SL           float64    `json:"sl"`
+	TP           float64    `json:"tp"`
+	Quantity     float64    `json:"quantity"`
+	PositionSize float64    `json:"position_size"`
+	PriceType    string     `json:"pricetype"`
+	Status       string     `json:"status"`
+	CreatedAt    time.Time  `json:"created_at"`
+	ProcessedAt  *time.Time `json:"processed_at"`
 }
 
 // GenerateOTPSecret 生成OTP密钥
@@ -797,10 +1006,15 @@ func GenerateOTPSecret() (string, error) {
 
 // CreateUser 创建用户
 func (d *Database) CreateUser(user *User) error {
+	// Set default role if not specified
+	role := user.Role
+	if role == "" {
+		role = "follower"
+	}
 	_, err := d.db.Exec(`
-		INSERT INTO users (id, email, password_hash, otp_secret, otp_verified)
-		VALUES (?, ?, ?, ?, ?)
-	`, user.ID, user.Email, user.PasswordHash, user.OTPSecret, user.OTPVerified)
+		INSERT INTO users (id, email, password_hash, otp_secret, otp_verified, role)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, user.ID, user.Email, user.PasswordHash, user.OTPSecret, user.OTPVerified, role)
 	return err
 }
 
@@ -825,6 +1039,7 @@ func (d *Database) EnsureAdminUser() error {
 		PasswordHash: "", // 管理员模式下不使用密码
 		OTPSecret:    "",
 		OTPVerified:  true,
+		Role:         "user",
 	}
 
 	return d.CreateUser(adminUser)
@@ -834,18 +1049,31 @@ func (d *Database) EnsureAdminUser() error {
 func (d *Database) GetUserByEmail(email string) (*User, error) {
 	var user User
 	var createdAt, updatedAt string
+	var role sql.NullString
 	err := d.db.QueryRow(`
-		SELECT id, email, password_hash, otp_secret, otp_verified, created_at, updated_at
+		SELECT id, email, password_hash, otp_secret, otp_verified, COALESCE(role, 'follower') as role, created_at, updated_at
 		FROM users WHERE email = ?
 	`, email).Scan(
 		&user.ID, &user.Email, &user.PasswordHash, &user.OTPSecret,
-		&user.OTPVerified, &createdAt, &updatedAt,
+		&user.OTPVerified, &role, &createdAt, &updatedAt,
 	)
 	if err != nil {
+		log.Printf("❌ GetUserByEmail 失败: email=%s, error=%v", email, err)
 		return nil, err
+	}
+	if role.Valid {
+		user.Role = role.String
+		if user.Role == "" {
+			log.Printf("⚠️  GetUserByEmail: 用户 %s 的 role 字段为空，使用默认值 'follower'", email)
+			user.Role = "follower"
+		}
+	} else {
+		log.Printf("⚠️  GetUserByEmail: 用户 %s 的 role 字段为 NULL，使用默认值 'follower'", email)
+		user.Role = "follower"
 	}
 	user.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 	user.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+	log.Printf("✅ GetUserByEmail: 成功获取用户 email=%s, id=%s, role=%s", email, user.ID, user.Role)
 	return &user, nil
 }
 
@@ -853,18 +1081,31 @@ func (d *Database) GetUserByEmail(email string) (*User, error) {
 func (d *Database) GetUserByID(userID string) (*User, error) {
 	var user User
 	var createdAt, updatedAt string
+	var role sql.NullString
 	err := d.db.QueryRow(`
-		SELECT id, email, password_hash, otp_secret, otp_verified, created_at, updated_at
+		SELECT id, email, password_hash, otp_secret, otp_verified, COALESCE(role, 'follower') as role, created_at, updated_at
 		FROM users WHERE id = ?
 	`, userID).Scan(
 		&user.ID, &user.Email, &user.PasswordHash, &user.OTPSecret,
-		&user.OTPVerified, &createdAt, &updatedAt,
+		&user.OTPVerified, &role, &createdAt, &updatedAt,
 	)
 	if err != nil {
+		log.Printf("❌ GetUserByID 失败: userID=%s, error=%v", userID, err)
 		return nil, err
+	}
+	if role.Valid {
+		user.Role = role.String
+		if user.Role == "" {
+			log.Printf("⚠️  GetUserByID: 用户 %s 的 role 字段为空，使用默认值 'follower'", userID)
+			user.Role = "follower"
+		}
+	} else {
+		log.Printf("⚠️  GetUserByID: 用户 %s 的 role 字段为 NULL，使用默认值 'follower'", userID)
+		user.Role = "follower"
 	}
 	user.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 	user.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+	log.Printf("✅ GetUserByID: 成功获取用户 userID=%s, email=%s, role=%s", userID, user.Email, user.Role)
 	return &user, nil
 }
 
@@ -885,6 +1126,130 @@ func (d *Database) GetAllUsers() ([]string, error) {
 		userIDs = append(userIDs, userID)
 	}
 	return userIDs, nil
+}
+
+// GetAllUsersWithRoles 获取所有用户及其角色（admin使用）
+func (d *Database) GetAllUsersWithRoles() ([]*User, error) {
+	rows, err := d.db.Query(`
+		SELECT id, email, password_hash, otp_secret, otp_verified, COALESCE(role, 'follower') as role, created_at, updated_at
+		FROM users ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*User
+	for rows.Next() {
+		var user User
+		var createdAt, updatedAt string
+		var role sql.NullString
+		err := rows.Scan(
+			&user.ID, &user.Email, &user.PasswordHash, &user.OTPSecret,
+			&user.OTPVerified, &role, &createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if role.Valid {
+			user.Role = role.String
+			if user.Role == "" {
+				user.Role = "follower"
+			}
+		} else {
+			user.Role = "follower"
+		}
+		// Parse created_at with error handling and multiple format support
+		user.CreatedAt, err = time.Parse("2006-01-02 15:04:05", createdAt)
+		if err != nil {
+			// Try RFC3339 format (ISO 8601) as fallback
+			user.CreatedAt, err = time.Parse(time.RFC3339, createdAt)
+			if err != nil {
+				// Try parsing with location
+				user.CreatedAt, err = time.ParseInLocation("2006-01-02 15:04:05", createdAt, time.UTC)
+				if err != nil {
+					log.Printf("⚠️  GetAllUsersWithRoles: 无法解析 created_at '%s' for user %s: %v", createdAt, user.ID, err)
+					// Use current time as fallback instead of zero time
+					user.CreatedAt = time.Now()
+				}
+			}
+		}
+		// Parse updated_at with error handling and multiple format support
+		user.UpdatedAt, err = time.Parse("2006-01-02 15:04:05", updatedAt)
+		if err != nil {
+			// Try RFC3339 format (ISO 8601) as fallback
+			user.UpdatedAt, err = time.Parse(time.RFC3339, updatedAt)
+			if err != nil {
+				// Try parsing with location
+				user.UpdatedAt, err = time.ParseInLocation("2006-01-02 15:04:05", updatedAt, time.UTC)
+				if err != nil {
+					log.Printf("⚠️  GetAllUsersWithRoles: 无法解析 updated_at '%s' for user %s: %v", updatedAt, user.ID, err)
+					// Use current time as fallback instead of zero time
+					user.UpdatedAt = time.Now()
+				}
+			}
+		}
+		users = append(users, &user)
+	}
+	return users, nil
+}
+
+// UpdateUserRole 更新用户角色（admin使用）
+func (d *Database) UpdateUserRole(userID string, role string) error {
+	// 验证角色值
+	validRoles := map[string]bool{"user": true, "follower": true, "admin": true}
+	if !validRoles[role] {
+		return fmt.Errorf("无效的角色值: %s", role)
+	}
+
+	_, err := d.db.Exec(`
+		UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+	`, role, userID)
+	return err
+}
+
+// GetAllTraders 获取所有交易员（admin使用）
+func (d *Database) GetAllTraders() ([]*TraderRecord, error) {
+	rows, err := d.db.Query(`
+		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running,
+		       COALESCE(btc_eth_leverage, 5) as btc_eth_leverage, COALESCE(altcoin_leverage, 5) as altcoin_leverage,
+		       COALESCE(trading_symbols, '') as trading_symbols,
+		       COALESCE(use_coin_pool, 0) as use_coin_pool, COALESCE(use_oi_top, 0) as use_oi_top,
+		       COALESCE(use_tradingview, 0) as use_tradingview,
+		       COALESCE(followed_trader_id, '') as followed_trader_id,
+		       COALESCE(custom_prompt, '') as custom_prompt, COALESCE(override_base_prompt, 0) as override_base_prompt,
+		       COALESCE(system_prompt_template, 'default') as system_prompt_template,
+		       COALESCE(is_cross_margin, 1) as is_cross_margin, created_at, updated_at
+		FROM traders ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var traders []*TraderRecord
+	for rows.Next() {
+		var trader TraderRecord
+		var createdAt, updatedAt string
+		err := rows.Scan(
+			&trader.ID, &trader.UserID, &trader.Name, &trader.AIModelID, &trader.ExchangeID,
+			&trader.InitialBalance, &trader.ScanIntervalMinutes, &trader.IsRunning,
+			&trader.BTCETHLeverage, &trader.AltcoinLeverage, &trader.TradingSymbols,
+			&trader.UseCoinPool, &trader.UseOITop, &trader.UseTradingView,
+			&trader.FollowedTraderID,
+			&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
+			&trader.IsCrossMargin,
+			&createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+		traders = append(traders, &trader)
+	}
+
+	return traders, nil
 }
 
 // UpdateUserOTPVerified 更新用户OTP验证状态
@@ -1329,12 +1694,274 @@ func (d *Database) CreateExchange(userID, id, name, typ string, enabled bool, ap
 	return err
 }
 
+// GetExchangeByID 根据交易所ID和用户ID获取单个交易所配置
+func (d *Database) GetExchangeByID(userID, exchangeID string) (*ExchangeConfig, error) {
+	if exchangeID == "" {
+		return nil, fmt.Errorf("交易所ID不能为空")
+	}
+
+	var exchange ExchangeConfig
+	var createdAt, updatedAt string
+	err := d.db.QueryRow(`
+		SELECT id, user_id, name, type, enabled, api_key, secret_key, testnet,
+		       COALESCE(hyperliquid_wallet_addr, '') as hyperliquid_wallet_addr,
+		       COALESCE(aster_user, '') as aster_user,
+		       COALESCE(aster_signer, '') as aster_signer,
+		       COALESCE(aster_private_key, '') as aster_private_key,
+		       COALESCE(lighter_wallet_addr, '') as lighter_wallet_addr,
+		       COALESCE(lighter_private_key, '') as lighter_private_key,
+		       COALESCE(lighter_api_key_private_key, '') as lighter_api_key_private_key,
+		       created_at, updated_at
+		FROM exchanges
+		WHERE user_id = ? AND id = ?
+		LIMIT 1
+	`, userID, exchangeID).Scan(
+		&exchange.ID, &exchange.UserID, &exchange.Name, &exchange.Type,
+		&exchange.Enabled, &exchange.APIKey, &exchange.SecretKey, &exchange.Testnet,
+		&exchange.HyperliquidWalletAddr, &exchange.AsterUser,
+		&exchange.AsterSigner, &exchange.AsterPrivateKey,
+		&exchange.LighterWalletAddr, &exchange.LighterPrivateKey,
+		&exchange.LighterAPIKeyPrivateKey,
+		&createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析时间字符串
+	exchange.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	exchange.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+
+	// 解密敏感字段
+	exchange.APIKey = d.decryptSensitiveData(exchange.APIKey)
+	exchange.SecretKey = d.decryptSensitiveData(exchange.SecretKey)
+	exchange.AsterPrivateKey = d.decryptSensitiveData(exchange.AsterPrivateKey)
+	exchange.LighterPrivateKey = d.decryptSensitiveData(exchange.LighterPrivateKey)
+	exchange.LighterAPIKeyPrivateKey = d.decryptSensitiveData(exchange.LighterAPIKeyPrivateKey)
+
+	return &exchange, nil
+}
+
+// CopyAIModelToUser 将AI模型配置从源用户复制到目标用户（不复制API密钥）
+func (d *Database) CopyAIModelToUser(sourceUserID, targetUserID, modelID string) error {
+	// 获取源用户的AI模型配置
+	sourceModel, err := d.GetAIModel(sourceUserID, modelID)
+	if err != nil {
+		return fmt.Errorf("获取源AI模型配置失败: %w", err)
+	}
+
+	// 检查目标用户是否已有该模型
+	_, err = d.GetAIModel(targetUserID, modelID)
+	if err == nil {
+		// 模型已存在，不需要复制
+		log.Printf("✓ AI模型 %s 已存在于目标用户 %s", modelID, targetUserID)
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("检查目标AI模型失败: %w", err)
+	}
+
+	// 创建模型配置（不复制API密钥，使用空字符串）
+	err = d.CreateAIModel(
+		targetUserID,
+		sourceModel.ID,
+		sourceModel.Name,
+		sourceModel.Provider,
+		sourceModel.Enabled,
+		"", // 不复制API密钥
+		sourceModel.CustomAPIURL,
+	)
+	if err != nil {
+		return fmt.Errorf("创建AI模型配置失败: %w", err)
+	}
+
+	log.Printf("✓ 已为跟随者用户 %s 创建AI模型配置: %s (%s)", targetUserID, sourceModel.Name, sourceModel.Provider)
+	return nil
+}
+
+// CopyExchangeToUser 将交易所配置从源用户复制到目标用户（不复制API密钥和密钥）
+func (d *Database) CopyExchangeToUser(sourceUserID, targetUserID, exchangeID string) error {
+	// 获取源用户的交易所配置
+	sourceExchange, err := d.GetExchangeByID(sourceUserID, exchangeID)
+	if err != nil {
+		return fmt.Errorf("获取源交易所配置失败: %w", err)
+	}
+
+	// 检查目标用户是否已有该交易所
+	_, err = d.GetExchangeByID(targetUserID, exchangeID)
+	if err == nil {
+		// 交易所已存在，不需要复制
+		log.Printf("✓ 交易所 %s 已存在于目标用户 %s", exchangeID, targetUserID)
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("检查目标交易所失败: %w", err)
+	}
+
+	// 创建交易所配置（不复制API密钥和密钥，使用空字符串）
+	err = d.CreateExchange(
+		targetUserID,
+		sourceExchange.ID,
+		sourceExchange.Name,
+		sourceExchange.Type,
+		sourceExchange.Enabled,
+		"", // 不复制API密钥
+		"", // 不复制Secret密钥
+		sourceExchange.Testnet,
+		sourceExchange.HyperliquidWalletAddr,
+		sourceExchange.AsterUser,
+		sourceExchange.AsterSigner,
+		"", // 不复制Aster私钥
+	)
+	if err != nil {
+		return fmt.Errorf("创建交易所配置失败: %w", err)
+	}
+
+	log.Printf("✓ 已为跟随者用户 %s 创建交易所配置: %s (%s)", targetUserID, sourceExchange.Name, sourceExchange.Type)
+	return nil
+}
+
+// GetPromptTemplates 获取用户的提示词模板（包括系统模板）
+func (d *Database) GetPromptTemplates(userID string) ([]*PromptTemplateConfig, error) {
+	// 获取系统模板（user_id='default'）和用户模板
+	rows, err := d.db.Query(`
+		SELECT id, user_id, name, content, is_system, created_at, updated_at
+		FROM prompt_templates
+		WHERE user_id = ? OR (user_id = 'default' AND is_system = 1)
+		ORDER BY is_system DESC, name ASC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var templates []*PromptTemplateConfig
+	for rows.Next() {
+		var template PromptTemplateConfig
+		var createdAt, updatedAt string
+		err := rows.Scan(
+			&template.ID, &template.UserID, &template.Name, &template.Content,
+			&template.IsSystem, &createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		// 解析时间字符串
+		template.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		template.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+		templates = append(templates, &template)
+	}
+
+	return templates, nil
+}
+
+// GetPromptTemplate 获取指定的提示词模板
+func (d *Database) GetPromptTemplate(userID, templateID string) (*PromptTemplateConfig, error) {
+	// 允许获取系统模板（user_id='default'）或用户自己的模板
+	var template PromptTemplateConfig
+	var createdAt, updatedAt string
+	err := d.db.QueryRow(`
+		SELECT id, user_id, name, content, is_system, created_at, updated_at
+		FROM prompt_templates
+		WHERE id = ? AND (user_id = ? OR (user_id = 'default' AND is_system = 1))
+		LIMIT 1
+	`, templateID, userID).Scan(
+		&template.ID, &template.UserID, &template.Name, &template.Content,
+		&template.IsSystem, &createdAt, &updatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("提示词模板不存在: %s", templateID)
+		}
+		return nil, err
+	}
+
+	// 解析时间字符串
+	template.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	template.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+
+	return &template, nil
+}
+
+// CreatePromptTemplate 创建新的提示词模板
+func (d *Database) CreatePromptTemplate(userID, id, name, content string, isSystem bool) error {
+	_, err := d.db.Exec(`
+		INSERT INTO prompt_templates (id, user_id, name, content, is_system, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+	`, id, userID, name, content, isSystem)
+	return err
+}
+
+// UpdatePromptTemplate 更新提示词模板（只能更新用户创建的模板，不能更新系统模板）
+func (d *Database) UpdatePromptTemplate(userID, id, name, content string) error {
+	// 检查模板是否存在且属于该用户，且不是系统模板
+	var isSystem bool
+	var templateUserID string
+	err := d.db.QueryRow(`
+		SELECT user_id, is_system FROM prompt_templates WHERE id = ?
+	`, id).Scan(&templateUserID, &isSystem)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("提示词模板不存在: %s", id)
+		}
+		return err
+	}
+
+	// 不允许更新系统模板
+	if isSystem {
+		return fmt.Errorf("不能更新系统模板: %s", id)
+	}
+
+	// 只能更新自己的模板
+	if templateUserID != userID {
+		return fmt.Errorf("无权更新此模板: %s", id)
+	}
+
+	// 更新模板
+	_, err = d.db.Exec(`
+		UPDATE prompt_templates
+		SET name = ?, content = ?, updated_at = datetime('now')
+		WHERE id = ? AND user_id = ? AND is_system = 0
+	`, name, content, id, userID)
+	return err
+}
+
+// DeletePromptTemplate 删除提示词模板（只能删除用户创建的模板，不能删除系统模板）
+func (d *Database) DeletePromptTemplate(userID, id string) error {
+	// 检查模板是否存在且属于该用户，且不是系统模板
+	var isSystem bool
+	var templateUserID string
+	err := d.db.QueryRow(`
+		SELECT user_id, is_system FROM prompt_templates WHERE id = ?
+	`, id).Scan(&templateUserID, &isSystem)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("提示词模板不存在: %s", id)
+		}
+		return err
+	}
+
+	// 不允许删除系统模板
+	if isSystem {
+		return fmt.Errorf("不能删除系统模板: %s", id)
+	}
+
+	// 只能删除自己的模板
+	if templateUserID != userID {
+		return fmt.Errorf("无权删除此模板: %s", id)
+	}
+
+	// 删除模板
+	_, err = d.db.Exec(`DELETE FROM prompt_templates WHERE id = ? AND user_id = ? AND is_system = 0`, id, userID)
+	return err
+}
+
 // CreateTrader 创建交易员
 func (d *Database) CreateTrader(trader *TraderRecord) error {
 	_, err := d.db.Exec(`
-		INSERT INTO traders (id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage, trading_symbols, use_coin_pool, use_oi_top, custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, trader.ID, trader.UserID, trader.Name, trader.AIModelID, trader.ExchangeID, trader.InitialBalance, trader.ScanIntervalMinutes, trader.IsRunning, trader.BTCETHLeverage, trader.AltcoinLeverage, trader.TradingSymbols, trader.UseCoinPool, trader.UseOITop, trader.CustomPrompt, trader.OverrideBasePrompt, trader.SystemPromptTemplate, trader.IsCrossMargin)
+		INSERT INTO traders (id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage, trading_symbols, use_coin_pool, use_oi_top, use_tradingview, followed_trader_id, custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, trader.ID, trader.UserID, trader.Name, trader.AIModelID, trader.ExchangeID, trader.InitialBalance, trader.ScanIntervalMinutes, trader.IsRunning, trader.BTCETHLeverage, trader.AltcoinLeverage, trader.TradingSymbols, trader.UseCoinPool, trader.UseOITop, trader.UseTradingView, trader.FollowedTraderID, trader.CustomPrompt, trader.OverrideBasePrompt, trader.SystemPromptTemplate, trader.IsCrossMargin)
 	return err
 }
 
@@ -1345,6 +1972,8 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 		       COALESCE(btc_eth_leverage, 5) as btc_eth_leverage, COALESCE(altcoin_leverage, 5) as altcoin_leverage,
 		       COALESCE(trading_symbols, '') as trading_symbols,
 		       COALESCE(use_coin_pool, 0) as use_coin_pool, COALESCE(use_oi_top, 0) as use_oi_top,
+		       COALESCE(use_tradingview, 0) as use_tradingview,
+		       COALESCE(followed_trader_id, '') as followed_trader_id,
 		       COALESCE(custom_prompt, '') as custom_prompt, COALESCE(override_base_prompt, 0) as override_base_prompt,
 		       COALESCE(system_prompt_template, 'default') as system_prompt_template,
 		       COALESCE(is_cross_margin, 1) as is_cross_margin, created_at, updated_at
@@ -1363,7 +1992,8 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 			&trader.ID, &trader.UserID, &trader.Name, &trader.AIModelID, &trader.ExchangeID,
 			&trader.InitialBalance, &trader.ScanIntervalMinutes, &trader.IsRunning,
 			&trader.BTCETHLeverage, &trader.AltcoinLeverage, &trader.TradingSymbols,
-			&trader.UseCoinPool, &trader.UseOITop,
+			&trader.UseCoinPool, &trader.UseOITop, &trader.UseTradingView,
+			&trader.FollowedTraderID,
 			&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
 			&trader.IsCrossMargin,
 			&createdAt, &updatedAt,
@@ -1380,6 +2010,75 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 	return traders, nil
 }
 
+// GetFollowerTraders 获取所有跟随指定交易员的交易员列表
+func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord, error) {
+	rows, err := d.db.Query(`
+		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running,
+		       COALESCE(btc_eth_leverage, 5) as btc_eth_leverage, COALESCE(altcoin_leverage, 5) as altcoin_leverage,
+		       COALESCE(trading_symbols, '') as trading_symbols,
+		       COALESCE(use_coin_pool, 0) as use_coin_pool, COALESCE(use_oi_top, 0) as use_oi_top,
+		       COALESCE(use_tradingview, 0) as use_tradingview,
+		       COALESCE(followed_trader_id, '') as followed_trader_id,
+		       COALESCE(custom_prompt, '') as custom_prompt, COALESCE(override_base_prompt, 0) as override_base_prompt,
+		       COALESCE(system_prompt_template, 'default') as system_prompt_template,
+		       COALESCE(is_cross_margin, 1) as is_cross_margin, created_at, updated_at
+		FROM traders 
+		WHERE followed_trader_id = ? AND is_running = 1
+		ORDER BY created_at DESC
+	`, followedTraderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var traders []*TraderRecord
+	for rows.Next() {
+		var trader TraderRecord
+		var createdAt, updatedAt string
+		err := rows.Scan(
+			&trader.ID, &trader.UserID, &trader.Name, &trader.AIModelID, &trader.ExchangeID,
+			&trader.InitialBalance, &trader.ScanIntervalMinutes, &trader.IsRunning,
+			&trader.BTCETHLeverage, &trader.AltcoinLeverage, &trader.TradingSymbols,
+			&trader.UseCoinPool, &trader.UseOITop, &trader.UseTradingView,
+			&trader.FollowedTraderID,
+			&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
+			&trader.IsCrossMargin,
+			&createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		// 解析时间字符串
+		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+		traders = append(traders, &trader)
+	}
+
+	return traders, nil
+}
+
+// GetTraderFollowedTraderID 获取交易员的followed_trader_id
+func (d *Database) GetTraderFollowedTraderID(traderID string) (string, error) {
+	var followedTraderID string
+	err := d.db.QueryRow(`
+		SELECT COALESCE(followed_trader_id, '') 
+		FROM traders 
+		WHERE id = ?
+	`, traderID).Scan(&followedTraderID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Printf("⚠️ DEBUG [GetTraderFollowedTraderID]: Trader %s not found in database", traderID)
+			return "", nil
+		}
+		log.Printf("❌ DEBUG [GetTraderFollowedTraderID]: Error querying trader %s: %v", traderID, err)
+		return "", err
+	}
+	if followedTraderID != "" {
+		log.Printf("✓ DEBUG [GetTraderFollowedTraderID]: Trader %s has followed_trader_id: '%s'", traderID, followedTraderID)
+	}
+	return followedTraderID, nil
+}
+
 // UpdateTraderStatus 更新交易员状态
 func (d *Database) UpdateTraderStatus(userID, id string, isRunning bool) error {
 	_, err := d.db.Exec(`UPDATE traders SET is_running = ? WHERE id = ? AND user_id = ?`, isRunning, id, userID)
@@ -1388,18 +2087,29 @@ func (d *Database) UpdateTraderStatus(userID, id string, isRunning bool) error {
 
 // UpdateTrader 更新交易员配置
 func (d *Database) UpdateTrader(trader *TraderRecord) error {
-	_, err := d.db.Exec(`
+	log.Printf("🔍 DEBUG [UpdateTrader DB]: Updating trader %s (user_id: %s) with system_prompt_template: '%s'", trader.ID, trader.UserID, trader.SystemPromptTemplate)
+	result, err := d.db.Exec(`
 		UPDATE traders SET
 			name = ?, ai_model_id = ?, exchange_id = ?,
 			scan_interval_minutes = ?, btc_eth_leverage = ?, altcoin_leverage = ?,
-			trading_symbols = ?, custom_prompt = ?, override_base_prompt = ?,
+			trading_symbols = ?, use_coin_pool = ?, use_oi_top = ?, use_tradingview = ?,
+			followed_trader_id = ?,
+			custom_prompt = ?, override_base_prompt = ?,
 			system_prompt_template = ?, is_cross_margin = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND user_id = ?
 	`, trader.Name, trader.AIModelID, trader.ExchangeID,
 		trader.ScanIntervalMinutes, trader.BTCETHLeverage, trader.AltcoinLeverage,
-		trader.TradingSymbols, trader.CustomPrompt, trader.OverrideBasePrompt,
+		trader.TradingSymbols, trader.UseCoinPool, trader.UseOITop, trader.UseTradingView,
+		trader.FollowedTraderID,
+		trader.CustomPrompt, trader.OverrideBasePrompt,
 		trader.SystemPromptTemplate, trader.IsCrossMargin, trader.ID, trader.UserID)
-	return err
+	if err != nil {
+		log.Printf("❌ DEBUG [UpdateTrader DB]: Update failed for trader %s: %v", trader.ID, err)
+		return err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	log.Printf("✓ DEBUG [UpdateTrader DB]: Update succeeded for trader %s, rows affected: %d, system_prompt_template: '%s'", trader.ID, rowsAffected, trader.SystemPromptTemplate)
+	return nil
 }
 
 // UpdateTraderCustomPrompt 更新交易员自定义Prompt
@@ -1438,6 +2148,8 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 			COALESCE(t.trading_symbols, '') as trading_symbols,
 			COALESCE(t.use_coin_pool, 0) as use_coin_pool,
 			COALESCE(t.use_oi_top, 0) as use_oi_top,
+			COALESCE(t.use_tradingview, 0) as use_tradingview,
+			COALESCE(t.followed_trader_id, '') as followed_trader_id,
 			COALESCE(t.custom_prompt, '') as custom_prompt,
 			COALESCE(t.override_base_prompt, 0) as override_base_prompt,
 			COALESCE(t.system_prompt_template, 'default') as system_prompt_template,
@@ -1464,7 +2176,8 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 		&trader.ID, &trader.UserID, &trader.Name, &trader.AIModelID, &trader.ExchangeID,
 		&trader.InitialBalance, &trader.ScanIntervalMinutes, &trader.IsRunning,
 		&trader.BTCETHLeverage, &trader.AltcoinLeverage, &trader.TradingSymbols,
-		&trader.UseCoinPool, &trader.UseOITop,
+		&trader.UseCoinPool, &trader.UseOITop, &trader.UseTradingView,
+		&trader.FollowedTraderID,
 		&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
 		&trader.IsCrossMargin,
 		&traderCreatedAt, &traderUpdatedAt,
@@ -1551,6 +2264,289 @@ func (d *Database) UpdateUserSignalSource(userID, coinPoolURL, oiTopURL string) 
 		WHERE user_id = ?
 	`, coinPoolURL, oiTopURL, userID)
 	return err
+}
+
+// GenerateWebhookAPIKey 生成或获取用户的Webhook API Key
+func (d *Database) GenerateWebhookAPIKey(userID string) (string, error) {
+	// 先检查是否已存在
+	var existingKey string
+	err := d.db.QueryRow(`SELECT api_key FROM webhook_api_keys WHERE user_id = ?`, userID).Scan(&existingKey)
+	if err == nil {
+		return existingKey, nil
+	}
+	if err != sql.ErrNoRows {
+		return "", fmt.Errorf("查询API key失败: %w", err)
+	}
+
+	// 生成64字符的hex API key
+	bytes := make([]byte, 32) // 32 bytes = 64 hex characters
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("生成随机数失败: %w", err)
+	}
+	apiKey := fmt.Sprintf("%x", bytes)
+
+	// 插入数据库
+	_, err = d.db.Exec(`
+		INSERT INTO webhook_api_keys (user_id, api_key, created_at, updated_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, userID, apiKey)
+	if err != nil {
+		return "", fmt.Errorf("保存API key失败: %w", err)
+	}
+
+	return apiKey, nil
+}
+
+// GetUserByWebhookAPIKey 通过API key获取用户
+func (d *Database) GetUserByWebhookAPIKey(apiKey string) (*User, error) {
+	var userID string
+	err := d.db.QueryRow(`SELECT user_id FROM webhook_api_keys WHERE api_key = ?`, apiKey).Scan(&userID)
+	if err != nil {
+		return nil, fmt.Errorf("无效的API key: %w", err)
+	}
+
+	return d.GetUserByID(userID)
+}
+
+// CreateTradingViewAlert 创建TradingView警报，返回警报ID
+func (d *Database) CreateTradingViewAlert(userID, traderID string, payload map[string]interface{}) (string, error) {
+	// 生成UUID
+	id := fmt.Sprintf("%d", time.Now().UnixNano())
+
+	// 解析payload字段
+	rawPayloadBytes, _ := json.Marshal(payload)
+	rawPayload := string(rawPayloadBytes)
+
+	symbol, _ := payload["symbol"].(string)
+	action, _ := payload["action"].(string)
+	exchange, _ := payload["exchange"].(string)
+	pricetype, _ := payload["pricetype"].(string)
+
+	// 解析数值字段
+	entry := parseFloat(payload["entry"])
+	sl := parseFloat(payload["sl"])
+	tp := parseFloat(payload["tp"])
+	quantity := parseFloat(payload["quantity"])
+	positionSize := parseFloat(payload["position_size"])
+
+	_, err := d.db.Exec(`
+		INSERT INTO tradingview_alerts (
+			id, user_id, trader_id, raw_payload, symbol, action, exchange,
+			entry, sl, tp, quantity, position_size, pricetype, status, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
+	`, id, userID, traderID, rawPayload, symbol, action, exchange,
+		entry, sl, tp, quantity, positionSize, pricetype)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+// parseFloat 辅助函数：从interface{}解析float64
+func parseFloat(v interface{}) float64 {
+	if v == nil {
+		return 0
+	}
+	switch val := v.(type) {
+	case float64:
+		return val
+	case float32:
+		return float64(val)
+	case string:
+		var f float64
+		fmt.Sscanf(val, "%f", &f)
+		return f
+	case int:
+		return float64(val)
+	case int64:
+		return float64(val)
+	default:
+		return 0
+	}
+}
+
+// GetPendingTradingViewAlerts 获取指定交易员的待处理警报
+func (d *Database) GetPendingTradingViewAlerts(traderID string) ([]TradingViewAlert, error) {
+	rows, err := d.db.Query(`
+		SELECT id, user_id, trader_id, raw_payload, symbol, action, exchange,
+			entry, sl, tp, quantity, position_size, pricetype, status,
+			created_at, processed_at
+		FROM tradingview_alerts
+		WHERE trader_id = ? AND status = 'pending'
+		ORDER BY created_at ASC
+	`, traderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var alerts []TradingViewAlert
+	for rows.Next() {
+		var alert TradingViewAlert
+		var createdAt string
+		var processedAt sql.NullString
+
+		err := rows.Scan(
+			&alert.ID, &alert.UserID, &alert.TraderID, &alert.RawPayload,
+			&alert.Symbol, &alert.Action, &alert.Exchange,
+			&alert.Entry, &alert.SL, &alert.TP, &alert.Quantity,
+			&alert.PositionSize, &alert.PriceType, &alert.Status,
+			&createdAt, &processedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		alert.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		if processedAt.Valid {
+			t, _ := time.Parse("2006-01-02 15:04:05", processedAt.String)
+			alert.ProcessedAt = &t
+		}
+
+		alerts = append(alerts, alert)
+	}
+
+	return alerts, nil
+}
+
+// UpdateAlertStatus 更新警报状态
+func (d *Database) UpdateAlertStatus(alertID string, status string) error {
+	now := time.Now()
+	_, err := d.db.Exec(`
+		UPDATE tradingview_alerts
+		SET status = ?, processed_at = ?
+		WHERE id = ?
+	`, status, now, alertID)
+	return err
+}
+
+// GetTradingViewAlertByID 根据ID获取TradingView警报
+func (d *Database) GetTradingViewAlertByID(alertID string) (*TradingViewAlert, error) {
+	var alert TradingViewAlert
+	var createdAt string
+	var processedAt sql.NullString
+
+	err := d.db.QueryRow(`
+		SELECT id, user_id, trader_id, raw_payload, symbol, action, exchange,
+			entry, sl, tp, quantity, position_size, pricetype, status,
+			created_at, processed_at
+		FROM tradingview_alerts
+		WHERE id = ?
+	`, alertID).Scan(
+		&alert.ID, &alert.UserID, &alert.TraderID, &alert.RawPayload,
+		&alert.Symbol, &alert.Action, &alert.Exchange,
+		&alert.Entry, &alert.SL, &alert.TP, &alert.Quantity,
+		&alert.PositionSize, &alert.PriceType, &alert.Status,
+		&createdAt, &processedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	alert.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	if processedAt.Valid {
+		t, _ := time.Parse("2006-01-02 15:04:05", processedAt.String)
+		alert.ProcessedAt = &t
+	}
+
+	return &alert, nil
+}
+
+// GetRecentTradingViewAlerts 获取最近的TradingView警报
+func (d *Database) GetRecentTradingViewAlerts(userID string, traderID string, limit int) ([]TradingViewAlert, error) {
+	query := `
+		SELECT id, user_id, trader_id, raw_payload, symbol, action, exchange,
+			entry, sl, tp, quantity, position_size, pricetype, status,
+			created_at, processed_at
+		FROM tradingview_alerts
+		WHERE user_id = ?
+	`
+	args := []interface{}{userID}
+
+	if traderID != "" {
+		query += " AND trader_id = ?"
+		args = append(args, traderID)
+	}
+
+	query += " ORDER BY created_at DESC LIMIT ?"
+	args = append(args, limit)
+
+	rows, err := d.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var alerts []TradingViewAlert
+	for rows.Next() {
+		var alert TradingViewAlert
+		var createdAt string
+		var processedAt sql.NullString
+
+		err := rows.Scan(
+			&alert.ID, &alert.UserID, &alert.TraderID, &alert.RawPayload,
+			&alert.Symbol, &alert.Action, &alert.Exchange,
+			&alert.Entry, &alert.SL, &alert.TP, &alert.Quantity,
+			&alert.PositionSize, &alert.PriceType, &alert.Status,
+			&createdAt, &processedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		alert.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		if processedAt.Valid {
+			t, _ := time.Parse("2006-01-02 15:04:05", processedAt.String)
+			alert.ProcessedAt = &t
+		}
+
+		alerts = append(alerts, alert)
+	}
+
+	return alerts, nil
+}
+
+// GetTradersWithTradingViewEnabled 获取用户启用了TradingView的交易员列表
+func (d *Database) GetTradersWithTradingViewEnabled(userID string) ([]*TraderRecord, error) {
+	rows, err := d.db.Query(`
+		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance,
+			scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage,
+			trading_symbols, use_coin_pool, use_oi_top, use_tradingview,
+			custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin,
+			created_at, updated_at
+		FROM traders
+		WHERE user_id = ? AND use_tradingview = 1
+		ORDER BY created_at ASC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var traders []*TraderRecord
+	for rows.Next() {
+		var trader TraderRecord
+		var createdAt, updatedAt string
+
+		err := rows.Scan(
+			&trader.ID, &trader.UserID, &trader.Name, &trader.AIModelID,
+			&trader.ExchangeID, &trader.InitialBalance, &trader.ScanIntervalMinutes,
+			&trader.IsRunning, &trader.BTCETHLeverage, &trader.AltcoinLeverage,
+			&trader.TradingSymbols, &trader.UseCoinPool, &trader.UseOITop,
+			&trader.UseTradingView, &trader.CustomPrompt, &trader.OverrideBasePrompt,
+			&trader.SystemPromptTemplate, &trader.IsCrossMargin,
+			&createdAt, &updatedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+		traders = append(traders, &trader)
+	}
+
+	return traders, nil
 }
 
 // GetCustomCoins 获取所有交易员自定义币种 / Get all trader-customized currencies

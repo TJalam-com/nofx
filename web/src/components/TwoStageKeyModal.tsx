@@ -62,11 +62,25 @@ export function TwoStageKeyModal({
 
   const stage1Ref = useRef<HTMLInputElement>(null)
   const stage2Ref = useRef<HTMLInputElement>(null)
+  const isMountedRef = useRef(true)
 
   // UX improvement: Use 58 + 6 split (most of the key + last 6 chars)
   // Advantage: Second stage only requires entering 6 characters, much easier to count
   const expectedPart1Length = expectedLength - 6  // 64 - 6 = 58
   const expectedPart2Length = 6  // Last 6 characters
+
+  // Track mounted state and cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+      // Close modal on unmount to prevent portal cleanup issues
+      if (isOpen) {
+        onCancel()
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 
   useEffect(() => {
     if (isOpen && stage === 1 && stage1Ref.current) {
@@ -342,6 +356,11 @@ export function TwoStageKeyModal({
   ])
 
   if (!isOpen) return null
+
+  // Ensure document.body exists before creating portal
+  if (typeof document === 'undefined' || !document.body) {
+    return null
+  }
 
   return createPortal(modalContent, document.body)
 }

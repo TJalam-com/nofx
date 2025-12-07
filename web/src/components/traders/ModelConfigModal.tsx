@@ -60,8 +60,33 @@ export function ModelConfigModal({
     )
   }
 
-  // 可选择的模型列表(所有支持的模型)
-  const availableModels = allModels || []
+  // Filter out prompt template names from AI models (they're not real AI models)
+  const isPromptTemplateName = (name: string): boolean => {
+    if (!name) return false
+    const promptTemplateNames = [
+      'risk_management',
+      'risk-management',
+      'riskmanagement',
+      'default',
+      'adaptive',
+      'aggressive',
+      'conservative',
+      'scalping',
+    ]
+    const nameLower = name.toLowerCase().trim()
+    return promptTemplateNames.some((templateName) => 
+      nameLower === templateName.toLowerCase()
+    )
+  }
+
+  // 可选择的模型列表(所有支持的模型，排除提示词模板)
+  const availableModels = (allModels || []).filter((model) => {
+    // Exclude models that are actually prompt template names
+    if (isPromptTemplateName(model.id) || isPromptTemplateName(model.name || '')) {
+      return false
+    }
+    return true
+  })
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">

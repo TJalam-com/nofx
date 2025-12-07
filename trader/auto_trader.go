@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	cfg "nofx/config"
 	"nofx/decision"
 	"nofx/logger"
 	"nofx/market"
@@ -85,6 +86,20 @@ type AutoTraderConfig struct {
 
 	// 系统提示词模板
 	SystemPromptTemplate string // 系统提示词模板名称（如 "default", "aggressive"）
+
+	// TradingView配置
+	UseTradingView bool // 是否使用TradingView信号源（如果为true，将跳过AI决策）
+}
+
+// ParentTradeSignal represents a trade signal from a followed trader
+type ParentTradeSignal struct {
+	ParentTraderID       string
+	ParentTraderName     string
+	SignalID             string
+	Timestamp            time.Time
+	Decision             *decision.Decision
+	ParentEquity         float64
+	ParentInitialBalance float64
 }
 
 // AutoTrader 自动交易器
@@ -117,6 +132,13 @@ type AutoTrader struct {
 	lastBalanceSyncTime   time.Time          // 上次余额同步时间
 	database              interface{}        // 数据库引用（用于自动更新余额）
 	userID                string             // 用户ID
+	triggerDecisionCh     chan string        // Channel for triggering immediate decision cycles (TradingView webhooks)
+	tradeReplicationCallback func(traderID string, decision *decision.Decision) // Callback to replicate trades to followers
+	parentTradeSignalCh   chan *ParentTradeSignal // Channel for parent trade signals
+	isFollower            bool               // Cached follower status
+	followedTraderID      string             // Cached parent trader ID
+	processedSignals      map[string]time.Time // Deduplication cache (signal_id -> timestamp)
+	processedSignalsMutex sync.RWMutex       // Mutex for signal cache
 }
 
 // NewAutoTrader 创建自动交易器
@@ -230,11 +252,6 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		return nil, fmt.Errorf("不支持的交易平台: %s", config.Exchange)
 	}
 
-	// 验证初始金额配置
-	if config.InitialBalance <= 0 {
-		return nil, fmt.Errorf("初始金额必须大于0，请在配置中设置InitialBalance")
-	}
-
 	// 初始化决策日志记录器（使用trader ID创建独立目录）
 	logDir := fmt.Sprintf("decision_logs/%s", config.ID)
 	decisionLogger := logger.NewDecisionLogger(logDir)
@@ -244,6 +261,18 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 	if systemPromptTemplate == "" {
 		// feature/partial-close-dynamic-tpsl 分支默认使用 adaptive（支持动态止盈止损）
 		systemPromptTemplate = "adaptive"
+	}
+
+	// Check if this trader is a follower and cache the status
+	isFollower := false
+	followedTraderID := ""
+	if db, ok := database.(*cfg.Database); ok {
+		followedID, err := db.GetTraderFollowedTraderID(config.ID)
+		if err == nil && followedID != "" {
+			isFollower = true
+			followedTraderID = followedID
+			log.Printf("👥 [%s] Detected as follower (parent: %s)", config.Name, followedID)
+		}
 	}
 
 	return &AutoTrader{
@@ -271,11 +300,21 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		lastBalanceSyncTime:   time.Now(), // 初始化为当前时间
 		database:              database,
 		userID:                userID,
+		triggerDecisionCh:     make(chan string, 100), // Buffered channel for webhook triggers (buffer size: 100)
+		parentTradeSignalCh:   make(chan *ParentTradeSignal, 100), // Buffered channel for parent signals
+		isFollower:            isFollower,
+		followedTraderID:      followedTraderID,
+		processedSignals:      make(map[string]time.Time),
 	}, nil
 }
 
 // Run 运行自动交易主循环
 func (at *AutoTrader) Run() error {
+	// 验证初始金额配置（在启动时验证，允许加载时balance=0）
+	if at.initialBalance <= 0 {
+		return fmt.Errorf("无法启动交易员: 初始金额未设置，请使用同步余额功能设置初始金额")
+	}
+
 	at.isRunning = true
 	at.stopMonitorCh = make(chan struct{})
 	at.startTime = time.Now()
@@ -284,33 +323,140 @@ func (at *AutoTrader) Run() error {
 	log.Printf("💰 初始余额: %.2f USDT", at.initialBalance)
 	log.Printf("⚙️  扫描间隔: %v", at.config.ScanInterval)
 	log.Println("🤖 AI将全权决定杠杆、仓位大小、止损止盈等参数")
+	log.Printf("INFO: Trader starting (id=%s, name=%s, UseTradingView=%v, ScanInterval=%v)", at.id, at.name, at.config.UseTradingView, at.config.ScanInterval)
+	log.Printf("ℹ️ Trader mode: UseTradingView=%v (id=%s, name=%s)", at.config.UseTradingView, at.id, at.name)
 	at.monitorWg.Add(1)
 	defer at.monitorWg.Done()
 
 	// 启动回撤监控
 	at.startDrawdownMonitor()
 
-	ticker := time.NewTicker(at.config.ScanInterval)
-	defer ticker.Stop()
-
-	// 首次立即执行
-	if err := at.runCycle(); err != nil {
-		log.Printf("❌ 执行失败: %v", err)
+	// Check if this is a follower trader
+	if at.isFollower {
+		log.Printf("👥 [%s] Follower mode: waiting for parent signals (parent=%s)", 
+			at.name, at.followedTraderID)
+		
+		const maxConcurrentSignals = 5
+		semaphore := make(chan struct{}, maxConcurrentSignals)
+		
+		for at.isRunning {
+			select {
+			case signal := <-at.parentTradeSignalCh:
+				semaphore <- struct{}{}
+				go func(s *ParentTradeSignal) {
+					defer func() { <-semaphore }()
+					at.processParentTradeSignalWithAI(s)
+				}(signal)
+			case <-at.stopMonitorCh:
+				log.Printf("[%s] ⏹ Received stop signal, exiting follower mode", at.name)
+				return nil
+			}
+		}
+		return nil
 	}
 
-	for at.isRunning {
-		select {
-		case <-ticker.C:
-			if err := at.runCycle(); err != nil {
-				log.Printf("❌ 执行失败: %v", err)
+	// 如果启用TradingView，跳过周期性扫描，等待webhook触发
+	if at.config.UseTradingView {
+		log.Println("📡 TradingView模式：等待webhook触发，不进行周期性扫描")
+		log.Printf("INFO: Entering TradingView wait mode (trader=%s, id=%s, UseTradingView=%v)", at.name, at.id, at.config.UseTradingView)
+		log.Printf("ℹ️ TradingView wait loop started for trader %s (id=%s)", at.name, at.id)
+		
+		// Worker pool for concurrent webhook processing
+		const maxConcurrentAlerts = 10
+		semaphore := make(chan struct{}, maxConcurrentAlerts)
+		
+		for at.isRunning {
+			select {
+			case alertID := <-at.triggerDecisionCh:
+				// Acquire semaphore
+				semaphore <- struct{}{}
+				// Process alert in goroutine
+				go func(id string) {
+					defer func() { <-semaphore }() // Release semaphore
+					at.processTradingViewAlertWithAI(id)
+				}(alertID)
+			case <-at.stopMonitorCh:
+				log.Printf("[%s] ⏹ 收到停止信号，退出自动交易主循环", at.name)
+				return nil
 			}
-		case <-at.stopMonitorCh:
-			log.Printf("[%s] ⏹ 收到停止信号，退出自动交易主循环", at.name)
-			return nil
+		}
+	} else {
+		// 原有的周期性扫描逻辑
+		log.Printf("INFO: Entering periodic scan mode (trader=%s, id=%s, UseTradingView=%v, ScanInterval=%v)", at.name, at.id, at.config.UseTradingView, at.config.ScanInterval)
+		log.Printf("WARN: Trader is NOT in TradingView mode - periodic scans will run (trader=%s, id=%s)", at.name, at.id)
+		log.Printf("🕒 周期扫描模式已启用: 每 %v 运行一次AI决策", at.config.ScanInterval)
+		ticker := time.NewTicker(at.config.ScanInterval)
+		defer ticker.Stop()
+
+		// 首次立即执行
+		if err := at.runCycle(); err != nil {
+			log.Printf("❌ 执行失败: %v", err)
+		}
+
+		for at.isRunning {
+			select {
+			case <-ticker.C:
+				if err := at.runCycle(); err != nil {
+					log.Printf("❌ 执行失败: %v", err)
+				}
+			case <-at.stopMonitorCh:
+				log.Printf("[%s] ⏹ 收到停止信号，退出自动交易主循环", at.name)
+				return nil
+			}
 		}
 	}
 
 	return nil
+}
+
+// TriggerTradingViewDecisionCycle 触发TradingView决策周期（非阻塞）
+func (at *AutoTrader) TriggerTradingViewDecisionCycle(alertID string) error {
+	if !at.isRunning {
+		log.Printf("❌ [%s] Cannot trigger TradingView decision: trader not running (alertID=%s)", at.name, alertID)
+		return fmt.Errorf("trader is not running")
+	}
+	
+	select {
+	case at.triggerDecisionCh <- alertID:
+		log.Printf("📡 [%s] Triggered TradingView decision cycle (alertID=%s, pending=%d)", at.name, alertID, len(at.triggerDecisionCh))
+		return nil
+	default:
+		// Channel is full, log warning but don't block
+		log.Printf("⚠️ [%s] Decision trigger channel is full, skipping alertID=%s (pending=%d)", at.name, alertID, len(at.triggerDecisionCh))
+		return fmt.Errorf("decision trigger channel is full")
+	}
+}
+
+// TriggerParentTradeSignal sends a parent trade signal to the child trader for AI analysis (non-blocking)
+func (at *AutoTrader) TriggerParentTradeSignal(signal *ParentTradeSignal) error {
+	if !at.isRunning {
+		log.Printf("❌ [%s] Cannot trigger parent trade signal: trader not running (signal_id=%s)", at.name, signal.SignalID)
+		return fmt.Errorf("trader is not running")
+	}
+
+	// Check for duplicate signals
+	at.processedSignalsMutex.RLock()
+	if lastSeen, exists := at.processedSignals[signal.SignalID]; exists {
+		if time.Since(lastSeen) < 5*time.Minute {
+			at.processedSignalsMutex.RUnlock()
+			log.Printf("⚠️ [%s] Duplicate parent signal detected (signal_id=%s, last_seen=%v ago)", 
+				at.name, signal.SignalID, time.Since(lastSeen))
+			return fmt.Errorf("duplicate signal")
+		}
+	}
+	at.processedSignalsMutex.RUnlock()
+
+	select {
+	case at.parentTradeSignalCh <- signal:
+		log.Printf("📡 [%s] Triggered parent trade signal processing (signal_id=%s, pending=%d)", 
+			at.name, signal.SignalID, len(at.parentTradeSignalCh))
+		return nil
+	default:
+		// Channel is full, log warning but don't block
+		log.Printf("⚠️ [%s] Parent trade signal channel is full, skipping signal_id=%s (pending=%d)", 
+			at.name, signal.SignalID, len(at.parentTradeSignalCh))
+		return fmt.Errorf("parent trade signal channel is full")
+	}
 }
 
 // Stop 停止自动交易
@@ -319,7 +465,15 @@ func (at *AutoTrader) Stop() {
 		return
 	}
 	at.isRunning = false
-	close(at.stopMonitorCh) // 通知监控goroutine停止
+	
+	// Safe close: check if channel is already closed
+	select {
+	case <-at.stopMonitorCh:
+		// Already closed, do nothing
+	default:
+		close(at.stopMonitorCh)
+	}
+	
 	at.monitorWg.Wait()     // 等待监控goroutine结束
 	log.Println("⏹ 自动交易系统停止")
 }
@@ -329,7 +483,12 @@ func (at *AutoTrader) runCycle() error {
 	at.callCount++
 
 	log.Print("\n" + strings.Repeat("=", 70) + "\n")
-	log.Printf("⏰ %s - AI决策周期 #%d", time.Now().Format("2006-01-02 15:04:05"), at.callCount)
+	if at.config.UseTradingView {
+		log.Printf("⚠️ [%s] runCycle invoked while UseTradingView=true (unexpected periodic scan path)", at.name)
+		log.Printf("⏰ %s - TradingView信号周期 #%d", time.Now().Format("2006-01-02 15:04:05"), at.callCount)
+	} else {
+		log.Printf("⏰ %s - AI决策周期 #%d", time.Now().Format("2006-01-02 15:04:05"), at.callCount)
+	}
 	log.Println(strings.Repeat("=", 70))
 
 	// 创建决策记录
@@ -353,6 +512,22 @@ func (at *AutoTrader) runCycle() error {
 		at.dailyPnL = 0
 		at.lastResetTime = time.Now()
 		log.Println("📅 日盈亏已重置")
+	}
+
+	// 2.5. 检查是否是跟随者（如果有followed_trader_id，跳过AI决策周期）
+	// Check if this is a follower (early exit for follower traders)
+	if at.isFollower {
+		log.Printf("📋 [%s] Follower mode: skipping periodic cycle, waiting for parent signals", at.name)
+		record.Success = true
+		record.ExecutionLog = append(record.ExecutionLog, "Follower mode: waiting for parent signals")
+		at.decisionLogger.LogDecision(record)
+		return nil
+	}
+
+	// 3. 检查是否使用TradingView信号（如果启用，跳过AI决策）
+	if at.config.UseTradingView {
+		log.Printf("📡 TradingView模式：跳过AI决策，处理TradingView警报")
+		return at.processTradingViewAlerts(record)
 	}
 
 	// 4. 收集交易上下文
@@ -420,7 +595,7 @@ func (at *AutoTrader) runCycle() error {
 
 	if err != nil {
 		record.Success = false
-		record.ErrorMessage = fmt.Sprintf("获取AI决策失败: %v", err)
+		record.ErrorMessage = fmt.Sprintf("failed to get AI decision: %v", err)
 
 		// 打印系统提示词和AI思维链（即使有错误，也要输出以便调试）
 		if decision != nil {
@@ -440,7 +615,7 @@ func (at *AutoTrader) runCycle() error {
 		}
 
 		at.decisionLogger.LogDecision(record)
-		return fmt.Errorf("获取AI决策失败: %w", err)
+		return fmt.Errorf("failed to get AI decision: %w", err)
 	}
 
 	// // 5. 打印系统提示词
@@ -670,29 +845,54 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 	return ctx, nil
 }
 
+// SetTradeReplicationCallback 设置交易复制回调函数
+func (at *AutoTrader) SetTradeReplicationCallback(callback func(traderID string, decision *decision.Decision)) {
+	at.tradeReplicationCallback = callback
+}
+
+// ExecuteDecisionWithRecord 公开方法，用于外部执行决策（用于跟随交易）
+func (at *AutoTrader) ExecuteDecisionWithRecord(decision *decision.Decision, actionRecord *logger.DecisionAction) error {
+	return at.executeDecisionWithRecord(decision, actionRecord)
+}
+
 // executeDecisionWithRecord 执行AI决策并记录详细信息
 func (at *AutoTrader) executeDecisionWithRecord(decision *decision.Decision, actionRecord *logger.DecisionAction) error {
+	var err error
+	
 	switch decision.Action {
 	case "open_long":
-		return at.executeOpenLongWithRecord(decision, actionRecord)
+		err = at.executeOpenLongWithRecord(decision, actionRecord)
 	case "open_short":
-		return at.executeOpenShortWithRecord(decision, actionRecord)
+		err = at.executeOpenShortWithRecord(decision, actionRecord)
 	case "close_long":
-		return at.executeCloseLongWithRecord(decision, actionRecord)
+		err = at.executeCloseLongWithRecord(decision, actionRecord)
 	case "close_short":
-		return at.executeCloseShortWithRecord(decision, actionRecord)
+		err = at.executeCloseShortWithRecord(decision, actionRecord)
 	case "update_stop_loss":
-		return at.executeUpdateStopLossWithRecord(decision, actionRecord)
+		err = at.executeUpdateStopLossWithRecord(decision, actionRecord)
 	case "update_take_profit":
-		return at.executeUpdateTakeProfitWithRecord(decision, actionRecord)
+		err = at.executeUpdateTakeProfitWithRecord(decision, actionRecord)
 	case "partial_close":
-		return at.executePartialCloseWithRecord(decision, actionRecord)
+		err = at.executePartialCloseWithRecord(decision, actionRecord)
 	case "hold", "wait":
 		// 无需执行，仅记录
 		return nil
 	default:
 		return fmt.Errorf("未知的action: %s", decision.Action)
 	}
+
+	// If trade executed successfully, replicate to followers
+	if err == nil && actionRecord.Success && at.tradeReplicationCallback != nil {
+		// Only replicate position-changing actions
+		if decision.Action == "open_long" || decision.Action == "open_short" || 
+		   decision.Action == "close_long" || decision.Action == "close_short" ||
+		   decision.Action == "partial_close" {
+			// Call replication callback in goroutine to avoid blocking
+			go at.tradeReplicationCallback(at.id, decision)
+		}
+	}
+
+	return err
 }
 
 // executeOpenLongWithRecord 执行开多仓并记录详细信息
@@ -1260,6 +1460,7 @@ func (at *AutoTrader) GetStatus() map[string]interface{} {
 		"ai_model":        at.aiModel,
 		"exchange":        at.exchange,
 		"is_running":      at.isRunning,
+		"use_tradingview": at.config.UseTradingView,
 		"start_time":      at.startTime.Format(time.RFC3339),
 		"runtime_minutes": int(time.Since(at.startTime).Minutes()),
 		"call_count":      at.callCount,
@@ -1687,3 +1888,729 @@ func (at *AutoTrader) ClearPeakPnLCache(symbol, side string) {
 	posKey := symbol + "_" + side
 	delete(at.peakPnLCache, posKey)
 }
+
+// processTradingViewAlerts 处理TradingView警报（跳过AI决策）
+func (at *AutoTrader) processTradingViewAlerts(record *logger.DecisionRecord) error {
+	// 获取数据库引用
+	db, ok := at.database.(*cfg.Database)
+	if !ok {
+		record.Success = false
+		record.ErrorMessage = "无法访问数据库"
+		at.decisionLogger.LogDecision(record)
+		return fmt.Errorf("数据库类型错误")
+	}
+
+	// 获取待处理的警报
+	alerts, err := db.GetPendingTradingViewAlerts(at.id)
+	if err != nil {
+		record.Success = false
+		record.ErrorMessage = fmt.Sprintf("获取TradingView警报失败: %v", err)
+		at.decisionLogger.LogDecision(record)
+		return fmt.Errorf("获取警报失败: %w", err)
+	}
+
+	if len(alerts) == 0 {
+		log.Println("📭 没有待处理的TradingView警报")
+		record.ExecutionLog = append(record.ExecutionLog, "没有待处理的TradingView警报")
+		at.decisionLogger.LogDecision(record)
+		return nil
+	}
+
+	log.Printf("📨 找到 %d 个待处理的TradingView警报", len(alerts))
+
+	// 获取账户信息（用于风险检查）
+	balance, err := at.trader.GetBalance()
+	if err != nil {
+		record.Success = false
+		record.ErrorMessage = fmt.Sprintf("获取账户信息失败: %v", err)
+		at.decisionLogger.LogDecision(record)
+		return fmt.Errorf("获取账户信息失败: %w", err)
+	}
+
+	// 从balance map中提取账户信息
+	totalWalletBalance := 0.0
+	totalUnrealizedProfit := 0.0
+	availableBalance := 0.0
+
+	if wallet, ok := balance["totalWalletBalance"].(float64); ok {
+		totalWalletBalance = wallet
+	} else if equity, ok := balance["total_equity"].(float64); ok {
+		totalWalletBalance = equity
+	}
+	if unrealized, ok := balance["totalUnrealizedProfit"].(float64); ok {
+		totalUnrealizedProfit = unrealized
+	} else if unrealized, ok := balance["unrealized_pnl"].(float64); ok {
+		totalUnrealizedProfit = unrealized
+	}
+	if avail, ok := balance["availableBalance"].(float64); ok {
+		availableBalance = avail
+	} else if avail, ok := balance["available_balance"].(float64); ok {
+		availableBalance = avail
+	}
+
+	totalEquity := totalWalletBalance + totalUnrealizedProfit
+	marginUsedPct := 0.0
+	if marginUsed, ok := balance["margin_used"].(float64); ok && totalEquity > 0 {
+		marginUsedPct = (marginUsed / totalEquity) * 100
+	}
+
+	// 获取持仓数量
+	positions, _ := at.trader.GetPositions()
+	positionCount := len(positions)
+
+	record.AccountState = logger.AccountSnapshot{
+		TotalBalance:          totalEquity - totalUnrealizedProfit,
+		AvailableBalance:      availableBalance,
+		TotalUnrealizedProfit: totalUnrealizedProfit,
+		PositionCount:         positionCount,
+		MarginUsedPct:         marginUsedPct,
+		InitialBalance:        at.initialBalance,
+	}
+
+	// 转换警报为决策动作
+	var decisions []decision.Decision
+	for _, alert := range alerts {
+		d := at.convertAlertToDecision(alert)
+		if d != nil {
+			decisions = append(decisions, *d)
+			// 标记警报为已接受
+			_ = db.UpdateAlertStatus(alert.ID, "accepted")
+		}
+	}
+
+	if len(decisions) == 0 {
+		log.Println("⚠️ 没有有效的交易动作")
+		record.ExecutionLog = append(record.ExecutionLog, "没有有效的交易动作")
+		at.decisionLogger.LogDecision(record)
+		return nil
+	}
+
+	// 执行交易
+	log.Printf("🔄 执行 %d 个TradingView交易动作", len(decisions))
+	for i, d := range decisions {
+		actionRecord := logger.DecisionAction{
+			Action:    d.Action,
+			Symbol:    d.Symbol,
+			Quantity:  0,
+			Leverage:  d.Leverage,
+			Price:     0,
+			Timestamp: time.Now(),
+			Success:   false,
+		}
+
+		if err := at.executeDecisionWithRecord(&d, &actionRecord); err != nil {
+			log.Printf("❌ 执行TradingView交易失败 (%s %s): %v", d.Symbol, d.Action, err)
+			actionRecord.Error = err.Error()
+			record.ExecutionLog = append(record.ExecutionLog, fmt.Sprintf("❌ %s %s 失败: %v", d.Symbol, d.Action, err))
+		} else {
+			actionRecord.Success = true
+			record.ExecutionLog = append(record.ExecutionLog, fmt.Sprintf("✓ %s %s 成功", d.Symbol, d.Action))
+			// 标记警报为已执行
+			if i < len(alerts) {
+				_ = db.UpdateAlertStatus(alerts[i].ID, "executed")
+			}
+			time.Sleep(1 * time.Second)
+		}
+
+		record.Decisions = append(record.Decisions, actionRecord)
+	}
+
+	// 保存决策记录
+	if err := at.decisionLogger.LogDecision(record); err != nil {
+		log.Printf("⚠ 保存决策记录失败: %v", err)
+	}
+
+	return nil
+}
+
+// convertAlertToDecision 将TradingView警报转换为决策
+func (at *AutoTrader) convertAlertToDecision(alert cfg.TradingViewAlert) *decision.Decision {
+	// 映射action: "buy" -> "open_long", "sell" -> "open_short"
+	var action string
+	if alert.Action == "buy" {
+		action = "open_long"
+	} else if alert.Action == "sell" {
+		action = "open_short"
+	} else {
+		log.Printf("⚠️ 未知的action: %s", alert.Action)
+		return nil
+	}
+
+	// 确定数量（优先使用position_size，如果为0则使用quantity）
+	quantity := alert.PositionSize
+	if quantity == 0 {
+		quantity = alert.Quantity
+	}
+	if quantity == 0 {
+		log.Printf("⚠️ 警报数量为0: %s", alert.Symbol)
+		return nil
+	}
+
+	// 确定杠杆（根据币种选择）
+	leverage := at.config.AltcoinLeverage
+	if alert.Symbol == "BTCUSDT" || alert.Symbol == "ETHUSDT" {
+		leverage = at.config.BTCETHLeverage
+	}
+
+	// 计算仓位大小（USD）
+	positionSizeUSD := quantity * alert.Entry
+
+	return &decision.Decision{
+		Action:         action,
+		Symbol:         alert.Symbol,
+		Leverage:       leverage,
+		PositionSizeUSD: positionSizeUSD,
+		StopLoss:       alert.SL,
+		TakeProfit:     alert.TP,
+		Reasoning:      fmt.Sprintf("TradingView警报: %s %s @ %.2f", alert.Symbol, action, alert.Entry),
+	}
+}
+
+// processTradingViewAlertWithAI 处理单个TradingView警报，使用AI分析
+func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
+	log.Printf("🤖 [%s] 开始AI分析TradingView警报: %s", at.name, alertID)
+
+	// 获取数据库引用
+	db, ok := at.database.(*cfg.Database)
+	if !ok {
+		log.Printf("❌ [%s] 数据库类型错误", at.name)
+		return
+	}
+
+	// 获取警报
+	alert, err := db.GetTradingViewAlertByID(alertID)
+	if err != nil {
+		log.Printf("❌ [%s] 获取警报失败: %v", at.name, err)
+		return
+	}
+
+	// 更新状态为 analyzing
+	if err := db.UpdateAlertStatus(alertID, "analyzing"); err != nil {
+		log.Printf("⚠️ [%s] 更新警报状态失败: %v", at.name, err)
+	}
+
+	// 创建决策记录
+	record := &logger.DecisionRecord{
+		Timestamp:    time.Now(),
+		Success:      false,
+		ExecutionLog: []string{},
+		Decisions:    []logger.DecisionAction{},
+	}
+
+	// 构建交易上下文（仅针对该币种）
+	tradingCtx, err := at.buildTradingContextForSymbol(alert.Symbol, alert)
+	if err != nil {
+		log.Printf("❌ [%s] 构建交易上下文失败: %v", at.name, err)
+		record.ErrorMessage = fmt.Sprintf("构建交易上下文失败: %v", err)
+		_ = db.UpdateAlertStatus(alertID, "error")
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+
+	// 构建用户提示词（包含TradingView信号数据）
+	userPrompt := at.buildTradingViewUserPrompt(tradingCtx, alert)
+
+	// 构建系统提示词（包含TradingView信号分析说明）
+	systemPrompt := decision.BuildSystemPromptWithTradingView(
+		tradingCtx.Account.TotalEquity,
+		tradingCtx.BTCETHLeverage,
+		tradingCtx.AltcoinLeverage,
+		at.customPrompt,
+		at.overrideBasePrompt,
+		at.systemPromptTemplate,
+		tradingCtx.PromptVariant,
+	)
+
+	// 调用AI
+	aiCallStart := time.Now()
+	aiResponse, err := at.mcpClient.CallWithMessages(systemPrompt, userPrompt)
+	aiCallDuration := time.Since(aiCallStart)
+	if err != nil {
+		log.Printf("❌ [%s] AI调用失败: %v", at.name, err)
+		record.ErrorMessage = fmt.Sprintf("AI调用失败: %v", err)
+		_ = db.UpdateAlertStatus(alertID, "error")
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+
+	log.Printf("✅ [%s] AI调用成功，耗时: %v", at.name, aiCallDuration)
+	record.AIRequestDurationMs = aiCallDuration.Milliseconds()
+
+	// 解析AI响应
+	fullDecision, err := decision.ParseFullDecisionResponse(tradingCtx, aiResponse)
+	if err != nil {
+		log.Printf("❌ [%s] failed to parse AI response: %v", at.name, err)
+		record.ErrorMessage = fmt.Sprintf("failed to parse AI response: %v", err)
+		_ = db.UpdateAlertStatus(alertID, "error")
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+
+	// 检查是否有决策
+	if len(fullDecision.Decisions) == 0 {
+		log.Printf("⚠️ [%s] AI未返回任何决策", at.name)
+		record.ErrorMessage = "AI未返回任何决策"
+		_ = db.UpdateAlertStatus(alertID, "rejected")
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+
+	// 获取第一个决策（应该只有一个）
+	aiDecision := fullDecision.Decisions[0]
+
+	// 检查信号决策
+	if aiDecision.SignalDecision == "reject" {
+		log.Printf("❌ [%s] AI拒绝TradingView信号: %s", at.name, aiDecision.Reasoning)
+		record.ErrorMessage = fmt.Sprintf("AI拒绝: %s", aiDecision.Reasoning)
+		_ = db.UpdateAlertStatus(alertID, "rejected")
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+
+	// AI接受或修改信号
+	if aiDecision.SignalDecision == "accept" || aiDecision.SignalDecision == "modify" {
+		log.Printf("✅ [%s] AI%sTradingView信号", at.name, 
+			map[string]string{"accept": "接受", "modify": "修改"}[aiDecision.SignalDecision])
+
+		// 执行决策
+		actionRecord := logger.DecisionAction{
+			Action:    aiDecision.Action,
+			Symbol:    aiDecision.Symbol,
+			Quantity:  0,
+			Leverage:  aiDecision.Leverage,
+			Price:     0,
+			Timestamp: time.Now(),
+			Success:   false,
+		}
+
+		if err := at.executeDecisionWithRecord(&aiDecision, &actionRecord); err != nil {
+			log.Printf("❌ [%s] 执行决策失败: %v", at.name, err)
+			actionRecord.Error = err.Error()
+			record.ErrorMessage = fmt.Sprintf("执行失败: %v", err)
+			_ = db.UpdateAlertStatus(alertID, "error")
+		} else {
+			actionRecord.Success = true
+			_ = db.UpdateAlertStatus(alertID, "executed")
+			log.Printf("✅ [%s] TradingView信号已执行", at.name)
+		}
+
+		record.Decisions = append(record.Decisions, actionRecord)
+		record.Success = actionRecord.Success
+	}
+
+	// 保存决策记录
+	if err := at.decisionLogger.LogDecision(record); err != nil {
+		log.Printf("⚠️ [%s] 保存决策记录失败: %v", at.name, err)
+	}
+}
+
+// processParentTradeSignalWithAI processes a parent trade signal using AI analysis
+func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) {
+	log.Printf("🤖 [%s] Analyzing parent signal: %s %s (signal_id=%s)", 
+		at.name, signal.Decision.Action, signal.Decision.Symbol, signal.SignalID)
+	
+	// Mark signal as processed
+	at.processedSignalsMutex.Lock()
+	at.processedSignals[signal.SignalID] = time.Now()
+	// Clean old entries (keep last 100)
+	if len(at.processedSignals) > 100 {
+		oldestTime := time.Now().Add(-1 * time.Hour)
+		for id, t := range at.processedSignals {
+			if t.Before(oldestTime) {
+				delete(at.processedSignals, id)
+			}
+		}
+	}
+	at.processedSignalsMutex.Unlock()
+	
+	// Create decision record
+	record := &logger.DecisionRecord{
+		Timestamp:    time.Now(),
+		Success:      false,
+		ExecutionLog: []string{},
+		Decisions:    []logger.DecisionAction{},
+	}
+	
+	// Build trading context
+	tradingCtx, err := at.buildTradingContextForSymbol(signal.Decision.Symbol, nil)
+	if err != nil {
+		log.Printf("❌ [%s] Failed to build context: %v", at.name, err)
+		record.ErrorMessage = fmt.Sprintf("Failed to build context: %v", err)
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+	
+	// Ensure market data for signal symbol and BTCUSDT
+	if _, exists := tradingCtx.MarketDataMap[signal.Decision.Symbol]; !exists {
+		marketData, err := market.Get(signal.Decision.Symbol)
+		if err != nil {
+			log.Printf("⚠️ [%s] Failed to get market data for %s: %v", 
+				at.name, signal.Decision.Symbol, err)
+		} else {
+			tradingCtx.MarketDataMap[signal.Decision.Symbol] = marketData
+		}
+	}
+	
+	// Ensure BTCUSDT market data is available
+	if _, exists := tradingCtx.MarketDataMap["BTCUSDT"]; !exists {
+		btcData, err := market.Get("BTCUSDT")
+		if err == nil {
+			tradingCtx.MarketDataMap["BTCUSDT"] = btcData
+		}
+	}
+	
+	// Build user prompt with parent signal info
+	userPrompt := at.buildParentSignalUserPrompt(tradingCtx, signal)
+	
+	// Build system prompt using risk_management template
+	systemPrompt := decision.BuildSystemPromptWithParentSignal(
+		tradingCtx.Account.TotalEquity,
+		tradingCtx.BTCETHLeverage,
+		tradingCtx.AltcoinLeverage,
+		at.customPrompt,
+		at.overrideBasePrompt,
+		"risk_management",
+		tradingCtx.PromptVariant,
+	)
+	
+	// Call AI
+	aiCallStart := time.Now()
+	aiResponse, err := at.mcpClient.CallWithMessages(systemPrompt, userPrompt)
+	aiCallDuration := time.Since(aiCallStart)
+	
+	if err != nil {
+		log.Printf("❌ [%s] AI call failed: %v", at.name, err)
+		record.ErrorMessage = fmt.Sprintf("AI call failed: %v", err)
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+	
+	record.AIRequestDurationMs = aiCallDuration.Milliseconds()
+	
+	// Parse AI response
+	fullDecision, err := decision.ParseFullDecisionResponse(tradingCtx, aiResponse)
+	if err != nil {
+		log.Printf("❌ [%s] Failed to parse AI response: %v", at.name, err)
+		record.ErrorMessage = fmt.Sprintf("Failed to parse: %v", err)
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+	
+	// Process decision
+	if len(fullDecision.Decisions) == 0 {
+		log.Printf("⚠️ [%s] AI returned no decisions", at.name)
+		return
+	}
+	
+	aiDecision := fullDecision.Decisions[0]
+	aiDecision.ParentSignalID = signal.SignalID
+	
+	// Save decision details to record
+	record.InputPrompt = userPrompt
+	record.SystemPrompt = systemPrompt
+	record.CoTTrace = fullDecision.CoTTrace
+	if len(fullDecision.Decisions) > 0 {
+		decisionJSON, _ := json.MarshalIndent(fullDecision.Decisions, "", "  ")
+		record.DecisionJSON = string(decisionJSON)
+	}
+	
+	// Handle signal decision
+	if aiDecision.SignalDecision == "reject" {
+		log.Printf("❌ [%s] AI rejected signal: %s", at.name, aiDecision.Reasoning)
+		record.ErrorMessage = fmt.Sprintf("AI rejected: %s", aiDecision.Reasoning)
+		record.Success = true
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+	
+	// Execute decision (accept or modify)
+	log.Printf("✅ [%s] AI decision: %s signal (%s)", 
+		at.name, aiDecision.SignalDecision, aiDecision.Action)
+	
+	actionRecord := &logger.DecisionAction{
+		Action:    aiDecision.Action,
+		Symbol:    aiDecision.Symbol,
+		Timestamp: time.Now(),
+	}
+	
+	if err := at.executeDecisionWithRecord(&aiDecision, actionRecord); err != nil {
+		log.Printf("❌ [%s] Execution failed: %v", at.name, err)
+		record.Success = false
+		record.ErrorMessage = fmt.Sprintf("Execution failed: %v", err)
+		actionRecord.Error = err.Error()
+	} else {
+		log.Printf("✅ [%s] Successfully executed parent signal", at.name)
+		record.Success = true
+		actionRecord.Success = true
+	}
+	
+	record.Decisions = append(record.Decisions, *actionRecord)
+	at.decisionLogger.LogDecision(record)
+}
+
+// buildTradingContextForSymbol 为特定币种构建交易上下文
+func (at *AutoTrader) buildTradingContextForSymbol(symbol string, alert *cfg.TradingViewAlert) (*decision.Context, error) {
+	// 1. 获取账户信息
+	balance, err := at.trader.GetBalance()
+	if err != nil {
+		return nil, fmt.Errorf("获取账户余额失败: %w", err)
+	}
+
+	totalWalletBalance := 0.0
+	totalUnrealizedProfit := 0.0
+	availableBalance := 0.0
+
+	if wallet, ok := balance["totalWalletBalance"].(float64); ok {
+		totalWalletBalance = wallet
+	}
+	if unrealized, ok := balance["totalUnrealizedProfit"].(float64); ok {
+		totalUnrealizedProfit = unrealized
+	}
+	if avail, ok := balance["availableBalance"].(float64); ok {
+		availableBalance = avail
+	}
+
+	totalEquity := totalWalletBalance + totalUnrealizedProfit
+
+	// 2. 获取持仓信息
+	positions, err := at.trader.GetPositions()
+	if err != nil {
+		return nil, fmt.Errorf("获取持仓失败: %w", err)
+	}
+
+	var positionInfos []decision.PositionInfo
+	for _, pos := range positions {
+		symbolPos := pos["symbol"].(string)
+		side := pos["side"].(string)
+		entryPrice := pos["entryPrice"].(float64)
+		markPrice := pos["markPrice"].(float64)
+		quantity := pos["positionAmt"].(float64)
+		if quantity < 0 {
+			quantity = -quantity
+		}
+		if quantity == 0 {
+			continue
+		}
+
+		unrealizedPnl := pos["unRealizedProfit"].(float64)
+		liquidationPrice := pos["liquidationPrice"].(float64)
+
+		leverage := 10
+		if lev, ok := pos["leverage"].(float64); ok {
+			leverage = int(lev)
+		}
+		marginUsed := (quantity * markPrice) / float64(leverage)
+		pnlPct := calculatePnLPercentage(unrealizedPnl, marginUsed)
+
+		posKey := symbolPos + "_" + side
+		updateTime := at.positionFirstSeenTime[posKey]
+		if updateTime == 0 {
+			updateTime = time.Now().UnixMilli()
+		}
+
+		at.peakPnLCacheMutex.RLock()
+		peakPnlPct := at.peakPnLCache[posKey]
+		at.peakPnLCacheMutex.RUnlock()
+
+		positionInfos = append(positionInfos, decision.PositionInfo{
+			Symbol:           symbolPos,
+			Side:             side,
+			EntryPrice:       entryPrice,
+			MarkPrice:        markPrice,
+			Quantity:         quantity,
+			Leverage:         leverage,
+			UnrealizedPnL:    unrealizedPnl,
+			UnrealizedPnLPct: pnlPct,
+			PeakPnLPct:       peakPnlPct,
+			LiquidationPrice: liquidationPrice,
+			MarginUsed:       marginUsed,
+			UpdateTime:       updateTime,
+		})
+	}
+
+	// 3. 获取该币种的市场数据
+	marketData, err := market.Get(symbol)
+	if err != nil {
+		return nil, fmt.Errorf("获取市场数据失败: %w", err)
+	}
+
+	marketDataMap := make(map[string]*market.Data)
+	marketDataMap[symbol] = marketData
+
+	// 4. 构建上下文
+	ctx := &decision.Context{
+		CurrentTime:     time.Now().Format("2006-01-02 15:04:05"),
+		CallCount:       at.callCount,
+		RuntimeMinutes:  int(time.Since(at.startTime).Minutes()),
+		Account: decision.AccountInfo{
+			TotalEquity:      totalEquity,
+			AvailableBalance: availableBalance,
+			TotalPnLPct:      ((totalEquity - at.initialBalance) / at.initialBalance) * 100,
+			MarginUsedPct:    (totalWalletBalance / totalEquity) * 100,
+			PositionCount:    len(positions),
+		},
+		Positions:      positionInfos,
+		MarketDataMap:  marketDataMap,
+		CandidateCoins: []decision.CandidateCoin{{Symbol: symbol, Sources: []string{"tradingview"}}},
+		BTCETHLeverage: at.config.BTCETHLeverage,
+		AltcoinLeverage: at.config.AltcoinLeverage,
+		PromptVariant:  "",
+	}
+
+	return ctx, nil
+}
+
+// buildTradingViewUserPrompt 构建TradingView专用的用户提示词
+func (at *AutoTrader) buildTradingViewUserPrompt(ctx *decision.Context, alert *cfg.TradingViewAlert) string {
+	var sb strings.Builder
+
+	// 系统状态
+	sb.WriteString(fmt.Sprintf("时间: %s | 周期: #%d | 运行: %d分钟\n\n",
+		ctx.CurrentTime, ctx.CallCount, ctx.RuntimeMinutes))
+
+	// TradingView信号详情
+	sb.WriteString("## TradingView信号接收\n\n")
+	sb.WriteString(fmt.Sprintf("警报ID: %s\n", alert.ID))
+	sb.WriteString(fmt.Sprintf("币种: %s\n", alert.Symbol))
+	sb.WriteString(fmt.Sprintf("操作: %s (%s)\n", alert.Action, map[string]string{"buy": "开多", "sell": "开空"}[alert.Action]))
+	sb.WriteString(fmt.Sprintf("入场价: %.4f\n", alert.Entry))
+	sb.WriteString(fmt.Sprintf("止损价: %.4f\n", alert.SL))
+	sb.WriteString(fmt.Sprintf("止盈价: %.4f\n", alert.TP))
+	sb.WriteString(fmt.Sprintf("数量: %.4f\n", alert.Quantity))
+	if alert.PositionSize > 0 {
+		sb.WriteString(fmt.Sprintf("仓位大小: %.2f USDT\n", alert.PositionSize))
+	}
+	sb.WriteString("\n")
+
+	// BTC 市场（如果不同）
+	if alert.Symbol != "BTCUSDT" {
+		if btcData, hasBTC := ctx.MarketDataMap["BTCUSDT"]; hasBTC {
+			sb.WriteString(fmt.Sprintf("BTC: %.2f (1h: %+.2f%%, 4h: %+.2f%%) | MACD: %.4f | RSI: %.2f\n\n",
+				btcData.CurrentPrice, btcData.PriceChange1h, btcData.PriceChange4h,
+				btcData.CurrentMACD, btcData.CurrentRSI7))
+		}
+	}
+
+	// 账户状态
+	sb.WriteString(fmt.Sprintf("账户: 净值%.2f | 余额%.2f (%.1f%%) | 盈亏%+.2f%% | 保证金%.1f%% | 持仓%d个\n\n",
+		ctx.Account.TotalEquity,
+		ctx.Account.AvailableBalance,
+		(ctx.Account.AvailableBalance/ctx.Account.TotalEquity)*100,
+		ctx.Account.TotalPnLPct,
+		ctx.Account.MarginUsedPct,
+		ctx.Account.PositionCount))
+
+	// 当前持仓
+	if len(ctx.Positions) > 0 {
+		sb.WriteString("## 当前持仓\n")
+		for i, pos := range ctx.Positions {
+			sb.WriteString(fmt.Sprintf("%d. %s %s | 入场价%.4f 当前价%.4f | 数量%.4f | 盈亏%+.2f%% | 杠杆%dx\n\n",
+				i+1, pos.Symbol, strings.ToUpper(pos.Side),
+				pos.EntryPrice, pos.MarkPrice, pos.Quantity, pos.UnrealizedPnLPct, pos.Leverage))
+		}
+	} else {
+		sb.WriteString("当前持仓: 无\n\n")
+	}
+
+	// 目标币种的完整市场数据
+	if marketData, ok := ctx.MarketDataMap[alert.Symbol]; ok {
+		sb.WriteString(fmt.Sprintf("## %s 市场数据\n\n", alert.Symbol))
+		sb.WriteString(market.Format(marketData))
+		sb.WriteString("\n\n")
+	}
+
+	// 决策请求
+	sb.WriteString("---\n\n")
+	sb.WriteString("请分析这个TradingView信号，并决定：接受(accept)、拒绝(reject)或修改(modify)。\n")
+	sb.WriteString("如果接受，使用信号提供的参数；如果修改，使用你认为更合适的参数。\n")
+	sb.WriteString("在JSON输出中必须包含 signal_decision 字段（值为 \"accept\"、\"reject\" 或 \"modify\"）。\n")
+	sb.WriteString("现在请分析并输出决策（思维链 + JSON）\n")
+
+	return sb.String()
+}
+
+// buildParentSignalUserPrompt builds the user prompt for parent trade signal analysis
+func (at *AutoTrader) buildParentSignalUserPrompt(ctx *decision.Context, signal *ParentTradeSignal) string {
+	var sb strings.Builder
+	
+	sb.WriteString("# Parent Trade Signal Analysis\n\n")
+	sb.WriteString(fmt.Sprintf("Parent Trader: %s (ID: %s)\n", 
+		signal.ParentTraderName, signal.ParentTraderID))
+	sb.WriteString(fmt.Sprintf("Signal ID: %s\n", signal.SignalID))
+	sb.WriteString(fmt.Sprintf("Timestamp: %s\n\n", signal.Timestamp.Format(time.RFC3339)))
+	
+	sb.WriteString("## Parent's Trade Decision\n\n")
+	sb.WriteString(fmt.Sprintf("- Symbol: %s\n", signal.Decision.Symbol))
+	sb.WriteString(fmt.Sprintf("- Action: %s\n", signal.Decision.Action))
+	sb.WriteString(fmt.Sprintf("- Leverage: %dx\n", signal.Decision.Leverage))
+	sb.WriteString(fmt.Sprintf("- Position Size: %.2f USDT\n", signal.Decision.PositionSizeUSD))
+	sb.WriteString(fmt.Sprintf("- Stop Loss: %.4f\n", signal.Decision.StopLoss))
+	sb.WriteString(fmt.Sprintf("- Take Profit: %.4f\n", signal.Decision.TakeProfit))
+	sb.WriteString(fmt.Sprintf("- Reasoning: %s\n\n", signal.Decision.Reasoning))
+	
+	if signal.ParentEquity > 0 {
+		sb.WriteString(fmt.Sprintf("- Parent Account Equity: %.2f USDT\n", signal.ParentEquity))
+		if signal.ParentInitialBalance > 0 {
+			parentPnlPct := ((signal.ParentEquity - signal.ParentInitialBalance) / signal.ParentInitialBalance) * 100
+			sb.WriteString(fmt.Sprintf("- Parent Total P&L: %.2f%%\n", parentPnlPct))
+		}
+	}
+	
+	sb.WriteString("\n## Your Account Status\n\n")
+	sb.WriteString(fmt.Sprintf("- Total Equity: %.2f USDT\n", ctx.Account.TotalEquity))
+	sb.WriteString(fmt.Sprintf("- Available Balance: %.2f USDT\n", ctx.Account.AvailableBalance))
+	sb.WriteString(fmt.Sprintf("- Position Count: %d\n", ctx.Account.PositionCount))
+	sb.WriteString(fmt.Sprintf("- Margin Used: %.2f%%\n\n", ctx.Account.MarginUsedPct))
+	
+	// Add current positions
+	if len(ctx.Positions) > 0 {
+		sb.WriteString("## Current Positions\n\n")
+		for i, pos := range ctx.Positions {
+			sb.WriteString(fmt.Sprintf("%d. %s %s | Entry: %.4f | Mark: %.4f | Quantity: %.4f | P&L: %+.2f%% | Leverage: %dx\n",
+				i+1, pos.Symbol, strings.ToUpper(pos.Side),
+				pos.EntryPrice, pos.MarkPrice, pos.Quantity, pos.UnrealizedPnLPct, pos.Leverage))
+		}
+		sb.WriteString("\n")
+	}
+	
+	// Add market data
+	if marketData, exists := ctx.MarketDataMap[signal.Decision.Symbol]; exists {
+		sb.WriteString("## Current Market Data\n\n")
+		sb.WriteString(fmt.Sprintf("- Symbol: %s\n", signal.Decision.Symbol))
+		sb.WriteString(fmt.Sprintf("- Current Price: %.4f\n", marketData.CurrentPrice))
+		// Use PriceChange1h or PriceChange4h if available, otherwise calculate from price
+		if marketData.PriceChange1h != 0 {
+			sb.WriteString(fmt.Sprintf("- 1h Change: %.2f%%\n", marketData.PriceChange1h))
+		}
+		if marketData.PriceChange4h != 0 {
+			sb.WriteString(fmt.Sprintf("- 4h Change: %.2f%%\n", marketData.PriceChange4h))
+		}
+		if marketData.CurrentRSI7 > 0 {
+			sb.WriteString(fmt.Sprintf("- RSI(7): %.2f\n", marketData.CurrentRSI7))
+		}
+		if marketData.CurrentMACD != 0 {
+			sb.WriteString(fmt.Sprintf("- MACD: %.4f\n", marketData.CurrentMACD))
+		}
+		sb.WriteString("\n")
+	}
+	
+	// Add BTC market data if different symbol
+	if signal.Decision.Symbol != "BTCUSDT" {
+		if btcData, hasBTC := ctx.MarketDataMap["BTCUSDT"]; hasBTC {
+			sb.WriteString("## BTC Market Context\n\n")
+			sb.WriteString(fmt.Sprintf("- BTC Price: %.2f\n", btcData.CurrentPrice))
+			sb.WriteString(fmt.Sprintf("- 1h Change: %+.2f%%\n", btcData.PriceChange1h))
+			sb.WriteString(fmt.Sprintf("- 4h Change: %+.2f%%\n", btcData.PriceChange4h))
+			if btcData.CurrentRSI7 > 0 {
+				sb.WriteString(fmt.Sprintf("- RSI(7): %.2f\n", btcData.CurrentRSI7))
+			}
+			if btcData.CurrentMACD != 0 {
+				sb.WriteString(fmt.Sprintf("- MACD: %.4f\n", btcData.CurrentMACD))
+			}
+			sb.WriteString("\n")
+		}
+	}
+	
+	return sb.String()
+}
+

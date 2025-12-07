@@ -33,9 +33,9 @@ export function SignalSourceWarning({
             <strong>{t('solutions', language)}</strong>
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2 mt-1">
-            <li>点击"{t('signalSource', language)}"按钮配置API地址</li>
-            <li>或在交易员配置中禁用"使用币种池"和"使用OI Top"</li>
-            <li>或在交易员配置中设置自定义币种列表</li>
+            <li>{t('solution1', language, { signalSource: t('signalSource', language) })}</li>
+            <li>{t('solution2', language)}</li>
+            <li>{t('solution3', language)}</li>
           </ul>
         </div>
         <button

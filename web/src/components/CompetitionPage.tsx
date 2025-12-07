@@ -1,16 +1,22 @@
 import { useState } from 'react'
 import { Trophy, Medal } from 'lucide-react'
 import useSWR from 'swr'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { CompetitionData } from '../types'
 import { ComparisonChart } from './ComparisonChart'
 import { TraderConfigViewModal } from './TraderConfigViewModal'
 import { getTraderColor } from '../utils/traderColors'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth, isFollower } from '../contexts/AuthContext'
 import { t } from '../i18n/translations'
+import { toast } from 'sonner'
 
 export function CompetitionPage() {
   const { language } = useLanguage()
+  const { user, token } = useAuth()
+  const userIsFollower = isFollower(user)
+  const navigate = useNavigate()
   const [selectedTrader, setSelectedTrader] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -26,7 +32,7 @@ export function CompetitionPage() {
 
   const handleTraderClick = async (traderId: string) => {
     try {
-      const traderConfig = await api.getTraderConfig(traderId)
+      const traderConfig = await api.getPublicTraderConfig(traderId)
       setSelectedTrader(traderConfig)
       setIsModalOpen(true)
     } catch (error) {
@@ -39,6 +45,46 @@ export function CompetitionPage() {
   const closeModal = () => {
     setIsModalOpen(false)
     setSelectedTrader(null)
+  }
+
+  const handleCopyTrader = (traderId: string) => {
+    console.log('🔄 handleCopyTrader called with traderId:', traderId)
+    console.log('👤 User:', user ? { id: user.id, email: user.email, role: user.role } : 'null')
+    console.log('🔑 Token exists:', !!token)
+    
+    // Check if this trader is a follower trader (has followed_trader_id)
+    const trader = competition?.traders?.find((t) => t.trader_id === traderId)
+    if (trader && (trader as any).followed_trader_id) {
+      toast.error(t('cannotCopyFollowerTrader', language) || 'Cannot copy follower traders. Only original traders can be copied.')
+      return
+    }
+    
+    // Navigate to traders page and open create modal with the trader ID to copy
+    // We'll use sessionStorage to pass the trader ID to copy
+    if (user && token) {
+      try {
+        sessionStorage.setItem('copyTraderId', traderId)
+        console.log('✅ Stored copyTraderId in sessionStorage:', traderId)
+        console.log('🔍 Verifying sessionStorage:', sessionStorage.getItem('copyTraderId'))
+        
+        console.log('🚀 Attempting navigation to /traders?action=copy')
+        
+        // Use window.location.href for reliable navigation (works with React Router)
+        // This ensures the page actually navigates and the useEffect in AITradersPage will run
+        window.location.href = '/traders?action=copy'
+        console.log('✅ window.location.href set successfully')
+      } catch (error) {
+        console.error('❌ Error in handleCopyTrader:', error)
+        // Fallback navigation
+        console.log('🔄 Using fallback navigation with window.location.href')
+        sessionStorage.setItem('copyTraderId', traderId)
+        window.location.href = '/traders?action=copy'
+      }
+    } else {
+      console.log('❌ User not logged in, redirecting to login')
+      // If not logged in, redirect to login
+      window.location.href = '/login?redirect=/competition'
+    }
   }
 
   if (!competition) {
@@ -353,7 +399,7 @@ export function CompetitionPage() {
                         <div
                           className="px-2 py-1 rounded text-xs font-bold"
                           style={
-                            trader.is_running
+                            Boolean(trader.is_running)
                               ? {
                                   background: 'rgba(14, 203, 129, 0.1)',
                                   color: '#0ECB81',
@@ -364,7 +410,7 @@ export function CompetitionPage() {
                                 }
                           }
                         >
-                          {trader.is_running ? '●' : '○'}
+                          {Boolean(trader.is_running) ? '●' : '○'}
                         </div>
                       </div>
                     </div>
@@ -483,6 +529,7 @@ export function CompetitionPage() {
         isOpen={isModalOpen}
         onClose={closeModal}
         traderData={selectedTrader}
+        onCopyTrader={userIsFollower && user && token ? handleCopyTrader : undefined}
       />
     </div>
   )

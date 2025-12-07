@@ -60,6 +60,13 @@ func isValidTraderIDFormat(traderID, expectedExchange, expectedModel string) boo
 	}
 
 	// AI model 可能包含连字符（如 gpt-4），所以需要重组
+	// 提取模型部分（parts[1] 到 parts[len(parts)-2]）
+	modelParts := parts[1 : len(parts)-1]
+	actualModel := strings.Join(modelParts, "_")
+	if actualModel != expectedModel {
+		return false
+	}
+
 	// 最后一部分应该是 UUID
 	uuidPart := parts[len(parts)-1]
 

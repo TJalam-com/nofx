@@ -231,7 +231,6 @@ func TestTraderListResponse_SystemPromptTemplate(t *testing.T) {
 	// 模拟 handleTraderList 中的 trader 对象构造
 	trader := &config.TraderRecord{
 		ID:                   "trader-001",
-		UserID:               "user-1",
 		Name:                 "My Trader",
 		AIModelID:            "gpt-4",
 		ExchangeID:           "binance",

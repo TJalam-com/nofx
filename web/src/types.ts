@@ -51,6 +51,8 @@ export interface DecisionAction {
   success: boolean
   error?: string
   reasoning?: string
+  parent_signal_id?: string
+  signal_decision?: string // "accept", "reject", "modify"
 }
 
 export interface AccountSnapshot {
@@ -94,7 +96,17 @@ export interface TraderInfo {
   custom_prompt?: string
   use_coin_pool?: boolean
   use_oi_top?: boolean
+  use_tradingview?: boolean
   system_prompt_template?: string
+  followed_trader_id?: string // 跟随的交易员ID（用于follower角色）
+}
+
+// Running Trader interface for follower signal source selection
+export interface RunningTrader {
+  trader_id: string
+  trader_name: string
+  user_id: string
+  user_email: string
 }
 
 export interface AIModel {
@@ -142,6 +154,8 @@ export interface CreateTraderRequest {
   is_cross_margin?: boolean
   use_coin_pool?: boolean
   use_oi_top?: boolean
+  use_tradingview?: boolean
+  followed_trader_id?: string // 跟随的交易员ID（用于follower角色）
 }
 
 export interface UpdateModelConfigRequest {
@@ -188,6 +202,7 @@ export interface CompetitionTraderData {
   position_count: number
   margin_used_pct: number
   is_running: boolean
+  followed_trader_id?: string // 跟随的交易员ID（用于follower角色）
 }
 
 export interface CompetitionData {
@@ -210,6 +225,8 @@ export interface TraderConfigData {
   is_cross_margin: boolean
   use_coin_pool: boolean
   use_oi_top: boolean
+  use_tradingview: boolean
+  followed_trader_id?: string // 跟随的交易员ID（用于follower角色）
   initial_balance: number
   scan_interval_minutes: number
   is_running: boolean
@@ -242,6 +259,80 @@ export interface BacktestRunMetadata {
 export interface BacktestRunsResponse {
   total: number;
   items: BacktestRunMetadata[];
+}
+
+// Replication Status Types
+export interface ReplicationStatus {
+  trader_id: string
+  trader_name: string
+  is_child: boolean
+  is_parent: boolean
+  parent?: {
+    trader_id: string
+    trader_name: string
+    is_running: boolean
+    error?: string
+  } | null
+  followers?: Array<{
+    trader_id: string
+    trader_name: string
+    is_running: boolean
+    user_id: string
+    error?: string
+  }>
+  error?: string
+}
+
+export interface TestSignalRequest {
+  symbol: string
+  action: string
+  leverage?: number
+  position_size_usd?: number
+  stop_loss?: number
+  take_profit?: number
+  reasoning?: string
+}
+
+export interface TestSignalResponse {
+  message: string
+  signal: {
+    symbol: string
+    action: string
+    leverage?: number
+    position_size_usd?: number
+    stop_loss?: number
+    take_profit?: number
+    reasoning?: string
+  }
+  followers_count: number
+}
+
+// User Followers Types
+export interface FollowerWithActivities {
+  trader_id: string
+  trader_name: string
+  user_id: string
+  is_running: boolean
+  account: AccountInfo | { error?: string }
+  latest_decisions: Array<{
+    timestamp: string
+    cycle_number: number
+    success: boolean
+    error_message?: string
+    decisions: DecisionRecord['decisions']
+  }>
+  positions: Position[]
+  error?: string
+}
+
+export interface ParentTraderWithFollowers {
+  trader_id: string
+  trader_name: string
+  followers: FollowerWithActivities[]
+}
+
+export interface UserFollowersResponse {
+  parent_traders: ParentTraderWithFollowers[]
 }
 
 export interface BacktestStatusPayload {
@@ -346,4 +437,24 @@ export interface BacktestStartConfig {
     btc_eth_leverage?: number;
     altcoin_leverage?: number;
   };
+}
+
+// Prompt Template types
+export interface PromptTemplate {
+  id: string;
+  name: string;
+  content: string;
+  is_system: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePromptTemplateRequest {
+  name: string;
+  content: string;
+}
+
+export interface UpdatePromptTemplateRequest {
+  name?: string;
+  content?: string;
 }

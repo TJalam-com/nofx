@@ -9,6 +9,7 @@ import (
 	"nofx/backtest"
 	"nofx/config"
 	"nofx/crypto"
+	"nofx/decision"
 	"nofx/manager"
 	"nofx/market"
 	"nofx/mcp"
@@ -277,6 +278,9 @@ func main() {
 	if err := backtestManager.RestoreRuns(); err != nil {
 		log.Printf("⚠️  恢复历史回测失败: %v", err)
 	}
+
+	// 初始化提示词管理器，使其可以从数据库加载模板
+	decision.GetGlobalPromptManager().SetDatabase(database)
 
 	// 从数据库加载所有交易员到内存
 	err = traderManager.LoadTradersFromDatabase(database)

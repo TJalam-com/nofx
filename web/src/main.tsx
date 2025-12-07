@@ -1,13 +1,15 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
 import { Toaster } from 'sonner'
 import './index.css'
-import { BrowserRouter } from 'react-router-dom'
+import { RouterProvider } from 'react-router-dom'
+import { router } from './routes'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <ErrorBoundary>
+      <RouterProvider router={router} />
       <Toaster
         theme="dark"
         richColors
@@ -23,7 +25,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           },
         }}
       />
-      <App />
-    </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 )

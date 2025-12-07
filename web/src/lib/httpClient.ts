@@ -130,10 +130,25 @@ export class HttpClient {
       throw new Error('Session expired')
     }
 
-    // Handle 403 Forbidden - system error
+    // Handle 403 Forbidden - show backend error message and trigger user refresh
     if (status === 403) {
+      const errorData = error.response?.data as { error?: string; message?: string }
+      // Debug logging to see what error data is being received
+      console.log('🔍 403 Error Debug:', {
+        fullResponse: error.response,
+        errorData,
+        errorField: errorData?.error,
+        messageField: errorData?.message,
+        url: error.config?.url,
+        method: error.config?.method,
+      })
+      const errorMessage = errorData?.error || errorData?.message || 'You do not have permission to access this resource'
+      
+      // Dispatch event to trigger user refresh (role may have changed)
+      window.dispatchEvent(new Event('role-changed'))
+      
       toast.error('Permission Denied', {
-        description: 'You do not have permission to access this resource',
+        description: errorMessage,
       })
       throw new Error('Permission denied')
     }

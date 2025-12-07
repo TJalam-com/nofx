@@ -10,10 +10,11 @@ import type {
 } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t, type Language } from '../i18n/translations'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth, isFollower } from '../contexts/AuthContext'
 import { getExchangeIcon } from './ExchangeIcons'
 import { getModelIcon } from './ModelIcons'
 import { TraderConfigModal } from './TraderConfigModal'
+import { ReplicationStatusPanel } from './ReplicationStatusPanel'
 import {
   TwoStageKeyModal,
   type TwoStageKeyModalResult,
@@ -35,6 +36,7 @@ import {
   HelpCircle,
   Radio,
   Pencil,
+  UserCheck,
 } from 'lucide-react'
 import { confirmToast } from '../lib/notify'
 import { toast } from 'sonner'
@@ -72,6 +74,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   const [showModelModal, setShowModelModal] = useState(false)
   const [showExchangeModal, setShowExchangeModal] = useState(false)
   const [showSignalSourceModal, setShowSignalSourceModal] = useState(false)
+  const [showReplicationPanel, setShowReplicationPanel] = useState<string | null>(null)
   const [editingModel, setEditingModel] = useState<string | null>(null)
   const [editingExchange, setEditingExchange] = useState<string | null>(null)
   const [editingTrader, setEditingTrader] = useState<any>(null)
@@ -92,6 +95,41 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     api.getTraders,
     { refreshInterval: 5000 }
   )
+
+  // Filter out follower traders for follower users (they should only see traders they're copying from)
+  const userIsFollower = isFollower(user)
+  const displayTraders = userIsFollower
+    ? traders?.filter((trader) => !trader.followed_trader_id) || []
+    : traders || []
+
+  // Check if we should open create modal with a trader to copy (from CompetitionPage)
+  useEffect(() => {
+    const copyTraderId = sessionStorage.getItem('copyTraderId')
+    const urlParams = new URLSearchParams(window.location.search)
+    const action = urlParams.get('action')
+    
+    console.log('🔍 AITradersPage - Checking copy action:', {
+      copyTraderId,
+      action,
+      user: user ? { id: user.id, email: user.email, role: user.role } : null,
+      token: !!token,
+      showCreateModal,
+      currentPath: window.location.pathname,
+      currentSearch: window.location.search
+    })
+    
+    if (copyTraderId && action === 'copy' && user && token && !showCreateModal) {
+      console.log('✅ All conditions met, opening create modal with copyTraderId:', copyTraderId)
+      setShowCreateModal(true)
+      // The TraderConfigModal will handle the copyTraderId from sessionStorage
+    } else {
+      if (!copyTraderId) console.log('❌ No copyTraderId found in sessionStorage')
+      if (action !== 'copy') console.log('❌ Action is not "copy", got:', action)
+      if (!user) console.log('❌ User not available')
+      if (!token) console.log('❌ Token not available')
+      if (showCreateModal) console.log('⚠️ Create modal already open')
+    }
+  }, [user, token, showCreateModal])
 
   // 加载AI模型和交易所配置
   useEffect(() => {
@@ -170,6 +208,10 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   // 只在创建交易员时使用已启用且配置完整的
   // 注意：后端返回的数据不包含敏感信息，所以只检查 enabled 状态和必要的非敏感字段
   const enabledModels = allModels?.filter((m) => m.enabled) || []
+  
+  // For all users, use enabled models (TraderConfigModal will filter out prompt template names)
+  const modelsForTraderModal = enabledModels
+  
   const enabledExchanges =
     allExchanges?.filter((e) => {
       if (!e.enabled) return false
@@ -225,10 +267,27 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
 
   const handleCreateTrader = async (data: CreateTraderRequest) => {
     try {
-      const model = allModels?.find((m) => m.id === data.ai_model_id)
+      // Check both allModels and supportedModels for the selected model
+      let model = allModels?.find((m) => m.id === data.ai_model_id)
+      if (!model) {
+        // If not found in user's models, check supported models (default user)
+        model = supportedModels?.find((m) => m.id === data.ai_model_id)
+      }
+      
       const exchange = allExchanges?.find((e) => e.id === data.exchange_id)
 
-      if (!model?.enabled) {
+      // For followers using risk management models, allow models from supportedModels
+      // even if they're disabled (they're system defaults)
+      const userIsFollower = isFollower(user)
+      const isRiskManagementModel = model && (model.name || model.id).toLowerCase().includes('risk')
+      
+      if (!model) {
+        toast.error(t('modelNotConfigured', language))
+        return
+      }
+      
+      // Only check enabled status if it's not a risk management model for followers
+      if (!model.enabled && !(userIsFollower && isRiskManagementModel)) {
         toast.error(t('modelNotConfigured', language))
         return
       }
@@ -239,9 +298,9 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       }
 
       await toast.promise(api.createTrader(data), {
-        loading: '正在创建…',
-        success: '创建成功',
-        error: '创建失败',
+        loading: t('creatingTrader', language),
+        success: t('traderCreated', language),
+        error: t('traderCreateFailed', language),
       })
       setShowCreateModal(false)
       // Immediately refresh traders list for better UX
@@ -295,12 +354,19 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         is_cross_margin: data.is_cross_margin,
         use_coin_pool: data.use_coin_pool,
         use_oi_top: data.use_oi_top,
+        use_tradingview: data.use_tradingview,
       }
 
+      console.log('🔍 DEBUG [AITradersPage]: Update request being sent:', {
+        trader_id: editingTrader.trader_id,
+        system_prompt_template: request.system_prompt_template,
+        fullRequest: request
+      })
+
       await toast.promise(api.updateTrader(editingTrader.trader_id, request), {
-        loading: '正在保存…',
-        success: '保存成功',
-        error: '保存失败',
+        loading: t('savingTrader', language),
+        success: t('traderSaved', language),
+        error: t('traderSaveFailed', language),
       })
       setShowEditModal(false)
       setEditingTrader(null)
@@ -320,9 +386,9 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
 
     try {
       await toast.promise(api.deleteTrader(traderId), {
-        loading: '正在删除…',
-        success: '删除成功',
-        error: '删除失败',
+        loading: t('deletingTrader', language),
+        success: t('traderDeleted', language),
+        error: t('traderDeleteFailed', language),
       })
 
       // Immediately refresh traders list for better UX
@@ -334,25 +400,40 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   }
 
   const handleToggleTrader = async (traderId: string, running: boolean) => {
+    // Optimistically update the UI immediately
+    const newRunningState = !running
+    const optimisticTraders = traders?.map((trader) =>
+      trader.trader_id === traderId
+        ? { ...trader, is_running: newRunningState }
+        : trader
+    )
+
+    // Update UI optimistically
+    await mutateTraders(optimisticTraders, { revalidate: false })
+
     try {
       if (running) {
         await toast.promise(api.stopTrader(traderId), {
-          loading: '正在停止…',
-          success: '已停止',
-          error: '停止失败',
+          loading: t('stoppingTrader', language),
+          success: t('traderStopped', language),
+          error: t('traderStopFailed', language),
         })
       } else {
         await toast.promise(api.startTrader(traderId), {
-          loading: '正在启动…',
-          success: '已启动',
-          error: '启动失败',
+          loading: t('startingTrader', language),
+          success: t('traderStarted', language),
+          error: t('traderStartFailed', language),
         })
       }
 
-      // Immediately refresh traders list to update running status
-      await mutateTraders()
+      // Wait longer for backend to update state, then refresh from server
+      setTimeout(async () => {
+        await mutateTraders() // Force revalidation
+      }, 1000) // Increased from 500ms to 1000ms
     } catch (error) {
       console.error('Failed to toggle trader:', error)
+      // Revert optimistic update on error
+      await mutateTraders() // Force revalidation to get correct state
       toast.error(t('operationFailed', language))
     }
   }
@@ -411,9 +492,9 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
 
       const request = config.buildRequest(updatedItems)
       await toast.promise(config.updateApi(request), {
-        loading: '正在更新配置…',
-        success: '配置已更新',
-        error: '更新配置失败',
+        loading: t('updatingConfig', language),
+        success: t('configUpdated', language),
+        error: t('configUpdateFailed', language),
       })
 
       // 重新获取用户配置以确保数据同步
@@ -530,9 +611,9 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       }
 
       await toast.promise(api.updateModelConfigs(request), {
-        loading: '正在更新模型配置…',
-        success: '模型配置已更新',
-        error: '更新模型配置失败',
+        loading: t('updatingModel', language),
+        success: t('modelUpdated', language),
+        error: t('modelUpdateFailed', language),
       })
 
       // 重新获取用户配置以确保数据同步
@@ -674,9 +755,9 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       }
 
       await toast.promise(api.updateExchangeConfigsEncrypted(request), {
-        loading: '正在更新交易所配置…',
-        success: '交易所配置已更新',
-        error: '更新交易所配置失败',
+        loading: t('updatingExchange', language),
+        success: t('exchangeUpdated', language),
+        error: t('exchangeUpdateFailed', language),
       })
 
       // 重新获取用户配置以确保数据同步
@@ -707,9 +788,9 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   ) => {
     try {
       await toast.promise(api.saveUserSignalSource(coinPoolUrl, oiTopUrl), {
-        loading: '正在保存…',
-        success: '保存成功',
-        error: '保存失败',
+        loading: t('savingTrader', language),
+        success: t('traderSaved', language),
+        error: t('traderSaveFailed', language),
       })
       setUserSignalSource({ coinPoolUrl, oiTopUrl })
       setShowSignalSourceModal(false)
@@ -746,7 +827,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                   color: '#F0B90B',
                 }}
               >
-                {traders?.length || 0} {t('active', language)}
+                {displayTraders?.length || 0} {t('active', language)}
               </span>
             </h1>
             <p className="text-xs" style={{ color: '#848E9C' }}>
@@ -847,9 +928,9 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                   <strong>{t('solutions', language)}</strong>
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-2 mt-1">
-                  <li>点击"{t('signalSource', language)}"按钮配置API地址</li>
-                  <li>或在交易员配置中禁用"使用币种池"和"使用OI Top"</li>
-                  <li>或在交易员配置中设置自定义币种列表</li>
+                  <li>{t('solution1', language, { signalSource: t('signalSource', language) })}</li>
+                  <li>{t('solution2', language)}</li>
+                  <li>{t('solution3', language)}</li>
                 </ul>
               </div>
               <button
@@ -1031,9 +1112,9 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           </h2>
         </div>
 
-        {traders && traders.length > 0 ? (
+        {displayTraders && displayTraders.length > 0 ? (
           <div className="space-y-3 md:space-y-4">
-            {traders.map((trader) => (
+            {displayTraders.map((trader) => (
               <div
                 key={trader.trader_id}
                 className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 rounded transition-all hover:translate-y-[-1px] gap-3 md:gap-4"
@@ -1070,6 +1151,21 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                         trader.ai_model.split('_').pop() || trader.ai_model
                       )}{' '}
                       Model • {trader.exchange_id?.toUpperCase()}
+                    </div>
+                    {/* Replication badges */}
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {trader.followed_trader_id && (
+                        <span
+                          className="px-2 py-0.5 rounded text-xs flex items-center gap-1"
+                          style={{
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            color: '#3b82f6',
+                          }}
+                        >
+                          <UserCheck size={12} />
+                          Following
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1174,8 +1270,39 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                     >
                       <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
                     </button>
+                    
+                    {/* Replication Status Button */}
+                    <button
+                      onClick={() =>
+                        setShowReplicationPanel(
+                          showReplicationPanel === trader.trader_id
+                            ? null
+                            : trader.trader_id
+                        )
+                      }
+                      className="px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 whitespace-nowrap flex items-center gap-1"
+                      style={{
+                        background: 'rgba(251, 191, 36, 0.1)',
+                        color: 'var(--brand-yellow)',
+                      }}
+                      title="View replication status"
+                    >
+                      <Users className="w-3 h-3 md:w-4 md:h-4" />
+                      Replication
+                    </button>
                   </div>
                 </div>
+                
+                {/* Replication Status Panel */}
+                {showReplicationPanel === trader.trader_id && (
+                  <div className="mt-3" key={`replication-panel-${trader.trader_id}`}>
+                    <ReplicationStatusPanel
+                      key={trader.trader_id}
+                      traderId={trader.trader_id}
+                      traderName={trader.trader_name}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1211,7 +1338,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         <TraderConfigModal
           isOpen={showCreateModal}
           isEditMode={false}
-          availableModels={enabledModels}
+          availableModels={modelsForTraderModal}
           availableExchanges={enabledExchanges}
           onSave={handleCreateTrader}
           onClose={() => setShowCreateModal(false)}
@@ -1224,7 +1351,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           isOpen={showEditModal}
           isEditMode={true}
           traderData={editingTrader}
-          availableModels={enabledModels}
+          availableModels={modelsForTraderModal}
           availableExchanges={enabledExchanges}
           onSave={handleSaveEditTrader}
           onClose={() => {
@@ -1273,6 +1400,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           onSave={handleSaveSignalSource}
           onClose={() => setShowSignalSourceModal(false)}
           language={language}
+          configuredModels={configuredModels}
+          configuredExchanges={configuredExchanges}
         />
       )}
     </div>
@@ -1909,6 +2038,15 @@ function ExchangeConfigModal({
     console.log('Secure input obfuscation log:', obfuscationLog)
     setSecureInputTarget(null)
   }
+
+  // Cleanup: Close modal on component unmount to prevent portal cleanup issues
+  useEffect(() => {
+    return () => {
+      if (secureInputTarget !== null) {
+        setSecureInputTarget(null)
+      }
+    }
+  }, [secureInputTarget])
 
   // 掩盖敏感数据显示
   const maskSecret = (secret: string) => {

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { t, Language } from '../../i18n/translations'
 import { useSystemConfig } from '../../hooks/useSystemConfig'
 
@@ -9,6 +10,7 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ onClose, language }: LoginModalProps) {
+  const navigate = useNavigate()
   const { config: systemConfig } = useSystemConfig()
   const registrationEnabled = systemConfig?.registration_enabled !== false
 
@@ -53,8 +55,7 @@ export default function LoginModal({ onClose, language }: LoginModalProps) {
         <div className="space-y-3">
           <motion.button
             onClick={() => {
-              window.history.pushState({}, '', '/login')
-              window.dispatchEvent(new PopStateEvent('popstate'))
+              navigate('/login')
               onClose()
             }}
             className="block w-full px-6 py-3 rounded-lg font-semibold text-center"
@@ -73,8 +74,7 @@ export default function LoginModal({ onClose, language }: LoginModalProps) {
           {registrationEnabled && (
             <motion.button
               onClick={() => {
-                window.history.pushState({}, '', '/register')
-                window.dispatchEvent(new PopStateEvent('popstate'))
+                navigate('/register')
                 onClose()
               }}
               className="block w-full px-6 py-3 rounded-lg font-semibold text-center"
