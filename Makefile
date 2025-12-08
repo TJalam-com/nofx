@@ -15,6 +15,9 @@ help:
 	@echo "Build:"
 	@echo "  make build                - Build backend binary"
 	@echo "  make build-frontend       - Build frontend"
+	@echo "  make build-prod           - Build production backend (optimized)"
+	@echo "  make build-frontend-prod  - Build production frontend"
+	@echo "  make build-all-prod       - Build production backend + frontend"
 	@echo ""
 	@echo "Clean:"
 	@echo "  make clean                - Clean build artifacts and test cache"
@@ -64,6 +67,26 @@ build-frontend:
 	@echo "🔨 Building frontend..."
 	cd web && npm run build
 	@echo "✅ Frontend built: ./web/dist"
+
+# =============================================================================
+# Production Build
+# =============================================================================
+
+# Production build (optimized)
+build-prod:
+	@echo "🔨 Building production backend..."
+	go build -trimpath -ldflags="-s -w" -o nofx .
+	@echo "✅ Production backend built: ./nofx"
+
+# Production build frontend
+build-frontend-prod:
+	@echo "🔨 Building production frontend..."
+	cd web && npm ci && npm run build
+	@echo "✅ Production frontend built: ./web/dist"
+
+# Full production build (backend + frontend)
+build-all-prod: build-frontend-prod build-prod
+	@echo "✅ Full production build completed"
 
 # =============================================================================
 # Development

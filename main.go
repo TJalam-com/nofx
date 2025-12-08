@@ -333,11 +333,17 @@ func main() {
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println()
 
-	// 获取API服务器端口（优先级：环境变量 > 数据库配置 > 默认值）
+	// 获取API服务器端口（优先级：环境变量 $PORT (Render) > NOFX_BACKEND_PORT > 数据库配置 > 默认值）
 	apiPort := 8080 // 默认端口
 
-	// 1. 优先从环境变量 NOFX_BACKEND_PORT 读取
-	if envPort := strings.TrimSpace(os.Getenv("NOFX_BACKEND_PORT")); envPort != "" {
+	// 1. 优先从 Render 的 $PORT 环境变量读取（Render 自动提供）
+	if renderPort := strings.TrimSpace(os.Getenv("PORT")); renderPort != "" {
+		if port, err := strconv.Atoi(renderPort); err == nil && port > 0 {
+			apiPort = port
+			log.Printf("🔌 使用 Render 端口: %d (PORT)", apiPort)
+		}
+	} else if envPort := strings.TrimSpace(os.Getenv("NOFX_BACKEND_PORT")); envPort != "" {
+		// 2. 从自定义环境变量 NOFX_BACKEND_PORT 读取
 		if port, err := strconv.Atoi(envPort); err == nil && port > 0 {
 			apiPort = port
 			log.Printf("🔌 使用环境变量端口: %d (NOFX_BACKEND_PORT)", apiPort)
@@ -345,7 +351,7 @@ func main() {
 			log.Printf("⚠️  环境变量 NOFX_BACKEND_PORT 无效: %s", envPort)
 		}
 	} else if apiPortStr != "" {
-		// 2. 从数据库配置读取（config.json 同步过来的）
+		// 3. 从数据库配置读取（config.json 同步过来的）
 		if port, err := strconv.Atoi(apiPortStr); err == nil && port > 0 {
 			apiPort = port
 			log.Printf("🔌 使用数据库配置端口: %d (api_server_port)", apiPort)

@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: nofx-backend
+    env: go
+    buildCommand: cd web && npm ci && npm run build && cd .. && go mod download && go build -trimpath -ldflags="-s -w" -o nofx .
+    startCommand: ./nofx
+    envVars:
+      - key: PORT
+        sync: false
+      - key: NOFX_BACKEND_PORT
+        fromService:
+          type: web
+          name: nofx-backend
+          property: port
+      - key: JWT_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: DATA_ENCRYPTION_KEY
+        sync: false  # Set this in Render dashboard
+      - key: GIN_MODE
+        value: release
+      - key: TZ
+        value: UTC
+    healthCheckPath: /api/health
+    disk:
+      name: nofx-data
+      mountPath: /opt/render/project/src
+      sizeGB: 1
+

@@ -14,6 +14,7 @@ import (
 	"nofx/decision"
 	"nofx/manager"
 	"nofx/trader"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -79,6 +80,25 @@ func corsMiddleware() gin.HandlerFunc {
 
 // setupRoutes 设置路由
 func (s *Server) setupRoutes() {
+	// Serve static files in production (if web/dist exists)
+	if _, err := os.Stat("web/dist"); err == nil {
+		// Serve static assets
+		s.router.Static("/static", "./web/dist/assets")
+		s.router.StaticFile("/favicon.ico", "./web/dist/favicon.ico")
+		
+		// Serve index.html for all non-API routes (SPA routing)
+		s.router.NoRoute(func(c *gin.Context) {
+			// Don't serve index.html for API routes
+			if strings.HasPrefix(c.Request.URL.Path, "/api") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+				return
+			}
+			// Serve index.html for frontend routes
+			c.File("./web/dist/index.html")
+		})
+		log.Println("✅ 静态文件服务已启用: web/dist")
+	}
+
 	// API路由组
 	api := s.router.Group("/api")
 	{

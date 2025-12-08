@@ -8,7 +8,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: process.env.VITE_API_URL || 'http://localhost:8080',
         changeOrigin: true,
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
@@ -20,6 +20,18 @@ export default defineConfig({
               console.error('Backend proxy error:', err.message)
             }
           })
+        },
+      },
+    },
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: false, // Disable sourcemaps in production for smaller builds
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
         },
       },
     },
