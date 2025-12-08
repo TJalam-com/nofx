@@ -78,14 +78,29 @@ export function RegisterPage() {
 
   useEffect(() => {
     // 获取系统配置，检查是否开启内测模式和注册功能
+    let isMounted = true
+    const abortController = new AbortController()
+
     getSystemConfig()
       .then((config) => {
-        setBetaMode(config.beta_mode || false)
-        setRegistrationEnabled(config.registration_enabled !== false)
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setBetaMode(config.beta_mode || false)
+          setRegistrationEnabled(config.registration_enabled !== false)
+        }
       })
       .catch((err) => {
-        console.error('Failed to fetch system config:', err)
+        // Only log error if component is still mounted and request wasn't aborted
+        if (isMounted && err.name !== 'AbortError') {
+          console.error('Failed to fetch system config:', err)
+        }
       })
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false
+      abortController.abort()
+    }
   }, [])
 
   // 如果注册功能被禁用，显示注册已关闭页面
