@@ -79,6 +79,45 @@ func corsMiddleware() gin.HandlerFunc {
 
 // setupRoutes 设置路由
 func (s *Server) setupRoutes() {
+	// Serve static files in production (if web/dist exists)
+	if _, err := os.Stat("web/dist"); err == nil {
+		// Serve static assets from /assets (Vite's output directory)
+		s.router.Static("/assets", "./web/dist/assets")
+		
+		// Serve icons directory if it exists
+		if _, err := os.Stat("web/dist/icons"); err == nil {
+			s.router.Static("/icons", "./web/dist/icons")
+		}
+		
+		// Serve other static files (favicon, etc.)
+		s.router.StaticFile("/favicon.ico", "./web/dist/favicon.ico")
+		
+		// Serve SEO files (robots.txt, sitemap.xml)
+		if _, err := os.Stat("./web/dist/robots.txt"); err == nil {
+			s.router.StaticFile("/robots.txt", "./web/dist/robots.txt")
+		}
+		if _, err := os.Stat("./web/dist/sitemap.xml"); err == nil {
+			s.router.StaticFile("/sitemap.xml", "./web/dist/sitemap.xml")
+		}
+		
+		// Serve index.html for root and other non-API, non-asset routes (SPA routing)
+		s.router.NoRoute(func(c *gin.Context) {
+			// Don't serve index.html for API routes
+			if strings.HasPrefix(c.Request.URL.Path, "/api") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+				return
+			}
+			// Don't serve index.html for asset/icon requests (they should be handled by Static above)
+			if strings.HasPrefix(c.Request.URL.Path, "/assets") || strings.HasPrefix(c.Request.URL.Path, "/icons") {
+				c.Status(http.StatusNotFound)
+				return
+			}
+			// Serve index.html for frontend routes
+			c.File("./web/dist/index.html")
+		})
+		log.Println("✅ 静态文件服务已启用: web/dist")
+	}
+
 	// API路由组
 	api := s.router.Group("/api")
 	{

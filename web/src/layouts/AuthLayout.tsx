@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { Outlet, Link } from 'react-router-dom'
 import { Container } from '../components/Container'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useSEO } from '../hooks/useSEO'
 
 interface AuthLayoutProps {
   children?: ReactNode
@@ -9,9 +10,12 @@ interface AuthLayoutProps {
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
   const { language, setLanguage } = useLanguage()
+  const { SEOComponent } = useSEO()
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+    <>
+      <SEOComponent />
+      <div className="min-h-screen" style={{ background: 'var(--background)' }}>
       {/* Simple Header with Logo and Language Selector */}
       <nav
         className="fixed top-0 w-full z-50 header-bar"
@@ -52,5 +56,6 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       {/* Content with top padding to avoid overlap with fixed header */}
       <div className="pt-16">{children || <Outlet />}</div>
     </div>
+    </>
   )
 }

@@ -25,7 +25,7 @@ export const translations = {
     faqNav: 'FAQ',
 
     // Footer
-    footerTitle: 'AI Trading - AI Trading System',
+    footerTitle: 'Best AI Trading app',
     footerWarning: '⚠️ Risk Warning: Cryptocurrency trading involves substantial risk of loss. Past performance does not guarantee future results. Only trade with funds you can afford to lose. AI Trading is a non-custodial platform with no official trading strategies. Market conditions can change rapidly, and you may lose all or more than your initial investment. Please trade responsibly and seek independent financial advice if needed.',
 
     // Followers Page
@@ -1256,7 +1256,7 @@ export const translations = {
     faqNav: '常见问题',
 
     // Footer
-    footerTitle: 'AI Trading - AI交易系统',
+    footerTitle: 'Best AI Trading app',
     footerWarning: '⚠️ 风险提示：加密货币交易存在重大损失风险。过往表现不代表未来结果。请仅使用您能够承受损失的资金进行交易。AI Trading 是一个非托管平台，不提供官方交易策略。市场条件可能快速变化，您可能会损失全部或超过初始投资。请负责任地交易，如有需要，请寻求独立的财务建议。',
 
     // Followers Page

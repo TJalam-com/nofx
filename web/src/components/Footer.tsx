@@ -108,7 +108,7 @@ export default function Footer({ variant = 'full' }: FooterProps) {
           <p className="font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
             {t('footerTitle', language)}
           </p>
-          <p className="leading-relaxed">{t('footerWarning', language)}</p>
+          <p className="leading-relaxed" style={{ color: 'var(--error)' }}>{t('footerWarning', language)}</p>
           
           {variant === 'simple' && (
             <div className="mt-4">
