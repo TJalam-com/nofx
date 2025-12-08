@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { api } from '../lib/api'
-import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isAdmin } from '../contexts/AuthContext'
 import { toast } from 'sonner'
 import type { TraderApplication } from '../types'
@@ -11,7 +10,6 @@ import {
   XCircle,
   Clock,
   RefreshCw,
-  Eye,
   ChevronDown,
   ChevronUp,
   Search,
@@ -20,7 +18,6 @@ import {
 } from 'lucide-react'
 
 export default function AdminTraderApplicationsPage() {
-  const { language } = useLanguage()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>(
