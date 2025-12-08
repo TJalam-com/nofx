@@ -651,19 +651,22 @@ func (d *Database) initDefaultData() error {
 
 // migrateExchangesTable 迁移exchanges表支持多用户
 func (d *Database) migrateExchangesTable() error {
-	// 检查是否已经迁移过
-	var count int
+	// 检查是否已经迁移过（检查exchanges表是否有复合主键）
+	var tableSQL string
 	err := d.db.QueryRow(`
-		SELECT COUNT(*) FROM sqlite_master 
-		WHERE type='table' AND name='exchanges_new'
-	`).Scan(&count)
-	if err != nil {
-		return err
+		SELECT sql FROM sqlite_master 
+		WHERE type='table' AND name='exchanges'
+	`).Scan(&tableSQL)
+	if err == nil && strings.Contains(tableSQL, "PRIMARY KEY (id, user_id)") {
+		// 已经迁移过，清理可能存在的exchanges_new表（如果之前迁移失败留下的）
+		d.db.Exec(`DROP TABLE IF EXISTS exchanges_new`)
+		return nil
 	}
 
-	// 如果已经迁移过，直接返回
-	if count > 0 {
-		return nil
+	// 如果存在exchanges_new表，说明之前的迁移可能失败了，先清理
+	_, err = d.db.Exec(`DROP TABLE IF EXISTS exchanges_new`)
+	if err != nil {
+		log.Printf("⚠️ 清理exchanges_new表失败: %v", err)
 	}
 
 	log.Printf("🔄 开始迁移exchanges表...")
@@ -686,6 +689,7 @@ func (d *Database) migrateExchangesTable() error {
 			lighter_wallet_addr TEXT DEFAULT '',
 			lighter_private_key TEXT DEFAULT '',
 			lighter_api_key_private_key TEXT DEFAULT '',
+			okx_passphrase TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id, user_id),
