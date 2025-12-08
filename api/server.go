@@ -85,7 +85,12 @@ func (s *Server) setupRoutes() {
 		// Serve static assets from /assets (Vite's output directory)
 		s.router.Static("/assets", "./web/dist/assets")
 		
-		// Serve other static files (icons, favicon, etc.)
+		// Serve icons directory if it exists
+		if _, err := os.Stat("web/dist/icons"); err == nil {
+			s.router.Static("/icons", "./web/dist/icons")
+		}
+		
+		// Serve other static files (favicon, etc.)
 		s.router.StaticFile("/favicon.ico", "./web/dist/favicon.ico")
 		
 		// Serve index.html for root and other non-API, non-asset routes (SPA routing)
@@ -95,8 +100,8 @@ func (s *Server) setupRoutes() {
 				c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
 				return
 			}
-			// Don't serve index.html for asset requests (they should be handled by Static above)
-			if strings.HasPrefix(c.Request.URL.Path, "/assets") {
+			// Don't serve index.html for asset/icon requests (they should be handled by Static above)
+			if strings.HasPrefix(c.Request.URL.Path, "/assets") || strings.HasPrefix(c.Request.URL.Path, "/icons") {
 				c.Status(http.StatusNotFound)
 				return
 			}
