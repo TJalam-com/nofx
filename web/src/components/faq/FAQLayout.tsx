@@ -65,17 +65,17 @@ export function FAQLayout({ language }: FAQLayoutProps) {
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center"
             style={{
-              background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
-              boxShadow: '0 8px 24px rgba(240, 185, 11, 0.4)',
+              background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+              boxShadow: '0 8px 24px var(--green-glow)',
             }}
           >
-            <HelpCircle className="w-8 h-8" style={{ color: '#0B0E11' }} />
+            <HelpCircle className="w-8 h-8" style={{ color: 'var(--navy-primary)' }} />
           </div>
         </div>
-        <h1 className="text-4xl font-bold mb-4" style={{ color: '#EAECEF' }}>
+        <h1 className="text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           {t('faqTitle', language)}
         </h1>
-        <p className="text-lg mb-8" style={{ color: '#848E9C' }}>
+        <p className="text-lg mb-8" style={{ color: 'var(--text-secondary)' }}>
           {t('faqSubtitle', language)}
         </p>
 
@@ -113,19 +113,14 @@ export function FAQLayout({ language }: FAQLayoutProps) {
             />
           ) : (
             <div className="text-center py-12">
-              <p className="text-lg" style={{ color: '#848E9C' }}>
+              <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
                 {language === 'zh'
                   ? '没有找到匹配的问题'
                   : 'No matching questions found'}
               </p>
               <button
                 onClick={() => setSearchTerm('')}
-                className="mt-4 px-6 py-2 rounded-lg font-semibold transition-all hover:opacity-90"
-                style={{
-                  background:
-                    'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
-                  color: '#0B0E11',
-                }}
+                className="btn-primary mt-4 px-6 py-2 rounded-lg font-semibold transition-all hover:opacity-90"
               >
                 {language === 'zh' ? '清除搜索' : 'Clear Search'}
               </button>
@@ -136,17 +131,12 @@ export function FAQLayout({ language }: FAQLayoutProps) {
 
       {/* Contact Section */}
       <div
-        className="mt-16 p-8 rounded-lg text-center"
-        style={{
-          background:
-            'linear-gradient(135deg, rgba(240, 185, 11, 0.1) 0%, rgba(252, 213, 53, 0.05) 100%)',
-          border: '1px solid rgba(240, 185, 11, 0.2)',
-        }}
+        className="mt-16 p-8 rounded-lg text-center nofx-gradient-subtle"
       >
-        <h3 className="text-xl font-bold mb-3" style={{ color: '#EAECEF' }}>
+        <h3 className="text-xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
           {t('faqStillHaveQuestions', language)}
         </h3>
-        <p className="mb-6" style={{ color: '#848E9C' }}>
+        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
           {t('faqContactUs', language)}
         </p>
         <div className="flex items-center justify-center gap-4">
@@ -156,9 +146,9 @@ export function FAQLayout({ language }: FAQLayoutProps) {
             rel="noopener noreferrer"
             className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105"
             style={{
-              background: '#1E2329',
-              color: '#EAECEF',
-              border: '1px solid #2B3139',
+              background: 'var(--panel-bg)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--panel-border)',
             }}
           >
             GitHub
@@ -167,11 +157,7 @@ export function FAQLayout({ language }: FAQLayoutProps) {
             href="https://t.me/nofx_dev_community"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105"
-            style={{
-              background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
-              color: '#0B0E11',
-            }}
+            className="btn-primary px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105"
           >
             {t('community', language)}
           </a>

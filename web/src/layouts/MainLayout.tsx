@@ -29,7 +29,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   return (
     <div
       className="min-h-screen"
-      style={{ background: '#0B0E11', color: '#EAECEF' }}
+      style={{ background: 'var(--navy-primary)', color: 'var(--text-primary)' }}
     >
       <HeaderBar
         isLoggedIn={!!user}
@@ -51,11 +51,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
       {/* Footer */}
       <footer
         className="mt-16"
-        style={{ borderTop: '1px solid #2B3139', background: '#181A20' }}
+        style={{ borderTop: '1px solid var(--panel-border)', background: 'var(--navy-dark)' }}
       >
         <Container
           className="py-6 text-center text-sm"
-          style={{ color: '#5E6673' }}
+          style={{ color: 'var(--text-tertiary)' }}
         >
           <p>{t('footerTitle', language)}</p>
           <p className="mt-1">{t('footerWarning', language)}</p>
@@ -66,19 +66,19 @@ export default function MainLayout({ children }: MainLayoutProps) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
               style={{
-                background: '#1E2329',
-                color: '#848E9C',
-                border: '1px solid #2B3139',
+                background: 'var(--panel-bg)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--panel-border)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#2B3139'
-                e.currentTarget.style.color = '#EAECEF'
-                e.currentTarget.style.borderColor = '#F0B90B'
+                e.currentTarget.style.background = 'var(--panel-bg-hover)'
+                e.currentTarget.style.color = 'var(--text-primary)'
+                e.currentTarget.style.borderColor = 'var(--green-primary)'
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#1E2329'
-                e.currentTarget.style.color = '#848E9C'
-                e.currentTarget.style.borderColor = '#2B3139'
+                e.currentTarget.style.background = 'var(--panel-bg)'
+                e.currentTarget.style.color = 'var(--text-secondary)'
+                e.currentTarget.style.borderColor = 'var(--panel-border)'
               }}
             >
               <svg

@@ -2773,28 +2773,6 @@ func (s *Server) nonFollowerMiddleware() gin.HandlerFunc {
 	}
 }
 
-// followerOnlyMiddleware 限制只有follower用户才能访问
-func (s *Server) followerOnlyMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		role, exists := c.Get("role")
-		if !exists {
-			role = "user" // 默认角色
-		}
-
-		roleStr, ok := role.(string)
-		if !ok {
-			roleStr = "user"
-		}
-
-		if roleStr != "follower" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "此功能仅限follower用户使用"})
-			c.Abort()
-			return
-		}
-
-		c.Next()
-	}
-}
 
 // adminOnlyMiddleware 限制只有admin用户才能访问
 func (s *Server) adminOnlyMiddleware() gin.HandlerFunc {

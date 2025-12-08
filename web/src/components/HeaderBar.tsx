@@ -84,18 +84,12 @@ export default function HeaderBar({
           to="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <img src="/icons/nofx.svg" alt="NOFX Logo" className="w-8 h-8" />
+          <img src="/icons/nofx.svg" alt="AI Trading Logo" className="w-8 h-8" />
           <span
             className="text-xl font-bold"
             style={{ color: 'var(--brand-yellow)' }}
           >
-            NOFX
-          </span>
-          <span
-            className="text-sm hidden sm:block"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            Agentic Trading OS
+            AI Trading
           </span>
         </Link>
 
@@ -539,42 +533,19 @@ export default function HeaderBar({
           {/* Right Side - Original Navigation Items and Login */}
           <div className="flex items-center gap-6">
             {/* Only show original navigation items on home page */}
-            {isHomePage &&
-              [
-                { key: 'features', label: t('features', language) },
-                { key: 'howItWorks', label: t('howItWorks', language) },
-                { key: 'GitHub', label: 'GitHub' },
-                { key: 'community', label: t('community', language) },
-              ].map((item) => (
-                <a
-                  key={item.key}
-                  href={
-                    item.key === 'GitHub'
-                      ? 'https://github.com/tinkle-community/nofx'
-                      : item.key === 'community'
-                        ? 'https://t.me/nofx_dev_community'
-                        : `#${item.key === 'features' ? 'features' : 'how-it-works'}`
-                  }
-                  target={
-                    item.key === 'GitHub' || item.key === 'community'
-                      ? '_blank'
-                      : undefined
-                  }
-                  rel={
-                    item.key === 'GitHub' || item.key === 'community'
-                      ? 'noopener noreferrer'
-                      : undefined
-                  }
-                  className="text-sm transition-colors relative group"
-                  style={{ color: 'var(--brand-light-gray)' }}
-                >
-                  {item.label}
-                  <span
-                    className="absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300"
-                    style={{ background: 'var(--brand-yellow)' }}
-                  />
-                </a>
-              ))}
+            {isHomePage && (
+              <a
+                href="#features"
+                className="text-sm transition-colors relative group"
+                style={{ color: 'var(--brand-light-gray)' }}
+              >
+                {t('features', language)}
+                <span
+                  className="absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300"
+                  style={{ background: 'var(--brand-yellow)' }}
+                />
+              </a>
+            )}
 
             {/* User Info and Actions */}
             {isLoggedIn && user ? (
@@ -728,7 +699,9 @@ export default function HeaderBar({
                   }}
                 >
                   <button
-                    onClick={() => {
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
                       onLanguageChange?.('zh')
                       setLanguageDropdownOpen(false)
                     }}
@@ -739,7 +712,7 @@ export default function HeaderBar({
                       color: 'var(--brand-light-gray)',
                       background:
                         language === 'zh'
-                          ? 'rgba(240, 185, 11, 0.1)'
+                          ? 'rgba(0, 255, 127, 0.1)'
                           : 'transparent',
                     }}
                   >
@@ -747,7 +720,9 @@ export default function HeaderBar({
                     <span className="text-sm">{t('chinese', language)}</span>
                   </button>
                   <button
-                    onClick={() => {
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
                       onLanguageChange?.('en')
                       setLanguageDropdownOpen(false)
                     }}
@@ -758,7 +733,7 @@ export default function HeaderBar({
                       color: 'var(--brand-light-gray)',
                       background:
                         language === 'en'
-                          ? 'rgba(240, 185, 11, 0.1)'
+                          ? 'rgba(0, 255, 127, 0.1)'
                           : 'transparent',
                     }}
                   >
@@ -805,7 +780,9 @@ export default function HeaderBar({
                 }}
               >
                 <button
-                  onClick={() => {
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
                     onLanguageChange?.('zh')
                     setLanguageDropdownOpen(false)
                   }}
@@ -816,7 +793,7 @@ export default function HeaderBar({
                     color: 'var(--brand-light-gray)',
                     background:
                       language === 'zh'
-                        ? 'rgba(240, 185, 11, 0.1)'
+                        ? 'rgba(0, 255, 127, 0.1)'
                         : 'transparent',
                   }}
                 >
@@ -824,7 +801,9 @@ export default function HeaderBar({
                   <span className="text-sm">中文</span>
                 </button>
                 <button
-                  onClick={() => {
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
                     onLanguageChange?.('en')
                     setLanguageDropdownOpen(false)
                   }}
@@ -835,7 +814,7 @@ export default function HeaderBar({
                     color: 'var(--brand-light-gray)',
                     background:
                       language === 'en'
-                        ? 'rgba(240, 185, 11, 0.1)'
+                        ? 'rgba(0, 255, 127, 0.1)'
                         : 'transparent',
                   }}
                 >
@@ -1127,38 +1106,15 @@ export default function HeaderBar({
           )}
 
           {/* Original Navigation Items - Only on home page */}
-          {isHomePage &&
-            [
-              { key: 'features', label: t('features', language) },
-              { key: 'howItWorks', label: t('howItWorks', language) },
-              { key: 'GitHub', label: 'GitHub' },
-              { key: 'community', label: t('community', language) },
-            ].map((item) => (
-              <a
-                key={item.key}
-                href={
-                  item.key === 'GitHub'
-                    ? 'https://github.com/tinkle-community/nofx'
-                    : item.key === 'community'
-                      ? 'https://t.me/nofx_dev_community'
-                      : `#${item.key === 'features' ? 'features' : 'how-it-works'}`
-                }
-                target={
-                  item.key === 'GitHub' || item.key === 'community'
-                    ? '_blank'
-                    : undefined
-                }
-                rel={
-                  item.key === 'GitHub' || item.key === 'community'
-                    ? 'noopener noreferrer'
-                    : undefined
-                }
-                className="block text-sm py-2"
-                style={{ color: 'var(--brand-light-gray)' }}
-              >
-                {item.label}
-              </a>
-            ))}
+          {isHomePage && (
+            <a
+              href="#features"
+              className="block text-sm py-2"
+              style={{ color: 'var(--brand-light-gray)' }}
+            >
+              {t('features', language)}
+            </a>
+          )}
 
           {/* Language Toggle */}
           <div className="py-2">
@@ -1172,29 +1128,43 @@ export default function HeaderBar({
             </div>
             <div className="space-y-1">
               <button
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
                   onLanguageChange?.('zh')
                   setMobileMenuOpen(false)
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors ${
                   language === 'zh'
-                    ? 'bg-yellow-500 text-black'
+                    ? 'bg-green-500 text-white'
                     : 'text-gray-400 hover:text-white'
                 }`}
+                style={
+                  language === 'zh'
+                    ? { background: 'var(--green-primary)', color: 'var(--navy-primary)' }
+                    : {}
+                }
               >
                 <span className="text-lg">🇨🇳</span>
                 <span className="text-sm">中文</span>
               </button>
               <button
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
                   onLanguageChange?.('en')
                   setMobileMenuOpen(false)
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors ${
                   language === 'en'
-                    ? 'bg-yellow-500 text-black'
+                    ? 'bg-green-500 text-white'
                     : 'text-gray-400 hover:text-white'
                 }`}
+                style={
+                  language === 'en'
+                    ? { background: 'var(--green-primary)', color: 'var(--navy-primary)' }
+                    : {}
+                }
               >
                 <span className="text-lg">🇺🇸</span>
                 <span className="text-sm">English</span>

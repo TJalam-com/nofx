@@ -21,25 +21,25 @@ export default function FeaturesSection({ language }: FeaturesSectionProps) {
           <motion.div
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
             style={{
-              background: 'rgba(240, 185, 11, 0.1)',
-              border: '1px solid rgba(240, 185, 11, 0.2)',
+              background: 'rgba(0, 255, 127, 0.1)',
+              border: '1px solid rgba(0, 255, 127, 0.2)',
             }}
             whileHover={{ scale: 1.05 }}
           >
             <Rocket
               className="w-4 h-4"
-              style={{ color: 'var(--brand-yellow)' }}
+              style={{ color: 'var(--green-primary)' }}
             />
             <span
               className="text-sm font-semibold"
-              style={{ color: 'var(--brand-yellow)' }}
+              style={{ color: 'var(--green-primary)' }}
             >
               {t('coreFeatures', language)}
             </span>
           </motion.div>
           <h2
             className="text-4xl font-bold mb-4"
-            style={{ color: 'var(--brand-light-gray)' }}
+            style={{ color: 'var(--text-primary)' }}
           >
             {t('whyChooseNofx', language)}
           </h2>
@@ -54,10 +54,10 @@ export default function FeaturesSection({ language }: FeaturesSectionProps) {
             title={t('openSourceSelfHosted', language)}
             description={t('openSourceDesc', language)}
             features={[
-              t('openSourceFeatures1', language),
-              t('openSourceFeatures2', language),
               t('openSourceFeatures3', language),
               t('openSourceFeatures4', language),
+              t('openSourceFeatures5', language),
+              t('openSourceFeatures6', language),
             ]}
             delay={0}
           />
