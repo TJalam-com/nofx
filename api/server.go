@@ -82,15 +82,22 @@ func corsMiddleware() gin.HandlerFunc {
 func (s *Server) setupRoutes() {
 	// Serve static files in production (if web/dist exists)
 	if _, err := os.Stat("web/dist"); err == nil {
-		// Serve static assets
-		s.router.Static("/static", "./web/dist/assets")
+		// Serve static assets from /assets (Vite's output directory)
+		s.router.Static("/assets", "./web/dist/assets")
+		
+		// Serve other static files (icons, favicon, etc.)
 		s.router.StaticFile("/favicon.ico", "./web/dist/favicon.ico")
 		
-		// Serve index.html for all non-API routes (SPA routing)
+		// Serve index.html for root and other non-API, non-asset routes (SPA routing)
 		s.router.NoRoute(func(c *gin.Context) {
 			// Don't serve index.html for API routes
 			if strings.HasPrefix(c.Request.URL.Path, "/api") {
 				c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+				return
+			}
+			// Don't serve index.html for asset requests (they should be handled by Static above)
+			if strings.HasPrefix(c.Request.URL.Path, "/assets") {
+				c.Status(http.StatusNotFound)
 				return
 			}
 			// Serve index.html for frontend routes
