@@ -27,6 +27,8 @@ import type {
   TestSignalRequest,
   TestSignalResponse,
   UserFollowersResponse,
+  TraderApplication,
+  CreateTraderApplicationRequest,
 } from '../types'
 import { CryptoService } from './crypto'
 import { httpClient } from './httpClient'
@@ -743,5 +745,60 @@ export const api = {
       throw new Error(result.message || '获取用户信息失败')
     }
     return result.data!
+  },
+
+  // Trader Application APIs
+  async createTraderApplication(
+    request: CreateTraderApplicationRequest
+  ): Promise<TraderApplication> {
+    const result = await httpClient.post<TraderApplication>(
+      `${API_BASE}/trader-application`,
+      request
+    )
+    if (!result.success) {
+      throw new Error(result.message || '提交申请失败')
+    }
+    return result.data!
+  },
+
+  async getMyTraderApplication(): Promise<TraderApplication | null> {
+    const result = await httpClient.get<TraderApplication | null>(
+      `${API_BASE}/trader-application/my`
+    )
+    if (!result.success) {
+      throw new Error(result.message || '获取申请信息失败')
+    }
+    return result.data ?? null
+  },
+
+  // Admin Trader Application APIs
+  async getAllTraderApplications(): Promise<TraderApplication[]> {
+    const result = await httpClient.get<TraderApplication[]>(
+      `${API_BASE}/admin/trader-applications`
+    )
+    if (!result.success) {
+      throw new Error(result.message || '获取申请列表失败')
+    }
+    return result.data!
+  },
+
+  async approveTraderApplication(id: string, notes?: string): Promise<void> {
+    const result = await httpClient.put(
+      `${API_BASE}/admin/trader-applications/${id}/approve`,
+      { admin_notes: notes || '' }
+    )
+    if (!result.success) {
+      throw new Error(result.message || '批准申请失败')
+    }
+  },
+
+  async rejectTraderApplication(id: string, notes: string): Promise<void> {
+    const result = await httpClient.put(
+      `${API_BASE}/admin/trader-applications/${id}/reject`,
+      { admin_notes: notes }
+    )
+    if (!result.success) {
+      throw new Error(result.message || '拒绝申请失败')
+    }
   },
 }

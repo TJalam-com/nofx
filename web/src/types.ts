@@ -333,6 +333,39 @@ export interface ParentTraderWithFollowers {
   followers: FollowerWithActivities[]
 }
 
+export interface SocialLinks {
+  twitter?: string
+  telegram?: string
+  discord?: string
+  website?: string
+  [key: string]: string | undefined
+}
+
+export interface TraderApplication {
+  id: string
+  user_id: string
+  user_email?: string
+  name: string
+  email: string
+  description: string
+  trading_experience: string
+  strategy_overview: string
+  social_links?: SocialLinks
+  status: 'pending' | 'approved' | 'rejected'
+  admin_notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateTraderApplicationRequest {
+  name: string
+  email: string
+  description: string
+  trading_experience: string
+  strategy_overview: string
+  social_links?: SocialLinks
+}
+
 export interface UserFollowersResponse {
   parent_traders: ParentTraderWithFollowers[]
 }

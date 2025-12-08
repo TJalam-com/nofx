@@ -232,8 +232,8 @@ export function LoginPage() {
                 disabled={loading}
                 className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
                 style={{
-                  background: 'var(--brand-yellow)',
-                  color: 'var(--brand-black)',
+                  background: 'var(--green-primary)',
+                  color: '#000',
                 }}
               >
                 {loading ? t('loading', language) : '登录'}
@@ -288,8 +288,14 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={() => navigate('/reset-password')}
-                    className="text-xs hover:underline"
-                    style={{ color: '#F0B90B' }}
+                    className="text-xs hover:underline transition-colors"
+                    style={{ color: 'var(--green-primary)' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = 'var(--green-light)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--green-primary)'
+                    }}
                   >
                     {t('forgotPassword', language)}
                   </button>
@@ -313,8 +319,8 @@ export function LoginPage() {
                 disabled={loading}
                 className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
                 style={{
-                  background: 'var(--brand-yellow)',
-                  color: 'var(--brand-black)',
+                  background: 'var(--green-primary)',
+                  color: '#000',
                 }}
               >
                 {loading ? t('loading', language) : t('loginButton', language)}
@@ -384,7 +390,7 @@ export function LoginPage() {
                   type="submit"
                   disabled={loading || otpCode.length !== 6}
                   className="flex-1 px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
-                  style={{ background: '#F0B90B', color: '#000' }}
+                  style={{ background: 'var(--green-primary)', color: '#000' }}
                 >
                   {loading ? t('loading', language) : t('verifyOTP', language)}
                 </button>
@@ -406,7 +412,13 @@ export function LoginPage() {
                   navigate('/register')
                 }}
                 className="font-semibold hover:underline transition-colors"
-                style={{ color: 'var(--brand-yellow)' }}
+                style={{ color: 'var(--green-primary)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--green-light)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--green-primary)'
+                }}
               >
                 {t('registerNowButton', language)}
               </button>

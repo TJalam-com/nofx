@@ -426,10 +426,29 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
+		// 交易员申请表
+		`CREATE TABLE IF NOT EXISTS trader_applications (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			email TEXT NOT NULL,
+			description TEXT NOT NULL,
+			trading_experience TEXT NOT NULL,
+			strategy_overview TEXT NOT NULL,
+			social_links TEXT,
+			status TEXT NOT NULL DEFAULT 'pending',
+			admin_notes TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+
 		// 索引
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_user ON tradingview_alerts(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_trader ON tradingview_alerts(trader_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_status ON tradingview_alerts(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_trader_applications_user_id ON trader_applications(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_trader_applications_status ON trader_applications(status)`,
 
 		// 触发器：自动更新 webhook_api_keys updated_at
 		`CREATE TRIGGER IF NOT EXISTS update_webhook_api_keys_updated_at
@@ -983,21 +1002,37 @@ type UserSignalSource struct {
 // TradingViewAlert TradingView警报
 type TradingViewAlert struct {
 	ID           string     `json:"id"`
-	UserID       string     `json:"user_id"`
-	TraderID     string     `json:"trader_id"`
-	RawPayload   string     `json:"raw_payload"`
-	Symbol       string     `json:"symbol"`
-	Action       string     `json:"action"`
-	Exchange     string     `json:"exchange"`
-	Entry        float64    `json:"entry"`
-	SL           float64    `json:"sl"`
-	TP           float64    `json:"tp"`
-	Quantity     float64    `json:"quantity"`
-	PositionSize float64    `json:"position_size"`
-	PriceType    string     `json:"pricetype"`
-	Status       string     `json:"status"`
-	CreatedAt    time.Time  `json:"created_at"`
-	ProcessedAt  *time.Time `json:"processed_at"`
+	UserID      string     `json:"user_id"`
+	TraderID    string     `json:"trader_id"`
+	RawPayload  string     `json:"raw_payload"`
+	Symbol      string     `json:"symbol"`
+	Action      string     `json:"action"`
+	Exchange    string     `json:"exchange"`
+	Entry       float64    `json:"entry"`
+	SL          float64    `json:"sl"`
+	TP          float64    `json:"tp"`
+	Quantity    float64    `json:"quantity"`
+	PositionSize float64  `json:"position_size"`
+	PriceType   string     `json:"pricetype"`
+	Status      string     `json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
+	ProcessedAt *time.Time `json:"processed_at"`
+}
+
+// TraderApplication 交易员申请
+type TraderApplication struct {
+	ID                string    `json:"id"`
+	UserID            string    `json:"user_id"`
+	Name              string    `json:"name"`
+	Email             string    `json:"email"`
+	Description       string    `json:"description"`
+	TradingExperience string    `json:"trading_experience"`
+	StrategyOverview  string    `json:"strategy_overview"`
+	SocialLinks       string    `json:"social_links"` // JSON string
+	Status            string    `json:"status"`       // 'pending', 'approved', 'rejected'
+	AdminNotes        string    `json:"admin_notes"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 // GenerateOTPSecret 生成OTP密钥
@@ -1211,6 +1246,96 @@ func (d *Database) UpdateUserRole(userID string, role string) error {
 	_, err := d.db.Exec(`
 		UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 	`, role, userID)
+	return err
+}
+
+// CreateTraderApplication 创建交易员申请
+func (d *Database) CreateTraderApplication(app *TraderApplication) error {
+	_, err := d.db.Exec(`
+		INSERT INTO trader_applications (id, user_id, name, email, description, trading_experience, strategy_overview, social_links, status, admin_notes, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, app.ID, app.UserID, app.Name, app.Email, app.Description, app.TradingExperience, app.StrategyOverview, app.SocialLinks, app.Status, app.AdminNotes)
+	return err
+}
+
+// GetTraderApplicationByID 通过ID获取交易员申请
+func (d *Database) GetTraderApplicationByID(id string) (*TraderApplication, error) {
+	var app TraderApplication
+	var createdAt, updatedAt string
+	err := d.db.QueryRow(`
+		SELECT id, user_id, name, email, description, trading_experience, strategy_overview, social_links, status, admin_notes, created_at, updated_at
+		FROM trader_applications WHERE id = ?
+	`, id).Scan(
+		&app.ID, &app.UserID, &app.Name, &app.Email, &app.Description, &app.TradingExperience,
+		&app.StrategyOverview, &app.SocialLinks, &app.Status, &app.AdminNotes,
+		&createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	app.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	app.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+	return &app, nil
+}
+
+// GetTraderApplicationByUserID 通过用户ID获取交易员申请
+func (d *Database) GetTraderApplicationByUserID(userID string) (*TraderApplication, error) {
+	var app TraderApplication
+	var createdAt, updatedAt string
+	err := d.db.QueryRow(`
+		SELECT id, user_id, name, email, description, trading_experience, strategy_overview, social_links, status, admin_notes, created_at, updated_at
+		FROM trader_applications WHERE user_id = ? ORDER BY created_at DESC LIMIT 1
+	`, userID).Scan(
+		&app.ID, &app.UserID, &app.Name, &app.Email, &app.Description, &app.TradingExperience,
+		&app.StrategyOverview, &app.SocialLinks, &app.Status, &app.AdminNotes,
+		&createdAt, &updatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	app.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	app.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+	return &app, nil
+}
+
+// GetAllTraderApplications 获取所有交易员申请（admin使用）
+func (d *Database) GetAllTraderApplications() ([]*TraderApplication, error) {
+	rows, err := d.db.Query(`
+		SELECT id, user_id, name, email, description, trading_experience, strategy_overview, social_links, status, admin_notes, created_at, updated_at
+		FROM trader_applications ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var applications []*TraderApplication
+	for rows.Next() {
+		var app TraderApplication
+		var createdAt, updatedAt string
+		err := rows.Scan(
+			&app.ID, &app.UserID, &app.Name, &app.Email, &app.Description, &app.TradingExperience,
+			&app.StrategyOverview, &app.SocialLinks, &app.Status, &app.AdminNotes,
+			&createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		app.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		app.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+		applications = append(applications, &app)
+	}
+	return applications, nil
+}
+
+// UpdateTraderApplicationStatus 更新交易员申请状态
+func (d *Database) UpdateTraderApplicationStatus(id string, status string, adminNotes string) error {
+	_, err := d.db.Exec(`
+		UPDATE trader_applications SET status = ?, admin_notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+	`, status, adminNotes, id)
 	return err
 }
 

@@ -853,10 +853,12 @@ export default function AILearning({ traderId }: AILearningProps) {
                 (trade: TradeOutcome, idx: number) => {
                   const isProfitable = trade.pn_l >= 0
                   const isRecent = idx === 0
+                  // Create a stable unique key using trade properties
+                  const tradeKey = `${trade.symbol}-${trade.close_time}-${trade.open_time}-${trade.open_price}-${trade.close_price}`
 
                   return (
                     <div
-                      key={idx}
+                      key={tradeKey}
                       className="rounded-xl p-4 backdrop-blur-sm transition-all hover:scale-[1.02]"
                       style={{
                         background: isRecent
