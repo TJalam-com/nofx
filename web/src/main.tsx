@@ -9,19 +9,33 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 // Error suppression wrapper for RouterProvider to handle known React Router DOM issues
 function RouterProviderWithErrorHandling() {
   React.useEffect(() => {
+    // Helper function to check if error matches the known React Router DOM issue
+    const isReactRouterDOMError = (error: any): boolean => {
+      if (!error) return false
+      
+      const errorName = error?.name || ''
+      const errorMessage = 
+        error?.message || 
+        error?.toString() || 
+        (typeof error === 'string' ? error : '')
+      
+      // Check for NotFoundError with removeChild DOM manipulation issues
+      // This can occur from React Router navigation or browser extensions
+      return (
+        (errorName === 'NotFoundError' || errorMessage.includes('NotFoundError')) &&
+        errorMessage.includes('removeChild') &&
+        errorMessage.includes('not a child of this node')
+      )
+    }
+
     // Global error handler for unhandled React Router DOM errors
     const handleError = (event: ErrorEvent) => {
       const error = event.error || event.message
-      const errorMessage = typeof error === 'string' ? error : error?.message || ''
       
-      // Suppress known React Router DOM manipulation errors that occur during navigation
-      if (
-        errorMessage.includes('removeChild') &&
-        errorMessage.includes('not a child of this node')
-      ) {
-        // This is a known issue with React Router and React.StrictMode in development
+      if (isReactRouterDOMError(error)) {
+        // This is a known issue with React Router DOM manipulation during navigation
         // It doesn't affect functionality, so we suppress it
-        console.warn('React Router navigation warning (suppressed):', errorMessage)
+        console.warn('React Router navigation warning (suppressed):', error?.message || error)
         event.preventDefault()
         event.stopPropagation()
         return false
@@ -29,12 +43,27 @@ function RouterProviderWithErrorHandling() {
       return true
     }
 
-    // Add global error handler
+    // Handle unhandled promise rejections (which React Router might use)
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const error = event.reason
+      
+      if (isReactRouterDOMError(error)) {
+        // Suppress known React Router DOM manipulation errors
+        console.warn('React Router navigation warning (suppressed):', error?.message || error)
+        event.preventDefault()
+        return false
+      }
+      return true
+    }
+
+    // Add global error handlers
     window.addEventListener('error', handleError, true)
+    window.addEventListener('unhandledrejection', handleUnhandledRejection, true)
     
     // Cleanup
     return () => {
       window.removeEventListener('error', handleError, true)
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
     }
   }, [])
 

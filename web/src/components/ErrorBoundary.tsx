@@ -19,12 +19,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     // Suppress known React Router DOM manipulation errors that don't affect functionality
+    // This can occur from React Router navigation or browser extensions (like installHook.js)
     if (
       error.name === 'NotFoundError' &&
       error.message.includes('removeChild') &&
-      error.message.includes('not a child of this node')
+      (error.message.includes('not a child of this node') || 
+       error.message.includes('not a child'))
     ) {
-      // This is a known issue with React Router and React.StrictMode in development
+      // This is a known issue with React Router DOM manipulation during navigation
       // It doesn't affect functionality, so we suppress it
       console.warn('React Router navigation warning (suppressed):', error.message)
       return { hasError: false, error: null }
@@ -34,10 +36,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Suppress known React Router DOM manipulation errors
+    // This can occur from React Router navigation or browser extensions (like installHook.js)
     if (
       error.name === 'NotFoundError' &&
       error.message.includes('removeChild') &&
-      error.message.includes('not a child of this node')
+      (error.message.includes('not a child of this node') || 
+       error.message.includes('not a child'))
     ) {
       console.warn('React Router navigation warning (suppressed):', error.message)
       return
