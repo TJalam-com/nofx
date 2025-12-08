@@ -31,8 +31,8 @@ export function PageHeader({
         <div
           className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center"
           style={{
-            background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
-            boxShadow: '0 4px 14px rgba(240, 185, 11, 0.4)',
+            background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+            boxShadow: '0 4px 14px var(--green-glow)',
           }}
         >
           <Bot className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#000' }} />
@@ -40,20 +40,20 @@ export function PageHeader({
         <div>
           <h1
             className="text-xl md:text-2xl font-bold flex items-center gap-2"
-            style={{ color: '#EAECEF' }}
+            style={{ color: 'var(--text-primary)' }}
           >
             {t('aiTraders', language)}
             <span
               className="text-xs font-normal px-2 py-1 rounded"
               style={{
-                background: 'rgba(240, 185, 11, 0.15)',
-                color: '#F0B90B',
+                background: 'rgba(0, 255, 127, 0.15)',
+                color: 'var(--green-primary)',
               }}
             >
               {tradersCount} {t('active', language)}
             </span>
           </h1>
-          <p className="text-xs" style={{ color: '#848E9C' }}>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
             {t('manageAITraders', language)}
           </p>
         </div>
@@ -64,9 +64,15 @@ export function PageHeader({
           onClick={onAddModel}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
           style={{
-            background: '#2B3139',
-            color: '#EAECEF',
-            border: '1px solid #474D57',
+            background: 'var(--panel-bg)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--panel-border)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--green-primary)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--panel-border)'
           }}
         >
           <Plus className="w-3 h-3 md:w-4 md:h-4" />
@@ -77,9 +83,15 @@ export function PageHeader({
           onClick={onAddExchange}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
           style={{
-            background: '#2B3139',
-            color: '#EAECEF',
-            border: '1px solid #474D57',
+            background: 'var(--panel-bg)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--panel-border)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--green-primary)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--panel-border)'
           }}
         >
           <Plus className="w-3 h-3 md:w-4 md:h-4" />
@@ -90,9 +102,15 @@ export function PageHeader({
           onClick={onConfigureSignalSource}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
           style={{
-            background: '#2B3139',
-            color: '#EAECEF',
-            border: '1px solid #474D57',
+            background: 'var(--panel-bg)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--panel-border)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--green-primary)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--panel-border)'
           }}
         >
           <Radio className="w-3 h-3 md:w-4 md:h-4" />
@@ -104,8 +122,9 @@ export function PageHeader({
           disabled={!canCreateTrader}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 md:gap-2 whitespace-nowrap"
           style={{
-            background: canCreateTrader ? '#F0B90B' : '#2B3139',
-            color: canCreateTrader ? '#000' : '#848E9C',
+            background: canCreateTrader ? 'var(--green-primary)' : 'var(--panel-bg)',
+            color: canCreateTrader ? 'var(--navy-primary)' : 'var(--text-tertiary)',
+            border: canCreateTrader ? 'none' : '1px solid var(--panel-border)',
           }}
         >
           <Plus className="w-4 h-4" />

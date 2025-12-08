@@ -126,9 +126,9 @@ export default function FollowersPage() {
             onClick={() => window.location.reload()}
             className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105 active:scale-95"
             style={{
-              background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
+              background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               color: '#0B0E11',
-              boxShadow: '0 4px 12px rgba(240, 185, 11, 0.3)',
+              boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)',
             }}
           >
             {t('retry', language) || 'Retry'}
@@ -148,11 +148,11 @@ export default function FollowersPage() {
             <div
               className="w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center"
               style={{
-                background: 'rgba(240, 185, 11, 0.1)',
-                border: '2px solid rgba(240, 185, 11, 0.3)',
+                background: 'rgba(0, 255, 127, 0.1)',
+                border: '2px solid rgba(0, 255, 127, 0.3)',
               }}
             >
-              <Users className="w-12 h-12" style={{ color: '#F0B90B' }} />
+              <Users className="w-12 h-12" style={{ color: 'var(--green-primary)' }} />
             </div>
             <h2 className="text-2xl font-bold mb-3" style={{ color: '#EAECEF' }}>
               {t('noFollowersTitle', language) || 'No Followers Yet'}
@@ -177,11 +177,11 @@ export default function FollowersPage() {
           <div
             className="w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center"
             style={{
-              background: 'rgba(240, 185, 11, 0.1)',
-              border: '2px solid rgba(240, 185, 11, 0.3)',
+              background: 'rgba(0, 255, 127, 0.1)',
+              border: '2px solid rgba(0, 255, 127, 0.3)',
             }}
           >
-            <Users className="w-12 h-12" style={{ color: '#F0B90B' }} />
+            <Users className="w-12 h-12" style={{ color: 'var(--green-primary)' }} />
           </div>
           <h2 className="text-2xl font-bold mb-3" style={{ color: '#EAECEF' }}>
             {t('noFollowersTitle', language) || 'No Followers Yet'}
@@ -202,9 +202,9 @@ export default function FollowersPage() {
         className="mb-6 rounded p-6 animate-scale-in"
         style={{
           background:
-            'linear-gradient(135deg, rgba(240, 185, 11, 0.15) 0%, rgba(252, 213, 53, 0.05) 100%)',
-          border: '1px solid rgba(240, 185, 11, 0.2)',
-          boxShadow: '0 0 30px rgba(240, 185, 11, 0.15)',
+            'linear-gradient(135deg, rgba(0, 255, 127, 0.15) 0%, rgba(51, 255, 153, 0.05) 100%)',
+          border: '1px solid rgba(0, 255, 127, 0.2)',
+          boxShadow: '0 0 30px rgba(0, 255, 127, 0.15)',
         }}
       >
         <div className="flex items-center justify-between mb-4">
@@ -215,7 +215,7 @@ export default function FollowersPage() {
             <span
               className="w-12 h-12 rounded-full flex items-center justify-center"
               style={{
-                background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
+                background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               }}
             >
               <Users className="w-6 h-6" style={{ color: '#0B0E11' }} />
@@ -256,7 +256,7 @@ export default function FollowersPage() {
           <div className="text-sm mb-2" style={{ color: '#848E9C' }}>
             {t('parentTraders', language) || 'Parent Traders'}
           </div>
-          <div className="text-2xl font-bold" style={{ color: '#F0B90B' }}>
+          <div className="text-2xl font-bold" style={{ color: 'var(--green-primary)' }}>
             {summaryStats.totalParents}
           </div>
         </div>
@@ -272,11 +272,11 @@ export default function FollowersPage() {
               <button
                 onClick={() => toggleParentExpanded(parent.trader_id)}
                 className="w-full p-6 flex items-center justify-between hover:opacity-80 transition-opacity"
-                style={{ background: isExpanded ? 'rgba(240, 185, 11, 0.05)' : 'transparent' }}
+                style={{ background: isExpanded ? 'rgba(0, 255, 127, 0.05)' : 'transparent' }}
               >
                 <div className="flex items-center gap-4">
                   {isExpanded ? (
-                    <ChevronUp className="w-5 h-5" style={{ color: '#F0B90B' }} />
+                    <ChevronUp className="w-5 h-5" style={{ color: 'var(--green-primary)' }} />
                   ) : (
                     <ChevronDown className="w-5 h-5" style={{ color: '#848E9C' }} />
                   )}
@@ -296,9 +296,9 @@ export default function FollowersPage() {
                   <div
                     className="px-3 py-1 rounded text-sm font-semibold"
                     style={{
-                      background: 'rgba(240, 185, 11, 0.1)',
-                      color: '#F0B90B',
-                      border: '1px solid rgba(240, 185, 11, 0.2)',
+                      background: 'rgba(0, 255, 127, 0.1)',
+                      color: 'var(--green-primary)',
+                      border: '1px solid rgba(0, 255, 127, 0.2)',
                     }}
                   >
                     {parent.followers.filter((f) => f.is_running).length}{' '}
@@ -392,9 +392,9 @@ function FollowerCard({ follower, language }: FollowerCardProps) {
           onClick={handleViewDashboard}
           className="px-4 py-2 rounded text-sm font-semibold flex items-center gap-2 transition-all hover:scale-105"
           style={{
-            background: 'rgba(240, 185, 11, 0.1)',
-            color: '#F0B90B',
-            border: '1px solid rgba(240, 185, 11, 0.2)',
+            background: 'rgba(0, 255, 127, 0.1)',
+            color: 'var(--green-primary)',
+            border: '1px solid rgba(0, 255, 127, 0.2)',
           }}
         >
           {t('viewDashboard', language) || 'View Dashboard'}

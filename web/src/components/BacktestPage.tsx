@@ -411,19 +411,19 @@ export function BacktestPage() {
                 ? 'rgba(246,70,93,0.1)'
                 : toast.tone === 'success'
                 ? 'rgba(14,203,129,0.1)'
-                : 'rgba(240,185,11,0.1)',
+                : 'rgba(0,255,127,0.1)',
             color:
               toast.tone === 'error'
                 ? '#F6465D'
                 : toast.tone === 'success'
                 ? '#0ECB81'
-                : '#F0B90B',
+                : 'var(--green-primary)',
             borderColor:
               toast.tone === 'error'
                 ? 'rgba(246,70,93,0.3)'
                 : toast.tone === 'success'
                 ? 'rgba(14,203,129,0.4)'
-                : 'rgba(240,185,11,0.4)',
+                : 'rgba(0,255,127,0.4)',
           }}
         >
           {toast.text}
@@ -444,7 +444,7 @@ export function BacktestPage() {
               type="submit"
               disabled={isStarting || !selectedModel || !selectedModel.enabled}
               className="px-4 py-2 rounded text-xs font-bold transition-opacity disabled:opacity-50"
-              style={{ background: '#F0B90B', color: '#000' }}
+              style={{ background: 'var(--green-primary)', color: '#000' }}
             >
               {isStarting ? tr('starting') : tr('start')}
             </button>
@@ -591,10 +591,10 @@ export function BacktestPage() {
                     className="px-2 py-1 text-[11px] rounded border"
                     style={{
                       background: active
-                        ? 'rgba(240,185,11,0.12)'
+                        ? 'rgba(0,255,127,0.12)'
                         : 'transparent',
-                      borderColor: active ? '#F0B90B' : '#2B3139',
-                      color: active ? '#F0B90B' : '#848E9C',
+                      borderColor: active ? 'var(--green-primary)' : '#2B3139',
+                      color: active ? 'var(--green-primary)' : '#848E9C',
                     }}
                   >
                     {tf}
@@ -827,7 +827,7 @@ export function BacktestPage() {
                     style={{
                       background:
                         run.run_id === selectedRunId
-                          ? 'rgba(240,185,11,0.08)'
+                          ? 'rgba(0,255,127,0.08)'
                           : 'transparent',
                     }}
                     onClick={() => setSelectedRunId(run.run_id)}
@@ -911,7 +911,7 @@ export function BacktestPage() {
                   </div>
                 </div>
                 <button
-                  className="text-xs text-[#F0B90B]"
+                  className="text-xs text-[var(--green-primary)]"
                   onClick={handleExport}
                 >
                   {tr('detail.exportLabel')}
@@ -974,7 +974,7 @@ export function BacktestPage() {
               <div className="flex justify-between items-center">
                 <span style={{ color: '#EAECEF' }}>{tr('aiTrace.title')}</span>
                 <button
-                  className="text-[#F0B90B]"
+                  className="text-[var(--green-primary)]"
                   onClick={() => setTrace(undefined)}
                 >
                   {tr('aiTrace.clear')}
@@ -1098,7 +1098,7 @@ export function BacktestPage() {
                       <Line
                         type="monotone"
                         dataKey="equity"
-                        stroke="#F0B90B"
+                        stroke="var(--green-primary)"
                         dot={false}
                         strokeWidth={2}
                       />
