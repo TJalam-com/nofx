@@ -16,14 +16,14 @@ export function Header({ simple = false }: HeaderProps) {
           {/* Left - Logo and Title */}
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center">
-              <img src="/icons/nofx.svg" alt="NoFx Logo" className="w-8 h-8" />
+              <img src="/icons/nofx.svg" alt="AI Trading Logo" className="w-8 h-8" />
             </div>
             <div>
-              <h1 className="text-xl font-bold" style={{ color: '#EAECEF' }}>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
                 {t('appTitle', language)}
               </h1>
               {!simple && (
-                <p className="text-xs mono" style={{ color: '#848E9C' }}>
+                <p className="text-xs mono" style={{ color: 'var(--text-secondary)' }}>
                   {t('subtitle', language)}
                 </p>
               )}
@@ -33,15 +33,15 @@ export function Header({ simple = false }: HeaderProps) {
           {/* Right - Language Toggle (always show) */}
           <div
             className="flex gap-1 rounded p-1"
-            style={{ background: '#1E2329' }}
+            style={{ background: 'var(--panel-bg)' }}
           >
             <button
               onClick={() => setLanguage('zh')}
               className="px-3 py-1.5 rounded text-xs font-semibold transition-all"
               style={
                 language === 'zh'
-                  ? { background: '#F0B90B', color: '#000' }
-                  : { background: 'transparent', color: '#848E9C' }
+                  ? { background: 'var(--green-primary)', color: 'var(--navy-primary)' }
+                  : { background: 'transparent', color: 'var(--text-secondary)' }
               }
             >
               中文
@@ -51,8 +51,8 @@ export function Header({ simple = false }: HeaderProps) {
               className="px-3 py-1.5 rounded text-xs font-semibold transition-all"
               style={
                 language === 'en'
-                  ? { background: '#F0B90B', color: '#000' }
-                  : { background: 'transparent', color: '#848E9C' }
+                  ? { background: 'var(--green-primary)', color: 'var(--navy-primary)' }
+                  : { background: 'transparent', color: 'var(--text-secondary)' }
               }
             >
               EN

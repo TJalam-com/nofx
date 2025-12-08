@@ -403,6 +403,6 @@ func main() {
 	fmt.Println("👋 感谢使用AI交易系统！")
 }
 
-func newSharedMCPClient(cfg *config.Config) mcp.AIClient {
+func newSharedMCPClient(_ *config.Config) mcp.AIClient {
 	return mcp.NewClient()
 }

@@ -159,7 +159,10 @@ export function RegisterPage() {
   return (
     <div
       className="flex items-center justify-center py-12"
-      style={{ minHeight: 'calc(100vh - 64px)' }}
+      style={{
+        minHeight: 'calc(100vh - 64px)',
+        background: 'var(--background)',
+      }}
     >
       <div className="w-full max-w-md">
         {/* Logo */}
@@ -167,7 +170,7 @@ export function RegisterPage() {
           <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <img
               src="/icons/nofx.svg"
-              alt="NoFx Logo"
+              alt="AI Trading Logo"
               className="w-16 h-16 object-contain"
             />
           </div>

@@ -1,11 +1,9 @@
 import {
   BookOpen,
-  Settings,
   TrendingUp,
   Wrench,
   Bot,
   Database,
-  GitBranch,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -50,70 +48,6 @@ export const faqCategories: FAQCategory[] = [
         id: 'is-profitable',
         questionKey: 'faqIsProfitable',
         answerKey: 'faqIsProfitableAnswer',
-      },
-      {
-        id: 'multiple-traders',
-        questionKey: 'faqMultipleTraders',
-        answerKey: 'faqMultipleTradersAnswer',
-      },
-    ],
-  },
-  {
-    id: 'contributing',
-    titleKey: 'faqCategoryContributing',
-    icon: GitBranch,
-    items: [
-      {
-        id: 'github-projects-tasks',
-        questionKey: 'faqGithubProjectsTasks',
-        answerKey: 'faqGithubProjectsTasksAnswer',
-      },
-      {
-        id: 'contribute-pr-guidelines',
-        questionKey: 'faqContributePR',
-        answerKey: 'faqContributePRAnswer',
-      },
-    ],
-  },
-  {
-    id: 'setup',
-    titleKey: 'faqCategorySetup',
-    icon: Settings,
-    items: [
-      {
-        id: 'system-requirements',
-        questionKey: 'faqSystemRequirements',
-        answerKey: 'faqSystemRequirementsAnswer',
-      },
-      {
-        id: 'need-coding',
-        questionKey: 'faqNeedCoding',
-        answerKey: 'faqNeedCodingAnswer',
-      },
-      {
-        id: 'get-api-keys',
-        questionKey: 'faqGetApiKeys',
-        answerKey: 'faqGetApiKeysAnswer',
-      },
-      {
-        id: 'use-subaccount',
-        questionKey: 'faqUseSubaccount',
-        answerKey: 'faqUseSubaccountAnswer',
-      },
-      {
-        id: 'docker-deployment',
-        questionKey: 'faqDockerDeployment',
-        answerKey: 'faqDockerDeploymentAnswer',
-      },
-      {
-        id: 'balance-shows-zero',
-        questionKey: 'faqBalanceZero',
-        answerKey: 'faqBalanceZeroAnswer',
-      },
-      {
-        id: 'testnet-issues',
-        questionKey: 'faqTestnet',
-        answerKey: 'faqTestnetAnswer',
       },
     ],
   },

@@ -260,7 +260,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
           position: 'relative',
         }}
       >
-        {/* NOFX Watermark */}
+        {/* AI Trading Watermark */}
         <div
           style={{
             position: 'absolute',
@@ -274,7 +274,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
             fontFamily: 'monospace',
           }}
         >
-          NOFX
+          AI Trading
         </div>
         <ResponsiveContainer width="100%" height={520}>
           <LineChart
