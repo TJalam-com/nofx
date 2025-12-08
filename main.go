@@ -16,12 +16,31 @@ import (
 	"nofx/pool"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/joho/godotenv"
 )
+
+// getDataDir returns the data directory path from environment variable or defaults to current directory
+func getDataDir() string {
+	dataDir := os.Getenv("NOFX_DATA_DIR")
+	if dataDir == "" {
+		return "." // Default to current directory for local dev
+	}
+	return dataDir
+}
+
+// getDataPath returns a path relative to the data directory
+func getDataPath(relativePath string) string {
+	dataDir := getDataDir()
+	if dataDir == "." {
+		return relativePath
+	}
+	return filepath.Join(dataDir, relativePath)
+}
 
 // ConfigFile 配置文件结构，只包含需要同步到数据库的字段
 // TODO 现在与config.Config相同，未来会被替换， 现在为了兼容性不得不保留当前文件
@@ -120,7 +139,13 @@ func syncConfigToDatabase(database *config.Database, configFile *ConfigFile) err
 
 // loadBetaCodesToDatabase 加载内测码文件到数据库
 func loadBetaCodesToDatabase(database *config.Database) error {
-	betaCodeFile := "beta_codes.txt"
+	betaCodeFile := getDataPath("beta_codes.txt")
+	// Fallback to original path if not in data dir
+	if _, err := os.Stat(betaCodeFile); os.IsNotExist(err) {
+		if _, err := os.Stat("beta_codes.txt"); err == nil {
+			betaCodeFile = "beta_codes.txt"
+		}
+	}
 
 	// 检查内测码文件是否存在
 	if _, err := os.Stat(betaCodeFile); os.IsNotExist(err) {
@@ -163,10 +188,17 @@ func main() {
 	// In Docker Compose, variables are injected by the runtime and this is harmless.
 	_ = godotenv.Load()
 
+	// Get data directory and ensure it exists
+	dataDir := getDataDir()
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		log.Fatalf("❌ 创建数据目录失败: %v", err)
+	}
+	log.Printf("📁 数据目录: %s", dataDir)
+
 	// 初始化数据库配置
-	dbPath := "config.db"
+	dbPath := getDataPath("config.db")
 	if len(os.Args) > 1 {
-		dbPath = os.Args[1]
+		dbPath = os.Args[1] // Allow override via command line
 	}
 
 	// 读取配置文件
@@ -185,7 +217,15 @@ func main() {
 
 	// 初始化加密服务
 	log.Printf("🔐 初始化加密服务...")
-	cryptoService, err := crypto.NewCryptoService("secrets/rsa_key")
+	secretsPath := getDataPath("secrets/rsa_key")
+	// Fallback to original path if not in data dir (for backward compatibility)
+	if _, err := os.Stat(secretsPath); os.IsNotExist(err) {
+		if _, err := os.Stat("secrets/rsa_key"); err == nil {
+			secretsPath = "secrets/rsa_key"
+			log.Printf("📁 使用原始secrets路径: %s", secretsPath)
+		}
+	}
+	cryptoService, err := crypto.NewCryptoService(secretsPath)
 	if err != nil {
 		log.Fatalf("❌ 初始化加密服务失败: %v", err)
 	}

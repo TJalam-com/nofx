@@ -11,10 +11,30 @@ import (
 	"nofx/market"
 	"nofx/mcp"
 	"nofx/pool"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 )
+
+// getDataDir returns the data directory path from environment variable or defaults to current directory
+func getDataDir() string {
+	dataDir := os.Getenv("NOFX_DATA_DIR")
+	if dataDir == "" {
+		return "." // Default to current directory for local dev
+	}
+	return dataDir
+}
+
+// getDataPath returns a path relative to the data directory
+func getDataPath(relativePath string) string {
+	dataDir := getDataDir()
+	if dataDir == "." {
+		return relativePath
+	}
+	return filepath.Join(dataDir, relativePath)
+}
 
 // AutoTraderConfig 自动交易配置（简化版 - AI全权决策）
 type AutoTraderConfig struct {
@@ -261,7 +281,7 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 	}
 
 	// 初始化决策日志记录器（使用trader ID创建独立目录）
-	logDir := fmt.Sprintf("decision_logs/%s", config.ID)
+	logDir := getDataPath(fmt.Sprintf("decision_logs/%s", config.ID))
 	decisionLogger := logger.NewDecisionLogger(logDir)
 
 	// 设置默认系统提示词模板

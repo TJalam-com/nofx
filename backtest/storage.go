@@ -16,8 +16,26 @@ import (
 	"nofx/logger"
 )
 
+// getDataDir returns the data directory path from environment variable or defaults to current directory
+func getDataDir() string {
+	dataDir := os.Getenv("NOFX_DATA_DIR")
+	if dataDir == "" {
+		return "." // Default to current directory for local dev
+	}
+	return dataDir
+}
+
+// getBacktestsRootDir returns the backtests root directory path
+func getBacktestsRootDir() string {
+	dataDir := getDataDir()
+	if dataDir == "." {
+		return "backtests"
+	}
+	return filepath.Join(dataDir, "backtests")
+}
+
 const (
-	backtestsRootDir = "backtests"
+	backtestsRootDir = "backtests" // Keep for backward compatibility, use getBacktestsRootDir() instead
 )
 
 type progressPayload struct {
@@ -29,7 +47,7 @@ type progressPayload struct {
 }
 
 func runDir(runID string) string {
-	return filepath.Join(backtestsRootDir, runID)
+	return filepath.Join(getBacktestsRootDir(), runID)
 }
 
 func ensureRunDir(runID string) error {
@@ -327,7 +345,7 @@ func LoadRunIDs() ([]string, error) {
 	if usingDB() {
 		return loadRunIDsDB()
 	}
-	entries, err := os.ReadDir(backtestsRootDir)
+	entries, err := os.ReadDir(getBacktestsRootDir())
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return []string{}, nil

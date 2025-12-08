@@ -20,9 +20,11 @@ services:
         value: release
       - key: TZ
         value: UTC
+      - key: NOFX_DATA_DIR
+        value: /var/data
     healthCheckPath: /api/health
     disk:
       name: nofx-data
-      mountPath: /opt/render/project/src
+      mountPath: /var/data
       sizeGB: 1
 
