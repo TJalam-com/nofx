@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { Toaster } from 'sonner'
+import { HelmetProvider } from 'react-helmet-async'
 import './index.css'
 import { RouterProvider } from 'react-router-dom'
 import { router } from './routes'
@@ -71,24 +72,26 @@ function RouterProviderWithErrorHandling() {
 }
 
 const App = (
-  <ErrorBoundary>
-    <RouterProviderWithErrorHandling />
-    <Toaster
-      theme="dark"
-      richColors
-      closeButton
-      position="top-center"
-      duration={2200}
-      toastOptions={{
-        className: 'nofx-toast',
-        style: {
-          background: '#0b0e11',
-          border: '1px solid var(--panel-border)',
-          color: 'var(--text-primary)',
-        },
-      }}
-    />
-  </ErrorBoundary>
+  <HelmetProvider>
+    <ErrorBoundary>
+      <RouterProviderWithErrorHandling />
+      <Toaster
+        theme="dark"
+        richColors
+        closeButton
+        position="top-center"
+        duration={2200}
+        toastOptions={{
+          className: 'nofx-toast',
+          style: {
+            background: '#0b0e11',
+            border: '1px solid var(--panel-border)',
+            color: 'var(--text-primary)',
+          },
+        }}
+      />
+    </ErrorBoundary>
+  </HelmetProvider>
 )
 
 // Only enable StrictMode in development to avoid double-rendering issues

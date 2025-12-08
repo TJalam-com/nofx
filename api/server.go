@@ -93,6 +93,14 @@ func (s *Server) setupRoutes() {
 		// Serve other static files (favicon, etc.)
 		s.router.StaticFile("/favicon.ico", "./web/dist/favicon.ico")
 		
+		// Serve SEO files (robots.txt, sitemap.xml)
+		if _, err := os.Stat("./web/dist/robots.txt"); err == nil {
+			s.router.StaticFile("/robots.txt", "./web/dist/robots.txt")
+		}
+		if _, err := os.Stat("./web/dist/sitemap.xml"); err == nil {
+			s.router.StaticFile("/sitemap.xml", "./web/dist/sitemap.xml")
+		}
+		
 		// Serve index.html for root and other non-API, non-asset routes (SPA routing)
 		s.router.NoRoute(func(c *gin.Context) {
 			// Don't serve index.html for API routes

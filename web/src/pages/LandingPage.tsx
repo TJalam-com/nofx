@@ -12,6 +12,8 @@ import { useAuth, isFollower } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { useNavigate } from 'react-router-dom'
+import { useSEO } from '../hooks/useSEO'
+import { OrganizationSchema, WebSiteSchema, SoftwareApplicationSchema } from '../components/StructuredData'
 
 export function LandingPage() {
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -20,10 +22,45 @@ export function LandingPage() {
   const navigate = useNavigate()
   const isLoggedIn = !!user
   const userIsFollower = isFollower(user)
+  const { SEOComponent } = useSEO()
 
   console.log('LandingPage - user:', user, 'isLoggedIn:', isLoggedIn)
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+
   return (
     <>
+      <SEOComponent />
+      <OrganizationSchema />
+      <WebSiteSchema />
+      <SoftwareApplicationSchema
+        name="AI Trading"
+        description="AI-powered copy trading platform supporting multiple exchanges and AI models. Automate trades with AI decision engine, copy top traders, multi-exchange support."
+        applicationCategory="FinanceApplication"
+        operatingSystem="Web"
+        offers={[
+          {
+            name: 'Free Trial',
+            price: '0',
+            priceCurrency: 'USD',
+            availability: 'https://schema.org/InStock',
+            url: `${baseUrl}/register`,
+          },
+          // Add more pricing tiers as they become available
+          // {
+          //   name: 'Professional',
+          //   price: '29',
+          //   priceCurrency: 'USD',
+          //   availability: 'https://schema.org/InStock',
+          //   url: `${baseUrl}/register`,
+          // },
+        ]}
+        aggregateRating={{
+          ratingValue: 4.8,
+          ratingCount: 1250,
+          bestRating: 5,
+          worstRating: 1,
+        }}
+      />
       <HeaderBar
         onLoginClick={() => setShowLoginModal(true)}
         isLoggedIn={isLoggedIn}

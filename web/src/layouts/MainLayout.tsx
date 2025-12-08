@@ -5,6 +5,7 @@ import { Container } from '../components/Container'
 import Footer from '../components/Footer'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useSEO } from '../hooks/useSEO'
 
 interface MainLayoutProps {
   children?: ReactNode
@@ -14,6 +15,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { language, setLanguage } = useLanguage()
   const { user, logout } = useAuth()
   const location = useLocation()
+  const { SEOComponent } = useSEO()
 
   // 根据路径自动判断当前页面
   const getCurrentPage = (): 'competition' | 'traders' | 'trader' | 'followers' | 'faq' | 'stats' => {
@@ -27,10 +29,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
-    <div
-      className="min-h-screen"
-      style={{ background: 'var(--navy-primary)', color: 'var(--text-primary)' }}
-    >
+    <>
+      <SEOComponent />
+      <div
+        className="min-h-screen"
+        style={{ background: 'var(--navy-primary)', color: 'var(--text-primary)' }}
+      >
       <HeaderBar
         isLoggedIn={!!user}
         currentPage={getCurrentPage()}
@@ -49,7 +53,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
       </Container>
 
       {/* Footer */}
-      <Footer variant="simple" />
+      <Footer variant="full" />
     </div>
+    </>
   )
 }

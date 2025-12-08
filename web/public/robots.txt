@@ -1,0 +1,28 @@
+# robots.txt for AI Trading Platform
+
+User-agent: *
+Allow: /
+Allow: /competition
+Allow: /traders
+Allow: /faq
+Allow: /become-trader
+
+# Disallow private/user-specific pages
+Disallow: /dashboard
+Disallow: /followers
+Disallow: /backtest
+Disallow: /webhook
+Disallow: /stats
+Disallow: /admin/
+
+# Disallow auth pages (no need to index)
+Disallow: /login
+Disallow: /register
+Disallow: /reset-password
+
+# Disallow API endpoints
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://nofx.ai/sitemap.xml
+

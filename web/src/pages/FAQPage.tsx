@@ -1,5 +1,8 @@
 import { FAQLayout } from '../components/faq/FAQLayout'
 import { useLanguage } from '../contexts/LanguageContext'
+import { FAQPageSchema } from '../components/StructuredData'
+import { faqCategories } from '../data/faqData'
+import { t } from '../i18n/translations'
 
 /**
  * FAQ 页面
@@ -17,5 +20,18 @@ import { useLanguage } from '../contexts/LanguageContext'
 export function FAQPage() {
   const { language } = useLanguage()
 
-  return <FAQLayout language={language} />
+  // Extract FAQ data for structured data
+  const faqs = faqCategories.flatMap((category) =>
+    category.items.map((item) => ({
+      question: t(item.questionKey, language),
+      answer: t(item.answerKey, language),
+    }))
+  )
+
+  return (
+    <>
+      <FAQPageSchema faqs={faqs} />
+      <FAQLayout language={language} />
+    </>
+  )
 }
