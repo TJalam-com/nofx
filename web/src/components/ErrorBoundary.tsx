@@ -1,8 +1,8 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { Component, ErrorInfo, ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 
 interface Props {
-  children: ReactNode
+  children?: ReactNode
   fallback?: ReactNode
 }
 
@@ -72,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
       )
     }
 
-    return this.props.children
+    return this.props.children || null
   }
 }
 

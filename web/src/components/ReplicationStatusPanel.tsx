@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import useSWR from 'swr'
 import { api } from '../lib/api'
 import type { ReplicationStatus, TestSignalRequest } from '../types'
@@ -9,8 +9,6 @@ import {
   Send,
   RefreshCw,
   AlertCircle,
-  CheckCircle,
-  XCircle,
   Loader,
   ChevronDown,
   ChevronUp,
@@ -23,7 +21,6 @@ interface ReplicationStatusPanelProps {
 
 export function ReplicationStatusPanel({
   traderId,
-  traderName,
 }: ReplicationStatusPanelProps) {
   const [showTestModal, setShowTestModal] = useState(false)
   const [testSignal, setTestSignal] = useState<TestSignalRequest>({

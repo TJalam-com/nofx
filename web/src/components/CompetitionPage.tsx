@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Trophy, Medal } from 'lucide-react'
 import useSWR from 'swr'
-import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { CompetitionData } from '../types'
 import { ComparisonChart } from './ComparisonChart'
@@ -16,7 +15,6 @@ export function CompetitionPage() {
   const { language } = useLanguage()
   const { user, token } = useAuth()
   const userIsFollower = isFollower(user)
-  const navigate = useNavigate()
   const [selectedTrader, setSelectedTrader] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
