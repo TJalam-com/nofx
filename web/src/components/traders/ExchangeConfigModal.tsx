@@ -299,8 +299,8 @@ export function ExchangeConfigModal({
                 onClick={() => setShowGuide(true)}
                 className="px-3 py-2 rounded text-sm font-semibold transition-all hover:scale-105 flex items-center gap-2"
                 style={{
-                  background: 'rgba(240, 185, 11, 0.1)',
-                  color: '#F0B90B',
+                  background: 'rgba(0, 255, 127, 0.1)',
+                  color: 'var(--green-primary)',
                 }}
               >
                 <BookOpen className="w-4 h-4" />
@@ -334,7 +334,7 @@ export function ExchangeConfigModal({
                 <div className="space-y-2">
                   <div
                     className="text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: '#F0B90B' }}
+                    style={{ color: 'var(--green-primary)' }}
                   >
                     {t('environmentSteps.checkTitle', language)}
                   </div>
@@ -347,7 +347,7 @@ export function ExchangeConfigModal({
                 <div className="space-y-2">
                   <div
                     className="text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: '#F0B90B' }}
+                    style={{ color: 'var(--green-primary)' }}
                   >
                     {t('environmentSteps.selectTitle', language)}
                   </div>
@@ -584,13 +584,13 @@ export function ExchangeConfigModal({
                         <div
                           className="p-4 rounded"
                           style={{
-                            background: 'rgba(240, 185, 11, 0.1)',
-                            border: '1px solid rgba(240, 185, 11, 0.2)',
+                            background: 'rgba(0, 255, 127, 0.1)',
+                            border: '1px solid rgba(0, 255, 127, 0.2)',
                           }}
                         >
                           <div
                             className="text-sm font-semibold mb-2"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: 'var(--green-primary)' }}
                           >
                             {t('whitelistIP', language)}
                           </div>
@@ -615,7 +615,7 @@ export function ExchangeConfigModal({
                             >
                               <code
                                 className="flex-1 text-sm font-mono"
-                                style={{ color: '#F0B90B' }}
+                                style={{ color: 'var(--green-primary)' }}
                               >
                                 {serverIP.public_ip}
                               </code>
@@ -624,8 +624,8 @@ export function ExchangeConfigModal({
                                 onClick={() => handleCopyIP(serverIP.public_ip)}
                                 className="px-3 py-1 rounded text-xs font-semibold transition-all hover:scale-105"
                                 style={{
-                                  background: 'rgba(240, 185, 11, 0.2)',
-                                  color: '#F0B90B',
+                                  background: 'rgba(0, 255, 127, 0.2)',
+                                  color: 'var(--green-primary)',
                                 }}
                               >
                                 {copiedIP
@@ -651,7 +651,7 @@ export function ExchangeConfigModal({
                         <Tooltip content={t('asterUserDesc', language)}>
                           <HelpCircle
                             className="w-4 h-4 cursor-help"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: 'var(--green-primary)' }}
                           />
                         </Tooltip>
                       </label>
@@ -679,7 +679,7 @@ export function ExchangeConfigModal({
                         <Tooltip content={t('asterSignerDesc', language)}>
                           <HelpCircle
                             className="w-4 h-4 cursor-help"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: 'var(--green-primary)' }}
                           />
                         </Tooltip>
                       </label>
@@ -707,7 +707,7 @@ export function ExchangeConfigModal({
                         <Tooltip content={t('asterPrivateKeyDesc', language)}>
                           <HelpCircle
                             className="w-4 h-4 cursor-help"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: 'var(--green-primary)' }}
                           />
                         </Tooltip>
                       </label>
@@ -735,18 +735,18 @@ export function ExchangeConfigModal({
                     <div
                       className="p-3 rounded mb-4"
                       style={{
-                        background: 'rgba(240, 185, 11, 0.1)',
-                        border: '1px solid rgba(240, 185, 11, 0.3)',
+                        background: 'rgba(0, 255, 127, 0.1)',
+                        border: '1px solid rgba(0, 255, 127, 0.3)',
                       }}
                     >
                       <div className="flex items-start gap-2">
-                        <span style={{ color: '#F0B90B', fontSize: '16px' }}>
+                        <span style={{ color: 'var(--green-primary)', fontSize: '16px' }}>
                           🔐
                         </span>
                         <div className="flex-1">
                           <div
                             className="text-sm font-semibold mb-1"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: 'var(--green-primary)' }}
                           >
                             {t('hyperliquidAgentWalletTitle', language)}
                           </div>
@@ -790,7 +790,7 @@ export function ExchangeConfigModal({
                             onClick={() => setSecureInputTarget('hyperliquid')}
                             className="px-3 py-2 rounded text-xs font-semibold transition-all hover:scale-105"
                             style={{
-                              background: '#F0B90B',
+                              background: 'var(--green-primary)',
                               color: '#000',
                               whiteSpace: 'nowrap',
                             }}
@@ -904,7 +904,7 @@ export function ExchangeConfigModal({
                           type="button"
                           onClick={() => setSecureInputTarget('lighter')}
                           className="ml-2 text-xs underline"
-                          style={{ color: '#F0B90B' }}
+                          style={{ color: 'var(--green-primary)' }}
                         >
                           {t('secureInputButton', language)}
                         </button>
@@ -953,7 +953,7 @@ export function ExchangeConfigModal({
                       <div className="text-xs mt-2 p-2 rounded" style={{
                         background: '#1E2329',
                         border: '1px solid #2B3139',
-                        color: '#F0B90B'
+                        color: 'var(--green-primary)'
                       }}>
                         💡 {t('lighterApiKeyOptionalNote', language)}
                       </div>
@@ -1026,7 +1026,7 @@ export function ExchangeConfigModal({
                   (!apiKey.trim() || !secretKey.trim()))
               }
               className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
-              style={{ background: '#F0B90B', color: '#000' }}
+              style={{ background: 'var(--green-primary)', color: '#000' }}
             >
               {t('saveConfig', language)}
             </button>
@@ -1050,7 +1050,7 @@ export function ExchangeConfigModal({
                 className="text-xl font-bold flex items-center gap-2"
                 style={{ color: '#EAECEF' }}
               >
-                <BookOpen className="w-6 h-6" style={{ color: '#F0B90B' }} />
+                <BookOpen className="w-6 h-6" style={{ color: 'var(--green-primary)' }} />
                 {t('binanceSetupGuide', language)}
               </h3>
               <button

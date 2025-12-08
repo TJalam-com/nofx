@@ -211,13 +211,13 @@ export function SignalSourceModal({
                 <div
                   className="p-4 rounded"
                   style={{
-                    background: 'rgba(240, 185, 11, 0.1)',
-                    border: '1px solid rgba(240, 185, 11, 0.2)',
+                    background: 'rgba(0, 255, 127, 0.1)',
+                    border: '1px solid rgba(0, 255, 127, 0.2)',
                   }}
                 >
                   <div
                     className="text-sm font-semibold mb-2"
-                    style={{ color: '#F0B90B' }}
+                    style={{ color: 'var(--green-primary)' }}
                   >
                     ℹ️ {t('information', language)}
                   </div>
@@ -248,7 +248,7 @@ export function SignalSourceModal({
               disabled={!canSaveAsFollower}
               className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ 
-                background: canSaveAsFollower ? '#F0B90B' : '#2B3139', 
+                background: canSaveAsFollower ? 'var(--green-primary)' : '#2B3139', 
                 color: canSaveAsFollower ? '#000' : '#848E9C' 
               }}
             >

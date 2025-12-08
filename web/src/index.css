@@ -77,12 +77,12 @@ html {
     0 20px 25px -5px rgba(0, 31, 63, 0.6), 0 10px 10px -5px rgba(0, 31, 63, 0.4);
 
   /* Accent Colors - Additional UI Colors */
-  --accent-yellow: #F0B90B;
-  --accent-yellow-dark: #CCAA00;
-  --accent-yellow-light: #FFE44D;
-  --accent-yellow-bg: rgba(240, 185, 11, 0.15);
-  --accent-yellow-border: rgba(240, 185, 11, 0.3);
-  --accent-yellow-glow: rgba(240, 185, 11, 0.2);
+  --accent-yellow: var(--green-primary);
+  --accent-yellow-dark: var(--green-dark);
+  --accent-yellow-light: var(--green-light);
+  --accent-yellow-bg: rgba(0, 255, 127, 0.15);
+  --accent-yellow-border: rgba(0, 255, 127, 0.3);
+  --accent-yellow-glow: rgba(0, 255, 127, 0.2);
   
   /* Text Colors - Extended Palette */
   --text-gray-light: #848E9C;
@@ -97,12 +97,12 @@ html {
   --bg-panel: #2B3139;
   
   /* Accent Colors - Additional UI Colors */
-  --accent-yellow: #F0B90B;
-  --accent-yellow-dark: #CCAA00;
-  --accent-yellow-light: #FFE44D;
-  --accent-yellow-bg: rgba(240, 185, 11, 0.15);
-  --accent-yellow-border: rgba(240, 185, 11, 0.3);
-  --accent-yellow-glow: rgba(240, 185, 11, 0.2);
+  --accent-yellow: var(--green-primary);
+  --accent-yellow-dark: var(--green-dark);
+  --accent-yellow-light: var(--green-light);
+  --accent-yellow-bg: rgba(0, 255, 127, 0.15);
+  --accent-yellow-border: rgba(0, 255, 127, 0.3);
+  --accent-yellow-glow: rgba(0, 255, 127, 0.2);
   
   /* Text Colors - Extended Palette */
   --text-gray-light: #848E9C;
@@ -253,12 +253,12 @@ body {
 @keyframes trophy-glow {
   0%,
   100% {
-    box-shadow: 0 4px 14px rgba(255, 215, 0, 0.4),
-      0 0 20px rgba(255, 215, 0, 0.2);
+    box-shadow: 0 4px 14px var(--green-glow),
+      0 0 20px rgba(0, 255, 127, 0.2);
   }
   50% {
-    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.6),
-      0 0 30px rgba(255, 215, 0, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 255, 127, 0.6),
+      0 0 30px rgba(0, 255, 127, 0.4);
   }
 }
 
@@ -582,10 +582,10 @@ button:disabled {
 .gold-gradient-subtle {
   background: linear-gradient(
     135deg,
-    rgba(255, 215, 0, 0.15) 0%,
-    rgba(255, 228, 77, 0.05) 100%
+    rgba(0, 255, 127, 0.15) 0%,
+    rgba(51, 255, 153, 0.05) 100%
   );
-  border: 1px solid rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(0, 255, 127, 0.2);
 }
 
 .gold-glow {
@@ -617,14 +617,14 @@ button:disabled {
 
 /* Premium/Gold Highlights */
 .text-gold {
-  color: var(--gold-primary);
+  color: var(--green-primary);
   font-weight: 700;
 }
 
 .bg-gold {
-  background-color: rgba(255, 215, 0, 0.1);
-  color: var(--gold-primary);
-  border: 1px solid rgba(255, 215, 0, 0.2);
+  background-color: rgba(0, 255, 127, 0.1);
+  color: var(--green-primary);
+  border: 1px solid rgba(0, 255, 127, 0.2);
 }
 
 /* Skeleton loading */
@@ -749,9 +749,9 @@ tr:hover {
 
 .badge-yellow,
 .badge-gold {
-  background: rgba(255, 215, 0, 0.1);
-  border-color: rgba(255, 215, 0, 0.3);
-  color: var(--gold-primary);
+  background: rgba(0, 255, 127, 0.1);
+  border-color: rgba(0, 255, 127, 0.3);
+  color: var(--green-primary);
 }
 
 .badge-green {
@@ -898,9 +898,9 @@ tr:hover {
 }
 
 .rank-badge-gold {
-  background: linear-gradient(135deg, #FFD700 0%, #FFE44D 100%);
+  background: linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%);
   color: var(--navy-primary);
-  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+  box-shadow: 0 4px 12px var(--green-glow);
 }
 
 .rank-badge-silver {
@@ -918,18 +918,18 @@ tr:hover {
 .leaderboard-item-top {
   background: linear-gradient(
     135deg,
-    rgba(255, 215, 0, 0.12) 0%,
+    rgba(0, 255, 127, 0.12) 0%,
     rgba(0, 21, 46, 1) 100%
   );
-  border: 1px solid rgba(255, 215, 0, 0.4);
-  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.15),
-    0 0 0 1px rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(0, 255, 127, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 255, 127, 0.15),
+    0 0 0 1px rgba(0, 255, 127, 0.2);
 }
 
 .leaderboard-item-top:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(255, 215, 0, 0.25),
-    0 0 0 1px rgba(255, 215, 0, 0.3);
+  box-shadow: 0 6px 25px rgba(0, 255, 127, 0.25),
+    0 0 0 1px rgba(0, 255, 127, 0.3);
 }
 
 .leaderboard-item-silver {

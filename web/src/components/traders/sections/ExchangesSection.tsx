@@ -25,7 +25,7 @@ export function ExchangesSection({
       >
         <Landmark
           className="w-4 h-4 md:w-5 md:h-5"
-          style={{ color: '#F0B90B' }}
+          style={{ color: 'var(--green-primary)' }}
         />
         {t('exchanges', language)}
       </h3>

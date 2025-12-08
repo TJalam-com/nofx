@@ -215,13 +215,13 @@ export default function TraderDashboard() {
           <div
             className="w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center"
             style={{
-              background: 'rgba(240, 185, 11, 0.1)',
-              border: '2px solid rgba(240, 185, 11, 0.3)',
+              background: 'rgba(0, 255, 127, 0.1)',
+              border: '2px solid rgba(0, 255, 127, 0.3)',
             }}
           >
             <svg
               className="w-12 h-12"
-              style={{ color: '#F0B90B' }}
+              style={{ color: 'var(--green-primary)' }}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -244,9 +244,9 @@ export default function TraderDashboard() {
             onClick={() => navigate('/traders')}
             className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105 active:scale-95"
             style={{
-              background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
+              background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               color: '#0B0E11',
-              boxShadow: '0 4px 12px rgba(240, 185, 11, 0.3)',
+              boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)',
             }}
           >
             {t('goToTradersPage', language)}
@@ -264,13 +264,13 @@ export default function TraderDashboard() {
           <div
             className="w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center"
             style={{
-              background: 'rgba(240, 185, 11, 0.1)',
-              border: '2px solid rgba(240, 185, 11, 0.3)',
+              background: 'rgba(0, 255, 127, 0.1)',
+              border: '2px solid rgba(0, 255, 127, 0.3)',
             }}
           >
             <svg
               className="w-12 h-12"
-              style={{ color: '#F0B90B' }}
+              style={{ color: 'var(--green-primary)' }}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -293,9 +293,9 @@ export default function TraderDashboard() {
             onClick={() => navigate('/traders')}
             className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105 active:scale-95"
             style={{
-              background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
+              background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               color: '#0B0E11',
-              boxShadow: '0 4px 12px rgba(240, 185, 11, 0.3)',
+              boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)',
             }}
           >
             {t('goToTradersPage', language)}
@@ -342,9 +342,9 @@ export default function TraderDashboard() {
         className="mb-6 rounded p-6 animate-scale-in"
         style={{
           background:
-            'linear-gradient(135deg, rgba(240, 185, 11, 0.15) 0%, rgba(252, 213, 53, 0.05) 100%)',
-          border: '1px solid rgba(240, 185, 11, 0.2)',
-          boxShadow: '0 0 30px rgba(240, 185, 11, 0.15)',
+            'linear-gradient(135deg, rgba(0, 255, 127, 0.15) 0%, rgba(51, 255, 153, 0.05) 100%)',
+          border: '1px solid rgba(0, 255, 127, 0.2)',
+          boxShadow: '0 0 30px rgba(0, 255, 127, 0.15)',
         }}
       >
         <div className="flex items-start justify-between mb-3">
@@ -355,7 +355,7 @@ export default function TraderDashboard() {
             <span
               className="w-10 h-10 rounded-full flex items-center justify-center"
               style={{
-                background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
+                background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               }}
             >
               <Bot className="w-5 h-5" style={{ color: '#0B0E11' }} />
@@ -480,8 +480,8 @@ export default function TraderDashboard() {
                   activeChartTab === 'equity' ? '' : 'opacity-60 hover:opacity-100'
                 }`}
                 style={{
-                  color: activeChartTab === 'equity' ? '#F0B90B' : '#848E9C',
-                  borderBottom: activeChartTab === 'equity' ? '2px solid #F0B90B' : '2px solid transparent',
+                  color: activeChartTab === 'equity' ? 'var(--green-primary)' : '#848E9C',
+                  borderBottom: activeChartTab === 'equity' ? '2px solid var(--green-primary)' : '2px solid transparent',
                 }}
               >
                 {t('equityChart', language) || 'Equity Chart'}
@@ -492,8 +492,8 @@ export default function TraderDashboard() {
                   activeChartTab === 'performance' ? '' : 'opacity-60 hover:opacity-100'
                 }`}
                 style={{
-                  color: activeChartTab === 'performance' ? '#F0B90B' : '#848E9C',
-                  borderBottom: activeChartTab === 'performance' ? '2px solid #F0B90B' : '2px solid transparent',
+                  color: activeChartTab === 'performance' ? 'var(--green-primary)' : '#848E9C',
+                  borderBottom: activeChartTab === 'performance' ? '2px solid var(--green-primary)' : '2px solid transparent',
                 }}
               >
                 {t('performanceChart', language) || 'Performance'}
@@ -533,16 +533,16 @@ export default function TraderDashboard() {
                 className="text-xl font-bold flex items-center gap-2"
                 style={{ color: '#EAECEF' }}
               >
-                <TrendingUp className="w-5 h-5" style={{ color: '#F0B90B' }} />
+                <TrendingUp className="w-5 h-5" style={{ color: 'var(--green-primary)' }} />
                 {t('currentPositions', language)}
               </h2>
               {positions && positions.length > 0 && (
                 <div
                   className="text-xs px-3 py-1 rounded"
                   style={{
-                    background: 'rgba(240, 185, 11, 0.1)',
-                    color: '#F0B90B',
-                    border: '1px solid rgba(240, 185, 11, 0.2)',
+                    background: 'rgba(0, 255, 127, 0.1)',
+                    color: 'var(--green-primary)',
+                    border: '1px solid rgba(0, 255, 127, 0.2)',
                   }}
                 >
                   {positions.length} {t('active', language)}
@@ -642,7 +642,7 @@ export default function TraderDashboard() {
                         </td>
                         <td
                           className="py-3 font-mono"
-                          style={{ color: '#F0B90B' }}
+                          style={{ color: 'var(--green-primary)' }}
                         >
                           {pos.leverage}x
                         </td>
@@ -1017,7 +1017,7 @@ function DecisionCard({
           <button
             onClick={() => setShowCoT(!showCoT)}
             className="flex items-center gap-2 text-sm transition-colors"
-            style={{ color: '#F0B90B' }}
+            style={{ color: 'var(--green-primary)' }}
           >
             <span className="font-semibold flex items-center gap-2">
               <Send className="w-4 h-4" />{' '}
@@ -1066,15 +1066,15 @@ function DecisionCard({
                         color: '#60a5fa',
                       }
                     : {
-                        background: 'rgba(240, 185, 11, 0.1)',
-                        color: '#F0B90B',
+                        background: 'rgba(0, 255, 127, 0.1)',
+                        color: 'var(--green-primary)',
                       }
                 }
               >
                 {action.action}
               </span>
               {action.leverage > 0 && (
-                <span style={{ color: '#F0B90B' }}>{action.leverage}x</span>
+                <span style={{ color: 'var(--green-primary)' }}>{action.leverage}x</span>
               )}
               {action.price > 0 && (
                 <span

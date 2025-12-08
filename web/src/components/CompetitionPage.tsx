@@ -128,7 +128,7 @@ export function CompetitionPage() {
               <div
                 className="w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center trophy-icon relative"
                 style={{
-                  background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
+                  background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
                 }}
               >
                 <Trophy
@@ -145,9 +145,9 @@ export function CompetitionPage() {
                   <span
                     className="text-xs md:text-sm font-semibold px-3 py-1.5 rounded-lg"
                     style={{
-                      background: 'rgba(240, 185, 11, 0.2)',
-                      color: '#F0B90B',
-                      border: '1px solid rgba(240, 185, 11, 0.3)',
+                      background: 'rgba(0, 255, 127, 0.2)',
+                      color: 'var(--green-primary)',
+                      border: '1px solid rgba(0, 255, 127, 0.3)',
                     }}
                   >
                     0 {t('traders', language)}
@@ -195,7 +195,7 @@ export function CompetitionPage() {
             <div
               className="w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center trophy-icon relative"
               style={{
-                background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
+                background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               }}
             >
               <Trophy
@@ -205,7 +205,7 @@ export function CompetitionPage() {
               <div
                 className="absolute inset-0 rounded-2xl opacity-50"
                 style={{
-                  background: 'radial-gradient(circle, rgba(240, 185, 11, 0.6) 0%, transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(0, 255, 127, 0.6) 0%, transparent 70%)',
                 }}
               />
             </div>
@@ -218,10 +218,10 @@ export function CompetitionPage() {
                 <span
                   className="text-xs md:text-sm font-semibold px-3 py-1.5 rounded-lg pulse-live"
                   style={{
-                    background: 'rgba(240, 185, 11, 0.2)',
-                    color: '#F0B90B',
-                    border: '1px solid rgba(240, 185, 11, 0.3)',
-                    boxShadow: '0 2px 8px rgba(240, 185, 11, 0.2)',
+                    background: 'rgba(0, 255, 127, 0.2)',
+                    color: 'var(--green-primary)',
+                    border: '1px solid rgba(0, 255, 127, 0.3)',
+                    boxShadow: '0 2px 8px rgba(0, 255, 127, 0.2)',
                   }}
                 >
                   {competition.count} {t('traders', language)}
@@ -238,7 +238,7 @@ export function CompetitionPage() {
             </div>
             <div
               className="text-lg md:text-xl font-bold mb-1"
-              style={{ color: '#F0B90B' }}
+              style={{ color: 'var(--green-primary)' }}
             >
               {leader?.trader_name}
             </div>
@@ -298,10 +298,10 @@ export function CompetitionPage() {
             <div
               className="text-xs px-3 py-1.5 rounded-md font-semibold pulse-live"
               style={{
-                background: 'rgba(240, 185, 11, 0.15)',
-                color: '#F0B90B',
-                border: '1px solid rgba(240, 185, 11, 0.3)',
-                boxShadow: '0 2px 8px rgba(240, 185, 11, 0.2)',
+                background: 'rgba(0, 255, 127, 0.15)',
+                color: 'var(--green-primary)',
+                border: '1px solid rgba(0, 255, 127, 0.3)',
+                boxShadow: '0 2px 8px rgba(0, 255, 127, 0.2)',
               }}
             >
               {t('live', language)}

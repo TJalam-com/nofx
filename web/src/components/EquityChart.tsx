@@ -261,9 +261,9 @@ export function EquityChart({ traderId }: EquityChartProps) {
             style={
               displayMode === 'dollar'
                 ? {
-                    background: '#F0B90B',
+                    background: 'var(--green-primary)',
                     color: '#000',
-                    boxShadow: '0 2px 8px rgba(240, 185, 11, 0.4)',
+                    boxShadow: '0 2px 8px var(--green-glow)',
                   }
                 : { background: 'transparent', color: '#848E9C' }
             }
@@ -276,9 +276,9 @@ export function EquityChart({ traderId }: EquityChartProps) {
             style={
               displayMode === 'percent'
                 ? {
-                    background: '#F0B90B',
+                    background: 'var(--green-primary)',
                     color: '#000',
-                    boxShadow: '0 2px 8px rgba(240, 185, 11, 0.4)',
+                    boxShadow: '0 2px 8px var(--green-glow)',
                   }
                 : { background: 'transparent', color: '#848E9C' }
             }
@@ -305,7 +305,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
             right: '15px',
             fontSize: '20px',
             fontWeight: 'bold',
-            color: 'rgba(240, 185, 11, 0.15)',
+            color: 'rgba(0, 255, 127, 0.15)',
             zIndex: 10,
             pointerEvents: 'none',
             fontFamily: 'monospace',
@@ -320,8 +320,8 @@ export function EquityChart({ traderId }: EquityChartProps) {
           >
             <defs>
               <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#F0B90B" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#FCD535" stopOpacity={0.2} />
+                <stop offset="5%" stopColor="var(--green-primary)" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="var(--green-light)" stopOpacity={0.2} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
@@ -363,11 +363,11 @@ export function EquityChart({ traderId }: EquityChartProps) {
               dataKey="value"
               stroke="url(#colorGradient)"
               strokeWidth={3}
-              dot={chartData.length > 50 ? false : { fill: '#F0B90B', r: 3 }}
+              dot={chartData.length > 50 ? false : { fill: 'var(--green-primary)', r: 3 }}
               activeDot={{
                 r: 6,
-                fill: '#FCD535',
-                stroke: '#F0B90B',
+                fill: 'var(--green-light)',
+                stroke: 'var(--green-primary)',
                 strokeWidth: 2,
               }}
               connectNulls={true}
@@ -383,7 +383,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
       >
         <div
           className="p-2 rounded transition-all hover:bg-opacity-50"
-          style={{ background: 'rgba(240, 185, 11, 0.05)' }}
+          style={{ background: 'rgba(0, 255, 127, 0.05)' }}
         >
           <div
             className="text-xs mb-1 uppercase tracking-wider"
@@ -400,7 +400,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
         </div>
         <div
           className="p-2 rounded transition-all hover:bg-opacity-50"
-          style={{ background: 'rgba(240, 185, 11, 0.05)' }}
+          style={{ background: 'rgba(0, 255, 127, 0.05)' }}
         >
           <div
             className="text-xs mb-1 uppercase tracking-wider"
@@ -417,7 +417,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
         </div>
         <div
           className="p-2 rounded transition-all hover:bg-opacity-50"
-          style={{ background: 'rgba(240, 185, 11, 0.05)' }}
+          style={{ background: 'rgba(0, 255, 127, 0.05)' }}
         >
           <div
             className="text-xs mb-1 uppercase tracking-wider"
@@ -434,7 +434,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
         </div>
         <div
           className="p-2 rounded transition-all hover:bg-opacity-50"
-          style={{ background: 'rgba(240, 185, 11, 0.05)' }}
+          style={{ background: 'rgba(0, 255, 127, 0.05)' }}
         >
           <div
             className="text-xs mb-1 uppercase tracking-wider"
