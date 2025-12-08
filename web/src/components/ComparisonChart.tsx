@@ -141,7 +141,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
   if (isLoading) {
     return (
-      <div className="text-center py-16" style={{ color: '#848E9C' }}>
+      <div className="text-center py-16" style={{ color: 'var(--text-gray-light)' }}>
         <div className="spinner mx-auto mb-4"></div>
         <div className="text-sm font-semibold">Loading comparison data...</div>
       </div>
@@ -150,9 +150,9 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
   if (combinedData.length === 0) {
     return (
-      <div className="text-center py-16" style={{ color: '#848E9C' }}>
-        <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-60" />
-        <div className="text-lg font-semibold mb-2">
+      <div className="text-center py-16" style={{ color: 'var(--text-gray-light)' }}>
+        <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-60" style={{ color: 'var(--text-gray-light)' }} />
+        <div className="text-lg font-semibold mb-2" style={{ color: 'var(--text-white)' }}>
           {t('noHistoricalData', language)}
         </div>
         <div className="text-sm">{t('dataWillAppear', language)}</div>
@@ -192,47 +192,65 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
   // 使用统一的颜色分配逻辑（与Leaderboard保持一致）
   const traderColor = (traderId: string) => getTraderColor(traders, traderId)
 
-  // 自定义Tooltip - Binance Style
+  // 自定义Tooltip - Enhanced Binance Style
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
         <div
-          className="rounded p-3 shadow-xl"
-          style={{ background: '#1E2329', border: '1px solid #2B3139' }}
+          className="rounded-lg p-4 shadow-2xl border backdrop-blur-sm"
+          style={{ 
+            background: 'var(--bg-darker)', 
+            border: '1px solid var(--bg-panel)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          }}
         >
-          <div className="text-xs mb-2" style={{ color: '#848E9C' }}>
-            {data.time} - #{data.index}
+          <div className="text-xs mb-3 font-semibold" style={{ color: 'var(--text-gray-light)' }}>
+            {data.time} • #{data.index}
           </div>
-          {traders.map((trader) => {
-            const pnlPct = data[`${trader.trader_id}_pnl_pct`]
-            const equity = data[`${trader.trader_id}_equity`]
-            if (pnlPct === undefined) return null
+          <div className="space-y-2">
+            {traders.map((trader) => {
+              const pnlPct = data[`${trader.trader_id}_pnl_pct`]
+              const equity = data[`${trader.trader_id}_equity`]
+              if (pnlPct === undefined) return null
 
-            return (
-              <div key={trader.trader_id} className="mb-1.5 last:mb-0">
-                <div
-                  className="text-xs font-semibold mb-0.5"
-                  style={{ color: traderColor(trader.trader_id) }}
+              return (
+                <div 
+                  key={trader.trader_id} 
+                  className="flex items-center justify-between gap-4 p-2 rounded-md"
+                  style={{ background: 'rgba(0, 255, 127, 0.03)' }}
                 >
-                  {trader.trader_name}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: traderColor(trader.trader_id) }}
+                    />
+                    <div
+                      className="text-xs font-semibold truncate"
+                      style={{ color: traderColor(trader.trader_id) }}
+                    >
+                      {trader.trader_name}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <div
+                      className="text-sm mono font-bold"
+                      style={{ color: pnlPct >= 0 ? 'var(--green-primary)' : 'var(--error)' }}
+                    >
+                      {pnlPct >= 0 ? '+' : ''}
+                      {pnlPct.toFixed(2)}%
+                    </div>
+                    <div
+                      className="text-xs mono"
+                      style={{ color: 'var(--text-gray-light)' }}
+                    >
+                      {equity?.toFixed(2)}
+                    </div>
+                  </div>
                 </div>
-                <div
-                  className="text-sm mono font-bold"
-                  style={{ color: pnlPct >= 0 ? '#0ECB81' : '#F6465D' }}
-                >
-                  {pnlPct >= 0 ? '+' : ''}
-                  {pnlPct.toFixed(2)}%
-                  <span
-                    className="text-xs ml-2 font-normal"
-                    style={{ color: '#848E9C' }}
-                  >
-                    ({equity?.toFixed(2)} USDT)
-                  </span>
-                </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       )
     }
@@ -252,26 +270,23 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
       : 0
 
   return (
-    <div>
+    <div className="space-y-4">
       <div
+        className="relative rounded-lg overflow-hidden"
         style={{
-          borderRadius: '8px',
-          overflow: 'hidden',
-          position: 'relative',
+          background: 'var(--bg-dark)',
+          border: '1px solid var(--bg-panel)',
         }}
       >
-        {/* AI Trading Watermark */}
+        {/* Enhanced AI Trading Watermark */}
         <div
+          className="absolute top-4 right-4 z-10 pointer-events-none"
           style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            fontSize: '24px',
+            fontSize: '20px',
             fontWeight: 'bold',
-            color: 'rgba(0, 255, 127, 0.15)',
-            zIndex: 10,
-            pointerEvents: 'none',
+            color: 'rgba(0, 255, 127, 0.08)',
             fontFamily: 'monospace',
+            letterSpacing: '2px',
           }}
         >
           AI Trading
@@ -279,7 +294,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
         <ResponsiveContainer width="100%" height={520}>
           <LineChart
             data={displayData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
           >
             <defs>
               {traders.map((trader) => (
@@ -294,24 +309,28 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
                   <stop
                     offset="5%"
                     stopColor={traderColor(trader.trader_id)}
-                    stopOpacity={0.9}
+                    stopOpacity={0.4}
                   />
                   <stop
                     offset="95%"
                     stopColor={traderColor(trader.trader_id)}
-                    stopOpacity={0.2}
+                    stopOpacity={0.05}
                   />
                 </linearGradient>
               ))}
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              stroke="var(--bg-panel)" 
+              opacity={0.5}
+            />
 
             <XAxis
               dataKey="time"
-              stroke="#5E6673"
-              tick={{ fill: '#848E9C', fontSize: 11 }}
-              tickLine={{ stroke: '#2B3139' }}
+              stroke="var(--text-gray-light)"
+              tick={{ fill: 'var(--text-gray-light)', fontSize: 11 }}
+              tickLine={{ stroke: 'var(--bg-panel)' }}
               interval={Math.floor(displayData.length / 12)}
               angle={-15}
               textAnchor="end"
@@ -319,9 +338,9 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
             />
 
             <YAxis
-              stroke="#5E6673"
-              tick={{ fill: '#848E9C', fontSize: 12 }}
-              tickLine={{ stroke: '#2B3139' }}
+              stroke="var(--text-gray-light)"
+              tick={{ fill: 'var(--text-gray-light)', fontSize: 12 }}
+              tickLine={{ stroke: 'var(--bg-panel)' }}
               domain={calculateYDomain()}
               tickFormatter={(value) => `${value.toFixed(1)}%`}
               width={60}
@@ -331,14 +350,16 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
             <ReferenceLine
               y={0}
-              stroke="#474D57"
+              stroke="var(--text-gray-light)"
               strokeDasharray="5 5"
               strokeWidth={1.5}
+              strokeOpacity={0.3}
               label={{
                 value: 'Break Even',
-                fill: '#848E9C',
+                fill: 'var(--text-gray-light)',
                 fontSize: 11,
                 position: 'right',
+                opacity: 0.6,
               }}
             />
 
@@ -348,16 +369,12 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
                 type="monotone"
                 dataKey={`${trader.trader_id}_pnl_pct`}
                 stroke={traderColor(trader.trader_id)}
-                strokeWidth={3}
-                dot={
-                  displayData.length < 50
-                    ? { fill: traderColor(trader.trader_id), r: 3 }
-                    : false
-                }
+                strokeWidth={2.5}
+                dot={false}
                 activeDot={{
-                  r: 6,
+                  r: 5,
                   fill: traderColor(trader.trader_id),
-                  stroke: '#fff',
+                  stroke: 'var(--bg-dark)',
                   strokeWidth: 2,
                 }}
                 name={trader.trader_name}
@@ -366,8 +383,9 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
             ))}
 
             <Legend
-              wrapperStyle={{ paddingTop: '20px' }}
+              wrapperStyle={{ paddingTop: '20px', paddingBottom: '10px' }}
               iconType="line"
+              iconSize={12}
               formatter={(value, entry: any) => {
                 const traderId = traders.find(
                   (t) => value === t.trader_name
@@ -375,13 +393,13 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
                 const trader = traders.find((t) => t.trader_id === traderId)
                 return (
                   <span
+                    className="text-sm"
                     style={{
                       color: entry.color,
                       fontWeight: 600,
-                      fontSize: '14px',
                     }}
                   >
-                    {trader?.trader_name} ({trader?.ai_model.toUpperCase()})
+                    {trader?.trader_name} <span style={{ opacity: 0.6 }}>({trader?.ai_model.toUpperCase()})</span>
                   </span>
                 )
               }}
@@ -390,78 +408,92 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* Stats */}
+      {/* Enhanced Stats Grid */}
       <div
-        className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 pt-5"
-        style={{ borderTop: '1px solid #2B3139' }}
+        className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4"
       >
         <div
-          className="p-2 md:p-3 rounded transition-all hover:bg-opacity-50"
-          style={{ background: 'rgba(0, 255, 127, 0.05)' }}
+          className="p-3 md:p-4 rounded-lg transition-all duration-300 hover:scale-[1.02] border"
+          style={{ 
+            background: 'var(--bg-dark)',
+            border: '1px solid var(--bg-panel)',
+          }}
         >
           <div
-            className="text-xs mb-1 uppercase tracking-wider"
-            style={{ color: '#848E9C' }}
+            className="text-xs mb-2 uppercase tracking-wider font-semibold"
+            style={{ color: 'var(--text-gray-light)' }}
           >
             {t('comparisonMode', language)}
           </div>
           <div
-            className="text-sm md:text-base font-bold"
-            style={{ color: '#EAECEF' }}
+            className="text-base md:text-lg font-bold"
+            style={{ color: 'var(--text-white)' }}
           >
             PnL %
           </div>
         </div>
+        
         <div
-          className="p-2 md:p-3 rounded transition-all hover:bg-opacity-50"
-          style={{ background: 'rgba(0, 255, 127, 0.05)' }}
+          className="p-3 md:p-4 rounded-lg transition-all duration-300 hover:scale-[1.02] border"
+          style={{ 
+            background: 'var(--bg-dark)',
+            border: '1px solid var(--bg-panel)',
+          }}
         >
           <div
-            className="text-xs mb-1 uppercase tracking-wider"
-            style={{ color: '#848E9C' }}
+            className="text-xs mb-2 uppercase tracking-wider font-semibold"
+            style={{ color: 'var(--text-gray-light)' }}
           >
             {t('dataPoints', language)}
           </div>
           <div
-            className="text-sm md:text-base font-bold mono"
-            style={{ color: '#EAECEF' }}
+            className="text-base md:text-lg font-bold mono"
+            style={{ color: 'var(--text-white)' }}
           >
-            {t('count', language, { count: combinedData.length })}
+            {combinedData.length.toLocaleString()}
           </div>
         </div>
+        
         <div
-          className="p-2 md:p-3 rounded transition-all hover:bg-opacity-50"
-          style={{ background: 'rgba(0, 255, 127, 0.05)' }}
+          className="p-3 md:p-4 rounded-lg transition-all duration-300 hover:scale-[1.02] border"
+          style={{ 
+            background: 'var(--bg-dark)',
+            border: '1px solid var(--bg-panel)',
+          }}
         >
           <div
-            className="text-xs mb-1 uppercase tracking-wider"
-            style={{ color: '#848E9C' }}
+            className="text-xs mb-2 uppercase tracking-wider font-semibold"
+            style={{ color: 'var(--text-gray-light)' }}
           >
             {t('currentGap', language)}
           </div>
           <div
-            className="text-sm md:text-base font-bold mono"
-            style={{ color: currentGap > 1 ? 'var(--green-primary)' : '#EAECEF' }}
+            className="text-base md:text-lg font-bold mono"
+            style={{ color: currentGap > 1 ? 'var(--green-primary)' : 'var(--text-white)' }}
           >
             {currentGap.toFixed(2)}%
           </div>
         </div>
+        
         <div
-          className="p-2 md:p-3 rounded transition-all hover:bg-opacity-50"
-          style={{ background: 'rgba(0, 255, 127, 0.05)' }}
+          className="p-3 md:p-4 rounded-lg transition-all duration-300 hover:scale-[1.02] border"
+          style={{ 
+            background: 'var(--bg-dark)',
+            border: '1px solid var(--bg-panel)',
+          }}
         >
           <div
-            className="text-xs mb-1 uppercase tracking-wider"
-            style={{ color: '#848E9C' }}
+            className="text-xs mb-2 uppercase tracking-wider font-semibold"
+            style={{ color: 'var(--text-gray-light)' }}
           >
             {t('displayRange', language)}
           </div>
           <div
-            className="text-sm md:text-base font-bold mono"
-            style={{ color: '#EAECEF' }}
+            className="text-base md:text-lg font-bold mono"
+            style={{ color: 'var(--text-white)' }}
           >
             {combinedData.length > MAX_DISPLAY_POINTS
-              ? `${t('recent', language)} ${MAX_DISPLAY_POINTS}`
+              ? `${t('recent', language)} ${MAX_DISPLAY_POINTS.toLocaleString()}`
               : t('allData', language)}
           </div>
         </div>

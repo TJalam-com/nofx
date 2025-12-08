@@ -57,10 +57,10 @@ export function TraderConfigViewModal({
       style={{
         background:
           copiedField === fieldName
-            ? 'rgba(14, 203, 129, 0.1)'
-            : 'rgba(240, 185, 11, 0.1)',
-        color: copiedField === fieldName ? '#0ECB81' : '#F0B90B',
-        border: `1px solid ${copiedField === fieldName ? 'rgba(14, 203, 129, 0.3)' : 'rgba(240, 185, 11, 0.3)'}`,
+            ? 'var(--success-bg)'
+            : 'rgba(0, 255, 127, 0.1)',
+        color: copiedField === fieldName ? 'var(--green-primary)' : 'var(--green-primary)',
+        border: `1px solid ${copiedField === fieldName ? 'var(--success-border)' : 'rgba(0, 255, 127, 0.3)'}`,
       }}
     >
       {copiedField === fieldName ? t('copied', language) : t('copy', language)}
@@ -100,7 +100,12 @@ export function TraderConfigViewModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-[#2B3139] bg-gradient-to-r from-[#1E2329] to-[#252B35]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#F0B90B] to-[#E1A706] flex items-center justify-center">
+            <div 
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+              }}
+            >
               <span className="text-lg">👁️</span>
             </div>
             <div>
@@ -345,7 +350,14 @@ export function TraderConfigViewModal({
                 'full_config'
               )
             }
-            className="px-6 py-3 bg-gradient-to-r from-[#F0B90B] to-[#E1A706] text-black rounded-lg hover:from-[#E1A706] hover:to-[#D4951E] transition-all duration-200 font-medium shadow-lg"
+            className="px-6 py-3 rounded-lg transition-all duration-200 font-medium shadow-lg hover:opacity-90"
+            style={{
+              background: copiedField === 'full_config'
+                ? 'var(--success-bg)'
+                : 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-dark) 100%)',
+              color: copiedField === 'full_config' ? 'var(--green-primary)' : '#000',
+              border: `1px solid ${copiedField === 'full_config' ? 'var(--success-border)' : 'transparent'}`,
+            }}
           >
             {copiedField === 'full_config' ? t('configCopied', language) : t('copyFullConfig', language)}
           </button>

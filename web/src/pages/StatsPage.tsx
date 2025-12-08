@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { api } from '../lib/api'
@@ -6,7 +6,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isAdmin } from '../contexts/AuthContext'
 import { toast } from 'sonner'
 import { t } from '../i18n/translations'
-import { Play, Square, Users, Bot, RefreshCw } from 'lucide-react'
+import { Play, Square, Users, Bot, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface Trader {
   trader_id: string
@@ -32,6 +32,16 @@ export default function StatsPage() {
   const navigate = useNavigate()
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set())
   const [togglingTraders, setTogglingTraders] = useState<Set<string>>(new Set())
+  
+  // Search and pagination state for traders
+  const [traderSearchQuery, setTraderSearchQuery] = useState('')
+  const [traderCurrentPage, setTraderCurrentPage] = useState(1)
+  const tradersPerPage = 10
+  
+  // Search and pagination state for users
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [userCurrentPage, setUserCurrentPage] = useState(1)
+  const usersPerPage = 10
 
   // Redirect if not admin
   if (!isAdmin(user)) {
@@ -135,6 +145,61 @@ export default function StatsPage() {
     }
   }
 
+  // Filter and paginate traders
+  const filteredTraders = useMemo(() => {
+    if (!traders) return []
+    if (!traderSearchQuery.trim()) return traders
+    
+    const query = traderSearchQuery.toLowerCase()
+    return traders.filter(
+      (trader) =>
+        trader.trader_name.toLowerCase().includes(query) ||
+        trader.user_email.toLowerCase().includes(query) ||
+        trader.ai_model.toLowerCase().includes(query) ||
+        trader.exchange_id.toLowerCase().includes(query) ||
+        trader.trader_id.toLowerCase().includes(query)
+    )
+  }, [traders, traderSearchQuery])
+
+  const paginatedTraders = useMemo(() => {
+    const startIndex = (traderCurrentPage - 1) * tradersPerPage
+    return filteredTraders.slice(startIndex, startIndex + tradersPerPage)
+  }, [filteredTraders, traderCurrentPage, tradersPerPage])
+
+  const traderTotalPages = Math.ceil(filteredTraders.length / tradersPerPage)
+
+  // Filter and paginate users
+  const filteredUsers = useMemo(() => {
+    if (!users) return []
+    if (!userSearchQuery.trim()) return users
+    
+    const query = userSearchQuery.toLowerCase()
+    return users.filter(
+      (user) =>
+        user.email.toLowerCase().includes(query) ||
+        user.id.toLowerCase().includes(query) ||
+        (user.role || '').toLowerCase().includes(query)
+    )
+  }, [users, userSearchQuery])
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (userCurrentPage - 1) * usersPerPage
+    return filteredUsers.slice(startIndex, startIndex + usersPerPage)
+  }, [filteredUsers, userCurrentPage, usersPerPage])
+
+  const userTotalPages = Math.ceil(filteredUsers.length / usersPerPage)
+
+  // Reset to page 1 when search query changes
+  const handleTraderSearchChange = (query: string) => {
+    setTraderSearchQuery(query)
+    setTraderCurrentPage(1)
+  }
+
+  const handleUserSearchChange = (query: string) => {
+    setUserSearchQuery(query)
+    setUserCurrentPage(1)
+  }
+
   return (
     <div className="max-w-[1920px] mx-auto px-6 py-6">
       <div className="mb-8">
@@ -148,14 +213,31 @@ export default function StatsPage() {
 
       {/* All Traders Section */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <Bot className="w-6 h-6" style={{ color: 'var(--brand-yellow)' }} />
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--brand-light-gray)' }}>
-            All Traders
-          </h2>
-          {tradersLoading && (
-            <RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--text-secondary)' }} />
-          )}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Bot className="w-6 h-6" style={{ color: 'var(--brand-yellow)' }} />
+            <h2 className="text-2xl font-bold" style={{ color: 'var(--brand-light-gray)' }}>
+              All Traders
+            </h2>
+            {tradersLoading && (
+              <RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--text-secondary)' }} />
+            )}
+          </div>
+          <div className="relative flex-1 max-w-md ml-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+            <input
+              type="text"
+              value={traderSearchQuery}
+              onChange={(e) => handleTraderSearchChange(e.target.value)}
+              placeholder="Search traders..."
+              className="w-full pl-10 pr-4 py-2 rounded-lg border text-sm"
+              style={{
+                background: 'var(--input-bg)',
+                borderColor: 'var(--input-border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
         </div>
 
         <div
@@ -169,42 +251,43 @@ export default function StatsPage() {
             <div className="p-8 text-center" style={{ color: 'var(--text-secondary)' }}>
               Loading traders...
             </div>
-          ) : traders && traders.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--panel-border)' }}>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Trader Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Owner
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      AI Model
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Exchange
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Balance
-                    </th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {traders.map((trader, index) => (
-                    <tr
-                      key={trader.trader_id}
-                      style={{
-                        borderBottom: index < traders.length - 1 ? '1px solid var(--panel-border)' : 'none',
-                      }}
-                    >
+          ) : filteredTraders.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--panel-border)' }}>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Trader Name
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Owner
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        AI Model
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Exchange
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Balance
+                      </th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedTraders.map((trader, index) => (
+                      <tr
+                        key={trader.trader_id}
+                        style={{
+                          borderBottom: index < paginatedTraders.length - 1 ? '1px solid var(--panel-border)' : 'none',
+                        }}
+                      >
                       <td className="px-4 py-3 text-sm" style={{ color: 'var(--brand-light-gray)' }}>
                         {trader.trader_name}
                       </td>
@@ -264,13 +347,81 @@ export default function StatsPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Pagination for Traders */}
+              {traderTotalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: 'var(--panel-border)' }}>
+                  <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    Showing {(traderCurrentPage - 1) * tradersPerPage + 1} to {Math.min(traderCurrentPage * tradersPerPage, filteredTraders.length)} of {filteredTraders.length} traders
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setTraderCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={traderCurrentPage === 1}
+                      className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      style={{
+                        background: 'var(--panel-bg)',
+                        borderColor: 'var(--panel-border)',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, traderTotalPages) }, (_, i) => {
+                        let pageNum: number
+                        if (traderTotalPages <= 5) {
+                          pageNum = i + 1
+                        } else if (traderCurrentPage <= 3) {
+                          pageNum = i + 1
+                        } else if (traderCurrentPage >= traderTotalPages - 2) {
+                          pageNum = traderTotalPages - 4 + i
+                        } else {
+                          pageNum = traderCurrentPage - 2 + i
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setTraderCurrentPage(pageNum)}
+                            className={`px-3 py-1.5 rounded text-sm font-semibold transition-all ${
+                              traderCurrentPage === pageNum ? 'border-2' : 'border'
+                            }`}
+                            style={{
+                              background: traderCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-bg)',
+                              borderColor: traderCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-border)',
+                              color: traderCurrentPage === pageNum ? 'var(--navy-primary)' : 'var(--text-primary)',
+                            }}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <button
+                      onClick={() => setTraderCurrentPage((prev) => Math.min(traderTotalPages, prev + 1))}
+                      disabled={traderCurrentPage === traderTotalPages}
+                      className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      style={{
+                        background: 'var(--panel-bg)',
+                        borderColor: 'var(--panel-border)',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="p-8 text-center" style={{ color: 'var(--text-secondary)' }}>
-              No traders found
+              {traderSearchQuery ? 'No traders found matching your search' : 'No traders found'}
             </div>
           )}
         </div>
@@ -278,14 +429,31 @@ export default function StatsPage() {
 
       {/* All Users Section */}
       <div>
-        <div className="flex items-center gap-3 mb-4">
-          <Users className="w-6 h-6" style={{ color: 'var(--brand-yellow)' }} />
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--brand-light-gray)' }}>
-            All Users
-          </h2>
-          {usersLoading && (
-            <RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--text-secondary)' }} />
-          )}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Users className="w-6 h-6" style={{ color: 'var(--brand-yellow)' }} />
+            <h2 className="text-2xl font-bold" style={{ color: 'var(--brand-light-gray)' }}>
+              All Users
+            </h2>
+            {usersLoading && (
+              <RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--text-secondary)' }} />
+            )}
+          </div>
+          <div className="relative flex-1 max-w-md ml-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+            <input
+              type="text"
+              value={userSearchQuery}
+              onChange={(e) => handleUserSearchChange(e.target.value)}
+              placeholder="Search users..."
+              className="w-full pl-10 pr-4 py-2 rounded-lg border text-sm"
+              style={{
+                background: 'var(--input-bg)',
+                borderColor: 'var(--input-border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
         </div>
 
         <div
@@ -299,36 +467,37 @@ export default function StatsPage() {
             <div className="p-8 text-center" style={{ color: 'var(--text-secondary)' }}>
               Loading users...
             </div>
-          ) : users && users.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--panel-border)' }}>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Email
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      User ID
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Role
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Created
-                    </th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((userItem, index) => (
-                    <tr
-                      key={userItem.id}
-                      style={{
-                        borderBottom: index < users.length - 1 ? '1px solid var(--panel-border)' : 'none',
-                      }}
-                    >
+          ) : filteredUsers.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--panel-border)' }}>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Email
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        User ID
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Role
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Created
+                      </th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedUsers.map((userItem, index) => (
+                      <tr
+                        key={userItem.id}
+                        style={{
+                          borderBottom: index < paginatedUsers.length - 1 ? '1px solid var(--panel-border)' : 'none',
+                        }}
+                      >
                       <td className="px-4 py-3 text-sm" style={{ color: 'var(--brand-light-gray)' }}>
                         {userItem.email}
                       </td>
@@ -389,13 +558,81 @@ export default function StatsPage() {
                         </select>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Pagination for Users */}
+              {userTotalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: 'var(--panel-border)' }}>
+                  <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    Showing {(userCurrentPage - 1) * usersPerPage + 1} to {Math.min(userCurrentPage * usersPerPage, filteredUsers.length)} of {filteredUsers.length} users
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setUserCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={userCurrentPage === 1}
+                      className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      style={{
+                        background: 'var(--panel-bg)',
+                        borderColor: 'var(--panel-border)',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, userTotalPages) }, (_, i) => {
+                        let pageNum: number
+                        if (userTotalPages <= 5) {
+                          pageNum = i + 1
+                        } else if (userCurrentPage <= 3) {
+                          pageNum = i + 1
+                        } else if (userCurrentPage >= userTotalPages - 2) {
+                          pageNum = userTotalPages - 4 + i
+                        } else {
+                          pageNum = userCurrentPage - 2 + i
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setUserCurrentPage(pageNum)}
+                            className={`px-3 py-1.5 rounded text-sm font-semibold transition-all ${
+                              userCurrentPage === pageNum ? 'border-2' : 'border'
+                            }`}
+                            style={{
+                              background: userCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-bg)',
+                              borderColor: userCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-border)',
+                              color: userCurrentPage === pageNum ? 'var(--navy-primary)' : 'var(--text-primary)',
+                            }}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <button
+                      onClick={() => setUserCurrentPage((prev) => Math.min(userTotalPages, prev + 1))}
+                      disabled={userCurrentPage === userTotalPages}
+                      className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      style={{
+                        background: 'var(--panel-bg)',
+                        borderColor: 'var(--panel-border)',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="p-8 text-center" style={{ color: 'var(--text-secondary)' }}>
-              No users found
+              {userSearchQuery ? 'No users found matching your search' : 'No users found'}
             </div>
           )}
         </div>

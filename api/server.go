@@ -207,12 +207,19 @@ func (s *Server) setupRoutes() {
 			backtestGroup := protected.Group("/backtest", s.nonFollowerMiddleware())
 			s.registerBacktestRoutes(backtestGroup)
 
+			// 交易员申请路由（仅限follower用户）
+			protected.GET("/trader-application/my", s.handleGetMyTraderApplication)
+			protected.POST("/trader-application", s.followerOnlyMiddleware(), s.handleCreateTraderApplication)
+
 			// Admin路由（仅限admin用户）
 			adminGroup := protected.Group("/admin", s.adminOnlyMiddleware())
 			{
 				adminGroup.GET("/traders", s.handleGetAllTraders)
 				adminGroup.GET("/users", s.handleGetAllUsers)
 				adminGroup.PUT("/users/:id/role", s.handleUpdateUserRole)
+				adminGroup.GET("/trader-applications", s.handleGetAllTraderApplications)
+				adminGroup.PUT("/trader-applications/:id/approve", s.handleApproveTraderApplication)
+				adminGroup.PUT("/trader-applications/:id/reject", s.handleRejectTraderApplication)
 			}
 			log.Println("✅ Backtest路由已注册: /api/backtest/* (仅限非follower用户)")
 
@@ -1908,6 +1915,234 @@ func (s *Server) handleUpdateUserRole(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "用户角色已更新"})
 }
 
+// CreateTraderApplicationRequest 创建交易员申请请求
+type CreateTraderApplicationRequest struct {
+	Name              string            `json:"name" binding:"required"`
+	Email             string            `json:"email" binding:"required,email"`
+	Description       string            `json:"description" binding:"required"`
+	TradingExperience string            `json:"trading_experience" binding:"required"`
+	StrategyOverview  string            `json:"strategy_overview" binding:"required"`
+	SocialLinks       map[string]string `json:"social_links"`
+}
+
+// handleCreateTraderApplication 创建交易员申请
+func (s *Server) handleCreateTraderApplication(c *gin.Context) {
+	userID := c.GetString("user_id")
+	var req CreateTraderApplicationRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 检查用户是否已有待处理的申请
+	existingApp, err := s.database.GetTraderApplicationByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询申请失败"})
+		return
+	}
+	if existingApp != nil && existingApp.Status == "pending" {
+		c.JSON(http.StatusConflict, gin.H{"error": "您已有一个待处理的申请"})
+		return
+	}
+
+	// 将社交链接转换为JSON字符串
+	socialLinksJSON := "{}"
+	if req.SocialLinks != nil && len(req.SocialLinks) > 0 {
+		linksBytes, err := json.Marshal(req.SocialLinks)
+		if err == nil {
+			socialLinksJSON = string(linksBytes)
+		}
+	}
+
+	// 创建申请
+	appID := uuid.New().String()
+	app := &config.TraderApplication{
+		ID:                appID,
+		UserID:            userID,
+		Name:              req.Name,
+		Email:             req.Email,
+		Description:       req.Description,
+		TradingExperience: req.TradingExperience,
+		StrategyOverview:  req.StrategyOverview,
+		SocialLinks:       socialLinksJSON,
+		Status:            "pending",
+		AdminNotes:        "",
+	}
+
+	err = s.database.CreateTraderApplication(app)
+	if err != nil {
+		log.Printf("❌ 创建交易员申请失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建申请失败"})
+		return
+	}
+
+	log.Printf("✓ 创建交易员申请成功: userID=%s, appID=%s", userID, appID)
+	c.JSON(http.StatusCreated, gin.H{
+		"id":     appID,
+		"status": "pending",
+		"message": "申请已提交，等待管理员审核",
+	})
+}
+
+// handleGetMyTraderApplication 获取当前用户的交易员申请
+func (s *Server) handleGetMyTraderApplication(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	app, err := s.database.GetTraderApplicationByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询申请失败"})
+		return
+	}
+
+	if app == nil {
+		c.JSON(http.StatusOK, nil)
+		return
+	}
+
+	// 解析社交链接
+	var socialLinks map[string]string
+	if app.SocialLinks != "" {
+		json.Unmarshal([]byte(app.SocialLinks), &socialLinks)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":                 app.ID,
+		"user_id":           app.UserID,
+		"name":              app.Name,
+		"email":             app.Email,
+		"description":       app.Description,
+		"trading_experience": app.TradingExperience,
+		"strategy_overview":  app.StrategyOverview,
+		"social_links":      socialLinks,
+		"status":            app.Status,
+		"admin_notes":       app.AdminNotes,
+		"created_at":       app.CreatedAt.Format(time.RFC3339),
+		"updated_at":        app.UpdatedAt.Format(time.RFC3339),
+	})
+}
+
+// handleGetAllTraderApplications 获取所有交易员申请（admin only）
+func (s *Server) handleGetAllTraderApplications(c *gin.Context) {
+	applications, err := s.database.GetAllTraderApplications()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取申请列表失败"})
+		return
+	}
+
+	result := make([]map[string]interface{}, 0)
+	for _, app := range applications {
+		// 获取用户信息
+		user, err := s.database.GetUserByID(app.UserID)
+		if err != nil {
+			log.Printf("⚠️ 获取用户信息失败: userID=%s, error=%v", app.UserID, err)
+			continue
+		}
+
+		// 解析社交链接
+		var socialLinks map[string]string
+		if app.SocialLinks != "" {
+			json.Unmarshal([]byte(app.SocialLinks), &socialLinks)
+		}
+
+		result = append(result, map[string]interface{}{
+			"id":                 app.ID,
+			"user_id":           app.UserID,
+			"user_email":        user.Email,
+			"name":              app.Name,
+			"email":             app.Email,
+			"description":       app.Description,
+			"trading_experience": app.TradingExperience,
+			"strategy_overview":  app.StrategyOverview,
+			"social_links":      socialLinks,
+			"status":            app.Status,
+			"admin_notes":       app.AdminNotes,
+			"created_at":       app.CreatedAt.Format(time.RFC3339),
+			"updated_at":        app.UpdatedAt.Format(time.RFC3339),
+		})
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// handleApproveTraderApplication 批准交易员申请（admin only）
+func (s *Server) handleApproveTraderApplication(c *gin.Context) {
+	appID := c.Param("id")
+	var req struct {
+		AdminNotes string `json:"admin_notes"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// Admin notes are optional, so we don't fail if not provided
+		req.AdminNotes = ""
+	}
+
+	// 获取申请信息
+	app, err := s.database.GetTraderApplicationByID(appID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "申请不存在"})
+		return
+	}
+
+	if app.Status != "pending" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "申请状态不允许此操作"})
+		return
+	}
+
+	// 更新申请状态
+	err = s.database.UpdateTraderApplicationStatus(appID, "approved", req.AdminNotes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新申请状态失败"})
+		return
+	}
+
+	// 升级用户角色为 "user"
+	err = s.database.UpdateUserRole(app.UserID, "user")
+	if err != nil {
+		log.Printf("⚠️ 升级用户角色失败: userID=%s, error=%v", app.UserID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "升级用户角色失败"})
+		return
+	}
+
+	log.Printf("✓ Admin批准交易员申请: appID=%s, userID=%s", appID, app.UserID)
+	c.JSON(http.StatusOK, gin.H{"message": "申请已批准，用户角色已升级"})
+}
+
+// handleRejectTraderApplication 拒绝交易员申请（admin only）
+func (s *Server) handleRejectTraderApplication(c *gin.Context) {
+	appID := c.Param("id")
+	var req struct {
+		AdminNotes string `json:"admin_notes" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "必须提供拒绝原因"})
+		return
+	}
+
+	// 获取申请信息
+	app, err := s.database.GetTraderApplicationByID(appID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "申请不存在"})
+		return
+	}
+
+	if app.Status != "pending" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "申请状态不允许此操作"})
+		return
+	}
+
+	// 更新申请状态
+	err = s.database.UpdateTraderApplicationStatus(appID, "rejected", req.AdminNotes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新申请状态失败"})
+		return
+	}
+
+	log.Printf("✓ Admin拒绝交易员申请: appID=%s, userID=%s", appID, app.UserID)
+	c.JSON(http.StatusOK, gin.H{"message": "申请已拒绝"})
+}
+
 // handleRunningTraders 获取所有运行中的交易员（用于follower选择信号源）
 func (s *Server) handleRunningTraders(c *gin.Context) {
 	// 获取所有用户
@@ -2765,6 +3000,33 @@ func (s *Server) nonFollowerMiddleware() gin.HandlerFunc {
 
 		if roleStr == "follower" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "此功能仅限非follower用户使用"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// followerOnlyMiddleware 限制只有follower用户才能访问
+func (s *Server) followerOnlyMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists {
+			c.JSON(http.StatusForbidden, gin.H{"error": "无法获取用户角色"})
+			c.Abort()
+			return
+		}
+
+		roleStr, ok := role.(string)
+		if !ok {
+			c.JSON(http.StatusForbidden, gin.H{"error": "无效的用户角色"})
+			c.Abort()
+			return
+		}
+
+		if roleStr != "follower" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "此功能仅限follower用户使用"})
 			c.Abort()
 			return
 		}

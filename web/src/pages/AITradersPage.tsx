@@ -4,7 +4,7 @@ import useSWR from 'swr'
 import { toast } from 'sonner'
 import { api } from '../lib/api'
 import { useLanguage } from '../contexts/LanguageContext'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth, isFollower } from '../contexts/AuthContext'
 import { useTradersConfigStore, useTradersModalStore } from '../stores'
 import { useTraderActions } from '../hooks/useTraderActions'
 import { TraderConfigModal } from '../components/TraderConfigModal'
@@ -246,6 +246,41 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         onDeleteTrader={handleDeleteTrader}
         onToggleTrader={handleToggleTrader}
       />
+
+      {/* Become a Trader Card for Followers */}
+      {user && isFollower(user) && (
+        <div
+          className="rounded-lg p-6 border-2"
+          style={{
+            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%)',
+            borderColor: 'var(--green-primary)',
+          }}
+        >
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                Become a Trader
+              </h3>
+              <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
+                Currently, as a follower, you can only copy trades from other traders. Apply to become a trader and unlock the ability to create your own AI trading bots, configure trading strategies, and let others follow your trades.
+              </p>
+              <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
+                After you submit your application, an admin will review it. Once approved, your role will be upgraded and you'll gain access to all trader features.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/become-trader')}
+              className="px-6 py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 whitespace-nowrap"
+              style={{
+                background: 'var(--green-primary)',
+                color: 'var(--navy-primary)',
+              }}
+            >
+              Apply Now
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <TraderConfigModal

@@ -230,47 +230,94 @@ export default function HeaderBar({
                 </button>
 
                 {userIsAdmin && (
+                  <>
+                    <button
+                      key="stats-tab"
+                      onClick={() => {
+                        if (onPageChange) {
+                          onPageChange('stats')
+                        }
+                        navigate('/stats')
+                      }}
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      style={{
+                        color:
+                          currentPage === 'stats'
+                            ? 'var(--brand-yellow)'
+                            : 'var(--brand-light-gray)',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        position: 'relative',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== 'stats') {
+                          e.currentTarget.style.color = 'var(--brand-yellow)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== 'stats') {
+                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                        }
+                      }}
+                    >
+                      {/* Background for selected state */}
+                      <span
+                        className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                        style={{
+                          background: 'rgba(240, 185, 11, 0.15)',
+                          zIndex: -1,
+                          opacity: currentPage === 'stats' ? 1 : 0,
+                          pointerEvents: 'none',
+                        }}
+                      />
+
+                      Stats
+                    </button>
+                    <button
+                      key="trader-applications-tab"
+                      onClick={() => {
+                        navigate('/admin/trader-applications')
+                      }}
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      style={{
+                        color: 'var(--brand-light-gray)',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        position: 'relative',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = 'var(--brand-yellow)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = 'var(--brand-light-gray)'
+                      }}
+                    >
+                      Applications
+                    </button>
+                  </>
+                )}
+
+                {userIsFollower && (
                   <button
-                    key="stats-tab"
+                    key="become-trader-tab"
                     onClick={() => {
-                      if (onPageChange) {
-                        onPageChange('stats')
-                      }
-                      navigate('/stats')
+                      navigate('/become-trader')
                     }}
                     className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
                     style={{
-                      color:
-                        currentPage === 'stats'
-                          ? 'var(--brand-yellow)'
-                          : 'var(--brand-light-gray)',
+                      color: 'var(--brand-light-gray)',
                       padding: '8px 16px',
                       borderRadius: '8px',
                       position: 'relative',
                     }}
                     onMouseEnter={(e) => {
-                      if (currentPage !== 'stats') {
-                        e.currentTarget.style.color = 'var(--brand-yellow)'
-                      }
+                      e.currentTarget.style.color = 'var(--brand-yellow)'
                     }}
                     onMouseLeave={(e) => {
-                      if (currentPage !== 'stats') {
-                        e.currentTarget.style.color = 'var(--brand-light-gray)'
-                      }
+                      e.currentTarget.style.color = 'var(--brand-light-gray)'
                     }}
                   >
-                    {/* Background for selected state */}
-                    <span
-                      className="absolute inset-0 rounded-lg transition-opacity duration-300"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                        opacity: currentPage === 'stats' ? 1 : 0,
-                        pointerEvents: 'none',
-                      }}
-                    />
-
-                    Stats
+                    Become a Trader
                   </button>
                 )}
 
@@ -998,38 +1045,76 @@ export default function HeaderBar({
                 {t('dashboardNav', language)}
               </button>
               {userIsAdmin && (
+                <>
+                  <button
+                    key="mobile-stats-tab"
+                    onClick={() => {
+                      if (onPageChange) {
+                        onPageChange('stats')
+                      }
+                      navigate('/stats')
+                      setMobileMenuOpen(false)
+                    }}
+                    className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                    style={{
+                      color:
+                        currentPage === 'stats'
+                          ? 'var(--brand-yellow)'
+                          : 'var(--brand-light-gray)',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      position: 'relative',
+                      width: '100%',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <span
+                      className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                      style={{
+                        background: 'rgba(240, 185, 11, 0.15)',
+                        zIndex: -1,
+                        opacity: currentPage === 'stats' ? 1 : 0,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    Stats
+                  </button>
+                  <button
+                    key="mobile-trader-applications-tab"
+                    onClick={() => {
+                      navigate('/admin/trader-applications')
+                      setMobileMenuOpen(false)
+                    }}
+                    className="block text-sm font-bold transition-all duration-300 hover:text-yellow-500"
+                    style={{
+                      color: 'var(--brand-light-gray)',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      width: '100%',
+                      textAlign: 'left',
+                    }}
+                  >
+                    Applications
+                  </button>
+                </>
+              )}
+              {userIsFollower && (
                 <button
-                  key="mobile-stats-tab"
+                  key="mobile-become-trader-tab"
                   onClick={() => {
-                    if (onPageChange) {
-                      onPageChange('stats')
-                    }
-                    navigate('/stats')
+                    navigate('/become-trader')
                     setMobileMenuOpen(false)
                   }}
-                  className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                  className="block text-sm font-bold transition-all duration-300 hover:text-yellow-500"
                   style={{
-                    color:
-                      currentPage === 'stats'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
+                    color: 'var(--brand-light-gray)',
                     padding: '12px 16px',
                     borderRadius: '8px',
-                    position: 'relative',
                     width: '100%',
                     textAlign: 'left',
                   }}
                 >
-                  <span
-                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                      opacity: currentPage === 'stats' ? 1 : 0,
-                      pointerEvents: 'none',
-                    }}
-                  />
-                  Stats
+                  Become a Trader
                 </button>
               )}
               {!userIsFollower && (

@@ -13,6 +13,8 @@ import FollowersPage from '../pages/FollowersPage'
 import StatsPage from '../pages/StatsPage'
 import { BacktestPage } from '../components/BacktestPage'
 import WebhookPage from '../pages/WebhookPage'
+import TraderApplicationPage from '../pages/TraderApplicationPage'
+import AdminTraderApplicationsPage from '../pages/AdminTraderApplicationsPage'
 import { useAuth, isAdmin } from '../contexts/AuthContext'
 import { Navigate as NavigateComponent } from 'react-router-dom'
 import { ReactNode } from 'react'
@@ -105,6 +107,14 @@ export const router = createBrowserRouter([
           {
             path: '/stats',
             element: <AdminProtectedRoute><StatsPage /></AdminProtectedRoute>,
+          },
+          {
+            path: '/become-trader',
+            element: <TraderApplicationPage />,
+          },
+          {
+            path: '/admin/trader-applications',
+            element: <AdminProtectedRoute><AdminTraderApplicationsPage /></AdminProtectedRoute>,
           },
         ],
       },
