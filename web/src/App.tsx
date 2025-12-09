@@ -59,7 +59,7 @@ function getModelDisplayName(modelId: string): string {
 }
 
 function App() {
-  const { language, setLanguage } = useLanguage()
+  const { language } = useLanguage()
   const { user, token, logout, isLoading } = useAuth()
   const { loading: configLoading } = useSystemConfig()
   const [route, setRoute] = useState(window.location.pathname)
@@ -306,7 +306,6 @@ function App() {
           isLoggedIn={!!user}
           currentPage="competition"
           language={language}
-          onLanguageChange={setLanguage}
           user={user}
           onLogout={logout}
           onPageChange={(page: Page) => {
@@ -381,7 +380,6 @@ function App() {
             isLoggedIn={false}
             currentPage="backtest"
             language={language}
-            onLanguageChange={setLanguage}
             onPageChange={(page: Page) => {
               if (page === 'competition') {
                 window.history.pushState({}, '', '/competition')
@@ -418,7 +416,6 @@ function App() {
         isLoggedIn={!!user}
         currentPage={currentPage}
         language={language}
-        onLanguageChange={setLanguage}
         user={user}
         onLogout={logout}
         onPageChange={(page: Page) => {

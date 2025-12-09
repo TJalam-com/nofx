@@ -52,7 +52,6 @@ type LighterTraderV2 struct {
 
 	// 市場信息緩存
 	symbolPrecision map[string]SymbolPrecision
-	precisionMutex  sync.RWMutex
 
 	// 市場索引緩存
 	marketIndexMap map[string]uint8 // symbol -> market_id

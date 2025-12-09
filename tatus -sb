@@ -1,0 +1,46 @@
+[1mdiff --git a/web/src/components/faq/FAQLayout.tsx b/web/src/components/faq/FAQLayout.tsx[m
+[1mindex 4fcd0775..1c746902 100644[m
+[1m--- a/web/src/components/faq/FAQLayout.tsx[m
+[1m+++ b/web/src/components/faq/FAQLayout.tsx[m
+[36m@@ -128,41 +128,6 @@[m [mexport function FAQLayout({ language }: FAQLayoutProps) {[m
+           )}[m
+         </main>[m
+       </div>[m
+[31m-[m
+[31m-      {/* Contact Section */}[m
+[31m-      <div[m
+[31m-        className="mt-16 p-8 rounded-lg text-center nofx-gradient-subtle"[m
+[31m-      >[m
+[31m-        <h3 className="text-xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>[m
+[31m-          {t('faqStillHaveQuestions', language)}[m
+[31m-        </h3>[m
+[31m-        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>[m
+[31m-          {t('faqContactUs', language)}[m
+[31m-        </p>[m
+[31m-        <div className="flex items-center justify-center gap-4">[m
+[31m-          <a[m
+[31m-            href="https://github.com/tinkle-community/nofx"[m
+[31m-            target="_blank"[m
+[31m-            rel="noopener noreferrer"[m
+[31m-            className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105"[m
+[31m-            style={{[m
+[31m-              background: 'var(--panel-bg)',[m
+[31m-              color: 'var(--text-primary)',[m
+[31m-              border: '1px solid var(--panel-border)',[m
+[31m-            }}[m
+[31m-          >[m
+[31m-            GitHub[m
+[31m-          </a>[m
+[31m-          <a[m
+[31m-            href="https://t.me/nofx_dev_community"[m
+[31m-            target="_blank"[m
+[31m-            rel="noopener noreferrer"[m
+[31m-            className="btn-primary px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105"[m
+[31m-          >[m
+[31m-            {t('community', language)}[m
+[31m-          </a>[m
+[31m-        </div>[m
+[31m-      </div>[m
+     </Container>[m
+   )[m
+ }[m

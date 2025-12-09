@@ -73,10 +73,11 @@ func NewAsterTraderTestSuite(t *testing.T) *AsterTraderTestSuite {
 				symbol = "BTCUSDT"
 			}
 			// 根据symbol返回不同价格
-			price := "50000.00"
-			if symbol == "ETHUSDT" {
+			var price string
+			switch symbol {
+			case "ETHUSDT":
 				price = "3000.00"
-			} else if symbol == "INVALIDUSDT" {
+			case "INVALIDUSDT":
 				// 返回错误响应
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(map[string]interface{}{
@@ -84,6 +85,8 @@ func NewAsterTraderTestSuite(t *testing.T) *AsterTraderTestSuite {
 					"msg":  "Invalid symbol",
 				})
 				return
+			default:
+				price = "50000.00"
 			}
 			respBody = map[string]interface{}{
 				"symbol": symbol,

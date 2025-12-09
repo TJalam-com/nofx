@@ -1,4 +1,4 @@
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import { t, Language } from '../../i18n/translations'
 import { useNavigate } from 'react-router-dom'
@@ -10,9 +10,6 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ language, onGetStarted }: HeroSectionProps) {
-  const { scrollYProgress } = useScroll()
-  const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0])
-  const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.8])
   const navigate = useNavigate()
   const { user } = useAuth()
   const isLoggedIn = !!user
@@ -41,11 +38,13 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
     <section className="relative pt-24 pb-32 px-4 overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Gradient Orbs */}
+        {/* Gradient Orbs - Optimized with will-change and transform3d */}
         <motion.div
           className="absolute top-1/4 -left-1/4 w-96 h-96 rounded-full blur-3xl opacity-20"
           style={{
             background: 'radial-gradient(circle, var(--green-primary) 0%, transparent 70%)',
+            willChange: 'transform',
+            transform: 'translateZ(0)',
           }}
           animate={{
             scale: [1, 1.2, 1],
@@ -62,6 +61,8 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
           className="absolute top-1/3 -right-1/4 w-96 h-96 rounded-full blur-3xl opacity-10"
           style={{
             background: 'radial-gradient(circle, var(--green-primary) 0%, transparent 70%)',
+            willChange: 'transform',
+            transform: 'translateZ(0)',
           }}
           animate={{
             scale: [1, 1.3, 1],
@@ -89,10 +90,10 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
         <div className="max-w-5xl mx-auto">
           <motion.div
             className="space-y-8 lg:space-y-10"
-            style={{ opacity, scale }}
             initial="initial"
             animate="animate"
             variants={staggerContainer}
+            style={{ willChange: 'transform, opacity' }}
           >
             {/* Badge */}
             <motion.div

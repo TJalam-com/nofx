@@ -7,16 +7,16 @@ import (
 	"time"
 )
 
-// TestUpdateExchange_EmptyValuesShouldNotOverwrite 测试空值不应覆盖现有数据
-// 这是 Bug 的核心：当前实现会用空字符串覆盖现有的私钥
+// TestUpdateExchange_EmptyValuesShouldNotOverwrite test that empty values should not overwrite existing data
+// This is the core of the Bug: current implementation will overwrite existing private keys with empty strings
 func TestUpdateExchange_EmptyValuesShouldNotOverwrite(t *testing.T) {
-	// 准备测试数据库
+	// Prepare test database
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	userID := "test-user-001"
 
-	// 步骤 1: 创建初始配置（包含私钥）
+	// Step 1: Create initial configuration (with private keys)
 	initialAPIKey := "initial-api-key-12345"
 	initialSecretKey := "initial-secret-key-67890"
 
@@ -37,76 +37,76 @@ func TestUpdateExchange_EmptyValuesShouldNotOverwrite(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("初始化失败: %v", err)
+		t.Fatalf("Initialization failed: %v", err)
 	}
 
-	// 步骤 2: 验证初始数据已保存
+	// Step 2: Verify initial data is saved
 	exchanges, err := db.GetExchanges(userID)
 	if err != nil {
-		t.Fatalf("获取配置失败: %v", err)
+		t.Fatalf("Failed to get configuration: %v", err)
 	}
 	if len(exchanges) == 0 {
-		t.Fatal("未找到配置")
+		t.Fatal("Configuration not found")
 	}
 
-	// 解密后应该能看到原始值
+	// After decryption, should see original values
 	if exchanges[0].APIKey != initialAPIKey {
-		t.Errorf("初始 APIKey 不正确，期望 %s，实际 %s", initialAPIKey, exchanges[0].APIKey)
+		t.Errorf("Initial APIKey incorrect, expected %s, got %s", initialAPIKey, exchanges[0].APIKey)
 	}
 
-	// 步骤 3: 用空值更新（模拟前端发送空值的场景）
-	// 🐛 Bug 重现：这应该 NOT 覆盖现有的私钥，但当前实现会覆盖
+	// Step 3: Update with empty values (simulate frontend sending empty values scenario)
+	// 🐛 Bug reproduction: This should NOT overwrite existing private keys, but current implementation will overwrite
 	err = db.UpdateExchange(
 		userID,
 		"hyperliquid",
-		false, // 只改变 enabled 状态
-		"",    // 空 apiKey - 不应该覆盖
-		"",    // 空 secretKey - 不应该覆盖
-		true,  // 改变 testnet 状态
+		false, // Only change enabled status
+		"",    // Empty apiKey - should not overwrite
+		"",    // Empty secretKey - should not overwrite
+		true,  // Change testnet status
 		"0xWalletAddress",
 		"",
 		"",
-		"", // 空 aster_private_key - 不应该覆盖
+		"", // Empty aster_private_key - should not overwrite
 		"",
 		"",
 		"", // lighter_api_key_private_key
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("更新失败: %v", err)
+		t.Fatalf("Update failed: %v", err)
 	}
 
-	// 步骤 4: 验证私钥没有被空值覆盖
+	// Step 4: Verify private keys were not overwritten by empty values
 	exchanges, err = db.GetExchanges(userID)
 	if err != nil {
-		t.Fatalf("获取更新后配置失败: %v", err)
+		t.Fatalf("Failed to get updated configuration: %v", err)
 	}
 
-	// 🎯 关键断言：私钥应该保持不变
+	// 🎯 Key assertion: Private keys should remain unchanged
 	if exchanges[0].APIKey != initialAPIKey {
-		t.Errorf("❌ Bug 确认：APIKey 被空值覆盖了！期望 %s，实际 %s", initialAPIKey, exchanges[0].APIKey)
+		t.Errorf("❌ Bug confirmed: APIKey was overwritten by empty value! Expected %s, got %s", initialAPIKey, exchanges[0].APIKey)
 	}
 	if exchanges[0].SecretKey != initialSecretKey {
-		t.Errorf("❌ Bug 确认：SecretKey 被空值覆盖了！期望 %s，实际 %s", initialSecretKey, exchanges[0].SecretKey)
+		t.Errorf("❌ Bug confirmed: SecretKey was overwritten by empty value! Expected %s, got %s", initialSecretKey, exchanges[0].SecretKey)
 	}
 
-	// 验证非敏感字段正常更新
+	// Verify non-sensitive fields updated normally
 	if exchanges[0].Enabled {
-		t.Error("enabled 应该被更新为 false")
+		t.Error("enabled should be updated to false")
 	}
 	if !exchanges[0].Testnet {
-		t.Error("testnet 应该被更新为 true")
+		t.Error("testnet should be updated to true")
 	}
 }
 
-// TestUpdateExchange_AsterEmptyValuesShouldNotOverwrite 测试 Aster 私钥不被空值覆盖
+// TestUpdateExchange_AsterEmptyValuesShouldNotOverwrite test that Aster private key should not be overwritten by empty values
 func TestUpdateExchange_AsterEmptyValuesShouldNotOverwrite(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	userID := "test-user-002"
 
-	// 步骤 1: 创建 Aster 配置
+	// Step 1: Create Aster configuration
 	initialAsterKey := "aster-private-key-xyz123"
 
 	err := db.UpdateExchange(
@@ -126,49 +126,49 @@ func TestUpdateExchange_AsterEmptyValuesShouldNotOverwrite(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("初始化 Aster 失败: %v", err)
+		t.Fatalf("Failed to initialize Aster: %v", err)
 	}
 
-	// 步骤 2: 用空值更新
+	// Step 2: Update with empty values
 	err = db.UpdateExchange(
 		userID,
 		"aster",
-		false, // 只改 enabled
+		false, // Only change enabled
 		"",
 		"",
 		false,
 		"",
 		"0xAsterUser",
 		"0xAsterSigner",
-		"", // 空 aster_private_key
+		"", // Empty aster_private_key
 		"",
 		"",
 		"", // lighter_api_key_private_key
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("更新失败: %v", err)
+		t.Fatalf("Update failed: %v", err)
 	}
 
-	// 步骤 3: 验证 aster_private_key 没有被覆盖
+	// Step 3: Verify aster_private_key was not overwritten
 	exchanges, err := db.GetExchanges(userID)
 	if err != nil {
-		t.Fatalf("获取配置失败: %v", err)
+		t.Fatalf("Failed to get configuration: %v", err)
 	}
 
 	if exchanges[0].AsterPrivateKey != initialAsterKey {
-		t.Errorf("❌ Bug 确认：AsterPrivateKey 被空值覆盖了！期望 %s，实际 %s", initialAsterKey, exchanges[0].AsterPrivateKey)
+		t.Errorf("❌ Bug confirmed: AsterPrivateKey was overwritten by empty value! Expected %s, got %s", initialAsterKey, exchanges[0].AsterPrivateKey)
 	}
 }
 
-// TestUpdateExchange_NonEmptyValuesShouldUpdate 测试非空值应该正常更新
+// TestUpdateExchange_NonEmptyValuesShouldUpdate test that non-empty values should update normally
 func TestUpdateExchange_NonEmptyValuesShouldUpdate(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	userID := "test-user-003"
 
-	// 步骤 1: 创建初始配置
+	// Step 1: Create initial configuration
 	err := db.UpdateExchange(
 		userID,
 		"hyperliquid",
@@ -186,10 +186,10 @@ func TestUpdateExchange_NonEmptyValuesShouldUpdate(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("初始化失败: %v", err)
+		t.Fatalf("Initialization failed: %v", err)
 	}
 
-	// 步骤 2: 用非空值更新
+	// Step 2: Update with non-empty values
 	newAPIKey := "new-api-key-456"
 	newSecretKey := "new-secret-key-789"
 
@@ -210,34 +210,34 @@ func TestUpdateExchange_NonEmptyValuesShouldUpdate(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("更新失败: %v", err)
+		t.Fatalf("Update failed: %v", err)
 	}
 
-	// 步骤 3: 验证新值已更新
+	// Step 3: Verify new values are updated
 	exchanges, err := db.GetExchanges(userID)
 	if err != nil {
-		t.Fatalf("获取配置失败: %v", err)
+		t.Fatalf("Failed to get configuration: %v", err)
 	}
 
 	if exchanges[0].APIKey != newAPIKey {
-		t.Errorf("APIKey 未更新，期望 %s，实际 %s", newAPIKey, exchanges[0].APIKey)
+		t.Errorf("APIKey not updated, expected %s, got %s", newAPIKey, exchanges[0].APIKey)
 	}
 	if exchanges[0].SecretKey != newSecretKey {
-		t.Errorf("SecretKey 未更新，期望 %s，实际 %s", newSecretKey, exchanges[0].SecretKey)
+		t.Errorf("SecretKey not updated, expected %s, got %s", newSecretKey, exchanges[0].SecretKey)
 	}
 	if exchanges[0].HyperliquidWalletAddr != "0xNewWallet" {
-		t.Errorf("WalletAddr 未更新")
+		t.Errorf("WalletAddr not updated")
 	}
 }
 
-// TestUpdateExchange_PartialUpdateShouldWork 测试部分字段更新
+// TestUpdateExchange_PartialUpdateShouldWork test partial field update
 func TestUpdateExchange_PartialUpdateShouldWork(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	userID := "test-user-005"
 
-	// 创建初始配置
+	// Create initial configuration
 	err := db.UpdateExchange(
 		userID,
 		"hyperliquid",
@@ -255,16 +255,16 @@ func TestUpdateExchange_PartialUpdateShouldWork(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("初始化失败: %v", err)
+		t.Fatalf("Initialization failed: %v", err)
 	}
 
-	// 只更新 enabled 和 testnet，私钥留空
+	// Only update enabled and testnet, leave private keys empty
 	err = db.UpdateExchange(
 		userID,
 		"hyperliquid",
 		false,
-		"", // 留空
-		"", // 留空
+		"", // Leave empty
+		"", // Leave empty
 		true,
 		"0xWallet2",
 		"",
@@ -276,36 +276,36 @@ func TestUpdateExchange_PartialUpdateShouldWork(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("部分更新失败: %v", err)
+		t.Fatalf("Partial update failed: %v", err)
 	}
 
-	// 验证
+	// Verify
 	exchanges, err := db.GetExchanges(userID)
 	if err != nil {
-		t.Fatalf("获取配置失败: %v", err)
+		t.Fatalf("Failed to get configuration: %v", err)
 	}
 
-	// 私钥应该保持不变
+	// Private keys should remain unchanged
 	if exchanges[0].APIKey != "api-key-123" {
-		t.Errorf("APIKey 不应改变，期望 api-key-123，实际 %s", exchanges[0].APIKey)
+		t.Errorf("APIKey should not change, expected api-key-123, got %s", exchanges[0].APIKey)
 	}
 	if exchanges[0].SecretKey != "secret-key-456" {
-		t.Errorf("SecretKey 不应改变，期望 secret-key-456，实际 %s", exchanges[0].SecretKey)
+		t.Errorf("SecretKey should not change, expected secret-key-456, got %s", exchanges[0].SecretKey)
 	}
 
-	// 其他字段应该更新
+	// Other fields should be updated
 	if exchanges[0].Enabled {
-		t.Error("enabled 应该更新为 false")
+		t.Error("enabled should be updated to false")
 	}
 	if !exchanges[0].Testnet {
-		t.Error("testnet 应该更新为 true")
+		t.Error("testnet should be updated to true")
 	}
 	if exchanges[0].HyperliquidWalletAddr != "0xWallet2" {
-		t.Error("wallet 地址应该更新")
+		t.Error("wallet address should be updated")
 	}
 }
 
-// TestUpdateExchange_MultipleExchangeTypes 测试不同交易所类型
+// TestUpdateExchange_MultipleExchangeTypes test different exchange types
 func TestUpdateExchange_MultipleExchangeTypes(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -342,13 +342,13 @@ func TestUpdateExchange_MultipleExchangeTypes(t *testing.T) {
 				"", // okx_passphrase
 			)
 			if err != nil {
-				t.Fatalf("创建 %s 失败: %v", tc.exchangeID, err)
+				t.Fatalf("Failed to create %s: %v", tc.exchangeID, err)
 			}
 
-			// 验证创建成功
+			// Verify creation successful
 			exchanges, err := db.GetExchanges(userID)
 			if err != nil {
-				t.Fatalf("获取配置失败: %v", err)
+				t.Fatalf("Failed to get configuration: %v", err)
 			}
 
 			found := false
@@ -356,33 +356,33 @@ func TestUpdateExchange_MultipleExchangeTypes(t *testing.T) {
 				if ex.ID == tc.exchangeID {
 					found = true
 					if ex.Name != tc.name {
-						t.Errorf("交易所名称不正确，期望 %s，实际 %s", tc.name, ex.Name)
+						t.Errorf("Exchange name incorrect, expected %s, got %s", tc.name, ex.Name)
 					}
 					if ex.Type != tc.typ {
-						t.Errorf("交易所类型不正确，期望 %s，实际 %s", tc.typ, ex.Type)
+						t.Errorf("Exchange type incorrect, expected %s, got %s", tc.typ, ex.Type)
 					}
 					if ex.APIKey != "api-key-"+tc.exchangeID {
-						t.Errorf("APIKey 不正确")
+						t.Errorf("APIKey incorrect")
 					}
 					break
 				}
 			}
 
 			if !found {
-				t.Errorf("未找到交易所 %s", tc.exchangeID)
+				t.Errorf("Exchange %s not found", tc.exchangeID)
 			}
 		})
 	}
 }
 
-// TestUpdateExchange_MixedSensitiveFields 测试混合更新敏感和非敏感字段
+// TestUpdateExchange_MixedSensitiveFields test mixed update of sensitive and non-sensitive fields
 func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	userID := "test-user-007"
 
-	// 创建初始配置
+	// Create initial configuration
 	err := db.UpdateExchange(
 		userID,
 		"hyperliquid",
@@ -400,16 +400,16 @@ func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("初始化失败: %v", err)
+		t.Fatalf("Initialization failed: %v", err)
 	}
 
-	// 场景1: 只更新 apiKey，secretKey 留空
+	// Scenario 1: Only update apiKey, leave secretKey empty
 	err = db.UpdateExchange(
 		userID,
 		"hyperliquid",
 		false,
 		"new-api-key",
-		"", // 留空
+		"", // Leave empty
 		true,
 		"0xNewWallet",
 		"",
@@ -421,23 +421,23 @@ func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("更新1失败: %v", err)
+		t.Fatalf("Update 1 failed: %v", err)
 	}
 
 	exchanges, _ := db.GetExchanges(userID)
 	if exchanges[0].APIKey != "new-api-key" {
-		t.Error("APIKey 应该更新")
+		t.Error("APIKey should be updated")
 	}
 	if exchanges[0].SecretKey != "old-secret-key" {
-		t.Error("SecretKey 应该保持不变")
+		t.Error("SecretKey should remain unchanged")
 	}
 
-	// 场景2: 只更新 secretKey，apiKey 留空
+	// Scenario 2: Only update secretKey, leave apiKey empty
 	err = db.UpdateExchange(
 		userID,
 		"hyperliquid",
 		true,
-		"", // 留空
+		"", // Leave empty
 		"new-secret-key",
 		false,
 		"0xFinalWallet",
@@ -450,32 +450,32 @@ func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("更新2失败: %v", err)
+		t.Fatalf("Update 2 failed: %v", err)
 	}
 
 	exchanges, _ = db.GetExchanges(userID)
 	if exchanges[0].APIKey != "new-api-key" {
-		t.Error("APIKey 应该保持不变")
+		t.Error("APIKey should remain unchanged")
 	}
 	if exchanges[0].SecretKey != "new-secret-key" {
-		t.Error("SecretKey 应该更新")
+		t.Error("SecretKey should be updated")
 	}
 	if exchanges[0].Enabled != true {
-		t.Error("Enabled 应该更新为 true")
+		t.Error("Enabled should be updated to true")
 	}
 	if exchanges[0].HyperliquidWalletAddr != "0xFinalWallet" {
-		t.Error("WalletAddr 应该更新")
+		t.Error("WalletAddr should be updated")
 	}
 }
 
-// TestUpdateExchange_OnlyNonSensitiveFields 测试只更新非敏感字段
+// TestUpdateExchange_OnlyNonSensitiveFields test updating only non-sensitive fields
 func TestUpdateExchange_OnlyNonSensitiveFields(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	userID := "test-user-008"
 
-	// 创建初始配置（包含所有私钥）
+	// Create initial configuration (with all private keys)
 	err := db.UpdateExchange(
 		userID,
 		"aster",
@@ -493,10 +493,10 @@ func TestUpdateExchange_OnlyNonSensitiveFields(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("初始化失败: %v", err)
+		t.Fatalf("Initialization failed: %v", err)
 	}
 
-	// 只更新非敏感字段（所有私钥字段留空）
+	// Only update non-sensitive fields (leave all private key fields empty)
 	err = db.UpdateExchange(
 		userID,
 		"aster",
@@ -514,44 +514,44 @@ func TestUpdateExchange_OnlyNonSensitiveFields(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("更新失败: %v", err)
+		t.Fatalf("Update failed: %v", err)
 	}
 
-	// 验证所有私钥保持不变
+	// Verify all private keys remain unchanged
 	exchanges, _ := db.GetExchanges(userID)
 	if exchanges[0].APIKey != "binance-api" {
-		t.Errorf("APIKey 应该保持不变，实际 %s", exchanges[0].APIKey)
+		t.Errorf("APIKey should remain unchanged, got %s", exchanges[0].APIKey)
 	}
 	if exchanges[0].SecretKey != "binance-secret" {
-		t.Errorf("SecretKey 应该保持不变，实际 %s", exchanges[0].SecretKey)
+		t.Errorf("SecretKey should remain unchanged, got %s", exchanges[0].SecretKey)
 	}
 	if exchanges[0].AsterPrivateKey != "aster-private-key-1" {
-		t.Errorf("AsterPrivateKey 应该保持不变，实际 %s", exchanges[0].AsterPrivateKey)
+		t.Errorf("AsterPrivateKey should remain unchanged, got %s", exchanges[0].AsterPrivateKey)
 	}
 
-	// 验证非敏感字段已更新
+	// Verify non-sensitive fields are updated
 	if exchanges[0].Enabled != false {
-		t.Error("Enabled 应该更新为 false")
+		t.Error("Enabled should be updated to false")
 	}
 	if exchanges[0].Testnet != true {
-		t.Error("Testnet 应该更新为 true")
+		t.Error("Testnet should be updated to true")
 	}
 	if exchanges[0].AsterUser != "0xUser2" {
-		t.Error("AsterUser 应该更新")
+		t.Error("AsterUser should be updated")
 	}
 	if exchanges[0].AsterSigner != "0xSigner2" {
-		t.Error("AsterSigner 应该更新")
+		t.Error("AsterSigner should be updated")
 	}
 }
 
-// TestUpdateExchange_AllSensitiveFieldsUpdate 测试同时更新所有敏感字段
+// TestUpdateExchange_AllSensitiveFieldsUpdate test updating all sensitive fields simultaneously
 func TestUpdateExchange_AllSensitiveFieldsUpdate(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	userID := "test-user-009"
 
-	// 创建初始配置
+	// Create initial configuration
 	err := db.UpdateExchange(
 		userID,
 		"binance",
@@ -569,10 +569,10 @@ func TestUpdateExchange_AllSensitiveFieldsUpdate(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("初始化失败: %v", err)
+		t.Fatalf("Initialization failed: %v", err)
 	}
 
-	// 同时更新所有敏感字段
+	// Update all sensitive fields simultaneously
 	err = db.UpdateExchange(
 		userID,
 		"binance",
@@ -590,36 +590,36 @@ func TestUpdateExchange_AllSensitiveFieldsUpdate(t *testing.T) {
 		"", // okx_passphrase
 	)
 	if err != nil {
-		t.Fatalf("更新失败: %v", err)
+		t.Fatalf("Update failed: %v", err)
 	}
 
-	// 验证所有字段都更新了
+	// Verify all fields are updated
 	exchanges, _ := db.GetExchanges(userID)
 	if exchanges[0].APIKey != "new-api" {
-		t.Error("APIKey 应该更新")
+		t.Error("APIKey should be updated")
 	}
 	if exchanges[0].SecretKey != "new-secret" {
-		t.Error("SecretKey 应该更新")
+		t.Error("SecretKey should be updated")
 	}
 	if exchanges[0].AsterPrivateKey != "new-aster-key" {
-		t.Error("AsterPrivateKey 应该更新")
+		t.Error("AsterPrivateKey should be updated")
 	}
 	if !exchanges[0].Testnet {
-		t.Error("Testnet 应该更新为 true")
+		t.Error("Testnet should be updated to true")
 	}
 }
 
-// setupTestDB 创建测试数据库
+// setupTestDB create test database
 func setupTestDB(t *testing.T) (*Database, func()) {
-	// 创建临时数据库文件
+	// Create temporary database file
 	tmpFile := t.TempDir() + "/test.db"
 
 	db, err := NewDatabase(tmpFile)
 	if err != nil {
-		t.Fatalf("创建测试数据库失败: %v", err)
+		t.Fatalf("Failed to create test database: %v", err)
 	}
 
-	// 创建测试用户
+	// Create test users
 	testUsers := []string{
 		"test-user-001", "test-user-002", "test-user-003", "test-user-004", "test-user-005",
 		"test-user-006", "test-user-007", "test-user-008", "test-user-009",
@@ -636,13 +636,13 @@ func setupTestDB(t *testing.T) (*Database, func()) {
 		_ = db.CreateUser(user)
 	}
 
-	// 设置加密服务（用于测试加密功能）
-	// 创建临时 RSA 密钥
+	// Set encryption service (for testing encryption functionality)
+	// Create temporary RSA key
 	rsaKeyPath := t.TempDir() + "/test_rsa_key"
 	cryptoService, err := crypto.NewCryptoService(rsaKeyPath)
 	if err != nil {
-		// 如果创建失败，继续测试但不使用加密
-		t.Logf("警告：无法创建加密服务，将在无加密模式下测试: %v", err)
+		// If creation fails, continue testing without encryption
+		t.Logf("Warning: unable to create encryption service, will test without encryption: %v", err)
 	} else {
 		db.SetCryptoService(cryptoService)
 	}
@@ -656,61 +656,61 @@ func setupTestDB(t *testing.T) (*Database, func()) {
 	return db, cleanup
 }
 
-// TestWALModeEnabled 测试 WAL 模式是否启用
-// TDD: 这个测试应该失败，因为当前代码没有启用 WAL 模式
+// TestWALModeEnabled test if WAL mode is enabled
+// TDD: This test should fail because current code does not enable WAL mode
 func TestWALModeEnabled(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	// 查询当前的 journal_mode
+	// Query current journal_mode
 	var journalMode string
 	err := db.db.QueryRow("PRAGMA journal_mode").Scan(&journalMode)
 	if err != nil {
-		t.Fatalf("查询 journal_mode 失败: %v", err)
+		t.Fatalf("Failed to query journal_mode: %v", err)
 	}
 
-	// 期望是 WAL 模式
+	// Expected to be WAL mode
 	if journalMode != "wal" {
-		t.Errorf("期望 journal_mode=wal，实际是 %s", journalMode)
+		t.Errorf("Expected journal_mode=wal, got %s", journalMode)
 	}
 }
 
-// TestSynchronousMode 测试 synchronous 模式设置
-// TDD: 验证数据持久性设置
+// TestSynchronousMode test synchronous mode settings
+// TDD: Verify data durability settings
 func TestSynchronousMode(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	// 查询 synchronous 设置
+	// Query synchronous settings
 	var synchronous int
 	err := db.db.QueryRow("PRAGMA synchronous").Scan(&synchronous)
 	if err != nil {
-		t.Fatalf("查询 synchronous 失败: %v", err)
+		t.Fatalf("Failed to query synchronous: %v", err)
 	}
 
-	// 期望是 FULL (2) 以确保数据持久性
+	// Expected to be FULL (2) to ensure data durability
 	if synchronous != 2 {
-		t.Errorf("期望 synchronous=2 (FULL)，实际是 %d", synchronous)
+		t.Errorf("Expected synchronous=2 (FULL), got %d", synchronous)
 	}
 }
 
-// TestDataPersistenceAcrossReopen 测试数据在数据库关闭并重新打开后是否持久化
-// TDD: 模拟 Docker restart 场景
+// TestDataPersistenceAcrossReopen test if data persists after closing and reopening database
+// TDD: Simulate Docker restart scenario
 func TestDataPersistenceAcrossReopen(t *testing.T) {
-	// 创建临时数据库文件
+	// Create temporary database file
 	tmpFile, err := os.CreateTemp("", "test_persistence_*.db")
 	if err != nil {
-		t.Fatalf("创建临时文件失败: %v", err)
+		t.Fatalf("Failed to create temporary file: %v", err)
 	}
 	tmpFile.Close()
 	dbPath := tmpFile.Name()
 	defer os.Remove(dbPath)
 
-	// 设置加密服务
+	// Set encryption service
 	rsaKeyPath := "test_rsa_key.pem"
 	cryptoService, err := crypto.NewCryptoService(rsaKeyPath)
 	if err != nil {
-		t.Fatalf("初始化加密服务失败: %v", err)
+		t.Fatalf("Failed to initialize encryption service: %v", err)
 	}
 	defer os.RemoveAll(rsaKeyPath)
 
@@ -718,15 +718,15 @@ func TestDataPersistenceAcrossReopen(t *testing.T) {
 	testAPIKey := "test-api-key-should-persist"
 	testSecretKey := "test-secret-key-should-persist"
 
-	// 第一次打开数据库并写入数据
+	// First time: open database and write data
 	{
 		db, err := NewDatabase(dbPath)
 		if err != nil {
-			t.Fatalf("第一次创建数据库失败: %v", err)
+			t.Fatalf("Failed to create database first time: %v", err)
 		}
 		db.SetCryptoService(cryptoService)
 
-		// 创建持久化测试用户，避免外键约束失败
+		// Create persistent test user to avoid foreign key constraint failure
 		_ = db.CreateUser(&User{
 			ID:           userID,
 			Email:        userID + "@test.com",
@@ -735,7 +735,7 @@ func TestDataPersistenceAcrossReopen(t *testing.T) {
 			OTPVerified:  true,
 		})
 
-		// 写入交易所配置
+		// Write exchange configuration
 		err = db.UpdateExchange(
 			userID,
 			"binance",
@@ -753,66 +753,66 @@ func TestDataPersistenceAcrossReopen(t *testing.T) {
 			"", // okx_passphrase
 		)
 		if err != nil {
-			t.Fatalf("写入数据失败: %v", err)
+			t.Fatalf("Failed to write data: %v", err)
 		}
 
-		// 模拟正常关闭
+		// Simulate normal shutdown
 		if err := db.Close(); err != nil {
-			t.Fatalf("关闭数据库失败: %v", err)
+			t.Fatalf("Failed to close database: %v", err)
 		}
 	}
 
-	// 第二次打开数据库并验证数据是否还在
+	// Second time: open database and verify data is still there
 	{
 		db, err := NewDatabase(dbPath)
 		if err != nil {
-			t.Fatalf("第二次打开数据库失败: %v", err)
+			t.Fatalf("Failed to open database second time: %v", err)
 		}
 		db.SetCryptoService(cryptoService)
 		defer db.Close()
 
-		// 读取数据
+		// Read data
 		exchanges, err := db.GetExchanges(userID)
 		if err != nil {
-			t.Fatalf("读取数据失败: %v", err)
+			t.Fatalf("Failed to read data: %v", err)
 		}
 
 		if len(exchanges) == 0 {
-			t.Fatal("数据丢失：没有找到任何交易所配置")
+			t.Fatal("Data lost: no exchange configurations found")
 		}
 
-		// 验证数据完整性
+		// Verify data integrity
 		found := false
 		for _, ex := range exchanges {
 			if ex.ID == "binance" {
 				found = true
 				if ex.APIKey != testAPIKey {
-					t.Errorf("API Key 丢失或损坏，期望 %s，实际 %s", testAPIKey, ex.APIKey)
+					t.Errorf("API Key lost or corrupted, expected %s, got %s", testAPIKey, ex.APIKey)
 				}
 				if ex.SecretKey != testSecretKey {
-					t.Errorf("Secret Key 丢失或损坏，期望 %s，实际 %s", testSecretKey, ex.SecretKey)
+					t.Errorf("Secret Key lost or corrupted, expected %s, got %s", testSecretKey, ex.SecretKey)
 				}
 			}
 		}
 
 		if !found {
-			t.Error("数据丢失：找不到 binance 配置")
+			t.Error("Data lost: binance configuration not found")
 		}
 	}
 }
 
-// TestConcurrentWritesWithWAL 测试 WAL 模式下的并发写入
-// TDD: WAL 模式应该支持更好的并发性能
+// TestConcurrentWritesWithWAL test concurrent writes with WAL mode
+// TDD: WAL mode should support better concurrent performance
 func TestConcurrentWritesWithWAL(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	// 这个测试验证多个并发写入可以成功
-	// WAL 模式下并发性能更好,但 SQLite 仍然可能出现短暂的锁
+	// This test verifies multiple concurrent writes can succeed
+	// WAL mode has better concurrent performance, but SQLite may still have brief locks
 	done := make(chan bool, 2)
 	errors := make(chan error, 10)
 
-	// 并发写入1
+	// Concurrent write 1
 	go func() {
 		for i := 0; i < 3; i++ {
 			err := db.UpdateExchange(
@@ -834,13 +834,13 @@ func TestConcurrentWritesWithWAL(t *testing.T) {
 			if err != nil {
 				errors <- err
 			}
-			// 小延迟减少锁冲突
+			// Small delay to reduce lock conflicts
 			time.Sleep(10 * time.Millisecond)
 		}
 		done <- true
 	}()
 
-	// 并发写入2
+	// Concurrent write 2
 	go func() {
 		for i := 0; i < 3; i++ {
 			err := db.UpdateExchange(
@@ -862,27 +862,27 @@ func TestConcurrentWritesWithWAL(t *testing.T) {
 			if err != nil {
 				errors <- err
 			}
-			// 小延迟减少锁冲突
+			// Small delay to reduce lock conflicts
 			time.Sleep(10 * time.Millisecond)
 		}
 		done <- true
 	}()
 
-	// 等待两个 goroutine 完成
+	// Wait for both goroutines to complete
 	<-done
 	<-done
 	close(errors)
 
-	// 检查是否有错误
+	// Check for errors
 	errorCount := 0
 	for err := range errors {
-		t.Logf("并发写入错误: %v", err)
+		t.Logf("Concurrent write error: %v", err)
 		errorCount++
 	}
 
-	// WAL 模式下应该能处理并发,但可能有少量锁错误
-	// 我们允许最多 2 个错误
+	// WAL mode should handle concurrency, but may have a few lock errors
+	// We allow up to 2 errors
 	if errorCount > 2 {
-		t.Errorf("并发写入失败次数过多: %d", errorCount)
+		t.Errorf("Concurrent write failures too many: %d", errorCount)
 	}
 }

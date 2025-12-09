@@ -84,9 +84,7 @@ export function FAQLayout({ language }: FAQLayoutProps) {
           <FAQSearchBar
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
-            placeholder={
-              language === 'zh' ? '搜索常见问题...' : 'Search FAQ...'
-            }
+            placeholder={t('faqSearchPlaceholder', language)}
           />
         </div>
       </div>

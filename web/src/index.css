@@ -1,5 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+/* Self-hosted fonts via @fontsource */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/inter/800.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+@import '@fontsource/ibm-plex-mono/700.css';
 
 @tailwind base;
 @tailwind components;
@@ -8,6 +16,7 @@
 /* 强制显示滚动条以确保所有页面布局一致 */
 html {
   overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 :root {
@@ -158,6 +167,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background-color: var(--background);
+  overflow-x: hidden;
 }
 
 #root {
@@ -997,6 +1007,22 @@ tr:hover {
   background: rgba(0, 21, 46, 0.7);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+
+/* Performance optimizations */
+/* Use GPU acceleration for animated elements */
+.hero-animated {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Optimize font rendering */
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'kern' 1;
 }
 
 /* Responsive utilities */

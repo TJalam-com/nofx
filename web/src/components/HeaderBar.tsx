@@ -25,7 +25,6 @@ interface HeaderBarProps {
   isHomePage?: boolean
   currentPage?: Page
   language?: Language
-  onLanguageChange?: (lang: Language) => void
   user?: { email: string } | null
   onLogout?: () => void
   onPageChange?: (page: Page) => void
@@ -36,7 +35,6 @@ export default function HeaderBar({
   isHomePage = false,
   currentPage,
   language = 'en' as Language,
-  onLanguageChange,
   user,
   onLogout,
   onPageChange,
@@ -44,9 +42,7 @@ export default function HeaderBar({
   const navigate = useNavigate()
   const { user: authUser } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
   const userDropdownRef = useRef<HTMLDivElement>(null)
   const { config: systemConfig } = useSystemConfig()
   const registrationEnabled = systemConfig?.registration_enabled !== false
@@ -56,12 +52,6 @@ export default function HeaderBar({
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setLanguageDropdownOpen(false)
-      }
       if (
         userDropdownRef.current &&
         !userDropdownRef.current.contains(event.target as Node)
@@ -84,7 +74,7 @@ export default function HeaderBar({
           to="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <img src="/icons/nofx.svg" alt="AI Trading Logo" className="w-8 h-8" />
+          <img src="/icons/nofx.svg" alt="AI Trading Logo" className="w-8 h-8" width="32" height="32" />
           <span
             className="text-xl font-bold"
             style={{ color: 'var(--brand-yellow)' }}
@@ -707,169 +697,6 @@ export default function HeaderBar({
               )
             )}
 
-            {/* Language Toggle - Always at the rightmost */}
-            <div className="relative z-50" ref={dropdownRef}>
-              <button
-                onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded transition-all min-w-[50px] justify-center"
-                style={{ 
-                  color: 'var(--brand-light-gray)',
-                  background: languageDropdownOpen ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  cursor: 'pointer',
-                  border: '1px solid transparent'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                  e.currentTarget.style.borderColor = 'rgba(240, 185, 11, 0.3)'
-                }}
-                onMouseLeave={(e) => {
-                  if (!languageDropdownOpen) {
-                    e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.borderColor = 'transparent'
-                  }
-                }}
-                aria-label="Language selector"
-                type="button"
-              >
-                <span className="text-xl leading-none" style={{ fontSize: '1.5rem', lineHeight: '1', display: 'inline-block' }}>
-                  {language === 'zh' ? '🇨🇳' : '🇺🇸'}
-                </span>
-                <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ opacity: 0.7 }} />
-              </button>
-
-              {languageDropdownOpen && (
-                <div
-                  className="absolute right-0 top-full mt-2 w-32 rounded-lg shadow-lg overflow-hidden z-50"
-                  style={{
-                    background: 'var(--brand-dark-gray)',
-                    border: '1px solid var(--panel-border)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onLanguageChange?.('zh')
-                      setLanguageDropdownOpen(false)
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 transition-colors ${
-                      language === 'zh' ? '' : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      color: 'var(--brand-light-gray)',
-                      background:
-                        language === 'zh'
-                          ? 'rgba(0, 255, 127, 0.1)'
-                          : 'transparent',
-                    }}
-                  >
-                    <span className="text-base">🇨🇳</span>
-                    <span className="text-sm">{t('chinese', language)}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onLanguageChange?.('en')
-                      setLanguageDropdownOpen(false)
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 transition-colors ${
-                      language === 'en' ? '' : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      color: 'var(--brand-light-gray)',
-                      background:
-                        language === 'en'
-                          ? 'rgba(0, 255, 127, 0.1)'
-                          : 'transparent',
-                    }}
-                  >
-                    <span className="text-base">🇺🇸</span>
-                    <span className="text-sm">English</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Language Toggle for Tablet/Small Desktop - Visible when desktop menu is hidden */}
-        <div className="hidden sm:flex md:hidden items-center ml-4">
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-2 rounded transition-colors min-w-[44px] min-h-[44px] justify-center"
-              style={{ 
-                color: 'var(--brand-light-gray)',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background =
-                  'rgba(255, 255, 255, 0.05)')
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = 'transparent')
-              }
-              aria-label="Language selector"
-            >
-              <span className="text-lg" style={{ fontSize: '1.25rem' }}>
-                {language === 'zh' ? '🇨🇳' : '🇺🇸'}
-              </span>
-              <ChevronDown className="w-4 h-4" style={{ flexShrink: 0 }} />
-            </button>
-
-            {languageDropdownOpen && (
-              <div
-                className="absolute right-0 top-full mt-2 w-32 rounded-lg shadow-lg overflow-hidden z-50"
-                style={{
-                  background: 'var(--brand-dark-gray)',
-                  border: '1px solid var(--panel-border)',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onLanguageChange?.('zh')
-                    setLanguageDropdownOpen(false)
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 transition-colors ${
-                    language === 'zh' ? '' : 'hover:opacity-80'
-                  }`}
-                  style={{
-                    color: 'var(--brand-light-gray)',
-                    background:
-                      language === 'zh'
-                        ? 'rgba(0, 255, 127, 0.1)'
-                        : 'transparent',
-                  }}
-                >
-                  <span className="text-base">🇨🇳</span>
-                  <span className="text-sm">中文</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onLanguageChange?.('en')
-                    setLanguageDropdownOpen(false)
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 transition-colors ${
-                    language === 'en' ? '' : 'hover:opacity-80'
-                  }`}
-                  style={{
-                    color: 'var(--brand-light-gray)',
-                    background:
-                      language === 'en'
-                        ? 'rgba(0, 255, 127, 0.1)'
-                        : 'transparent',
-                  }}
-                >
-                  <span className="text-base">🇺🇸</span>
-                  <span className="text-sm">English</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -1200,62 +1027,6 @@ export default function HeaderBar({
               {t('features', language)}
             </a>
           )}
-
-          {/* Language Toggle */}
-          <div className="py-2">
-            <div className="flex items-center gap-2 mb-2">
-              <span
-                className="text-xs"
-                style={{ color: 'var(--brand-light-gray)' }}
-              >
-                {t('language', language)}:
-              </span>
-            </div>
-            <div className="space-y-1">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onLanguageChange?.('zh')
-                  setMobileMenuOpen(false)
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors ${
-                  language === 'zh'
-                    ? 'bg-green-500 text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                style={
-                  language === 'zh'
-                    ? { background: 'var(--green-primary)', color: 'var(--navy-primary)' }
-                    : {}
-                }
-              >
-                <span className="text-lg">🇨🇳</span>
-                <span className="text-sm">中文</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onLanguageChange?.('en')
-                  setMobileMenuOpen(false)
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors ${
-                  language === 'en'
-                    ? 'bg-green-500 text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                style={
-                  language === 'en'
-                    ? { background: 'var(--green-primary)', color: 'var(--navy-primary)' }
-                    : {}
-                }
-              >
-                <span className="text-lg">🇺🇸</span>
-                <span className="text-sm">English</span>
-              </button>
-            </div>
-          </div>
 
           {/* User info and logout for mobile when logged in */}
           {isLoggedIn && user && (

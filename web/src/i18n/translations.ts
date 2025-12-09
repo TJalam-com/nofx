@@ -17,15 +17,21 @@ export const translations = {
     switchTrader: 'Switch Trader:',
     view: 'View',
 
+    // Language names
+    english: 'English',
+    englishShort: 'EN',
+    chinese: '中文',
+
     // Navigation
     realtimeNav: 'Live',
     configNav: 'Config',
     dashboardNav: 'Dashboard',
     followersNav: 'Followers',
     faqNav: 'FAQ',
+    faqSearchPlaceholder: 'Search FAQ...',
 
     // Footer
-    footerTitle: 'AI Trading - AI Trading System',
+    footerTitle: 'Best AI Trading app',
     footerWarning: '⚠️ Risk Warning: Cryptocurrency trading involves substantial risk of loss. Past performance does not guarantee future results. Only trade with funds you can afford to lose. AI Trading is a non-custodial platform with no official trading strategies. Market conditions can change rapidly, and you may lose all or more than your initial investment. Please trade responsibly and seek independent financial advice if needed.',
 
     // Followers Page
@@ -709,6 +715,10 @@ export const translations = {
       'Password does not meet the security requirements',
     otpPlaceholder: '000000',
     loginTitle: 'Sign in to AI Trading',
+    loginSubtitle: 'Please enter your email and password',
+    loginOTPSubtitle: 'Please enter the two-factor authentication code',
+    adminPassword: 'Admin Password',
+    enterAdminPassword: 'Enter admin password',
     registerTitle: 'Create a new account',
     loginButton: 'Sign In',
     registerButton: 'Sign Up',
@@ -1000,8 +1010,6 @@ export const translations = {
     updatingExchange: 'Updating exchange configuration...',
     exchangeUpdated: 'Exchange configuration updated',
     exchangeUpdateFailed: 'Failed to update exchange configuration',
-    chinese: 'Chinese',
-    mandarin: 'Mandarin',
 
     // FAQ Page
     faqTitle: 'Frequently Asked Questions',
@@ -1256,7 +1264,7 @@ export const translations = {
     faqNav: '常见问题',
 
     // Footer
-    footerTitle: 'AI Trading - AI交易系统',
+    footerTitle: 'Best AI Trading app',
     footerWarning: '⚠️ 风险提示：加密货币交易存在重大损失风险。过往表现不代表未来结果。请仅使用您能够承受损失的资金进行交易。AI Trading 是一个非托管平台，不提供官方交易策略。市场条件可能快速变化，您可能会损失全部或超过初始投资。请负责任地交易，如有需要，请寻求独立的财务建议。',
 
     // Followers Page
@@ -1909,6 +1917,10 @@ export const translations = {
     passwordNotMeetRequirements: '密码不符合安全要求',
     otpPlaceholder: '000000',
     loginTitle: '登录 AI Trading',
+    loginSubtitle: '请输入您的邮箱和密码',
+    loginOTPSubtitle: '请输入两步验证码',
+    adminPassword: '管理员密码',
+    enterAdminPassword: '请输入管理员密码',
     registerTitle: '创建新账户',
     loginButton: '登录',
     registerButton: '注册',
@@ -2179,11 +2191,13 @@ export const translations = {
     exchangeUpdated: '交易所配置已更新',
     exchangeUpdateFailed: '更新交易所配置失败',
     chinese: '中文',
-    mandarin: '中文',
+    english: 'English',
+    englishShort: 'EN',
 
     // FAQ Page
     faqTitle: '常见问题',
     faqSubtitle: '查找关于 AI Trading 的常见问题解答',
+    faqSearchPlaceholder: '搜索常见问题...',
     faqStillHaveQuestions: '还有其他问题？',
     faqContactUs: '加入我们的社区或查看 GitHub 获取更多帮助',
 

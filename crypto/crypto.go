@@ -51,10 +51,10 @@ type CryptoService struct {
 }
 
 func NewCryptoService(privateKeyPath string) (*CryptoService, error) {
-	// 读取私钥文件
+	// Read private key file
 	privateKeyPEM, err := ioutil.ReadFile(privateKeyPath)
 	if err != nil {
-		// 如果私钥文件不存在，生成新的密钥对
+		// If private key file does not exist, generate new key pair
 		if err := GenerateRSAKeyPair(privateKeyPath); err != nil {
 			return nil, fmt.Errorf("failed to generate RSA key pair: %w", err)
 		}
@@ -64,7 +64,7 @@ func NewCryptoService(privateKeyPath string) (*CryptoService, error) {
 		}
 	}
 
-	// 解析私钥
+	// Parse private key
 	privateKey, err := ParseRSAPrivateKeyFromPEM(privateKeyPEM)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse private key: %w", err)
@@ -83,7 +83,7 @@ func NewCryptoService(privateKeyPath string) (*CryptoService, error) {
 }
 
 func GenerateRSAKeyPair(privateKeyPath string) error {
-	// 确保目录存在
+	// Ensure directory exists
 	dir := filepath.Dir(privateKeyPath)
 	if dir != "." {
 		if err := os.MkdirAll(dir, 0700); err != nil {
@@ -91,24 +91,24 @@ func GenerateRSAKeyPair(privateKeyPath string) error {
 		}
 	}
 
-	// 生成 RSA 密钥对
+	// Generate RSA key pair
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return err
 	}
 
-	// 编码私钥
+	// Encode private key
 	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	})
 
-	// 保存私钥
+	// Save private key
 	if err := ioutil.WriteFile(privateKeyPath, privateKeyPEM, 0600); err != nil {
 		return err
 	}
 
-	// 编码公钥
+	// Encode public key
 	publicKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	if err != nil {
 		return err
@@ -119,7 +119,7 @@ func GenerateRSAKeyPair(privateKeyPath string) error {
 		Bytes: publicKeyDER,
 	})
 
-	// 保存公钥
+	// Save public key
 	publicKeyPath := privateKeyPath + ".pub"
 	if err := ioutil.WriteFile(publicKeyPath, publicKeyPEM, 0644); err != nil {
 		return err
@@ -182,12 +182,12 @@ var errInvalidDataKeyMaterial = errors.New("invalid data encryption key material
 func loadOrCreateDataKeyFile(path string) ([]byte, bool, error) {
 	key, err := readDataKeyFromFile(path)
 	if err == nil {
-		log.Printf("🔐 使用本地数据加密密钥: %s", path)
+		log.Printf("🔐 Using local data encryption key: %s", path)
 		return key, false, nil
 	}
 
 	if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, errInvalidDataKeyMaterial) {
-		log.Printf("⚠️  无法读取数据加密密钥文件 (%s): %v，尝试重新生成", path, err)
+		log.Printf("⚠️  Unable to read data encryption key file (%s): %v, attempting to regenerate", path, err)
 	}
 
 	key, err = generateAndPersistDataKey(path)
@@ -233,8 +233,8 @@ func generateAndPersistDataKey(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	log.Printf("🆕 已生成新的数据加密密钥并保存到 %s", path)
-	log.Printf("   若需在生产或容器环境复用，请设置 %s 为该值", dataKeyEnvName)
+	log.Printf("🆕 Generated new data encryption key and saved to %s", path)
+	log.Printf("   To reuse in production or container environments, set %s to this value", dataKeyEnvName)
 	return raw, nil
 }
 
@@ -388,7 +388,7 @@ func isEncryptedStorageValue(value string) bool {
 }
 
 func (cs *CryptoService) DecryptPayload(payload *EncryptedPayload) ([]byte, error) {
-	// 1. 验证时间戳（防止重放攻击）
+	// 1. Verify timestamp (prevent replay attacks)
 	if payload.TS != 0 {
 		elapsed := time.Since(time.Unix(payload.TS, 0))
 		if elapsed > 5*time.Minute || elapsed < -1*time.Minute {
@@ -396,7 +396,7 @@ func (cs *CryptoService) DecryptPayload(payload *EncryptedPayload) ([]byte, erro
 		}
 	}
 
-	// 2. 解码 base64url
+	// 2. Decode base64url
 	wrappedKey, err := base64.RawURLEncoding.DecodeString(payload.WrappedKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode wrapped key: %w", err)
@@ -419,21 +419,21 @@ func (cs *CryptoService) DecryptPayload(payload *EncryptedPayload) ([]byte, erro
 			return nil, fmt.Errorf("failed to decode AAD: %w", err)
 		}
 
-		// 验证 AAD
+		// Verify AAD
 		var aadData AADData
 		if err := json.Unmarshal(aad, &aadData); err == nil {
-			// 可以在这里添加额外的验证逻辑
-			// 例如：验证 sessionID、userID 等
+			// Additional validation logic can be added here
+			// For example: verify sessionID, userID, etc.
 		}
 	}
 
-	// 3. 使用 RSA-OAEP 解密 AES 密钥
+	// 3. Decrypt AES key using RSA-OAEP
 	aesKey, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, cs.privateKey, wrappedKey, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unwrap AES key: %w", err)
 	}
 
-	// 4. 使用 AES-GCM 解密数据
+	// 4. Decrypt data using AES-GCM
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
@@ -448,7 +448,7 @@ func (cs *CryptoService) DecryptPayload(payload *EncryptedPayload) ([]byte, erro
 		return nil, fmt.Errorf("invalid IV size: expected %d, got %d", gcm.NonceSize(), len(iv))
 	}
 
-	// 解密并验证认证标签
+	// Decrypt and verify authentication tag
 	plaintext, err := gcm.Open(nil, iv, ciphertext, aad)
 	if err != nil {
 		return nil, fmt.Errorf("authentication/decryption failed: %w", err)

@@ -7,27 +7,27 @@ import (
 	"os"
 )
 
-// LeverageConfig 杠杆配置
+// LeverageConfig Leverage configuration
 type LeverageConfig struct {
-	BTCETHLeverage  int `json:"btc_eth_leverage"` // BTC和ETH的杠杆倍数（主账户建议5-50，子账户≤5）
-	AltcoinLeverage int `json:"altcoin_leverage"` // 山寨币的杠杆倍数（主账户建议5-20，子账户≤5）
+	BTCETHLeverage  int `json:"btc_eth_leverage"` // BTC and ETH leverage multiplier (main account recommended 5-50, sub-account ≤5)
+	AltcoinLeverage int `json:"altcoin_leverage"` // Altcoin leverage multiplier (main account recommended 5-20, sub-account ≤5)
 }
 
-// LogConfig 日志配置
+// LogConfig Logging configuration
 type LogConfig struct {
-	Level    string          `json:"level"`    // 日志级别: debug, info, warn, error (默认: info)
-	Telegram *TelegramConfig `json:"telegram"` // Telegram推送配置（可选）
+	Level    string          `json:"level"`    // Log level: debug, info, warn, error (default: info)
+	Telegram *TelegramConfig `json:"telegram"` // Telegram push configuration (optional)
 }
 
-// TelegramConfig Telegram推送配置（简化版，只保留必需字段）
+// TelegramConfig Telegram push configuration (simplified version, only essential fields retained)
 type TelegramConfig struct {
-	Enabled  bool   `json:"enabled"`   // 是否启用（默认: false）
+	Enabled  bool   `json:"enabled"`   // Whether enabled (default: false)
 	BotToken string `json:"bot_token"` // Bot Token
 	ChatID   int64  `json:"chat_id"`   // Chat ID
-	MinLevel string `json:"min_level"` // 最低日志级别，该级别及以上的日志会推送到Telegram（可选，默认: error）
+	MinLevel string `json:"min_level"` // Minimum log level, logs at this level and above will be pushed to Telegram (optional, default: error)
 }
 
-// Config 总配置
+// Config Overall configuration
 type Config struct {
 	BetaMode           bool           `json:"beta_mode"`
 	APIServerPort      int            `json:"api_server_port"`
@@ -41,27 +41,27 @@ type Config struct {
 	Leverage           LeverageConfig `json:"leverage"`
 	JWTSecret          string         `json:"jwt_secret"`
 	DataKLineTime      string         `json:"data_k_line_time"`
-	Log                *LogConfig     `json:"log"` // 日志配置
+	Log                *LogConfig     `json:"log"` // Logging configuration
 }
 
-// LoadConfig 从文件加载配置
+// LoadConfig Loads configuration from file
 func LoadConfig(filename string) (*Config, error) {
-	// 检查filename是否存在
+	// Check if filename exists
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		log.Printf("📄 %s不存在，使用默认配置", filename)
+		log.Printf("📄 %s does not exist, using default configuration", filename)
 		return &Config{}, nil
 	}
 
-	// 读取 filename
+	// Read filename
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("读取%s失败: %w", filename, err)
+		return nil, fmt.Errorf("failed to read %s: %w", filename, err)
 	}
 
-	// 解析JSON
+	// Parse JSON
 	var configFile Config
 	if err := json.Unmarshal(data, &configFile); err != nil {
-		return nil, fmt.Errorf("解析%s失败: %w", filename, err)
+		return nil, fmt.Errorf("failed to parse %s: %w", filename, err)
 	}
 
 	return &configFile, nil

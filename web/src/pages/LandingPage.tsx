@@ -18,7 +18,7 @@ import { OrganizationSchema, WebSiteSchema, SoftwareApplicationSchema } from '..
 export function LandingPage() {
   const [showLoginModal, setShowLoginModal] = useState(false)
   const { user, logout } = useAuth()
-  const { language, setLanguage } = useLanguage()
+  const { language } = useLanguage()
   const navigate = useNavigate()
   const isLoggedIn = !!user
   const userIsFollower = isFollower(user)
@@ -66,7 +66,6 @@ export function LandingPage() {
         isLoggedIn={isLoggedIn}
         isHomePage={true}
         language={language}
-        onLanguageChange={setLanguage}
         user={user}
         onLogout={logout}
         onPageChange={(page) => {
@@ -81,7 +80,7 @@ export function LandingPage() {
         }}
       />
       <div
-        className="min-h-screen px-4 sm:px-6 lg:px-8"
+        className="min-h-screen px-4 sm:px-6 lg:px-8 overflow-x-hidden"
         style={{
           background: 'var(--navy-primary)',
           color: 'var(--text-primary)',

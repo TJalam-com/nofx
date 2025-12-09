@@ -12,7 +12,7 @@ interface MainLayoutProps {
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
-  const { language, setLanguage } = useLanguage()
+  const { language } = useLanguage()
   const { user, logout } = useAuth()
   const location = useLocation()
   const { SEOComponent } = useSEO()
@@ -39,7 +39,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
         isLoggedIn={!!user}
         currentPage={getCurrentPage()}
         language={language}
-        onLanguageChange={setLanguage}
         user={user}
         onLogout={logout}
         onPageChange={() => {

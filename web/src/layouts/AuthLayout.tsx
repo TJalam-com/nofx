@@ -9,14 +9,14 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
-  const { language, setLanguage } = useLanguage()
+  const { language } = useLanguage()
   const { SEOComponent } = useSEO()
 
   return (
     <>
       <SEOComponent />
       <div className="min-h-screen" style={{ background: 'var(--background)' }}>
-      {/* Simple Header with Logo and Language Selector */}
+      {/* Simple Header with Logo */}
       <nav
         className="fixed top-0 w-full z-50 header-bar"
         style={{
@@ -36,20 +36,6 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             </span>
           </Link>
 
-          {/* Language Selector */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
-              className="px-3 py-1.5 rounded text-sm font-medium transition-colors"
-              style={{
-                background: 'var(--panel-bg)',
-                border: '1px solid var(--panel-border)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              {language === 'zh' ? 'English' : '中文'}
-            </button>
-          </div>
         </Container>
       </nav>
 
