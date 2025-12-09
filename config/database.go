@@ -19,7 +19,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// DatabaseInterface 定义了数据库实现需要提供的方法集合
+// DatabaseInterface defines the set of methods that database implementations need to provide
 type DatabaseInterface interface {
 	SetCryptoService(cs *crypto.CryptoService)
 	CreateUser(user *User) error
@@ -66,76 +66,76 @@ type DatabaseInterface interface {
 	Close() error
 }
 
-// Database 配置数据库
+// Database configuration database
 type Database struct {
 	db            *sql.DB
 	cryptoService *crypto.CryptoService
 }
 
-// NewDatabase 创建配置数据库
+// NewDatabase create configuration database
 func NewDatabase(dbPath string) (*Database, error) {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
-		return nil, fmt.Errorf("打开数据库失败: %w", err)
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
-		return nil, fmt.Errorf("启用外键失败: %w", err)
+		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 	if err := tuneSQLiteConnection(db); err != nil {
 		return nil, err
 	}
 
-	// 🔒 启用 WAL 模式,提高并发性能和崩溃恢复能力
-	// WAL (Write-Ahead Logging) 模式的优势:
-	// 1. 更好的并发性能:读操作不会被写操作阻塞
-	// 2. 崩溃安全:即使在断电或强制终止时也能保证数据完整性
-	// 3. 更快的写入:不需要每次都写入主数据库文件
+	// 🔒 Enable WAL mode to improve concurrent performance and crash recovery
+	// WAL (Write-Ahead Logging) mode advantages:
+	// 1. Better concurrent performance: read operations are not blocked by write operations
+	// 2. Crash safety: ensures data integrity even during power loss or forced termination
+	// 3. Faster writes: no need to write to main database file every time
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("启用WAL模式失败: %w", err)
+		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
 	}
 
-	// 🔒 设置 synchronous=FULL 确保数据持久性
-	// FULL (2) 模式: 确保数据在关键时刻完全写入磁盘
-	// 配合 WAL 模式,在保证数据安全的同时获得良好性能
+	// 🔒 Set synchronous=FULL to ensure data persistence
+	// FULL (2) mode: ensures data is fully written to disk at critical moments
+	// Combined with WAL mode, ensures data safety while maintaining good performance
 	if _, err := db.Exec("PRAGMA synchronous=FULL"); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("设置synchronous失败: %w", err)
+		return nil, fmt.Errorf("failed to set synchronous: %w", err)
 	}
 
 	database := &Database{db: db}
 	if err := database.createTables(); err != nil {
-		return nil, fmt.Errorf("创建表失败: %w", err)
+		return nil, fmt.Errorf("failed to create tables: %w", err)
 	}
 	if err := database.ensureBacktestRunColumns(); err != nil {
-		return nil, fmt.Errorf("初始化回测表结构失败: %w", err)
+		return nil, fmt.Errorf("failed to initialize backtest table structure: %w", err)
 	}
 
-	// 确保存在默认用户（用于外键约束和默认配置种子）
+	// Ensure default user exists (for foreign key constraints and default configuration seeding)
 	if _, err := db.Exec(`
 		INSERT OR IGNORE INTO users (id, email, password_hash, otp_secret, otp_verified, role)
 		VALUES ('default', 'default@local', '__default__', '', 1, 'user')
 	`); err != nil {
-		return nil, fmt.Errorf("创建默认用户失败: %w", err)
+		return nil, fmt.Errorf("failed to create default user: %w", err)
 	}
 
 	if err := database.initDefaultData(); err != nil {
-		return nil, fmt.Errorf("初始化默认数据失败: %w", err)
+		return nil, fmt.Errorf("failed to initialize default data: %w", err)
 	}
 
-	// 迁移提示词模板从文件到数据库
+	// Migrate prompt templates from files to database
 	if err := database.migratePromptTemplatesFromFiles(); err != nil {
-		log.Printf("⚠️  提示词模板迁移失败: %v", err)
-		// 不返回错误，允许系统继续运行
+		log.Printf("⚠️  Prompt template migration failed: %v", err)
+		// Don't return error, allow system to continue running
 	}
 
-	log.Printf("✅ 数据库已启用 WAL 模式和 FULL 同步,数据持久性得到保证")
+	log.Printf("✅ Database WAL mode and FULL synchronous enabled, data persistence guaranteed")
 	return database, nil
 }
 
-// columnExists 检查表中是否存在指定列
+// columnExists check if specified column exists in table
 func (d *Database) columnExists(tableName, columnName string) (bool, error) {
 	var count int
 	err := d.db.QueryRow(`
@@ -148,10 +148,10 @@ func (d *Database) columnExists(tableName, columnName string) (bool, error) {
 	return count > 0, nil
 }
 
-// createTables 创建数据库表
+// createTables create database tables
 func (d *Database) createTables() error {
 	queries := []string{
-		// AI模型配置表
+		// AI model configuration table
 		`CREATE TABLE IF NOT EXISTS ai_models (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL DEFAULT 'default',
@@ -164,7 +164,7 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
-		// 交易所配置表
+		// Exchange configuration table
 		`CREATE TABLE IF NOT EXISTS exchanges (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL DEFAULT 'default',
@@ -174,24 +174,24 @@ func (d *Database) createTables() error {
 			api_key TEXT DEFAULT '',
 			secret_key TEXT DEFAULT '',
 			testnet BOOLEAN DEFAULT 0,
-			-- Hyperliquid 特定字段
+			-- Hyperliquid specific fields
 			hyperliquid_wallet_addr TEXT DEFAULT '',
-			-- Aster 特定字段
+			-- Aster specific fields
 			aster_user TEXT DEFAULT '',
 			aster_signer TEXT DEFAULT '',
 			aster_private_key TEXT DEFAULT '',
-			-- LIGHTER 特定字段
+			-- LIGHTER specific fields
 			lighter_wallet_addr TEXT DEFAULT '',
 			lighter_private_key TEXT DEFAULT '',
 			lighter_api_key_private_key TEXT DEFAULT '',
-			-- OKX 特定字段
+			-- OKX specific fields
 			okx_passphrase TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
-		// 用户信号源配置表
+		// User signal source configuration table
 		`CREATE TABLE IF NOT EXISTS user_signal_sources (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id TEXT NOT NULL,
@@ -203,7 +203,7 @@ func (d *Database) createTables() error {
 			UNIQUE(user_id)
 		)`,
 
-		// 交易员配置表
+		// Trader configuration table
 		`CREATE TABLE IF NOT EXISTS traders (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL DEFAULT 'default',
@@ -225,7 +225,7 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
-		// 用户表
+		// Users table
 		`CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
 			email TEXT UNIQUE NOT NULL,
@@ -237,14 +237,14 @@ func (d *Database) createTables() error {
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// 系统配置表
+		// System configuration table
 		`CREATE TABLE IF NOT EXISTS system_config (
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// 提示词模板表
+		// Prompt template table
 		`CREATE TABLE IF NOT EXISTS prompt_templates (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL DEFAULT 'default',
@@ -256,7 +256,7 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
-		// 回测运行主表
+		// Backtest run main table
 		`CREATE TABLE IF NOT EXISTS backtest_runs (
 			run_id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL DEFAULT 'default',
@@ -281,7 +281,7 @@ func (d *Database) createTables() error {
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// 回测检查点
+		// Backtest checkpoint
 		`CREATE TABLE IF NOT EXISTS backtest_checkpoints (
 			run_id TEXT PRIMARY KEY,
 			payload BLOB NOT NULL,
@@ -289,7 +289,7 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (run_id) REFERENCES backtest_runs(run_id) ON DELETE CASCADE
 		)`,
 
-		// 回测权益曲线
+		// Backtest equity curve
 		`CREATE TABLE IF NOT EXISTS backtest_equity (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			run_id TEXT NOT NULL,
@@ -303,7 +303,7 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (run_id) REFERENCES backtest_runs(run_id) ON DELETE CASCADE
 		)`,
 
-		// 回测交易记录
+		// Backtest trade records
 		`CREATE TABLE IF NOT EXISTS backtest_trades (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			run_id TEXT NOT NULL,
@@ -325,7 +325,7 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (run_id) REFERENCES backtest_runs(run_id) ON DELETE CASCADE
 		)`,
 
-		// 回测指标
+		// Backtest metrics
 		`CREATE TABLE IF NOT EXISTS backtest_metrics (
 			run_id TEXT PRIMARY KEY,
 			payload BLOB NOT NULL,
@@ -333,7 +333,7 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (run_id) REFERENCES backtest_runs(run_id) ON DELETE CASCADE
 		)`,
 
-		// 回测决策日志
+		// Backtest decision logs
 		`CREATE TABLE IF NOT EXISTS backtest_decisions (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			run_id TEXT NOT NULL,
@@ -343,13 +343,13 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (run_id) REFERENCES backtest_runs(run_id) ON DELETE CASCADE
 		)`,
 
-		// 索引
+		// Indexes
 		`CREATE INDEX IF NOT EXISTS idx_backtest_runs_state ON backtest_runs(state, updated_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_backtest_equity_run_ts ON backtest_equity(run_id, ts)`,
 		`CREATE INDEX IF NOT EXISTS idx_backtest_trades_run_ts ON backtest_trades(run_id, ts)`,
 		`CREATE INDEX IF NOT EXISTS idx_backtest_decisions_run_cycle ON backtest_decisions(run_id, cycle)`,
 
-		// 内测码表
+		// Beta code table
 		`CREATE TABLE IF NOT EXISTS beta_codes (
 			code TEXT PRIMARY KEY,
 			used BOOLEAN DEFAULT 0,
@@ -358,7 +358,7 @@ func (d *Database) createTables() error {
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 
-		// 触发器：自动更新 updated_at
+		// Triggers: automatically update updated_at
 		`CREATE TRIGGER IF NOT EXISTS update_users_updated_at
 			AFTER UPDATE ON users
 			BEGIN
@@ -395,7 +395,7 @@ func (d *Database) createTables() error {
 				UPDATE system_config SET updated_at = CURRENT_TIMESTAMP WHERE key = NEW.key;
 			END`,
 
-		// Webhook API Keys表
+		// Webhook API Keys table
 		`CREATE TABLE IF NOT EXISTS webhook_api_keys (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id TEXT UNIQUE NOT NULL,
@@ -405,7 +405,7 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
-		// TradingView Alerts表
+		// TradingView Alerts table
 		`CREATE TABLE IF NOT EXISTS tradingview_alerts (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
@@ -426,7 +426,7 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
-		// 交易员申请表
+		// Trader application table
 		`CREATE TABLE IF NOT EXISTS trader_applications (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
@@ -443,14 +443,14 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
-		// 索引
+		// Indexes
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_user ON tradingview_alerts(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_trader ON tradingview_alerts(trader_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_status ON tradingview_alerts(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_applications_user_id ON trader_applications(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_applications_status ON trader_applications(status)`,
 
-		// 触发器：自动更新 webhook_api_keys updated_at
+		// Trigger: automatically update webhook_api_keys updated_at
 		`CREATE TRIGGER IF NOT EXISTS update_webhook_api_keys_updated_at
 			AFTER UPDATE ON webhook_api_keys
 			BEGIN
@@ -460,11 +460,11 @@ func (d *Database) createTables() error {
 
 	for _, query := range queries {
 		if _, err := d.db.Exec(query); err != nil {
-			return fmt.Errorf("执行SQL失败 [%s]: %w", query, err)
+			return fmt.Errorf("failed to execute SQL [%s]: %w", query, err)
 		}
 	}
 
-	// 为现有数据库添加新字段（向后兼容）
+	// Add new fields to existing database (backward compatibility)
 	alterQueries := []struct {
 		table  string
 		column string
@@ -497,35 +497,35 @@ func (d *Database) createTables() error {
 	}
 
 	for _, alterQuery := range alterQueries {
-		// 检查列是否已存在，如果不存在则添加
+		// Check if column exists, add if it doesn't exist
 		exists, err := d.columnExists(alterQuery.table, alterQuery.column)
 		if err != nil {
-			log.Printf("⚠️  检查列 %s.%s 是否存在时出错: %v", alterQuery.table, alterQuery.column, err)
-			// 继续尝试添加列，可能表不存在或列已存在
+			log.Printf("⚠️  Error checking if column %s.%s exists: %v", alterQuery.table, alterQuery.column, err)
+			// Continue trying to add column, table may not exist or column may already exist
 		}
 
 		if !exists {
 			if _, err := d.db.Exec(alterQuery.query); err != nil {
-				// 记录错误，但继续执行（列可能已存在或表不存在）
-				log.Printf("⚠️  ALTER TABLE 警告 (可能已存在列 %s.%s): %v", alterQuery.table, alterQuery.column, err)
+				// Log error but continue execution (column may already exist or table may not exist)
+				log.Printf("⚠️  ALTER TABLE warning (column %s.%s may already exist): %v", alterQuery.table, alterQuery.column, err)
 			} else {
-				log.Printf("✅ 成功添加列 %s.%s", alterQuery.table, alterQuery.column)
+				log.Printf("✅ Successfully added column %s.%s", alterQuery.table, alterQuery.column)
 			}
 		} else {
-			log.Printf("ℹ️  列 %s.%s 已存在，跳过", alterQuery.table, alterQuery.column)
+			log.Printf("ℹ️  Column %s.%s already exists, skipping", alterQuery.table, alterQuery.column)
 		}
 	}
 
-	// 检查是否需要迁移exchanges表的主键结构
+	// Check if exchanges table primary key structure migration is needed
 	err := d.migrateExchangesTable()
 	if err != nil {
-		log.Printf("⚠️ 迁移exchanges表失败: %v", err)
+		log.Printf("⚠️  Failed to migrate exchanges table: %v", err)
 	}
 
-	// 修复traders表的外键约束问题
+	// Fix foreign key constraint issues in traders table
 	err = d.migrateTradersTable()
 	if err != nil {
-		log.Printf("⚠️ 迁移traders表失败: %v", err)
+		log.Printf("⚠️  Failed to migrate traders table: %v", err)
 	}
 
 	return nil
@@ -591,15 +591,15 @@ func tuneSQLiteConnection(db *sql.DB) error {
 	}
 	for _, stmt := range statements {
 		if _, err := db.Exec(stmt); err != nil {
-			return fmt.Errorf("执行 %s 失败: %w", stmt, err)
+			return fmt.Errorf("failed to execute %s: %w", stmt, err)
 		}
 	}
 	return nil
 }
 
-// initDefaultData 初始化默认数据
+// initDefaultData initialize default data
 func (d *Database) initDefaultData() error {
-	// 初始化AI模型（使用default用户）
+	// Initialize AI models (using default user)
 	aiModels := []struct {
 		id, name, provider string
 	}{
@@ -614,11 +614,11 @@ func (d *Database) initDefaultData() error {
 			VALUES (?, 'default', ?, ?, 0)
 		`, model.id, model.name, model.provider)
 		if err != nil {
-			return fmt.Errorf("初始化AI模型失败: %w", err)
+			return fmt.Errorf("failed to initialize AI model: %w", err)
 		}
 	}
 
-	// 初始化交易所（使用default用户）
+	// Initialize exchanges (using default user)
 	exchanges := []struct {
 		id, name, typ string
 	}{
@@ -636,23 +636,23 @@ func (d *Database) initDefaultData() error {
 			VALUES (?, 'default', ?, ?, 0)
 		`, exchange.id, exchange.name, exchange.typ)
 		if err != nil {
-			return fmt.Errorf("初始化交易所失败: %w", err)
+			return fmt.Errorf("failed to initialize exchange: %w", err)
 		}
 	}
 
-	// 初始化系统配置 - 创建所有字段，设置默认值，后续由config.json同步更新
+	// Initialize system configuration - create all fields, set default values, later synced by config.json
 	systemConfigs := map[string]string{
-		"beta_mode":            "false",                                                                               // 默认关闭内测模式
-		"api_server_port":      "8080",                                                                                // 默认API端口
-		"use_default_coins":    "true",                                                                                // 默认使用内置币种列表
-		"default_coins":        `["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","HYPEUSDT"]`, // 默认币种列表（JSON格式）
-		"max_daily_loss":       "10.0",                                                                                // 最大日损失百分比
-		"max_drawdown":         "20.0",                                                                                // 最大回撤百分比
-		"stop_trading_minutes": "60",                                                                                  // 停止交易时间（分钟）
-		"btc_eth_leverage":     "5",                                                                                   // BTC/ETH杠杆倍数
-		"altcoin_leverage":     "5",                                                                                   // 山寨币杠杆倍数
-		"jwt_secret":           "",                                                                                    // JWT密钥，默认为空，由config.json或系统生成
-		"registration_enabled": "true",                                                                                // 默认允许注册
+		"beta_mode":            "false",                                                                               // Default beta mode off
+		"api_server_port":      "8080",                                                                                // Default API port
+		"use_default_coins":    "true",                                                                                // Default use built-in coin list
+		"default_coins":        `["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","HYPEUSDT"]`, // Default coin list (JSON format)
+		"max_daily_loss":       "10.0",                                                                                // Maximum daily loss percentage
+		"max_drawdown":         "20.0",                                                                                // Maximum drawdown percentage
+		"stop_trading_minutes": "60",                                                                                  // Stop trading time (minutes)
+		"btc_eth_leverage":     "5",                                                                                   // BTC/ETH leverage multiplier
+		"altcoin_leverage":     "5",                                                                                   // Altcoin leverage multiplier
+		"jwt_secret":           "",                                                                                    // JWT secret, empty by default, generated by config.json or system
+		"registration_enabled": "true",                                                                                // Default allow registration
 	}
 
 	for key, value := range systemConfigs {
@@ -661,16 +661,16 @@ func (d *Database) initDefaultData() error {
 			VALUES (?, ?)
 		`, key, value)
 		if err != nil {
-			return fmt.Errorf("初始化系统配置失败: %w", err)
+			return fmt.Errorf("failed to initialize system configuration: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// migrateExchangesTable 迁移exchanges表支持多用户
+// migrateExchangesTable migrate exchanges table to support multi-user
 func (d *Database) migrateExchangesTable() error {
-	// 检查是否已经迁移过
+	// Check if already migrated
 	var count int
 	err := d.db.QueryRow(`
 		SELECT COUNT(*) FROM sqlite_master 
@@ -680,14 +680,14 @@ func (d *Database) migrateExchangesTable() error {
 		return err
 	}
 
-	// 如果已经迁移过，直接返回
+	// If already migrated, return directly
 	if count > 0 {
 		return nil
 	}
 
-	log.Printf("🔄 开始迁移exchanges表...")
+	log.Printf("🔄 Starting exchanges table migration...")
 
-	// 创建新的exchanges表，使用复合主键
+	// Create new exchanges table with composite primary key
 	_, err = d.db.Exec(`
 		CREATE TABLE exchanges_new (
 			id TEXT NOT NULL,
@@ -712,31 +712,31 @@ func (d *Database) migrateExchangesTable() error {
 		)
 	`)
 	if err != nil {
-		return fmt.Errorf("创建新exchanges表失败: %w", err)
+		return fmt.Errorf("failed to create new exchanges table: %w", err)
 	}
 
-	// 复制数据到新表
+	// Copy data to new table
 	_, err = d.db.Exec(`
 		INSERT INTO exchanges_new 
 		SELECT * FROM exchanges
 	`)
 	if err != nil {
-		return fmt.Errorf("复制数据失败: %w", err)
+		return fmt.Errorf("failed to copy data: %w", err)
 	}
 
-	// 删除旧表
+	// Delete old table
 	_, err = d.db.Exec(`DROP TABLE exchanges`)
 	if err != nil {
-		return fmt.Errorf("删除旧表失败: %w", err)
+		return fmt.Errorf("failed to delete old table: %w", err)
 	}
 
-	// 重命名新表
+	// Rename new table
 	_, err = d.db.Exec(`ALTER TABLE exchanges_new RENAME TO exchanges`)
 	if err != nil {
-		return fmt.Errorf("重命名表失败: %w", err)
+		return fmt.Errorf("failed to rename table: %w", err)
 	}
 
-	// 重新创建触发器
+	// Recreate trigger
 	_, err = d.db.Exec(`
 		CREATE TRIGGER IF NOT EXISTS update_exchanges_updated_at
 			AFTER UPDATE ON exchanges
@@ -746,33 +746,33 @@ func (d *Database) migrateExchangesTable() error {
 			END
 	`)
 	if err != nil {
-		return fmt.Errorf("创建触发器失败: %w", err)
+		return fmt.Errorf("failed to create trigger: %w", err)
 	}
 
-	log.Printf("✅ exchanges表迁移完成")
+	log.Printf("✅ exchanges table migration completed")
 	return nil
 }
 
-// migrateTradersTable 迁移traders表，移除外键约束
+// migrateTradersTable migrate traders table, remove foreign key constraints
 func (d *Database) migrateTradersTable() error {
-	// 检查traders表是否存在外键约束（通过尝试创建一个测试记录来判断）
-	// 如果表已经没有外键约束，则跳过迁移
+	// Check if traders table has foreign key constraints (by checking table SQL)
+	// If table no longer has foreign key constraints, skip migration
 	var tableSQL string
 	err := d.db.QueryRow(`SELECT sql FROM sqlite_master WHERE type='table' AND name='traders'`).Scan(&tableSQL)
 	if err != nil {
-		// 表不存在，无需迁移
+		// Table doesn't exist, no migration needed
 		return nil
 	}
 
-	// 检查是否包含 FOREIGN KEY (exchange_id) 或 FOREIGN KEY (ai_model_id)
+	// Check if contains FOREIGN KEY (exchange_id) or FOREIGN KEY (ai_model_id)
 	if !strings.Contains(tableSQL, "FOREIGN KEY (exchange_id)") && !strings.Contains(tableSQL, "FOREIGN KEY (ai_model_id)") {
-		// 已经没有这些外键约束，无需迁移
+		// No longer has these foreign key constraints, no migration needed
 		return nil
 	}
 
-	log.Printf("🔄 开始迁移traders表，移除外键约束...")
+	log.Printf("🔄 Starting traders table migration, removing foreign key constraints...")
 
-	// 创建新的traders表，不包含exchange_id和ai_model_id的外键约束
+	// Create new traders table without foreign key constraints on exchange_id and ai_model_id
 	_, err = d.db.Exec(`
 		CREATE TABLE traders_new (
 			id TEXT PRIMARY KEY,
@@ -798,10 +798,10 @@ func (d *Database) migrateTradersTable() error {
 		)
 	`)
 	if err != nil {
-		return fmt.Errorf("创建新traders表失败: %w", err)
+		return fmt.Errorf("failed to create new traders table: %w", err)
 	}
 
-	// 复制数据到新表
+	// Copy data to new table
 	_, err = d.db.Exec(`
 		INSERT INTO traders_new (id, user_id, name, ai_model_id, exchange_id, initial_balance, 
 			scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage, trading_symbols,
@@ -817,102 +817,102 @@ func (d *Database) migrateTradersTable() error {
 		FROM traders
 	`)
 	if err != nil {
-		// 如果复制失败，删除新表
+		// If copy fails, delete new table
 		d.db.Exec(`DROP TABLE traders_new`)
-		return fmt.Errorf("复制traders数据失败: %w", err)
+		return fmt.Errorf("failed to copy traders data: %w", err)
 	}
 
-	// 删除旧表
+	// Delete old table
 	_, err = d.db.Exec(`DROP TABLE traders`)
 	if err != nil {
-		return fmt.Errorf("删除旧traders表失败: %w", err)
+		return fmt.Errorf("failed to delete old traders table: %w", err)
 	}
 
-	// 重命名新表
+	// Rename new table
 	_, err = d.db.Exec(`ALTER TABLE traders_new RENAME TO traders`)
 	if err != nil {
-		return fmt.Errorf("重命名traders表失败: %w", err)
+		return fmt.Errorf("failed to rename traders table: %w", err)
 	}
 
-	log.Printf("✅ traders表迁移完成，已移除外键约束")
+	log.Printf("✅ traders table migration completed, foreign key constraints removed")
 	return nil
 }
 
-// migratePromptTemplatesFromFiles 从文件系统迁移提示词模板到数据库
+// migratePromptTemplatesFromFiles migrate prompt templates from filesystem to database
 func (d *Database) migratePromptTemplatesFromFiles() error {
-	// 检查是否已经有模板在数据库中
+	// Check if templates already exist in database
 	var count int
 	err := d.db.QueryRow(`SELECT COUNT(*) FROM prompt_templates`).Scan(&count)
 	if err != nil {
-		return fmt.Errorf("检查提示词模板表失败: %w", err)
+		return fmt.Errorf("failed to check prompt templates table: %w", err)
 	}
 
-	// 如果已经有模板，跳过迁移
+	// If templates already exist, skip migration
 	if count > 0 {
-		log.Printf("✓ 提示词模板已存在于数据库，跳过迁移")
+		log.Printf("✓ Prompt templates already exist in database, skipping migration")
 		return nil
 	}
 
-	log.Printf("🔄 开始从文件系统迁移提示词模板到数据库...")
+	log.Printf("🔄 Starting to migrate prompt templates from filesystem to database...")
 
-	// 读取prompts目录下的所有.txt文件
+	// Read all .txt files from prompts directory
 	promptsDir := "prompts"
 	files, err := filepath.Glob(filepath.Join(promptsDir, "*.txt"))
 	if err != nil {
-		return fmt.Errorf("扫描提示词目录失败: %w", err)
+		return fmt.Errorf("failed to scan prompts directory: %w", err)
 	}
 
 	if len(files) == 0 {
-		log.Printf("⚠️  提示词目录 %s 中没有找到 .txt 文件", promptsDir)
+		log.Printf("⚠️  No .txt files found in prompts directory %s", promptsDir)
 		return nil
 	}
 
-	// 迁移每个模板文件
+	// Migrate each template file
 	migratedCount := 0
 	for _, file := range files {
-		// 读取文件内容
+		// Read file content
 		content, err := os.ReadFile(file)
 		if err != nil {
-			log.Printf("⚠️  读取提示词文件失败 %s: %v", file, err)
+			log.Printf("⚠️  Failed to read prompt file %s: %v", file, err)
 			continue
 		}
 
-		// 提取文件名（不含扩展名）作为模板ID和名称
+		// Extract filename (without extension) as template ID and name
 		fileName := filepath.Base(file)
 		templateID := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 		templateName := templateID
 
-		// 插入到数据库（使用default用户，标记为系统模板）
+		// Insert into database (use default user, mark as system template)
 		_, err = d.db.Exec(`
 			INSERT INTO prompt_templates (id, user_id, name, content, is_system, created_at, updated_at)
 			VALUES (?, 'default', ?, ?, 1, datetime('now'), datetime('now'))
 		`, templateID, templateName, string(content))
 		if err != nil {
-			log.Printf("⚠️  插入提示词模板失败 %s: %v", templateID, err)
+			log.Printf("⚠️  Failed to insert prompt template %s: %v", templateID, err)
 			continue
 		}
 
 		migratedCount++
-		log.Printf("  📄 已迁移提示词模板: %s", templateID)
+		log.Printf("  📄 Migrated prompt template: %s", templateID)
 	}
 
-	log.Printf("✅ 提示词模板迁移完成，共迁移 %d 个模板", migratedCount)
+	log.Printf("✅ Prompt template migration completed, migrated %d templates", migratedCount)
 	return nil
 }
 
-// User 用户配置
+// User user configuration
 type User struct {
 	ID           string    `json:"id"`
 	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"` // 不返回到前端
-	OTPSecret    string    `json:"-"` // 不返回到前端
+	PasswordHash string    `json:"-"` // Not returned to frontend
+	OTPSecret    string    `json:"-"` // Not returned to frontend
 	OTPVerified  bool      `json:"otp_verified"`
 	Role         string    `json:"role"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// AIModelConfig AI模型配置
+// AIModelConfig AI model configuration
 type AIModelConfig struct {
 	ID              string    `json:"id"`
 	UserID          string    `json:"user_id"`
@@ -926,7 +926,7 @@ type AIModelConfig struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
-// ExchangeConfig 交易所配置
+// ExchangeConfig exchange configuration
 type ExchangeConfig struct {
 	ID        string `json:"id"`
 	UserID    string `json:"user_id"`
@@ -939,21 +939,21 @@ type ExchangeConfig struct {
 	// Hyperliquid Agent Wallet configuration (following official best practices)
 	// Reference: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/nonces-and-api-wallets
 	HyperliquidWalletAddr string `json:"hyperliquidWalletAddr"` // Main Wallet Address (holds funds, never expose private key)
-	// Aster 特定字段
+	// Aster specific fields
 	AsterUser       string `json:"asterUser"`
 	AsterSigner     string `json:"asterSigner"`
 	AsterPrivateKey string `json:"asterPrivateKey"`
-	// LIGHTER 特定字段
-	LighterWalletAddr       string `json:"lighterWalletAddr"`       // Ethereum 钱包地址 (L1)
-	LighterPrivateKey       string `json:"lighterPrivateKey"`       // L1私钥（用于识别账户）
-	LighterAPIKeyPrivateKey string `json:"lighterAPIKeyPrivateKey"` // API Key私钥（40字节，用于签名交易）
-	// OKX 特定字段
+	// LIGHTER specific fields
+	LighterWalletAddr       string `json:"lighterWalletAddr"`       // Ethereum wallet address (L1)
+	LighterPrivateKey       string `json:"lighterPrivateKey"`       // L1 private key (for account identification)
+	LighterAPIKeyPrivateKey string `json:"lighterAPIKeyPrivateKey"` // API Key private key (40 bytes, for signing transactions)
+	// OKX specific fields
 	OkxPassphrase string    `json:"okxPassphrase"` // OKX passphrase (required for OKX)
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-// TraderRecord 交易员配置（数据库实体）
+// TraderRecord trader configuration (database entity)
 type TraderRecord struct {
 	ID                   string    `json:"id"`
 	UserID               string    `json:"user_id"`
@@ -963,22 +963,22 @@ type TraderRecord struct {
 	InitialBalance       float64   `json:"initial_balance"`
 	ScanIntervalMinutes  int       `json:"scan_interval_minutes"`
 	IsRunning            bool      `json:"is_running"`
-	BTCETHLeverage       int       `json:"btc_eth_leverage"`       // BTC/ETH杠杆倍数
-	AltcoinLeverage      int       `json:"altcoin_leverage"`       // 山寨币杠杆倍数
-	TradingSymbols       string    `json:"trading_symbols"`        // 交易币种，逗号分隔
-	UseCoinPool          bool      `json:"use_coin_pool"`          // 是否使用COIN POOL信号源
-	UseOITop             bool      `json:"use_oi_top"`             // 是否使用OI TOP信号源
-	UseTradingView       bool      `json:"use_tradingview"`        // 是否使用TradingView信号源
-	FollowedTraderID     string    `json:"followed_trader_id"`     // 跟随的交易员ID（用于follower角色）
-	CustomPrompt         string    `json:"custom_prompt"`          // 自定义交易策略prompt
-	OverrideBasePrompt   bool      `json:"override_base_prompt"`   // 是否覆盖基础prompt
-	SystemPromptTemplate string    `json:"system_prompt_template"` // 系统提示词模板名称
-	IsCrossMargin        bool      `json:"is_cross_margin"`        // 是否为全仓模式（true=全仓，false=逐仓）
+	BTCETHLeverage       int       `json:"btc_eth_leverage"`       // BTC/ETH leverage multiplier
+	AltcoinLeverage      int       `json:"altcoin_leverage"`       // Altcoin leverage multiplier
+	TradingSymbols       string    `json:"trading_symbols"`        // Trading symbols, comma-separated
+	UseCoinPool          bool      `json:"use_coin_pool"`          // Whether to use COIN POOL signal source
+	UseOITop             bool      `json:"use_oi_top"`             // Whether to use OI TOP signal source
+	UseTradingView       bool      `json:"use_tradingview"`        // Whether to use TradingView signal source
+	FollowedTraderID     string    `json:"followed_trader_id"`     // Followed trader ID (for follower role)
+	CustomPrompt         string    `json:"custom_prompt"`          // Custom trading strategy prompt
+	OverrideBasePrompt   bool      `json:"override_base_prompt"`   // Whether to override base prompt
+	SystemPromptTemplate string    `json:"system_prompt_template"` // System prompt template name
+	IsCrossMargin        bool      `json:"is_cross_margin"`        // Whether cross margin mode (true=cross, false=isolated)
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }
 
-// PromptTemplateConfig 提示词模板配置
+// PromptTemplateConfig prompt template configuration
 type PromptTemplateConfig struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"user_id"`
@@ -989,7 +989,7 @@ type PromptTemplateConfig struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// UserSignalSource 用户信号源配置
+// UserSignalSource user signal source configuration
 type UserSignalSource struct {
 	ID          int       `json:"id"`
 	UserID      string    `json:"user_id"`
@@ -999,7 +999,7 @@ type UserSignalSource struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// TradingViewAlert TradingView警报
+// TradingViewAlert TradingView alert
 type TradingViewAlert struct {
 	ID           string     `json:"id"`
 	UserID      string     `json:"user_id"`
@@ -1019,7 +1019,7 @@ type TradingViewAlert struct {
 	ProcessedAt *time.Time `json:"processed_at"`
 }
 
-// TraderApplication 交易员申请
+// TraderApplication trader application
 type TraderApplication struct {
 	ID                string    `json:"id"`
 	UserID            string    `json:"user_id"`
@@ -1035,7 +1035,7 @@ type TraderApplication struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-// GenerateOTPSecret 生成OTP密钥
+// GenerateOTPSecret generate OTP secret
 func GenerateOTPSecret() (string, error) {
 	secret := make([]byte, 20)
 	_, err := rand.Read(secret)
@@ -1045,7 +1045,7 @@ func GenerateOTPSecret() (string, error) {
 	return base32.StdEncoding.EncodeToString(secret), nil
 }
 
-// CreateUser 创建用户
+// CreateUser create user
 func (d *Database) CreateUser(user *User) error {
 	// Set default role if not specified
 	role := user.Role
@@ -1059,25 +1059,25 @@ func (d *Database) CreateUser(user *User) error {
 	return err
 }
 
-// EnsureAdminUser 确保admin用户存在（用于管理员模式）
+// EnsureAdminUser ensure admin user exists (for admin mode)
 func (d *Database) EnsureAdminUser() error {
-	// 检查admin用户是否已存在
+	// Check if admin user already exists
 	var count int
 	err := d.db.QueryRow(`SELECT COUNT(*) FROM users WHERE id = 'admin'`).Scan(&count)
 	if err != nil {
 		return err
 	}
 
-	// 如果已存在，直接返回
+	// If already exists, return directly
 	if count > 0 {
 		return nil
 	}
 
-	// 创建admin用户（密码为空，因为管理员模式下不需要密码）
+	// Create admin user (password empty, as admin mode doesn't require password)
 	adminUser := &User{
 		ID:           "admin",
 		Email:        "admin@localhost",
-		PasswordHash: "", // 管理员模式下不使用密码
+		PasswordHash: "", // No password used in admin mode
 		OTPSecret:    "",
 		OTPVerified:  true,
 		Role:         "user",
@@ -1086,7 +1086,7 @@ func (d *Database) EnsureAdminUser() error {
 	return d.CreateUser(adminUser)
 }
 
-// GetUserByEmail 通过邮箱获取用户
+// GetUserByEmail get user by email
 func (d *Database) GetUserByEmail(email string) (*User, error) {
 	var user User
 	var createdAt, updatedAt string
@@ -1099,26 +1099,26 @@ func (d *Database) GetUserByEmail(email string) (*User, error) {
 		&user.OTPVerified, &role, &createdAt, &updatedAt,
 	)
 	if err != nil {
-		log.Printf("❌ GetUserByEmail 失败: email=%s, error=%v", email, err)
+		log.Printf("❌ GetUserByEmail failed: email=%s, error=%v", email, err)
 		return nil, err
 	}
 	if role.Valid {
 		user.Role = role.String
 		if user.Role == "" {
-			log.Printf("⚠️  GetUserByEmail: 用户 %s 的 role 字段为空，使用默认值 'follower'", email)
+			log.Printf("⚠️  GetUserByEmail: user %s role field is empty, using default 'follower'", email)
 			user.Role = "follower"
 		}
 	} else {
-		log.Printf("⚠️  GetUserByEmail: 用户 %s 的 role 字段为 NULL，使用默认值 'follower'", email)
+		log.Printf("⚠️  GetUserByEmail: user %s role field is NULL, using default 'follower'", email)
 		user.Role = "follower"
 	}
 	user.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 	user.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
-	log.Printf("✅ GetUserByEmail: 成功获取用户 email=%s, id=%s, role=%s", email, user.ID, user.Role)
+	log.Printf("✅ GetUserByEmail: successfully retrieved user email=%s, id=%s, role=%s", email, user.ID, user.Role)
 	return &user, nil
 }
 
-// GetUserByID 通过ID获取用户
+// GetUserByID get user by ID
 func (d *Database) GetUserByID(userID string) (*User, error) {
 	var user User
 	var createdAt, updatedAt string
@@ -1131,26 +1131,26 @@ func (d *Database) GetUserByID(userID string) (*User, error) {
 		&user.OTPVerified, &role, &createdAt, &updatedAt,
 	)
 	if err != nil {
-		log.Printf("❌ GetUserByID 失败: userID=%s, error=%v", userID, err)
+		log.Printf("❌ GetUserByID failed: userID=%s, error=%v", userID, err)
 		return nil, err
 	}
 	if role.Valid {
 		user.Role = role.String
 		if user.Role == "" {
-			log.Printf("⚠️  GetUserByID: 用户 %s 的 role 字段为空，使用默认值 'follower'", userID)
+			log.Printf("⚠️  GetUserByID: user %s role field is empty, using default 'follower'", userID)
 			user.Role = "follower"
 		}
 	} else {
-		log.Printf("⚠️  GetUserByID: 用户 %s 的 role 字段为 NULL，使用默认值 'follower'", userID)
+		log.Printf("⚠️  GetUserByID: user %s role field is NULL, using default 'follower'", userID)
 		user.Role = "follower"
 	}
 	user.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 	user.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
-	log.Printf("✅ GetUserByID: 成功获取用户 userID=%s, email=%s, role=%s", userID, user.Email, user.Role)
+	log.Printf("✅ GetUserByID: successfully retrieved user userID=%s, email=%s, role=%s", userID, user.Email, user.Role)
 	return &user, nil
 }
 
-// GetAllUsers 获取所有用户ID列表
+// GetAllUsers get all user ID list
 func (d *Database) GetAllUsers() ([]string, error) {
 	rows, err := d.db.Query(`SELECT id FROM users ORDER BY id`)
 	if err != nil {
@@ -1169,7 +1169,7 @@ func (d *Database) GetAllUsers() ([]string, error) {
 	return userIDs, nil
 }
 
-// GetAllUsersWithRoles 获取所有用户及其角色（admin使用）
+// GetAllUsersWithRoles get all users and their roles (for admin use)
 func (d *Database) GetAllUsersWithRoles() ([]*User, error) {
 	rows, err := d.db.Query(`
 		SELECT id, email, password_hash, otp_secret, otp_verified, COALESCE(role, 'follower') as role, created_at, updated_at
@@ -1209,7 +1209,7 @@ func (d *Database) GetAllUsersWithRoles() ([]*User, error) {
 				// Try parsing with location
 				user.CreatedAt, err = time.ParseInLocation("2006-01-02 15:04:05", createdAt, time.UTC)
 				if err != nil {
-					log.Printf("⚠️  GetAllUsersWithRoles: 无法解析 created_at '%s' for user %s: %v", createdAt, user.ID, err)
+					log.Printf("⚠️  GetAllUsersWithRoles: unable to parse created_at '%s' for user %s: %v", createdAt, user.ID, err)
 					// Use current time as fallback instead of zero time
 					user.CreatedAt = time.Now()
 				}
@@ -1224,7 +1224,7 @@ func (d *Database) GetAllUsersWithRoles() ([]*User, error) {
 				// Try parsing with location
 				user.UpdatedAt, err = time.ParseInLocation("2006-01-02 15:04:05", updatedAt, time.UTC)
 				if err != nil {
-					log.Printf("⚠️  GetAllUsersWithRoles: 无法解析 updated_at '%s' for user %s: %v", updatedAt, user.ID, err)
+					log.Printf("⚠️  GetAllUsersWithRoles: unable to parse updated_at '%s' for user %s: %v", updatedAt, user.ID, err)
 					// Use current time as fallback instead of zero time
 					user.UpdatedAt = time.Now()
 				}
@@ -1235,12 +1235,12 @@ func (d *Database) GetAllUsersWithRoles() ([]*User, error) {
 	return users, nil
 }
 
-// UpdateUserRole 更新用户角色（admin使用）
+// UpdateUserRole update user role (for admin use)
 func (d *Database) UpdateUserRole(userID string, role string) error {
-	// 验证角色值
+	// Validate role value
 	validRoles := map[string]bool{"user": true, "follower": true, "admin": true}
 	if !validRoles[role] {
-		return fmt.Errorf("无效的角色值: %s", role)
+		return fmt.Errorf("invalid role value: %s", role)
 	}
 
 	_, err := d.db.Exec(`
@@ -1249,7 +1249,7 @@ func (d *Database) UpdateUserRole(userID string, role string) error {
 	return err
 }
 
-// CreateTraderApplication 创建交易员申请
+// CreateTraderApplication create trader application
 func (d *Database) CreateTraderApplication(app *TraderApplication) error {
 	_, err := d.db.Exec(`
 		INSERT INTO trader_applications (id, user_id, name, email, description, trading_experience, strategy_overview, social_links, status, admin_notes, created_at, updated_at)
@@ -1258,7 +1258,7 @@ func (d *Database) CreateTraderApplication(app *TraderApplication) error {
 	return err
 }
 
-// GetTraderApplicationByID 通过ID获取交易员申请
+// GetTraderApplicationByID get trader application by ID
 func (d *Database) GetTraderApplicationByID(id string) (*TraderApplication, error) {
 	var app TraderApplication
 	var createdAt, updatedAt string
@@ -1278,7 +1278,7 @@ func (d *Database) GetTraderApplicationByID(id string) (*TraderApplication, erro
 	return &app, nil
 }
 
-// GetTraderApplicationByUserID 通过用户ID获取交易员申请
+// GetTraderApplicationByUserID get trader application by user ID
 func (d *Database) GetTraderApplicationByUserID(userID string) (*TraderApplication, error) {
 	var app TraderApplication
 	var createdAt, updatedAt string
@@ -1301,7 +1301,7 @@ func (d *Database) GetTraderApplicationByUserID(userID string) (*TraderApplicati
 	return &app, nil
 }
 
-// GetAllTraderApplications 获取所有交易员申请（admin使用）
+// GetAllTraderApplications get all trader applications (for admin use)
 func (d *Database) GetAllTraderApplications() ([]*TraderApplication, error) {
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, email, description, trading_experience, strategy_overview, social_links, status, admin_notes, created_at, updated_at
@@ -1331,7 +1331,7 @@ func (d *Database) GetAllTraderApplications() ([]*TraderApplication, error) {
 	return applications, nil
 }
 
-// UpdateTraderApplicationStatus 更新交易员申请状态
+// UpdateTraderApplicationStatus update trader application status
 func (d *Database) UpdateTraderApplicationStatus(id string, status string, adminNotes string) error {
 	_, err := d.db.Exec(`
 		UPDATE trader_applications SET status = ?, admin_notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
@@ -1339,7 +1339,7 @@ func (d *Database) UpdateTraderApplicationStatus(id string, status string, admin
 	return err
 }
 
-// GetAllTraders 获取所有交易员（admin使用）
+// GetAllTraders get all traders (for admin use)
 func (d *Database) GetAllTraders() ([]*TraderRecord, error) {
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running,
@@ -1383,13 +1383,13 @@ func (d *Database) GetAllTraders() ([]*TraderRecord, error) {
 	return traders, nil
 }
 
-// UpdateUserOTPVerified 更新用户OTP验证状态
+// UpdateUserOTPVerified update user OTP verification status
 func (d *Database) UpdateUserOTPVerified(userID string, verified bool) error {
 	_, err := d.db.Exec(`UPDATE users SET otp_verified = ? WHERE id = ?`, verified, userID)
 	return err
 }
 
-// UpdateUserPassword 更新用户密码
+// UpdateUserPassword update user password
 func (d *Database) UpdateUserPassword(userID, passwordHash string) error {
 	_, err := d.db.Exec(`
 		UPDATE users
@@ -1399,7 +1399,7 @@ func (d *Database) UpdateUserPassword(userID, passwordHash string) error {
 	return err
 }
 
-// GetAIModels 获取用户的AI模型配置
+// GetAIModels get user's AI model configurations
 func (d *Database) GetAIModels(userID string) ([]*AIModelConfig, error) {
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, provider, enabled, api_key,
@@ -1413,7 +1413,7 @@ func (d *Database) GetAIModels(userID string) ([]*AIModelConfig, error) {
 	}
 	defer rows.Close()
 
-	// 初始化为空切片而不是nil，确保JSON序列化为[]而不是null
+	// Initialize as empty slice instead of nil, ensure JSON serialization is [] instead of null
 	models := make([]*AIModelConfig, 0)
 	for rows.Next() {
 		var model AIModelConfig
@@ -1426,10 +1426,10 @@ func (d *Database) GetAIModels(userID string) ([]*AIModelConfig, error) {
 		if err != nil {
 			return nil, err
 		}
-		// 解析时间字符串
+		// Parse time string
 		model.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		model.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
-		// 解密API Key
+		// Decrypt API Key
 		model.APIKey = d.decryptSensitiveData(model.APIKey)
 		models = append(models, &model)
 	}
@@ -1437,10 +1437,10 @@ func (d *Database) GetAIModels(userID string) ([]*AIModelConfig, error) {
 	return models, nil
 }
 
-// GetAIModel 根据模型ID和用户ID获取单个AI模型配置，若用户下不存在则回退到default用户。
+// GetAIModel get single AI model configuration by model ID and user ID, fallback to default user if not found for user.
 func (d *Database) GetAIModel(userID, modelID string) (*AIModelConfig, error) {
 	if modelID == "" {
-		return nil, fmt.Errorf("模型ID不能为空")
+		return nil, fmt.Errorf("model ID cannot be empty")
 	}
 
 	candidates := []string{}
@@ -1476,10 +1476,10 @@ func (d *Database) GetAIModel(userID, modelID string) (*AIModelConfig, error) {
 			&updatedAt,
 		)
 		if err == nil {
-			// 解析时间字符串
+			// Parse time string
 			model.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 			model.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
-			// 解密API Key（与 GetAIModels 行为保持一致）
+			// Decrypt API Key (consistent with GetAIModels behavior)
 			model.APIKey = d.decryptSensitiveData(model.APIKey)
 			return &model, nil
 		}
@@ -1491,7 +1491,7 @@ func (d *Database) GetAIModel(userID, modelID string) (*AIModelConfig, error) {
 	return nil, sql.ErrNoRows
 }
 
-// GetDefaultAIModel 获取指定用户（或默认用户）的首个启用的AI模型。
+// GetDefaultAIModel get first enabled AI model for specified user (or default user).
 func (d *Database) GetDefaultAIModel(userID string) (*AIModelConfig, error) {
 	if userID == "" {
 		userID = "default"
@@ -1506,7 +1506,7 @@ func (d *Database) GetDefaultAIModel(userID string) (*AIModelConfig, error) {
 	if userID != "default" {
 		return d.firstEnabledAIModel("default")
 	}
-	return nil, fmt.Errorf("请先在系统中配置可用的AI模型")
+	return nil, fmt.Errorf("please configure an available AI model in the system first")
 }
 
 func (d *Database) firstEnabledAIModel(userID string) (*AIModelConfig, error) {
@@ -1534,24 +1534,24 @@ func (d *Database) firstEnabledAIModel(userID string) (*AIModelConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 解析时间字符串
+	// Parse time string
 	model.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 	model.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
-	// 解密API Key，避免上层拿到加密串导致下游认证失败
+	// Decrypt API Key to avoid downstream authentication failure with encrypted string
 	model.APIKey = d.decryptSensitiveData(model.APIKey)
 	return &model, nil
 }
 
-// UpdateAIModel 更新AI模型配置，如果不存在则创建用户特定配置
+// UpdateAIModel update AI model configuration, create user-specific configuration if it doesn't exist
 func (d *Database) UpdateAIModel(userID, id string, enabled bool, apiKey, customAPIURL, customModelName string) error {
-	// 先尝试精确匹配 ID（新版逻辑，支持多个相同 provider 的模型）
+	// First try exact ID match (new logic, supports multiple models with same provider)
 	var existingID string
 	err := d.db.QueryRow(`
 		SELECT id FROM ai_models WHERE user_id = ? AND id = ? LIMIT 1
 	`, userID, id).Scan(&existingID)
 
 	if err == nil {
-		// 找到了现有配置（精确匹配 ID），更新它
+		// Found existing configuration (exact ID match), update it
 		encryptedAPIKey := d.encryptSensitiveData(apiKey)
 		_, err = d.db.Exec(`
 			UPDATE ai_models SET enabled = ?, api_key = ?, custom_api_url = ?, custom_model_name = ?, updated_at = datetime('now')
@@ -1560,15 +1560,15 @@ func (d *Database) UpdateAIModel(userID, id string, enabled bool, apiKey, custom
 		return err
 	}
 
-	// ID 不存在，尝试兼容旧逻辑：将 id 作为 provider 查找
+	// ID doesn't exist, try backward compatibility: use id as provider to search
 	provider := id
 	err = d.db.QueryRow(`
 		SELECT id FROM ai_models WHERE user_id = ? AND provider = ? LIMIT 1
 	`, userID, provider).Scan(&existingID)
 
 	if err == nil {
-		// 找到了现有配置（通过 provider 匹配，兼容旧版），更新它
-		log.Printf("⚠️  使用旧版 provider 匹配更新模型: %s -> %s", provider, existingID)
+		// Found existing configuration (matched by provider, backward compatible), update it
+		log.Printf("⚠️  Using old provider matching to update model: %s -> %s", provider, existingID)
 		encryptedAPIKey := d.encryptSensitiveData(apiKey)
 		_, err = d.db.Exec(`
 			UPDATE ai_models SET enabled = ?, api_key = ?, custom_api_url = ?, custom_model_name = ?, updated_at = datetime('now')
@@ -1577,28 +1577,28 @@ func (d *Database) UpdateAIModel(userID, id string, enabled bool, apiKey, custom
 		return err
 	}
 
-	// 没有找到任何现有配置，创建新的
-	// 推断 provider（从 id 中提取，或者直接使用 id）
+	// No existing configuration found, create new one
+	// Infer provider (extract from id, or use id directly)
 	if provider == id && (provider == "deepseek" || provider == "qwen") {
-		// id 本身就是 provider
+		// id itself is the provider
 		provider = id
 	} else {
-		// 从 id 中提取 provider（假设格式是 userID_provider 或 timestamp_userID_provider）
+		// Extract provider from id (assume format is userID_provider or timestamp_userID_provider)
 		parts := strings.Split(id, "_")
 		if len(parts) >= 2 {
-			provider = parts[len(parts)-1] // 取最后一部分作为 provider
+			provider = parts[len(parts)-1] // Take last part as provider
 		} else {
 			provider = id
 		}
 	}
 
-	// 获取模型的基本信息
+	// Get model basic information
 	var name string
 	err = d.db.QueryRow(`
 		SELECT name FROM ai_models WHERE provider = ? LIMIT 1
 	`, provider).Scan(&name)
 	if err != nil {
-		// 如果找不到基本信息，使用默认值
+		// If basic information not found, use default values
 		switch provider {
 		case "deepseek":
 			name = "DeepSeek AI"
@@ -1609,15 +1609,15 @@ func (d *Database) UpdateAIModel(userID, id string, enabled bool, apiKey, custom
 		}
 	}
 
-	// 如果传入的 ID 已经是完整格式（如 "admin_deepseek_custom1"），直接使用
-	// 否则生成新的 ID
+	// If the passed ID is already in full format (e.g., "admin_deepseek_custom1"), use it directly
+	// Otherwise generate new ID
 	newModelID := id
 	if id == provider {
-		// id 就是 provider，生成新的用户特定 ID
+		// id is the provider, generate new user-specific ID
 		newModelID = fmt.Sprintf("%s_%s", userID, provider)
 	}
 
-	log.Printf("✓ 创建新的 AI 模型配置: ID=%s, Provider=%s, Name=%s", newModelID, provider, name)
+	log.Printf("✓ Created new AI model configuration: ID=%s, Provider=%s, Name=%s", newModelID, provider, name)
 	encryptedAPIKey := d.encryptSensitiveData(apiKey)
 	_, err = d.db.Exec(`
 		INSERT INTO ai_models (id, user_id, name, provider, enabled, api_key, custom_api_url, custom_model_name, created_at, updated_at)
@@ -1627,7 +1627,7 @@ func (d *Database) UpdateAIModel(userID, id string, enabled bool, apiKey, custom
 	return err
 }
 
-// GetExchanges 获取用户的交易所配置
+// GetExchanges get user's exchange configurations
 func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, type, enabled, api_key, secret_key, testnet,
@@ -1647,7 +1647,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 	}
 	defer rows.Close()
 
-	// 初始化为空切片而不是nil，确保JSON序列化为[]而不是null
+	// Initialize as empty slice instead of nil, ensure JSON serialization is [] instead of null
 	exchanges := make([]*ExchangeConfig, 0)
 	for rows.Next() {
 		var exchange ExchangeConfig
@@ -1665,11 +1665,11 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 			return nil, err
 		}
 
-		// 解析时间字符串
+		// Parse time string
 		exchange.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		exchange.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 
-		// 解密敏感字段
+		// Decrypt sensitive fields
 		exchange.APIKey = d.decryptSensitiveData(exchange.APIKey)
 		exchange.SecretKey = d.decryptSensitiveData(exchange.SecretKey)
 		exchange.AsterPrivateKey = d.decryptSensitiveData(exchange.AsterPrivateKey)
@@ -1683,13 +1683,13 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 	return exchanges, nil
 }
 
-// UpdateExchange 更新交易所配置，如果不存在则创建用户特定配置
-// 🔒 安全特性：空值不会覆盖现有的敏感字段（api_key, secret_key, aster_private_key, lighter_private_key, lighter_api_key_private_key, okx_passphrase）
+// UpdateExchange update exchange configuration, create user-specific configuration if it doesn't exist
+// 🔒 Security feature: empty values will not overwrite existing sensitive fields (api_key, secret_key, aster_private_key, lighter_private_key, lighter_api_key_private_key, okx_passphrase)
 func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, lighterWalletAddr, lighterPrivateKey, lighterAPIKeyPrivateKey, okxPassphrase string) error {
 	log.Printf("🔧 UpdateExchange: userID=%s, id=%s, enabled=%v", userID, id, enabled)
 
-	// 构建动态 UPDATE SET 子句
-	// 基础字段：总是更新
+	// Build dynamic UPDATE SET clause
+	// Basic fields: always update
 	setClauses := []string{
 		"enabled = ?",
 		"testnet = ?",
@@ -1701,7 +1701,7 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 	}
 	args := []interface{}{enabled, testnet, hyperliquidWalletAddr, asterUser, asterSigner, lighterWalletAddr}
 
-	// 🔒 敏感字段：只在非空时更新（保护现有数据）
+	// 🔒 Sensitive fields: only update when non-empty (protect existing data)
 	if apiKey != "" {
 		encryptedAPIKey := d.encryptSensitiveData(apiKey)
 		setClauses = append(setClauses, "api_key = ?")
@@ -1738,36 +1738,36 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		args = append(args, encryptedOkxPassphrase)
 	}
 
-	// WHERE 条件
+	// WHERE condition
 	args = append(args, id, userID)
 
-	// 构建完整的 UPDATE 语句
+	// Build complete UPDATE statement
 	query := fmt.Sprintf(`
 		UPDATE exchanges SET %s
 		WHERE id = ? AND user_id = ?
 	`, strings.Join(setClauses, ", "))
 
-	// 执行更新
+	// Execute update
 	result, err := d.db.Exec(query, args...)
 	if err != nil {
-		log.Printf("❌ UpdateExchange: 更新失败: %v", err)
+		log.Printf("❌ UpdateExchange: update failed: %v", err)
 		return err
 	}
 
-	// 检查是否有行被更新
+	// Check if any rows were updated
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("❌ UpdateExchange: 获取影响行数失败: %v", err)
+		log.Printf("❌ UpdateExchange: failed to get affected rows: %v", err)
 		return err
 	}
 
-	log.Printf("📊 UpdateExchange: 影响行数 = %d", rowsAffected)
+	log.Printf("📊 UpdateExchange: affected rows = %d", rowsAffected)
 
-	// 如果没有行被更新，说明用户没有这个交易所的配置，需要创建
+	// If no rows were updated, user doesn't have configuration for this exchange, need to create
 	if rowsAffected == 0 {
-		log.Printf("💡 UpdateExchange: 没有现有记录，创建新记录")
+		log.Printf("💡 UpdateExchange: no existing record, creating new record")
 
-		// 根据交易所ID确定基本信息
+		// Determine basic information based on exchange ID
 		var name, typ string
 		switch id {
 		case "binance":
@@ -1793,9 +1793,9 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 			typ = "cex"
 		}
 
-		log.Printf("🆕 UpdateExchange: 创建新记录 ID=%s, name=%s, type=%s", id, name, typ)
+		log.Printf("🆕 UpdateExchange: creating new record ID=%s, name=%s, type=%s", id, name, typ)
 
-		// 加密敏感字段
+		// Encrypt sensitive fields
 		encryptedAPIKey := d.encryptSensitiveData(apiKey)
 		encryptedSecretKey := d.encryptSensitiveData(secretKey)
 		encryptedAsterPrivateKey := d.encryptSensitiveData(asterPrivateKey)
@@ -1803,7 +1803,7 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		encryptedLighterAPIKeyPrivateKey := d.encryptSensitiveData(lighterAPIKeyPrivateKey)
 		encryptedOkxPassphrase := d.encryptSensitiveData(okxPassphrase)
 
-		// 创建用户特定的配置，使用原始的交易所ID
+		// Create user-specific configuration, using original exchange ID
 		_, err = d.db.Exec(`
 			INSERT INTO exchanges (id, user_id, name, type, enabled, api_key, secret_key, testnet,
 			                       hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
@@ -1812,18 +1812,18 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		`, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey, encryptedLighterAPIKeyPrivateKey, encryptedOkxPassphrase)
 
 		if err != nil {
-			log.Printf("❌ UpdateExchange: 创建记录失败: %v", err)
+			log.Printf("❌ UpdateExchange: failed to create record: %v", err)
 		} else {
-			log.Printf("✅ UpdateExchange: 创建记录成功")
+			log.Printf("✅ UpdateExchange: record created successfully")
 		}
 		return err
 	}
 
-	log.Printf("✅ UpdateExchange: 更新现有记录成功")
+	log.Printf("✅ UpdateExchange: updated existing record successfully")
 	return nil
 }
 
-// CreateAIModel 创建AI模型配置
+// CreateAIModel create AI model configuration
 func (d *Database) CreateAIModel(userID, id, name, provider string, enabled bool, apiKey, customAPIURL string) error {
 	_, err := d.db.Exec(`
 		INSERT OR IGNORE INTO ai_models (id, user_id, name, provider, enabled, api_key, custom_api_url) 
@@ -1832,9 +1832,9 @@ func (d *Database) CreateAIModel(userID, id, name, provider string, enabled bool
 	return err
 }
 
-// CreateExchange 创建交易所配置
+// CreateExchange create exchange configuration
 func (d *Database) CreateExchange(userID, id, name, typ string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey string) error {
-	// 加密敏感字段
+	// Encrypt sensitive fields
 	encryptedAPIKey := d.encryptSensitiveData(apiKey)
 	encryptedSecretKey := d.encryptSensitiveData(secretKey)
 	encryptedAsterPrivateKey := d.encryptSensitiveData(asterPrivateKey)
@@ -1846,10 +1846,10 @@ func (d *Database) CreateExchange(userID, id, name, typ string, enabled bool, ap
 	return err
 }
 
-// GetExchangeByID 根据交易所ID和用户ID获取单个交易所配置
+// GetExchangeByID get single exchange configuration by exchange ID and user ID
 func (d *Database) GetExchangeByID(userID, exchangeID string) (*ExchangeConfig, error) {
 	if exchangeID == "" {
-		return nil, fmt.Errorf("交易所ID不能为空")
+		return nil, fmt.Errorf("exchange ID cannot be empty")
 	}
 
 	var exchange ExchangeConfig
@@ -1881,11 +1881,11 @@ func (d *Database) GetExchangeByID(userID, exchangeID string) (*ExchangeConfig, 
 		return nil, err
 	}
 
-	// 解析时间字符串
+	// Parse time string
 	exchange.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 	exchange.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 
-	// 解密敏感字段
+	// Decrypt sensitive fields
 	exchange.APIKey = d.decryptSensitiveData(exchange.APIKey)
 	exchange.SecretKey = d.decryptSensitiveData(exchange.SecretKey)
 	exchange.AsterPrivateKey = d.decryptSensitiveData(exchange.AsterPrivateKey)
@@ -1896,88 +1896,88 @@ func (d *Database) GetExchangeByID(userID, exchangeID string) (*ExchangeConfig, 
 	return &exchange, nil
 }
 
-// CopyAIModelToUser 将AI模型配置从源用户复制到目标用户（不复制API密钥）
+// CopyAIModelToUser copy AI model configuration from source user to target user (does not copy API key)
 func (d *Database) CopyAIModelToUser(sourceUserID, targetUserID, modelID string) error {
-	// 获取源用户的AI模型配置
+	// Get source user's AI model configuration
 	sourceModel, err := d.GetAIModel(sourceUserID, modelID)
 	if err != nil {
-		return fmt.Errorf("获取源AI模型配置失败: %w", err)
+		return fmt.Errorf("failed to get source AI model configuration: %w", err)
 	}
 
-	// 检查目标用户是否已有该模型
+	// Check if target user already has this model
 	_, err = d.GetAIModel(targetUserID, modelID)
 	if err == nil {
-		// 模型已存在，不需要复制
-		log.Printf("✓ AI模型 %s 已存在于目标用户 %s", modelID, targetUserID)
+		// Model already exists, no need to copy
+		log.Printf("✓ AI model %s already exists for target user %s", modelID, targetUserID)
 		return nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("检查目标AI模型失败: %w", err)
+		return fmt.Errorf("failed to check target AI model: %w", err)
 	}
 
-	// 创建模型配置（不复制API密钥，使用空字符串）
+	// Create model configuration (do not copy API key, use empty string)
 	err = d.CreateAIModel(
 		targetUserID,
 		sourceModel.ID,
 		sourceModel.Name,
 		sourceModel.Provider,
 		sourceModel.Enabled,
-		"", // 不复制API密钥
+		"", // Do not copy API key
 		sourceModel.CustomAPIURL,
 	)
 	if err != nil {
-		return fmt.Errorf("创建AI模型配置失败: %w", err)
+		return fmt.Errorf("failed to create AI model configuration: %w", err)
 	}
 
-	log.Printf("✓ 已为跟随者用户 %s 创建AI模型配置: %s (%s)", targetUserID, sourceModel.Name, sourceModel.Provider)
+	log.Printf("✓ Created AI model configuration for follower user %s: %s (%s)", targetUserID, sourceModel.Name, sourceModel.Provider)
 	return nil
 }
 
-// CopyExchangeToUser 将交易所配置从源用户复制到目标用户（不复制API密钥和密钥）
+// CopyExchangeToUser copy exchange configuration from source user to target user (does not copy API keys and secrets)
 func (d *Database) CopyExchangeToUser(sourceUserID, targetUserID, exchangeID string) error {
-	// 获取源用户的交易所配置
+	// Get source user's exchange configuration
 	sourceExchange, err := d.GetExchangeByID(sourceUserID, exchangeID)
 	if err != nil {
-		return fmt.Errorf("获取源交易所配置失败: %w", err)
+		return fmt.Errorf("failed to get source exchange configuration: %w", err)
 	}
 
-	// 检查目标用户是否已有该交易所
+	// Check if target user already has this exchange
 	_, err = d.GetExchangeByID(targetUserID, exchangeID)
 	if err == nil {
-		// 交易所已存在，不需要复制
-		log.Printf("✓ 交易所 %s 已存在于目标用户 %s", exchangeID, targetUserID)
+		// Exchange already exists, no need to copy
+		log.Printf("✓ Exchange %s already exists for target user %s", exchangeID, targetUserID)
 		return nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("检查目标交易所失败: %w", err)
+		return fmt.Errorf("failed to check target exchange: %w", err)
 	}
 
-	// 创建交易所配置（不复制API密钥和密钥，使用空字符串）
+	// Create exchange configuration (do not copy API keys and secrets, use empty strings)
 	err = d.CreateExchange(
 		targetUserID,
 		sourceExchange.ID,
 		sourceExchange.Name,
 		sourceExchange.Type,
 		sourceExchange.Enabled,
-		"", // 不复制API密钥
-		"", // 不复制Secret密钥
+		"", // Do not copy API key
+		"", // Do not copy Secret key
 		sourceExchange.Testnet,
 		sourceExchange.HyperliquidWalletAddr,
 		sourceExchange.AsterUser,
 		sourceExchange.AsterSigner,
-		"", // 不复制Aster私钥
+		"", // Do not copy Aster private key
 	)
 	if err != nil {
-		return fmt.Errorf("创建交易所配置失败: %w", err)
+		return fmt.Errorf("failed to create exchange configuration: %w", err)
 	}
 
-	log.Printf("✓ 已为跟随者用户 %s 创建交易所配置: %s (%s)", targetUserID, sourceExchange.Name, sourceExchange.Type)
+	log.Printf("✓ Created exchange configuration for follower user %s: %s (%s)", targetUserID, sourceExchange.Name, sourceExchange.Type)
 	return nil
 }
 
-// GetPromptTemplates 获取用户的提示词模板（包括系统模板）
+// GetPromptTemplates get user prompt templates (including system templates)
 func (d *Database) GetPromptTemplates(userID string) ([]*PromptTemplateConfig, error) {
-	// 获取系统模板（user_id='default'）和用户模板
+	// Get system templates (user_id='default') and user templates
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, content, is_system, created_at, updated_at
 		FROM prompt_templates
@@ -2000,7 +2000,7 @@ func (d *Database) GetPromptTemplates(userID string) ([]*PromptTemplateConfig, e
 		if err != nil {
 			return nil, err
 		}
-		// 解析时间字符串
+		// Parse time string
 		template.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		template.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 		templates = append(templates, &template)
@@ -2009,9 +2009,9 @@ func (d *Database) GetPromptTemplates(userID string) ([]*PromptTemplateConfig, e
 	return templates, nil
 }
 
-// GetPromptTemplate 获取指定的提示词模板
+// GetPromptTemplate get specified prompt template
 func (d *Database) GetPromptTemplate(userID, templateID string) (*PromptTemplateConfig, error) {
-	// 允许获取系统模板（user_id='default'）或用户自己的模板
+	// Allow getting system templates (user_id='default') or user's own templates
 	var template PromptTemplateConfig
 	var createdAt, updatedAt string
 	err := d.db.QueryRow(`
@@ -2025,19 +2025,19 @@ func (d *Database) GetPromptTemplate(userID, templateID string) (*PromptTemplate
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("提示词模板不存在: %s", templateID)
+			return nil, fmt.Errorf("prompt template does not exist: %s", templateID)
 		}
 		return nil, err
 	}
 
-	// 解析时间字符串
+	// Parse time string
 	template.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 	template.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 
 	return &template, nil
 }
 
-// CreatePromptTemplate 创建新的提示词模板
+// CreatePromptTemplate create new prompt template
 func (d *Database) CreatePromptTemplate(userID, id, name, content string, isSystem bool) error {
 	_, err := d.db.Exec(`
 		INSERT INTO prompt_templates (id, user_id, name, content, is_system, created_at, updated_at)
@@ -2046,9 +2046,9 @@ func (d *Database) CreatePromptTemplate(userID, id, name, content string, isSyst
 	return err
 }
 
-// UpdatePromptTemplate 更新提示词模板（只能更新用户创建的模板，不能更新系统模板）
+// UpdatePromptTemplate update prompt template (can only update user-created templates, cannot update system templates)
 func (d *Database) UpdatePromptTemplate(userID, id, name, content string) error {
-	// 检查模板是否存在且属于该用户，且不是系统模板
+	// Check if template exists and belongs to user, and is not a system template
 	var isSystem bool
 	var templateUserID string
 	err := d.db.QueryRow(`
@@ -2056,22 +2056,22 @@ func (d *Database) UpdatePromptTemplate(userID, id, name, content string) error 
 	`, id).Scan(&templateUserID, &isSystem)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("提示词模板不存在: %s", id)
+			return fmt.Errorf("prompt template does not exist: %s", id)
 		}
 		return err
 	}
 
-	// 不允许更新系统模板
+	// Cannot update system templates
 	if isSystem {
-		return fmt.Errorf("不能更新系统模板: %s", id)
+		return fmt.Errorf("cannot update system template: %s", id)
 	}
 
-	// 只能更新自己的模板
+	// Can only update own templates
 	if templateUserID != userID {
-		return fmt.Errorf("无权更新此模板: %s", id)
+		return fmt.Errorf("no permission to update this template: %s", id)
 	}
 
-	// 更新模板
+	// Update template
 	_, err = d.db.Exec(`
 		UPDATE prompt_templates
 		SET name = ?, content = ?, updated_at = datetime('now')
@@ -2080,9 +2080,9 @@ func (d *Database) UpdatePromptTemplate(userID, id, name, content string) error 
 	return err
 }
 
-// DeletePromptTemplate 删除提示词模板（只能删除用户创建的模板，不能删除系统模板）
+// DeletePromptTemplate delete prompt template (can only delete user-created templates, cannot delete system templates)
 func (d *Database) DeletePromptTemplate(userID, id string) error {
-	// 检查模板是否存在且属于该用户，且不是系统模板
+	// Check if template exists and belongs to user, and is not a system template
 	var isSystem bool
 	var templateUserID string
 	err := d.db.QueryRow(`
@@ -2090,27 +2090,27 @@ func (d *Database) DeletePromptTemplate(userID, id string) error {
 	`, id).Scan(&templateUserID, &isSystem)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("提示词模板不存在: %s", id)
+			return fmt.Errorf("prompt template does not exist: %s", id)
 		}
 		return err
 	}
 
-	// 不允许删除系统模板
+	// Cannot delete system templates
 	if isSystem {
-		return fmt.Errorf("不能删除系统模板: %s", id)
+		return fmt.Errorf("cannot delete system template: %s", id)
 	}
 
-	// 只能删除自己的模板
+	// Can only delete own templates
 	if templateUserID != userID {
-		return fmt.Errorf("无权删除此模板: %s", id)
+		return fmt.Errorf("no permission to delete this template: %s", id)
 	}
 
-	// 删除模板
+	// Delete template
 	_, err = d.db.Exec(`DELETE FROM prompt_templates WHERE id = ? AND user_id = ? AND is_system = 0`, id, userID)
 	return err
 }
 
-// CreateTrader 创建交易员
+// CreateTrader create trader
 func (d *Database) CreateTrader(trader *TraderRecord) error {
 	_, err := d.db.Exec(`
 		INSERT INTO traders (id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage, trading_symbols, use_coin_pool, use_oi_top, use_tradingview, followed_trader_id, custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin)
@@ -2119,7 +2119,7 @@ func (d *Database) CreateTrader(trader *TraderRecord) error {
 	return err
 }
 
-// GetTraders 获取用户的交易员
+// GetTraders get user's traders
 func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running,
@@ -2155,7 +2155,7 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 		if err != nil {
 			return nil, err
 		}
-		// 解析时间字符串
+		// Parse time string
 		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 		traders = append(traders, &trader)
@@ -2164,7 +2164,7 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 	return traders, nil
 }
 
-// GetFollowerTraders 获取所有跟随指定交易员的交易员列表
+// GetFollowerTraders get all traders following specified trader list
 func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord, error) {
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running,
@@ -2202,7 +2202,7 @@ func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord,
 		if err != nil {
 			return nil, err
 		}
-		// 解析时间字符串
+		// Parse time string
 		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 		traders = append(traders, &trader)
@@ -2211,7 +2211,7 @@ func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord,
 	return traders, nil
 }
 
-// GetTraderFollowedTraderID 获取交易员的followed_trader_id
+// GetTraderFollowedTraderID get trader's followed_trader_id
 func (d *Database) GetTraderFollowedTraderID(traderID string) (string, error) {
 	var followedTraderID string
 	err := d.db.QueryRow(`
@@ -2233,13 +2233,13 @@ func (d *Database) GetTraderFollowedTraderID(traderID string) (string, error) {
 	return followedTraderID, nil
 }
 
-// UpdateTraderStatus 更新交易员状态
+// UpdateTraderStatus update trader status
 func (d *Database) UpdateTraderStatus(userID, id string, isRunning bool) error {
 	_, err := d.db.Exec(`UPDATE traders SET is_running = ? WHERE id = ? AND user_id = ?`, isRunning, id, userID)
 	return err
 }
 
-// UpdateTrader 更新交易员配置
+// UpdateTrader update trader configuration
 func (d *Database) UpdateTrader(trader *TraderRecord) error {
 	log.Printf("🔍 DEBUG [UpdateTrader DB]: Updating trader %s (user_id: %s) with system_prompt_template: '%s'", trader.ID, trader.UserID, trader.SystemPromptTemplate)
 	result, err := d.db.Exec(`
@@ -2266,26 +2266,26 @@ func (d *Database) UpdateTrader(trader *TraderRecord) error {
 	return nil
 }
 
-// UpdateTraderCustomPrompt 更新交易员自定义Prompt
+// UpdateTraderCustomPrompt update trader custom prompt
 func (d *Database) UpdateTraderCustomPrompt(userID, id string, customPrompt string, overrideBase bool) error {
 	_, err := d.db.Exec(`UPDATE traders SET custom_prompt = ?, override_base_prompt = ? WHERE id = ? AND user_id = ?`, customPrompt, overrideBase, id, userID)
 	return err
 }
 
-// UpdateTraderInitialBalance 更新交易员初始余额（仅支持手动更新）
-// ⚠️ 注意：系统不会自动调用此方法，仅供用户在充值/提现后手动同步使用
+// UpdateTraderInitialBalance update trader initial balance (manual update only)
+// ⚠️ Note: system will not automatically call this method, only for users to manually synchronize after deposit/withdrawal
 func (d *Database) UpdateTraderInitialBalance(userID, id string, newBalance float64) error {
 	_, err := d.db.Exec(`UPDATE traders SET initial_balance = ? WHERE id = ? AND user_id = ?`, newBalance, id, userID)
 	return err
 }
 
-// DeleteTrader 删除交易员
+// DeleteTrader delete trader
 func (d *Database) DeleteTrader(userID, id string) error {
 	_, err := d.db.Exec(`DELETE FROM traders WHERE id = ? AND user_id = ?`, id, userID)
 	return err
 }
 
-// GetTraderConfig 获取交易员完整配置（包含AI模型和交易所信息）
+// GetTraderConfig get trader complete configuration (including AI model and exchange information)
 func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIModelConfig, *ExchangeConfig, error) {
 	var trader TraderRecord
 	var aiModel AIModelConfig
@@ -2351,7 +2351,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 		return nil, nil, nil, err
 	}
 
-	// 解析时间字符串
+	// Parse time string
 	trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", traderCreatedAt)
 	trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", traderUpdatedAt)
 	aiModel.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", aiModelCreatedAt)
@@ -2359,7 +2359,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 	exchange.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", exchangeCreatedAt)
 	exchange.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", exchangeUpdatedAt)
 
-	// 解密敏感数据
+	// Decrypt sensitive data
 	aiModel.APIKey = d.decryptSensitiveData(aiModel.APIKey)
 	exchange.APIKey = d.decryptSensitiveData(exchange.APIKey)
 	exchange.SecretKey = d.decryptSensitiveData(exchange.SecretKey)
@@ -2371,14 +2371,14 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 	return &trader, &aiModel, &exchange, nil
 }
 
-// GetSystemConfig 获取系统配置
+// GetSystemConfig get system configuration
 func (d *Database) GetSystemConfig(key string) (string, error) {
 	var value string
 	err := d.db.QueryRow(`SELECT value FROM system_config WHERE key = ?`, key).Scan(&value)
 	return value, err
 }
 
-// SetSystemConfig 设置系统配置
+// SetSystemConfig set system configuration
 func (d *Database) SetSystemConfig(key, value string) error {
 	_, err := d.db.Exec(`
 		INSERT OR REPLACE INTO system_config (key, value) VALUES (?, ?)
@@ -2386,7 +2386,7 @@ func (d *Database) SetSystemConfig(key, value string) error {
 	return err
 }
 
-// CreateUserSignalSource 创建用户信号源配置
+// CreateUserSignalSource create user signal source configuration
 func (d *Database) CreateUserSignalSource(userID, coinPoolURL, oiTopURL string) error {
 	_, err := d.db.Exec(`
 		INSERT OR REPLACE INTO user_signal_sources (user_id, coin_pool_url, oi_top_url, updated_at)
@@ -2395,7 +2395,7 @@ func (d *Database) CreateUserSignalSource(userID, coinPoolURL, oiTopURL string) 
 	return err
 }
 
-// GetUserSignalSource 获取用户信号源配置
+// GetUserSignalSource get user signal source configuration
 func (d *Database) GetUserSignalSource(userID string) (*UserSignalSource, error) {
 	var source UserSignalSource
 	var createdAt, updatedAt string
@@ -2414,7 +2414,7 @@ func (d *Database) GetUserSignalSource(userID string) (*UserSignalSource, error)
 	return &source, nil
 }
 
-// UpdateUserSignalSource 更新用户信号源配置
+// UpdateUserSignalSource update user signal source configuration
 func (d *Database) UpdateUserSignalSource(userID, coinPoolURL, oiTopURL string) error {
 	_, err := d.db.Exec(`
 		UPDATE user_signal_sources SET coin_pool_url = ?, oi_top_url = ?, updated_at = CURRENT_TIMESTAMP
@@ -2423,54 +2423,54 @@ func (d *Database) UpdateUserSignalSource(userID, coinPoolURL, oiTopURL string) 
 	return err
 }
 
-// GenerateWebhookAPIKey 生成或获取用户的Webhook API Key
+// GenerateWebhookAPIKey generate or get user's Webhook API Key
 func (d *Database) GenerateWebhookAPIKey(userID string) (string, error) {
-	// 先检查是否已存在
+	// First check if already exists
 	var existingKey string
 	err := d.db.QueryRow(`SELECT api_key FROM webhook_api_keys WHERE user_id = ?`, userID).Scan(&existingKey)
 	if err == nil {
 		return existingKey, nil
 	}
 	if err != sql.ErrNoRows {
-		return "", fmt.Errorf("查询API key失败: %w", err)
+		return "", fmt.Errorf("failed to query API key: %w", err)
 	}
 
-	// 生成64字符的hex API key
+	// Generate 64-character hex API key
 	bytes := make([]byte, 32) // 32 bytes = 64 hex characters
 	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("生成随机数失败: %w", err)
+		return "", fmt.Errorf("failed to generate random number: %w", err)
 	}
 	apiKey := fmt.Sprintf("%x", bytes)
 
-	// 插入数据库
+	// Insert into database
 	_, err = d.db.Exec(`
 		INSERT INTO webhook_api_keys (user_id, api_key, created_at, updated_at)
 		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`, userID, apiKey)
 	if err != nil {
-		return "", fmt.Errorf("保存API key失败: %w", err)
+		return "", fmt.Errorf("failed to save API key: %w", err)
 	}
 
 	return apiKey, nil
 }
 
-// GetUserByWebhookAPIKey 通过API key获取用户
+// GetUserByWebhookAPIKey get user by API key
 func (d *Database) GetUserByWebhookAPIKey(apiKey string) (*User, error) {
 	var userID string
 	err := d.db.QueryRow(`SELECT user_id FROM webhook_api_keys WHERE api_key = ?`, apiKey).Scan(&userID)
 	if err != nil {
-		return nil, fmt.Errorf("无效的API key: %w", err)
+		return nil, fmt.Errorf("invalid API key: %w", err)
 	}
 
 	return d.GetUserByID(userID)
 }
 
-// CreateTradingViewAlert 创建TradingView警报，返回警报ID
+// CreateTradingViewAlert create TradingView alert, return alert ID
 func (d *Database) CreateTradingViewAlert(userID, traderID string, payload map[string]interface{}) (string, error) {
-	// 生成UUID
+	// Generate UUID
 	id := fmt.Sprintf("%d", time.Now().UnixNano())
 
-	// 解析payload字段
+	// Parse payload field
 	rawPayloadBytes, _ := json.Marshal(payload)
 	rawPayload := string(rawPayloadBytes)
 
@@ -2479,7 +2479,7 @@ func (d *Database) CreateTradingViewAlert(userID, traderID string, payload map[s
 	exchange, _ := payload["exchange"].(string)
 	pricetype, _ := payload["pricetype"].(string)
 
-	// 解析数值字段
+	// Parse numeric fields
 	entry := parseFloat(payload["entry"])
 	sl := parseFloat(payload["sl"])
 	tp := parseFloat(payload["tp"])
@@ -2499,7 +2499,7 @@ func (d *Database) CreateTradingViewAlert(userID, traderID string, payload map[s
 	return id, nil
 }
 
-// parseFloat 辅助函数：从interface{}解析float64
+// parseFloat helper function: parse float64 from interface{}
 func parseFloat(v interface{}) float64 {
 	if v == nil {
 		return 0
@@ -2522,7 +2522,7 @@ func parseFloat(v interface{}) float64 {
 	}
 }
 
-// GetPendingTradingViewAlerts 获取指定交易员的待处理警报
+// GetPendingTradingViewAlerts get pending alerts for specified trader
 func (d *Database) GetPendingTradingViewAlerts(traderID string) ([]TradingViewAlert, error) {
 	rows, err := d.db.Query(`
 		SELECT id, user_id, trader_id, raw_payload, symbol, action, exchange,
@@ -2566,7 +2566,7 @@ func (d *Database) GetPendingTradingViewAlerts(traderID string) ([]TradingViewAl
 	return alerts, nil
 }
 
-// UpdateAlertStatus 更新警报状态
+// UpdateAlertStatus update alert status
 func (d *Database) UpdateAlertStatus(alertID string, status string) error {
 	now := time.Now()
 	_, err := d.db.Exec(`
@@ -2577,7 +2577,7 @@ func (d *Database) UpdateAlertStatus(alertID string, status string) error {
 	return err
 }
 
-// GetTradingViewAlertByID 根据ID获取TradingView警报
+// GetTradingViewAlertByID get TradingView alert by ID
 func (d *Database) GetTradingViewAlertByID(alertID string) (*TradingViewAlert, error) {
 	var alert TradingViewAlert
 	var createdAt string
@@ -2609,7 +2609,7 @@ func (d *Database) GetTradingViewAlertByID(alertID string) (*TradingViewAlert, e
 	return &alert, nil
 }
 
-// GetRecentTradingViewAlerts 获取最近的TradingView警报
+// GetRecentTradingViewAlerts get recent TradingView alerts
 func (d *Database) GetRecentTradingViewAlerts(userID string, traderID string, limit int) ([]TradingViewAlert, error) {
 	query := `
 		SELECT id, user_id, trader_id, raw_payload, symbol, action, exchange,
@@ -2663,7 +2663,7 @@ func (d *Database) GetRecentTradingViewAlerts(userID string, traderID string, li
 	return alerts, nil
 }
 
-// GetTradersWithTradingViewEnabled 获取用户启用了TradingView的交易员列表
+// GetTradersWithTradingViewEnabled get user's traders with TradingView enabled list
 func (d *Database) GetTradersWithTradingViewEnabled(userID string) ([]*TraderRecord, error) {
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance,
@@ -2706,7 +2706,7 @@ func (d *Database) GetTradersWithTradingViewEnabled(userID string) ([]*TraderRec
 	return traders, nil
 }
 
-// GetCustomCoins 获取所有交易员自定义币种 / Get all trader-customized currencies
+// GetCustomCoins get all trader-customized currencies
 func (d *Database) GetCustomCoins() []string {
 	var symbol string
 	var symbols []string
@@ -2714,11 +2714,11 @@ func (d *Database) GetCustomCoins() []string {
 		SELECT GROUP_CONCAT(custom_coins , ',') as symbol
 		FROM main.traders where custom_coins != ''
 	`).Scan(&symbol)
-	// 检测用户是否未配置币种 - 兼容性
+	// Detect if user has not configured currencies - compatibility
 	if symbol == "" {
 		symbolJSON, _ := d.GetSystemConfig("default_coins")
 		if err := json.Unmarshal([]byte(symbolJSON), &symbols); err != nil {
-			log.Printf("⚠️  解析default_coins配置失败: %v，使用硬编码默认值", err)
+			log.Printf("⚠️  Failed to parse default_coins configuration: %v, using hardcoded default values", err)
 			symbols = []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"}
 		}
 	}
@@ -2735,8 +2735,8 @@ func (d *Database) GetCustomCoins() []string {
 	return symbols
 }
 
-// Close 关闭数据库连接
-// Conn 返回底层 *sql.DB，供需要执行自定义查询的模块使用。
+// Close close database connection
+// Conn return underlying *sql.DB for modules that need to execute custom queries
 func (d *Database) Conn() *sql.DB {
 	return d.db
 }
@@ -2745,15 +2745,15 @@ func (d *Database) Close() error {
 	return d.db.Close()
 }
 
-// LoadBetaCodesFromFile 从文件加载内测码到数据库
+// LoadBetaCodesFromFile load beta codes from file to database
 func (d *Database) LoadBetaCodesFromFile(filePath string) error {
-	// 读取文件内容
+	// Read file content
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return fmt.Errorf("读取内测码文件失败: %w", err)
+		return fmt.Errorf("failed to read beta code file: %w", err)
 	}
 
-	// 按行分割内测码
+	// Split beta codes by line
 	lines := strings.Split(string(content), "\n")
 	var codes []string
 	for _, line := range lines {
@@ -2763,16 +2763,16 @@ func (d *Database) LoadBetaCodesFromFile(filePath string) error {
 		}
 	}
 
-	// 批量插入内测码
+	// Batch insert beta codes
 	tx, err := d.db.Begin()
 	if err != nil {
-		return fmt.Errorf("开始事务失败: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`INSERT OR IGNORE INTO beta_codes (code) VALUES (?)`)
 	if err != nil {
-		return fmt.Errorf("准备语句失败: %w", err)
+		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
 
@@ -2780,7 +2780,7 @@ func (d *Database) LoadBetaCodesFromFile(filePath string) error {
 	for _, code := range codes {
 		result, err := stmt.Exec(code)
 		if err != nil {
-			log.Printf("插入内测码 %s 失败: %v", code, err)
+			log.Printf("Failed to insert beta code %s: %v", code, err)
 			continue
 		}
 
@@ -2790,27 +2790,27 @@ func (d *Database) LoadBetaCodesFromFile(filePath string) error {
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("提交事务失败: %w", err)
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	log.Printf("✅ 成功加载 %d 个内测码到数据库 (总计 %d 个)", insertedCount, len(codes))
+	log.Printf("✅ Successfully loaded %d beta codes to database (total %d)", insertedCount, len(codes))
 	return nil
 }
 
-// ValidateBetaCode 验证内测码是否有效且未使用
+// ValidateBetaCode validate if beta code is valid and unused
 func (d *Database) ValidateBetaCode(code string) (bool, error) {
 	var used bool
 	err := d.db.QueryRow(`SELECT used FROM beta_codes WHERE code = ?`, code).Scan(&used)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return false, nil // 内测码不存在
+			return false, nil // Beta code does not exist
 		}
 		return false, err
 	}
-	return !used, nil // 内测码存在且未使用
+	return !used, nil // Beta code exists and is unused
 }
 
-// UseBetaCode 使用内测码（标记为已使用）
+// UseBetaCode use beta code (mark as used)
 func (d *Database) UseBetaCode(code, userEmail string) error {
 	result, err := d.db.Exec(`
 		UPDATE beta_codes SET used = 1, used_by = ?, used_at = CURRENT_TIMESTAMP 
@@ -2826,13 +2826,13 @@ func (d *Database) UseBetaCode(code, userEmail string) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("内测码无效或已被使用")
+		return fmt.Errorf("beta code is invalid or already used")
 	}
 
 	return nil
 }
 
-// GetBetaCodeStats 获取内测码统计信息
+// GetBetaCodeStats get beta code statistics
 func (d *Database) GetBetaCodeStats() (total, used int, err error) {
 	err = d.db.QueryRow(`SELECT COUNT(*) FROM beta_codes`).Scan(&total)
 	if err != nil {
@@ -2847,12 +2847,12 @@ func (d *Database) GetBetaCodeStats() (total, used int, err error) {
 	return total, used, nil
 }
 
-// SetCryptoService 设置加密服务
+// SetCryptoService set encryption service
 func (d *Database) SetCryptoService(cs *crypto.CryptoService) {
 	d.cryptoService = cs
 }
 
-// encryptSensitiveData 加密敏感数据用于存储
+// encryptSensitiveData encrypt sensitive data for storage
 func (d *Database) encryptSensitiveData(plaintext string) string {
 	if d.cryptoService == nil || plaintext == "" {
 		return plaintext
@@ -2860,28 +2860,28 @@ func (d *Database) encryptSensitiveData(plaintext string) string {
 
 	encrypted, err := d.cryptoService.EncryptForStorage(plaintext)
 	if err != nil {
-		log.Printf("⚠️ 加密失败: %v", err)
-		return plaintext // 返回明文作为降级处理
+		log.Printf("⚠️ Encryption failed: %v", err)
+		return plaintext // Return plaintext as fallback
 	}
 
 	return encrypted
 }
 
-// decryptSensitiveData 解密敏感数据
+// decryptSensitiveData decrypt sensitive data
 func (d *Database) decryptSensitiveData(encrypted string) string {
 	if d.cryptoService == nil || encrypted == "" {
 		return encrypted
 	}
 
-	// 如果不是加密格式，直接返回
+	// If not encrypted format, return directly
 	if !d.cryptoService.IsEncryptedStorageValue(encrypted) {
 		return encrypted
 	}
 
 	decrypted, err := d.cryptoService.DecryptFromStorage(encrypted)
 	if err != nil {
-		log.Printf("⚠️ 解密失败: %v", err)
-		return encrypted // 返回加密文本作为降级处理
+		log.Printf("⚠️ Decryption failed: %v", err)
+		return encrypted // Return encrypted text as fallback
 	}
 
 	return decrypted

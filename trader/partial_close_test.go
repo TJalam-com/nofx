@@ -314,11 +314,8 @@ func TestPartialCloseIntegration(t *testing.T) {
 
 			// 創建決策
 			dec := &decision.Decision{
-				Symbol:          tt.symbol,
-				Action:          "partial_close",
-				ClosePercentage: tt.closePercentage,
-				NewStopLoss:     tt.newStopLoss,
-				NewTakeProfit:   tt.newTakeProfit,
+				NewStopLoss:   tt.newStopLoss,
+				NewTakeProfit: tt.newTakeProfit,
 			}
 
 			// 創建 actionRecord

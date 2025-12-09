@@ -1,27 +1,41 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+import { lazy, Suspense, ReactNode } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import AuthLayout from '../layouts/AuthLayout'
 import { LandingPage } from '../pages/LandingPage'
-import { FAQPage } from '../pages/FAQPage'
 import { LoginPage } from '../components/LoginPage'
 import { RegisterPage } from '../components/RegisterPage'
 import { ResetPasswordPage } from '../components/ResetPasswordPage'
 import { CompetitionPage } from '../components/CompetitionPage'
 import { AITradersPage } from '../pages/AITradersPage'
 import TraderDashboard from '../pages/TraderDashboard'
-import FollowersPage from '../pages/FollowersPage'
-import StatsPage from '../pages/StatsPage'
-import { BacktestPage } from '../components/BacktestPage'
-import WebhookPage from '../pages/WebhookPage'
-import TraderApplicationPage from '../pages/TraderApplicationPage'
-import AdminTraderApplicationsPage from '../pages/AdminTraderApplicationsPage'
 import { useAuth, isAdmin } from '../contexts/AuthContext'
 import { Navigate as NavigateComponent } from 'react-router-dom'
-import { ReactNode } from 'react'
 import { LanguageProvider } from '../contexts/LanguageContext'
 import { AuthProvider } from '../contexts/AuthContext'
 import { ConfirmDialogProvider } from '../components/ConfirmDialog'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+
+// Lazy load non-critical routes for code splitting
+const FAQPage = lazy(() => import('../pages/FAQPage').then(m => ({ default: m.FAQPage })))
+const FollowersPage = lazy(() => import('../pages/FollowersPage'))
+const StatsPage = lazy(() => import('../pages/StatsPage'))
+const BacktestPage = lazy(() => import('../components/BacktestPage').then(m => ({ default: m.BacktestPage })))
+const WebhookPage = lazy(() => import('../pages/WebhookPage'))
+const TraderApplicationPage = lazy(() => import('../pages/TraderApplicationPage'))
+const AdminTraderApplicationsPage = lazy(() => import('../pages/AdminTraderApplicationsPage'))
+
+// Loading fallback component
+function RouteLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--navy-primary)' }}>
+      <div className="text-center">
+        <div className="spinner mx-auto mb-4" />
+        <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
+      </div>
+    </div>
+  )
+}
 
 // Root layout with all providers
 function RootLayout() {
@@ -48,7 +62,7 @@ function AdminProtectedRoute({ children }: { children: ReactNode }) {
 export const router = createBrowserRouter([
   {
     element: <RootLayout />,
-    errorElement: <ErrorBoundary />,
+    errorElement: <ErrorBoundary><div /></ErrorBoundary>,
     children: [
       {
         path: '/',
@@ -78,7 +92,11 @@ export const router = createBrowserRouter([
         children: [
           {
             path: '/faq',
-            element: <FAQPage />,
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <FAQPage />
+              </Suspense>
+            ),
           },
           {
             path: '/competition',
@@ -94,27 +112,51 @@ export const router = createBrowserRouter([
           },
           {
             path: '/followers',
-            element: <FollowersPage />,
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <FollowersPage />
+              </Suspense>
+            ),
           },
           {
             path: '/backtest',
-            element: <BacktestPage />,
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <BacktestPage />
+              </Suspense>
+            ),
           },
           {
             path: '/webhook',
-            element: <WebhookPage />,
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <WebhookPage />
+              </Suspense>
+            ),
           },
           {
             path: '/stats',
-            element: <AdminProtectedRoute><StatsPage /></AdminProtectedRoute>,
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <AdminProtectedRoute><StatsPage /></AdminProtectedRoute>
+              </Suspense>
+            ),
           },
           {
             path: '/become-trader',
-            element: <TraderApplicationPage />,
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <TraderApplicationPage />
+              </Suspense>
+            ),
           },
           {
             path: '/admin/trader-applications',
-            element: <AdminProtectedRoute><AdminTraderApplicationsPage /></AdminProtectedRoute>,
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <AdminProtectedRoute><AdminTraderApplicationsPage /></AdminProtectedRoute>
+              </Suspense>
+            ),
           },
         ],
       },

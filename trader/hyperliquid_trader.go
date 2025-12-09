@@ -815,6 +815,12 @@ func (t *HyperliquidTrader) FormatQuantity(symbol string, quantity float64) (str
 
 // getSzDecimals 获取币种的数量精度
 func (t *HyperliquidTrader) getSzDecimals(coin string) int {
+	// Refresh meta if needed (before acquiring read lock to avoid deadlock)
+	if err := t.refreshMetaIfNeeded(coin); err != nil {
+		log.Printf("⚠️  刷新meta信息失败: %v，使用默认精度4", err)
+		// Continue with default precision if refresh fails
+	}
+
 	// ✅ 并发安全：使用读锁保护 meta 字段访问
 	t.metaMutex.RLock()
 	defer t.metaMutex.RUnlock()

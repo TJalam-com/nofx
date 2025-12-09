@@ -2774,6 +2774,8 @@ function ExchangeConfigModal({
                 src="/images/guide.png"
                 alt={t('binanceSetupGuide', language)}
                 className="w-full h-auto rounded"
+                loading="lazy"
+                decoding="async"
               />
             </div>
           </div>

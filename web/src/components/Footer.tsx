@@ -30,7 +30,7 @@ export default function Footer({ variant = 'full' }: FooterProps) {
               <div className="flex flex-wrap items-center justify-center gap-4">
                 <a
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 hover:scale-105"
-                  href="https://github.com/NoFxAiOS/nofx"
+                  href="https://github.com/TJalam-com/nofx"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -61,7 +61,7 @@ export default function Footer({ variant = 'full' }: FooterProps) {
                 </a>
                 <a
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 hover:scale-105"
-                  href="https://github.com/NoFxAiOS/nofx/tree/dev"
+                  href="https://github.com/TJalam-com/nofx/tree/dev"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -113,7 +113,7 @@ export default function Footer({ variant = 'full' }: FooterProps) {
           {variant === 'simple' && (
             <div className="mt-4">
               <a
-                href="https://github.com/NoFxAiOS/nofx"
+                href="https://github.com/TJalam-com/nofx"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 hover:scale-105"

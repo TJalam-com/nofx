@@ -17,18 +17,18 @@ import (
 )
 
 // ============================================================
-// AutoTraderTestSuite - 使用 testify/suite 进行结构化测试
+// AutoTraderTestSuite - Using testify/suite for structured testing
 // ============================================================
 
-// AutoTraderTestSuite 是 AutoTrader 的测试套件
-// 使用 testify/suite 来组织测试，提供统一的 setup/teardown 和 mock 管理
+// AutoTraderTestSuite is the test suite for AutoTrader
+// Uses testify/suite to organize tests, providing unified setup/teardown and mock management
 type AutoTraderTestSuite struct {
 	suite.Suite
 
-	// 测试对象
+	// Test object
 	autoTrader *AutoTrader
 
-	// Mock 依赖
+	// Mock dependencies
 	mockTrader *MockTrader
 	mockDB     *MockDatabase
 	mockLogger logger.IDecisionLogger
@@ -36,26 +36,26 @@ type AutoTraderTestSuite struct {
 	// gomonkey patches
 	patches *gomonkey.Patches
 
-	// 测试配置
+	// Test configuration
 	config AutoTraderConfig
 }
 
-// SetupSuite 在整个测试套件开始前执行一次
+// SetupSuite executes once before the entire test suite starts
 func (s *AutoTraderTestSuite) SetupSuite() {
-	// 可以在这里初始化一些全局资源
+	// Can initialize some global resources here
 }
 
-// TearDownSuite 在整个测试套件结束后执行一次
+// TearDownSuite executes once after the entire test suite ends
 func (s *AutoTraderTestSuite) TearDownSuite() {
-	// 清理全局资源
+	// Clean up global resources
 }
 
-// SetupTest 在每个测试用例开始前执行
+// SetupTest executes before each test case starts
 func (s *AutoTraderTestSuite) SetupTest() {
-	// 初始化 patches
+	// Initialize patches
 	s.patches = gomonkey.NewPatches()
 
-	// 创建 mock 对象
+	// Create mock objects
 	s.mockTrader = &MockTrader{
 		balance: map[string]interface{}{
 			"totalWalletBalance":    10000.0,
@@ -67,10 +67,10 @@ func (s *AutoTraderTestSuite) SetupTest() {
 
 	s.mockDB = &MockDatabase{}
 
-	// 创建临时决策日志记录器
+	// Create temporary decision logger
 	s.mockLogger = logger.NewDecisionLogger("/tmp/test_decision_logs")
 
-	// 设置默认配置
+	// Set default configuration
 	s.config = AutoTraderConfig{
 		ID:                   "test_trader",
 		Name:                 "Test Trader",
@@ -84,7 +84,7 @@ func (s *AutoTraderTestSuite) SetupTest() {
 		IsCrossMargin:        true,
 	}
 
-	// 创建 AutoTrader 实例（直接构造，不调用 NewAutoTrader 以避免外部依赖）
+	// Create AutoTrader instance (direct construction, not calling NewAutoTrader to avoid external dependencies)
 	s.autoTrader = &AutoTrader{
 		id:                    s.config.ID,
 		name:                  s.config.Name,
@@ -92,7 +92,7 @@ func (s *AutoTraderTestSuite) SetupTest() {
 		exchange:              s.config.Exchange,
 		config:                s.config,
 		trader:                s.mockTrader,
-		mcpClient:             nil, // 测试中不需要实际的 MCP Client
+		mcpClient:             nil, // No actual MCP Client needed in tests
 		decisionLogger:        s.mockLogger,
 		initialBalance:        s.config.InitialBalance,
 		systemPromptTemplate:  s.config.SystemPromptTemplate,
@@ -111,16 +111,16 @@ func (s *AutoTraderTestSuite) SetupTest() {
 	}
 }
 
-// TearDownTest 在每个测试用例结束后执行
+// TearDownTest executes after each test case ends
 func (s *AutoTraderTestSuite) TearDownTest() {
-	// 重置 gomonkey patches
+	// Reset gomonkey patches
 	if s.patches != nil {
 		s.patches.Reset()
 	}
 }
 
 // ============================================================
-// 层次 1: 工具函数测试
+// Level 1: Utility function tests
 // ============================================================
 
 func (s *AutoTraderTestSuite) TestSortDecisionsByPriority() {
@@ -129,7 +129,7 @@ func (s *AutoTraderTestSuite) TestSortDecisionsByPriority() {
 		input []decision.Decision
 	}{
 		{
-			name: "混合决策_验证优先级排序",
+			name: "Mixed decisions_verify priority sorting",
 			input: []decision.Decision{
 				{Action: "open_long", Symbol: "BTCUSDT"},
 				{Action: "close_short", Symbol: "ETHUSDT"},
@@ -145,9 +145,9 @@ func (s *AutoTraderTestSuite) TestSortDecisionsByPriority() {
 		s.Run(tt.name, func() {
 			result := sortDecisionsByPriority(tt.input)
 
-			s.Equal(len(tt.input), len(result), "结果长度应该相同")
+			s.Equal(len(tt.input), len(result), "Result length should be the same")
 
-			// 验证优先级是否递增
+			// Verify priority is ascending
 			getActionPriority := func(action string) int {
 				switch action {
 				case "close_long", "close_short", "partial_close":
@@ -166,7 +166,7 @@ func (s *AutoTraderTestSuite) TestSortDecisionsByPriority() {
 			for i := 0; i < len(result)-1; i++ {
 				currentPriority := getActionPriority(result[i].Action)
 				nextPriority := getActionPriority(result[i+1].Action)
-				s.LessOrEqual(currentPriority, nextPriority, "优先级应该递增")
+				s.LessOrEqual(currentPriority, nextPriority, "Priority should be ascending")
 			}
 		})
 	}
@@ -178,10 +178,10 @@ func (s *AutoTraderTestSuite) TestNormalizeSymbol() {
 		input    string
 		expected string
 	}{
-		{"已经是标准格式", "BTCUSDT", "BTCUSDT"},
-		{"小写转大写", "btcusdt", "BTCUSDT"},
-		{"只有币种名称_添加USDT", "BTC", "BTCUSDT"},
-		{"带空格_去除空格", " BTC ", "BTCUSDT"},
+		{"Already in standard format", "BTCUSDT", "BTCUSDT"},
+		{"Lowercase to uppercase", "btcusdt", "BTCUSDT"},
+		{"Only coin name_add USDT", "BTC", "BTCUSDT"},
+		{"With spaces_remove spaces", " BTC ", "BTCUSDT"},
 	}
 
 	for _, tt := range tests {
@@ -193,7 +193,7 @@ func (s *AutoTraderTestSuite) TestNormalizeSymbol() {
 }
 
 // ============================================================
-// 层次 2: Getter/Setter 测试
+// Level 2: Getter/Setter tests
 // ============================================================
 
 func (s *AutoTraderTestSuite) TestGettersAndSetters() {
@@ -217,38 +217,38 @@ func (s *AutoTraderTestSuite) TestGettersAndSetters() {
 }
 
 // ============================================================
-// 层次 3: PeakPnL 缓存测试
+// Level 3: PeakPnL cache tests
 // ============================================================
 
 func (s *AutoTraderTestSuite) TestPeakPnLCache() {
-	s.Run("UpdatePeakPnL_首次记录", func() {
+	s.Run("UpdatePeakPnL_First record", func() {
 		s.autoTrader.UpdatePeakPnL("BTCUSDT", "long", 10.5)
 		cache := s.autoTrader.GetPeakPnLCache()
 		s.Equal(10.5, cache["BTCUSDT_long"])
 	})
 
-	s.Run("UpdatePeakPnL_更新为更高值", func() {
+	s.Run("UpdatePeakPnL_Update to higher value", func() {
 		s.autoTrader.UpdatePeakPnL("BTCUSDT", "long", 15.0)
 		cache := s.autoTrader.GetPeakPnLCache()
 		s.Equal(15.0, cache["BTCUSDT_long"])
 	})
 
-	s.Run("UpdatePeakPnL_不更新为更低值", func() {
+	s.Run("UpdatePeakPnL_Do not update to lower value", func() {
 		s.autoTrader.UpdatePeakPnL("BTCUSDT", "long", 12.0)
 		cache := s.autoTrader.GetPeakPnLCache()
-		s.Equal(15.0, cache["BTCUSDT_long"], "峰值应保持不变")
+		s.Equal(15.0, cache["BTCUSDT_long"], "Peak value should remain unchanged")
 	})
 
 	s.Run("ClearPeakPnLCache", func() {
 		s.autoTrader.ClearPeakPnLCache("BTCUSDT", "long")
 		cache := s.autoTrader.GetPeakPnLCache()
 		_, exists := cache["BTCUSDT_long"]
-		s.False(exists, "应该被清除")
+		s.False(exists, "Should be cleared")
 	})
 }
 
 // ============================================================
-// 层次 4: GetStatus 测试
+// Level 4: GetStatus tests
 // ============================================================
 
 func (s *AutoTraderTestSuite) TestGetStatus() {
@@ -267,7 +267,7 @@ func (s *AutoTraderTestSuite) TestGetStatus() {
 }
 
 // ============================================================
-// 层次 5: GetAccountInfo 测试
+// Level 5: GetAccountInfo tests
 // ============================================================
 
 func (s *AutoTraderTestSuite) TestGetAccountInfo() {
@@ -276,29 +276,29 @@ func (s *AutoTraderTestSuite) TestGetAccountInfo() {
 	s.NoError(err)
 	s.NotNil(accountInfo)
 
-	// 验证核心字段和数值
+	// Verify core fields and values
 	s.Equal(10100.0, accountInfo["total_equity"]) // 10000 + 100
 	s.Equal(8000.0, accountInfo["available_balance"])
 	s.Equal(100.0, accountInfo["total_pnl"]) // 10100 - 10000
 }
 
 // ============================================================
-// 层次 6: GetPositions 测试
+// Level 6: GetPositions tests
 // ============================================================
 
 func (s *AutoTraderTestSuite) TestGetPositions() {
-	s.Run("空持仓", func() {
+	s.Run("Empty positions", func() {
 		positions, err := s.autoTrader.GetPositions()
 
 		s.NoError(err)
-		// positions 可能是 nil 或空数组，两者都是有效的
+		// positions may be nil or empty array, both are valid
 		if positions != nil {
 			s.Equal(0, len(positions))
 		}
 	})
 
-	s.Run("有持仓", func() {
-		// 设置 mock 持仓
+	s.Run("Has positions", func() {
+		// Set mock positions
 		s.mockTrader.positions = []map[string]interface{}{
 			{
 				"symbol":           "BTCUSDT",
@@ -326,13 +326,13 @@ func (s *AutoTraderTestSuite) TestGetPositions() {
 }
 
 // ============================================================
-// 层次 7: getCandidateCoins 测试
+// Level 7: getCandidateCoins tests
 // ============================================================
 
 func (s *AutoTraderTestSuite) TestGetCandidateCoins() {
-	s.Run("使用数据库默认币种", func() {
+	s.Run("Use database default coins", func() {
 		s.autoTrader.defaultCoins = []string{"BTC", "ETH", "BNB"}
-		s.autoTrader.tradingCoins = []string{} // 空的自定义币种
+		s.autoTrader.tradingCoins = []string{} // Empty custom coins
 
 		coins, err := s.autoTrader.getCandidateCoins()
 
@@ -344,7 +344,7 @@ func (s *AutoTraderTestSuite) TestGetCandidateCoins() {
 		s.Contains(coins[0].Sources, "default")
 	})
 
-	s.Run("使用自定义币种", func() {
+	s.Run("Use custom coins", func() {
 		s.autoTrader.tradingCoins = []string{"SOL", "AVAX"}
 
 		coins, err := s.autoTrader.getCandidateCoins()
@@ -356,9 +356,9 @@ func (s *AutoTraderTestSuite) TestGetCandidateCoins() {
 		s.Contains(coins[0].Sources, "custom")
 	})
 
-	s.Run("使用AI500+OI作为fallback", func() {
-		s.autoTrader.defaultCoins = []string{} // 空的默认币种
-		s.autoTrader.tradingCoins = []string{} // 空的自定义币种
+	s.Run("Use AI500+OI as fallback", func() {
+		s.autoTrader.defaultCoins = []string{} // Empty default coins
+		s.autoTrader.tradingCoins = []string{} // Empty custom coins
 
 		// Mock pool.GetMergedCoinPool
 		s.patches.ApplyFunc(pool.GetMergedCoinPool, func(ai500Limit int) (*pool.MergedCoinPool, error) {
@@ -379,7 +379,7 @@ func (s *AutoTraderTestSuite) TestGetCandidateCoins() {
 }
 
 // ============================================================
-// 层次 8: buildTradingContext 测试
+// Level 8: buildTradingContext tests
 // ============================================================
 
 func (s *AutoTraderTestSuite) TestBuildTradingContext() {
@@ -393,7 +393,7 @@ func (s *AutoTraderTestSuite) TestBuildTradingContext() {
 	s.NoError(err)
 	s.NotNil(ctx)
 
-	// 验证核心字段
+	// Verify core fields
 	s.Equal(10100.0, ctx.Account.TotalEquity) // 10000 + 100
 	s.Equal(8000.0, ctx.Account.AvailableBalance)
 	s.Equal(10, ctx.BTCETHLeverage)
@@ -401,10 +401,10 @@ func (s *AutoTraderTestSuite) TestBuildTradingContext() {
 }
 
 // ============================================================
-// 层次 9: 交易执行测试
+// Level 9: Trade execution tests
 // ============================================================
 
-// TestExecuteOpenPosition 测试开仓操作（多空通用）
+// TestExecuteOpenPosition test open position operations (long/short common)
 func (s *AutoTraderTestSuite) TestExecuteOpenPosition() {
 	tests := []struct {
 		name          string
@@ -416,7 +416,7 @@ func (s *AutoTraderTestSuite) TestExecuteOpenPosition() {
 		executeFn     func(*decision.Decision, *logger.DecisionAction) error
 	}{
 		{
-			name:          "成功开多仓",
+			name:          "Successfully open long position",
 			action:        "open_long",
 			expectedOrder: 123456,
 			availBalance:  8000.0,
@@ -425,7 +425,7 @@ func (s *AutoTraderTestSuite) TestExecuteOpenPosition() {
 			},
 		},
 		{
-			name:          "成功开空仓",
+			name:          "Successfully open short position",
 			action:        "open_short",
 			expectedOrder: 123457,
 			availBalance:  8000.0,
@@ -434,39 +434,39 @@ func (s *AutoTraderTestSuite) TestExecuteOpenPosition() {
 			},
 		},
 		{
-			name:         "多仓_保证金不足",
+			name:         "Long position_insufficient margin",
 			action:       "open_long",
 			availBalance: 0.0,
-			expectedErr:  "保证金不足",
+			expectedErr:  "insufficient margin",
 			executeFn: func(d *decision.Decision, a *logger.DecisionAction) error {
 				return s.autoTrader.executeOpenLongWithRecord(d, a)
 			},
 		},
 		{
-			name:         "空仓_保证金不足",
+			name:         "Short position_insufficient margin",
 			action:       "open_short",
 			availBalance: 0.0,
-			expectedErr:  "保证金不足",
+			expectedErr:  "insufficient margin",
 			executeFn: func(d *decision.Decision, a *logger.DecisionAction) error {
 				return s.autoTrader.executeOpenShortWithRecord(d, a)
 			},
 		},
 		{
-			name:         "多仓_已有同方向持仓",
+			name:         "Long position_already has same direction position",
 			action:       "open_long",
 			existingSide: "long",
 			availBalance: 8000.0,
-			expectedErr:  "已有多仓",
+			expectedErr:  "already has long position",
 			executeFn: func(d *decision.Decision, a *logger.DecisionAction) error {
 				return s.autoTrader.executeOpenLongWithRecord(d, a)
 			},
 		},
 		{
-			name:         "空仓_已有同方向持仓",
+			name:         "Short position_already has same direction position",
 			action:       "open_short",
 			existingSide: "short",
 			availBalance: 8000.0,
-			expectedErr:  "已有空仓",
+			expectedErr:  "already has short position",
 			executeFn: func(d *decision.Decision, a *logger.DecisionAction) error {
 				return s.autoTrader.executeOpenShortWithRecord(d, a)
 			},
@@ -502,14 +502,14 @@ func (s *AutoTraderTestSuite) TestExecuteOpenPosition() {
 				s.Equal(50000.0, actionRecord.Price)
 			}
 
-			// 恢复默认状态
+			// Restore default state
 			s.mockTrader.balance["availableBalance"] = 8000.0
 			s.mockTrader.positions = []map[string]interface{}{}
 		})
 	}
 }
 
-// TestExecuteClosePosition 测试平仓操作（多空通用）
+// TestExecuteClosePosition test close position operations (long/short common)
 func (s *AutoTraderTestSuite) TestExecuteClosePosition() {
 	tests := []struct {
 		name          string
@@ -519,7 +519,7 @@ func (s *AutoTraderTestSuite) TestExecuteClosePosition() {
 		executeFn     func(*decision.Decision, *logger.DecisionAction) error
 	}{
 		{
-			name:          "成功平多仓",
+			name:          "Successfully close long position",
 			action:        "close_long",
 			currentPrice:  51000.0,
 			expectedOrder: 123458,
@@ -528,7 +528,7 @@ func (s *AutoTraderTestSuite) TestExecuteClosePosition() {
 			},
 		},
 		{
-			name:          "成功平空仓",
+			name:          "Successfully close short position",
 			action:        "close_short",
 			currentPrice:  49000.0,
 			expectedOrder: 123459,
@@ -557,9 +557,9 @@ func (s *AutoTraderTestSuite) TestExecuteClosePosition() {
 	}
 }
 
-// TestExecuteUpdateStopOrTakeProfit 测试更新止损/止盈（多空通用）
+// TestExecuteUpdateStopOrTakeProfit test updating stop loss/take profit (long/short common)
 func (s *AutoTraderTestSuite) TestExecuteUpdateStopOrTakeProfit() {
-	// 使用指针变量来控制 market.Get 的返回值
+	// Use pointer variable to control market.Get return value
 	var testPrice *float64
 	s.patches.ApplyFunc(market.Get, func(symbol string) (*market.Data, error) {
 		price := 50000.0
@@ -581,7 +581,7 @@ func (s *AutoTraderTestSuite) TestExecuteUpdateStopOrTakeProfit() {
 		executeFn    func(*decision.Decision, *logger.DecisionAction) error
 	}{
 		{
-			name:         "成功更新多头止损",
+			name:         "Successfully update long stop loss",
 			action:       "update_stop_loss",
 			symbol:       "BTCUSDT",
 			side:         "long",
@@ -593,7 +593,7 @@ func (s *AutoTraderTestSuite) TestExecuteUpdateStopOrTakeProfit() {
 			},
 		},
 		{
-			name:         "成功更新空头止损",
+			name:         "Successfully update short stop loss",
 			action:       "update_stop_loss",
 			symbol:       "ETHUSDT",
 			side:         "short",
@@ -605,7 +605,7 @@ func (s *AutoTraderTestSuite) TestExecuteUpdateStopOrTakeProfit() {
 			},
 		},
 		{
-			name:         "成功更新多头止盈",
+			name:         "Successfully update long take profit",
 			action:       "update_take_profit",
 			symbol:       "BTCUSDT",
 			side:         "long",
@@ -617,7 +617,7 @@ func (s *AutoTraderTestSuite) TestExecuteUpdateStopOrTakeProfit() {
 			},
 		},
 		{
-			name:         "成功更新空头止盈",
+			name:         "Successfully update short take profit",
 			action:       "update_take_profit",
 			symbol:       "ETHUSDT",
 			side:         "short",
@@ -629,51 +629,51 @@ func (s *AutoTraderTestSuite) TestExecuteUpdateStopOrTakeProfit() {
 			},
 		},
 		{
-			name:         "多头止损价格不合理",
+			name:         "Long stop loss price unreasonable",
 			action:       "update_stop_loss",
 			symbol:       "BTCUSDT",
 			side:         "long",
 			currentPrice: 50000.0,
 			newPrice:     51000.0,
 			hasPosition:  true,
-			expectedErr:  "多单止损必须低于当前价格",
+			expectedErr:  "long stop loss must be below current price",
 			executeFn: func(d *decision.Decision, a *logger.DecisionAction) error {
 				return s.autoTrader.executeUpdateStopLossWithRecord(d, a)
 			},
 		},
 		{
-			name:         "多头止盈价格不合理",
+			name:         "Long take profit price unreasonable",
 			action:       "update_take_profit",
 			symbol:       "BTCUSDT",
 			side:         "long",
 			currentPrice: 50000.0,
 			newPrice:     49000.0,
 			hasPosition:  true,
-			expectedErr:  "多单止盈必须高于当前价格",
+			expectedErr:  "long take profit must be above current price",
 			executeFn: func(d *decision.Decision, a *logger.DecisionAction) error {
 				return s.autoTrader.executeUpdateTakeProfitWithRecord(d, a)
 			},
 		},
 		{
-			name:         "止损_持仓不存在",
+			name:         "Stop loss_position does not exist",
 			action:       "update_stop_loss",
 			symbol:       "BTCUSDT",
 			currentPrice: 50000.0,
 			newPrice:     49000.0,
 			hasPosition:  false,
-			expectedErr:  "持仓不存在",
+			expectedErr:  "position does not exist",
 			executeFn: func(d *decision.Decision, a *logger.DecisionAction) error {
 				return s.autoTrader.executeUpdateStopLossWithRecord(d, a)
 			},
 		},
 		{
-			name:         "止盈_持仓不存在",
+			name:         "Take profit_position does not exist",
 			action:       "update_take_profit",
 			symbol:       "BTCUSDT",
 			currentPrice: 50000.0,
 			newPrice:     55000.0,
 			hasPosition:  false,
-			expectedErr:  "持仓不存在",
+			expectedErr:  "position does not exist",
 			executeFn: func(d *decision.Decision, a *logger.DecisionAction) error {
 				return s.autoTrader.executeUpdateTakeProfitWithRecord(d, a)
 			},
@@ -683,7 +683,7 @@ func (s *AutoTraderTestSuite) TestExecuteUpdateStopOrTakeProfit() {
 	for _, tt := range tests {
 		time.Sleep(time.Millisecond)
 		s.Run(tt.name, func() {
-			// 设置当前测试用例的价格
+			// Set price for current test case
 			testPrice = &tt.currentPrice
 
 			if tt.hasPosition {
@@ -712,15 +712,15 @@ func (s *AutoTraderTestSuite) TestExecuteUpdateStopOrTakeProfit() {
 				s.Equal(tt.currentPrice, actionRecord.Price)
 			}
 
-			// 恢复默认状态
+			// Restore default state
 			s.mockTrader.positions = []map[string]interface{}{}
 		})
 	}
 }
 
 func (s *AutoTraderTestSuite) TestExecutePartialCloseWithRecord() {
-	s.Run("成功部分平仓", func() {
-		// 设置持仓
+	s.Run("Successfully partial close", func() {
+		// Set positions
 		s.mockTrader.positions = []map[string]interface{}{
 			{
 				"symbol":      "BTCUSDT",
@@ -756,11 +756,11 @@ func (s *AutoTraderTestSuite) TestExecutePartialCloseWithRecord() {
 		s.Equal(0.05, actionRecord.Quantity) // 50% of 0.1
 	})
 
-	s.Run("无效的平仓百分比", func() {
+	s.Run("Invalid close percentage", func() {
 		decision := &decision.Decision{
 			Action:          "partial_close",
 			Symbol:          "BTCUSDT",
-			ClosePercentage: 150.0, // 无效
+			ClosePercentage: 150.0, // Invalid
 		}
 
 		actionRecord := &logger.DecisionAction{}
@@ -768,12 +768,12 @@ func (s *AutoTraderTestSuite) TestExecutePartialCloseWithRecord() {
 		err := s.autoTrader.executePartialCloseWithRecord(decision, actionRecord)
 
 		s.Error(err)
-		s.Contains(err.Error(), "平仓百分比必须在 0-100 之间")
+		s.Contains(err.Error(), "close percentage must be between 0-100")
 	})
 }
 
 // ============================================================
-// 层次 10: executeDecisionWithRecord 路由测试
+// Level 10: executeDecisionWithRecord routing tests
 // ============================================================
 
 func (s *AutoTraderTestSuite) TestExecuteDecisionWithRecord() {
@@ -785,7 +785,7 @@ func (s *AutoTraderTestSuite) TestExecuteDecisionWithRecord() {
 		}, nil
 	})
 
-	s.Run("路由到open_long", func() {
+	s.Run("Route to open_long", func() {
 		decision := &decision.Decision{
 			Action:          "open_long",
 			Symbol:          "BTCUSDT",
@@ -798,7 +798,7 @@ func (s *AutoTraderTestSuite) TestExecuteDecisionWithRecord() {
 		s.NoError(err)
 	})
 
-	s.Run("路由到close_long", func() {
+	s.Run("Route to close_long", func() {
 		decision := &decision.Decision{
 			Action: "close_long",
 			Symbol: "BTCUSDT",
@@ -809,7 +809,7 @@ func (s *AutoTraderTestSuite) TestExecuteDecisionWithRecord() {
 		s.NoError(err)
 	})
 
-	s.Run("路由到hold_不执行", func() {
+	s.Run("Route to hold_no execution", func() {
 		decision := &decision.Decision{
 			Action: "hold",
 			Symbol: "BTCUSDT",
@@ -820,7 +820,7 @@ func (s *AutoTraderTestSuite) TestExecuteDecisionWithRecord() {
 		s.NoError(err)
 	})
 
-	s.Run("未知action返回错误", func() {
+	s.Run("Unknown action returns error", func() {
 		decision := &decision.Decision{
 			Action: "unknown_action",
 			Symbol: "BTCUSDT",
@@ -829,7 +829,7 @@ func (s *AutoTraderTestSuite) TestExecuteDecisionWithRecord() {
 
 		err := s.autoTrader.executeDecisionWithRecord(decision, actionRecord)
 		s.Error(err)
-		s.Contains(err.Error(), "未知的action")
+		s.Contains(err.Error(), "unknown action")
 	})
 }
 
@@ -845,18 +845,18 @@ func (s *AutoTraderTestSuite) TestCheckPositionDrawdown() {
 		skipCacheCheck   bool
 	}{
 		{
-			name:            "获取持仓失败_不panic",
+			name:            "Get positions failed_no panic",
 			setupFailures:   func() { s.mockTrader.shouldFailPositions = true },
 			cleanupFailures: func() { s.mockTrader.shouldFailPositions = false },
 			skipCacheCheck:  true,
 		},
 		{
-			name:           "无持仓_不panic",
+			name:           "No positions_no panic",
 			setupPositions: func() { s.mockTrader.positions = []map[string]interface{}{} },
 			skipCacheCheck: true,
 		},
 		{
-			name: "收益不足5%_不触发平仓",
+			name: "Profit less than 5%_do not trigger close",
 			setupPositions: func() {
 				s.mockTrader.positions = []map[string]interface{}{
 					{"symbol": "BTCUSDT", "side": "long", "positionAmt": 0.1, "entryPrice": 50000.0, "markPrice": 50150.0, "leverage": 10.0},
@@ -866,7 +866,7 @@ func (s *AutoTraderTestSuite) TestCheckPositionDrawdown() {
 			skipCacheCheck: true,
 		},
 		{
-			name: "回撤不足40%_不触发平仓",
+			name: "Drawdown less than 40%_do not trigger close",
 			setupPositions: func() {
 				s.mockTrader.positions = []map[string]interface{}{
 					{"symbol": "BTCUSDT", "side": "long", "positionAmt": 0.1, "entryPrice": 50000.0, "markPrice": 50400.0, "leverage": 10.0},
@@ -876,7 +876,7 @@ func (s *AutoTraderTestSuite) TestCheckPositionDrawdown() {
 			skipCacheCheck: true,
 		},
 		{
-			name: "多头_触发回撤平仓",
+			name: "Long position_trigger drawdown close",
 			setupPositions: func() {
 				s.mockTrader.positions = []map[string]interface{}{
 					{"symbol": "BTCUSDT", "side": "long", "positionAmt": 0.1, "entryPrice": 50000.0, "markPrice": 50300.0, "leverage": 10.0},
@@ -887,7 +887,7 @@ func (s *AutoTraderTestSuite) TestCheckPositionDrawdown() {
 			shouldClearCache: true,
 		},
 		{
-			name: "空头_触发回撤平仓",
+			name: "Short position_trigger drawdown close",
 			setupPositions: func() {
 				s.mockTrader.positions = []map[string]interface{}{
 					{"symbol": "ETHUSDT", "side": "short", "positionAmt": -0.5, "entryPrice": 3000.0, "markPrice": 2982.0, "leverage": 10.0},
@@ -898,7 +898,7 @@ func (s *AutoTraderTestSuite) TestCheckPositionDrawdown() {
 			shouldClearCache: true,
 		},
 		{
-			name: "多头_平仓失败_保留缓存",
+			name: "Long position_close failed_keep cache",
 			setupPositions: func() {
 				s.mockTrader.positions = []map[string]interface{}{
 					{"symbol": "BTCUSDT", "side": "long", "positionAmt": 0.1, "entryPrice": 50000.0, "markPrice": 50300.0, "leverage": 10.0},
@@ -911,7 +911,7 @@ func (s *AutoTraderTestSuite) TestCheckPositionDrawdown() {
 			shouldClearCache: false,
 		},
 		{
-			name: "空头_平仓失败_保留缓存",
+			name: "Short position_close failed_keep cache",
 			setupPositions: func() {
 				s.mockTrader.positions = []map[string]interface{}{
 					{"symbol": "ETHUSDT", "side": "short", "positionAmt": -0.5, "entryPrice": 3000.0, "markPrice": 2982.0, "leverage": 10.0},
@@ -946,23 +946,23 @@ func (s *AutoTraderTestSuite) TestCheckPositionDrawdown() {
 				cache := s.autoTrader.GetPeakPnLCache()
 				_, exists := cache[tt.expectedCacheKey]
 				if tt.shouldClearCache {
-					s.False(exists, "峰值缓存应该被清理")
+					s.False(exists, "Peak cache should be cleared")
 				} else {
-					s.True(exists, "峰值缓存不应该被清理")
+					s.True(exists, "Peak cache should not be cleared")
 				}
 			}
 
-			// 清理状态
+			// Cleanup state
 			s.mockTrader.positions = []map[string]interface{}{}
 		})
 	}
 }
 
 // ============================================================
-// Mock 实现
+// Mock implementations
 // ============================================================
 
-// MockDatabase 模拟数据库
+// MockDatabase mock database
 type MockDatabase struct {
 	shouldFail bool
 }
@@ -974,7 +974,7 @@ func (m *MockDatabase) UpdateTraderInitialBalance(userID, traderID string, newBa
 	return nil
 }
 
-// MockTrader 增强版（添加错误控制）
+// MockTrader enhanced version (with error control)
 type MockTrader struct {
 	balance              map[string]interface{}
 	positions            []map[string]interface{}
@@ -1087,16 +1087,16 @@ func (m *MockTrader) FormatQuantity(symbol string, quantity float64) (string, er
 }
 
 // ============================================================
-// 测试套件入口
+// Test suite entry point
 // ============================================================
 
-// TestAutoTraderTestSuite 运行 AutoTrader 测试套件
+// TestAutoTraderTestSuite run AutoTrader test suite
 func TestAutoTraderTestSuite(t *testing.T) {
 	suite.Run(t, new(AutoTraderTestSuite))
 }
 
 // ============================================================
-// 独立的单元测试 - calculatePnLPercentage 函数测试
+// Independent unit tests - calculatePnLPercentage function tests
 // ============================================================
 
 func TestCalculatePnLPercentage(t *testing.T) {
@@ -1107,58 +1107,58 @@ func TestCalculatePnLPercentage(t *testing.T) {
 		expected      float64
 	}{
 		{
-			name:          "正常盈利 - 10倍杠杆",
-			unrealizedPnl: 100.0,  // 盈利 100 USDT
-			marginUsed:    1000.0, // 保证金 1000 USDT
-			expected:      10.0,   // 10% 收益率
+			name:          "Normal profit - 10x leverage",
+			unrealizedPnl: 100.0,  // Profit 100 USDT
+			marginUsed:    1000.0, // Margin 1000 USDT
+			expected:      10.0,   // 10% return rate
 		},
 		{
-			name:          "正常亏损 - 10倍杠杆",
-			unrealizedPnl: -50.0,  // 亏损 50 USDT
-			marginUsed:    1000.0, // 保证金 1000 USDT
-			expected:      -5.0,   // -5% 收益率
+			name:          "Normal loss - 10x leverage",
+			unrealizedPnl: -50.0,  // Loss 50 USDT
+			marginUsed:    1000.0, // Margin 1000 USDT
+			expected:      -5.0,   // -5% return rate
 		},
 		{
-			name:          "高杠杆盈利 - 价格上涨1%，20倍杠杆",
-			unrealizedPnl: 200.0,  // 盈利 200 USDT
-			marginUsed:    1000.0, // 保证金 1000 USDT
-			expected:      20.0,   // 20% 收益率
+			name:          "High leverage profit - price up 1%, 20x leverage",
+			unrealizedPnl: 200.0,  // Profit 200 USDT
+			marginUsed:    1000.0, // Margin 1000 USDT
+			expected:      20.0,   // 20% return rate
 		},
 		{
-			name:          "保证金为0 - 边界情况",
+			name:          "Margin is 0 - edge case",
 			unrealizedPnl: 100.0,
 			marginUsed:    0.0,
-			expected:      0.0, // 应该返回 0 而不是除以零错误
+			expected:      0.0, // Should return 0 instead of divide by zero error
 		},
 		{
-			name:          "负保证金 - 边界情况",
+			name:          "Negative margin - edge case",
 			unrealizedPnl: 100.0,
 			marginUsed:    -1000.0,
-			expected:      0.0, // 应该返回 0（异常情况）
+			expected:      0.0, // Should return 0 (abnormal case)
 		},
 		{
-			name:          "盈亏为0",
+			name:          "PnL is 0",
 			unrealizedPnl: 0.0,
 			marginUsed:    1000.0,
 			expected:      0.0,
 		},
 		{
-			name:          "小额交易",
+			name:          "Small trade",
 			unrealizedPnl: 0.5,
 			marginUsed:    10.0,
 			expected:      5.0,
 		},
 		{
-			name:          "大额盈利",
+			name:          "Large profit",
 			unrealizedPnl: 5000.0,
 			marginUsed:    10000.0,
 			expected:      50.0,
 		},
 		{
-			name:          "极小保证金",
+			name:          "Very small margin",
 			unrealizedPnl: 1.0,
 			marginUsed:    0.01,
-			expected:      10000.0, // 100倍收益率
+			expected:      10000.0, // 100x return rate
 		},
 	}
 
@@ -1166,7 +1166,7 @@ func TestCalculatePnLPercentage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := calculatePnLPercentage(tt.unrealizedPnl, tt.marginUsed)
 
-			// 使用精度比较，避免浮点数误差
+			// Use precision comparison to avoid floating point errors
 			if math.Abs(result-tt.expected) > 0.0001 {
 				t.Errorf("calculatePnLPercentage(%v, %v) = %v, want %v",
 					tt.unrealizedPnl, tt.marginUsed, result, tt.expected)
@@ -1175,38 +1175,38 @@ func TestCalculatePnLPercentage(t *testing.T) {
 	}
 }
 
-// TestCalculatePnLPercentage_RealWorldScenarios 真实场景测试
+// TestCalculatePnLPercentage_RealWorldScenarios real-world scenario tests
 func TestCalculatePnLPercentage_RealWorldScenarios(t *testing.T) {
-	t.Run("BTC 10倍杠杆，价格上涨2%", func(t *testing.T) {
-		// 开仓：1000 USDT 保证金，10倍杠杆 = 10000 USDT 仓位
-		// 价格上涨 2% = 200 USDT 盈利
-		// 收益率 = 200 / 1000 = 20%
+	t.Run("BTC 10x leverage, price up 2%", func(t *testing.T) {
+		// Open position: 1000 USDT margin, 10x leverage = 10000 USDT position
+		// Price up 2% = 200 USDT profit
+		// Return rate = 200 / 1000 = 20%
 		result := calculatePnLPercentage(200.0, 1000.0)
 		expected := 20.0
 		if math.Abs(result-expected) > 0.0001 {
-			t.Errorf("BTC场景: got %v, want %v", result, expected)
+			t.Errorf("BTC scenario: got %v, want %v", result, expected)
 		}
 	})
 
-	t.Run("ETH 5倍杠杆，价格下跌3%", func(t *testing.T) {
-		// 开仓：2000 USDT 保证金，5倍杠杆 = 10000 USDT 仓位
-		// 价格下跌 3% = -300 USDT 亏损
-		// 收益率 = -300 / 2000 = -15%
+	t.Run("ETH 5x leverage, price down 3%", func(t *testing.T) {
+		// Open position: 2000 USDT margin, 5x leverage = 10000 USDT position
+		// Price down 3% = -300 USDT loss
+		// Return rate = -300 / 2000 = -15%
 		result := calculatePnLPercentage(-300.0, 2000.0)
 		expected := -15.0
 		if math.Abs(result-expected) > 0.0001 {
-			t.Errorf("ETH场景: got %v, want %v", result, expected)
+			t.Errorf("ETH scenario: got %v, want %v", result, expected)
 		}
 	})
 
-	t.Run("SOL 20倍杠杆，价格上涨0.5%", func(t *testing.T) {
-		// 开仓：500 USDT 保证金，20倍杠杆 = 10000 USDT 仓位
-		// 价格上涨 0.5% = 50 USDT 盈利
-		// 收益率 = 50 / 500 = 10%
+	t.Run("SOL 20x leverage, price up 0.5%", func(t *testing.T) {
+		// Open position: 500 USDT margin, 20x leverage = 10000 USDT position
+		// Price up 0.5% = 50 USDT profit
+		// Return rate = 50 / 500 = 10%
 		result := calculatePnLPercentage(50.0, 500.0)
 		expected := 10.0
 		if math.Abs(result-expected) > 0.0001 {
-			t.Errorf("SOL场景: got %v, want %v", result, expected)
+			t.Errorf("SOL scenario: got %v, want %v", result, expected)
 		}
 	})
 }

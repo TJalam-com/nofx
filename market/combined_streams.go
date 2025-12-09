@@ -14,11 +14,11 @@ import (
 type CombinedStreamsClient struct {
 	conn        *websocket.Conn
 	mu          sync.RWMutex
-	writeMu     sync.Mutex // 防止并发写入
+	writeMu     sync.Mutex // Prevent concurrent writes
 	subscribers map[string]chan []byte
 	reconnect   bool
 	done        chan struct{}
-	batchSize   int // 每批订阅的流数量
+	batchSize   int // Number of streams per batch subscription
 }
 
 func NewCombinedStreamsClient(batchSize int) *CombinedStreamsClient {
@@ -35,29 +35,29 @@ func (c *CombinedStreamsClient) Connect() error {
 		HandshakeTimeout: 10 * time.Second,
 	}
 
-	// 组合流使用不同的端点
+	// Combined streams use a different endpoint
 	conn, _, err := dialer.Dial("wss://fstream.binance.com/stream", nil)
 	if err != nil {
-		return fmt.Errorf("组合流WebSocket连接失败: %v", err)
+		return fmt.Errorf("Combined stream WebSocket connection failed: %v", err)
 	}
 
 	c.mu.Lock()
 	c.conn = conn
 	c.mu.Unlock()
 
-	log.Println("组合流WebSocket连接成功")
+	log.Println("Combined stream WebSocket connected successfully")
 	go c.readMessages()
 
 	return nil
 }
 
-// BatchSubscribeKlines 批量订阅K线
+// BatchSubscribeKlines subscribes to K-lines in batches
 func (c *CombinedStreamsClient) BatchSubscribeKlines(symbols []string, interval string) error {
-	// 将symbols分批处理
+	// Split symbols into batches
 	batches := c.splitIntoBatches(symbols, c.batchSize)
 
 	for i, batch := range batches {
-		log.Printf("订阅第 %d 批, 数量: %d", i+1, len(batch))
+		log.Printf("Subscribing batch %d, count: %d", i+1, len(batch))
 
 		streams := make([]string, len(batch))
 		for j, symbol := range batch {
@@ -65,10 +65,10 @@ func (c *CombinedStreamsClient) BatchSubscribeKlines(symbols []string, interval 
 		}
 
 		if err := c.subscribeStreams(streams); err != nil {
-			return fmt.Errorf("第 %d 批订阅失败: %v", i+1, err)
+			return fmt.Errorf("Batch %d subscription failed: %v", i+1, err)
 		}
 
-		// 批次间延迟，避免被限制
+		// Delay between batches to avoid rate limiting
 		if i < len(batches)-1 {
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -77,7 +77,7 @@ func (c *CombinedStreamsClient) BatchSubscribeKlines(symbols []string, interval 
 	return nil
 }
 
-// splitIntoBatches 将切片分成指定大小的批次
+// splitIntoBatches splits a slice into batches of specified size
 func (c *CombinedStreamsClient) splitIntoBatches(symbols []string, batchSize int) [][]string {
 	var batches [][]string
 
@@ -92,7 +92,7 @@ func (c *CombinedStreamsClient) splitIntoBatches(symbols []string, batchSize int
 	return batches
 }
 
-// subscribeStreams 订阅多个流
+// subscribeStreams subscribes to multiple streams
 func (c *CombinedStreamsClient) subscribeStreams(streams []string) error {
 	subscribeMsg := map[string]interface{}{
 		"method": "SUBSCRIBE",
@@ -105,13 +105,13 @@ func (c *CombinedStreamsClient) subscribeStreams(streams []string) error {
 	c.mu.RUnlock()
 
 	if conn == nil {
-		return fmt.Errorf("WebSocket未连接")
+		return fmt.Errorf("WebSocket not connected")
 	}
 
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
-	log.Printf("订阅流: %v", streams)
+	log.Printf("Subscribing to streams: %v", streams)
 	return conn.WriteJSON(subscribeMsg)
 }
 
@@ -132,7 +132,7 @@ func (c *CombinedStreamsClient) readMessages() {
 
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				log.Printf("读取组合流消息失败: %v", err)
+				log.Printf("Failed to read combined stream message: %v", err)
 				c.handleReconnect()
 				return
 			}
@@ -149,7 +149,7 @@ func (c *CombinedStreamsClient) handleCombinedMessage(message []byte) {
 	}
 
 	if err := json.Unmarshal(message, &combinedMsg); err != nil {
-		log.Printf("解析组合消息失败: %v", err)
+		log.Printf("Failed to parse combined message: %v", err)
 		return
 	}
 
@@ -161,7 +161,7 @@ func (c *CombinedStreamsClient) handleCombinedMessage(message []byte) {
 		select {
 		case ch <- combinedMsg.Data:
 		default:
-			log.Printf("订阅者通道已满: %s", combinedMsg.Stream)
+			log.Printf("Subscriber channel full: %s", combinedMsg.Stream)
 		}
 	}
 }
@@ -179,11 +179,11 @@ func (c *CombinedStreamsClient) handleReconnect() {
 		return
 	}
 
-	log.Println("组合流尝试重新连接...")
+	log.Println("Combined stream attempting to reconnect...")
 	time.Sleep(3 * time.Second)
 
 	if err := c.Connect(); err != nil {
-		log.Printf("组合流重新连接失败: %v", err)
+		log.Printf("Combined stream reconnection failed: %v", err)
 		go c.handleReconnect()
 	}
 }

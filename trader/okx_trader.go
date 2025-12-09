@@ -926,16 +926,16 @@ func (t *OKXTrader) SetTakeProfit(symbol string, positionSide string, quantity, 
 
 // CancelStopLossOrders σÅûµ╢êµ¡óµìƒσìò
 func (t *OKXTrader) CancelStopLossOrders(symbol string) error {
-	return t.cancelAlgoOrders(symbol, "sl")
+	return t.cancelAlgoOrders(symbol)
 }
 
 // CancelTakeProfitOrders σÅûµ╢êµ¡óτ¢êσìò
 func (t *OKXTrader) CancelTakeProfitOrders(symbol string) error {
-	return t.cancelAlgoOrders(symbol, "tp")
+	return t.cancelAlgoOrders(symbol)
 }
 
 // cancelAlgoOrders σÅûµ╢êτ¡ûτòÑΦ«óσìò
-func (t *OKXTrader) cancelAlgoOrders(symbol string, orderType string) error {
+func (t *OKXTrader) cancelAlgoOrders(symbol string) error {
 	instId := t.convertSymbol(symbol)
 
 	// ΦÄ╖σÅûσ╛àµêÉΣ║ñτÜäτ¡ûτòÑΦ«óσìò
@@ -1008,7 +1008,7 @@ func (t *OKXTrader) CancelAllOrders(symbol string) error {
 	}
 
 	// σÉîµù╢σÅûµ╢êτ¡ûτòÑΦ«óσìò
-	t.cancelAlgoOrders(symbol, "")
+	t.cancelAlgoOrders(symbol)
 
 	if len(orders) > 0 {
 		logger.Infof("  Γ£ô σ╖▓σÅûµ╢ê %s τÜäµëÇµ£ëµîéσìò", symbol)
@@ -1019,7 +1019,7 @@ func (t *OKXTrader) CancelAllOrders(symbol string) error {
 
 // CancelStopOrders σÅûµ╢êµ¡óτ¢êµ¡óµìƒσìò
 func (t *OKXTrader) CancelStopOrders(symbol string) error {
-	return t.cancelAlgoOrders(symbol, "")
+	return t.cancelAlgoOrders(symbol)
 }
 
 // FormatQuantity µá╝σ╝Åσîûµò░ΘçÅ

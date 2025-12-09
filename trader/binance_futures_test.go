@@ -90,13 +90,14 @@ func NewBinanceFuturesTestSuite(t *testing.T) *BinanceFuturesTestSuite {
 		// Mock GetMarketPrice - /fapi/v1/ticker/price and /fapi/v2/ticker/price
 		case path == "/fapi/v1/ticker/price" || path == "/fapi/v2/ticker/price":
 			symbol := r.URL.Query().Get("symbol")
-			if symbol == "" {
+			switch symbol {
+			case "":
 				// 返回所有价格
 				respBody = []map[string]interface{}{
 					{"Symbol": "BTCUSDT", "Price": "50000.00", "Time": 1234567890},
 					{"Symbol": "ETHUSDT", "Price": "3000.00", "Time": 1234567890},
 				}
-			} else if symbol == "INVALIDUSDT" {
+			case "INVALIDUSDT":
 				// 返回错误
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(map[string]interface{}{
@@ -104,16 +105,21 @@ func NewBinanceFuturesTestSuite(t *testing.T) *BinanceFuturesTestSuite {
 					"msg":  "Invalid symbol.",
 				})
 				return
-			} else {
+			case "ETHUSDT":
 				// 返回单个价格（注意：即使有 symbol 参数，也要返回数组）
-				price := "50000.00"
-				if symbol == "ETHUSDT" {
-					price = "3000.00"
-				}
 				respBody = []map[string]interface{}{
 					{
 						"Symbol": symbol,
-						"Price":  price,
+						"Price":  "3000.00",
+						"Time":   1234567890,
+					},
+				}
+			default:
+				// 返回单个价格（注意：即使有 symbol 参数，也要返回数组）
+				respBody = []map[string]interface{}{
+					{
+						"Symbol": symbol,
+						"Price":  "50000.00",
 						"Time":   1234567890,
 					},
 				}
