@@ -128,41 +128,6 @@ export function FAQLayout({ language }: FAQLayoutProps) {
           )}
         </main>
       </div>
-
-      {/* Contact Section */}
-      <div
-        className="mt-16 p-8 rounded-lg text-center nofx-gradient-subtle"
-      >
-        <h3 className="text-xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-          {t('faqStillHaveQuestions', language)}
-        </h3>
-        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
-          {t('faqContactUs', language)}
-        </p>
-        <div className="flex items-center justify-center gap-4">
-          <a
-            href="https://github.com/tinkle-community/nofx"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105"
-            style={{
-              background: 'var(--panel-bg)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--panel-border)',
-            }}
-          >
-            GitHub
-          </a>
-          <a
-            href="https://t.me/nofx_dev_community"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105"
-          >
-            {t('community', language)}
-          </a>
-        </div>
-      </div>
     </Container>
   )
 }
