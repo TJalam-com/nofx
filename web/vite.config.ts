@@ -88,16 +88,4 @@ export default defineConfig({
       },
     },
   },
-  build: {
-    outDir: 'dist',
-    sourcemap: false, // Disable sourcemaps in production for smaller builds
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-        },
-      },
-    },
-  },
 })
