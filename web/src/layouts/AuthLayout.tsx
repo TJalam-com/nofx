@@ -1,7 +1,6 @@
 import { ReactNode } from 'react'
 import { Outlet, Link } from 'react-router-dom'
 import { Container } from '../components/Container'
-import { useLanguage } from '../contexts/LanguageContext'
 import { useSEO } from '../hooks/useSEO'
 
 interface AuthLayoutProps {
@@ -9,7 +8,6 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
-  const { language } = useLanguage()
   const { SEOComponent } = useSEO()
 
   return (
