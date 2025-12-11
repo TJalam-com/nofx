@@ -12,64 +12,64 @@ import (
 )
 
 func main() {
-	log.Println("🔄 开始迁移数据库到加密格式...")
+	log.Println("🔄 Starting database migration to encrypted format...")
 
-	// 1. 检查数据库文件
-	dbPath := "data.db"
+	// 1. Check database file
+	dbPath := "data/data.db"
 	if len(os.Args) > 1 {
 		dbPath = os.Args[1]
 	}
 
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		log.Fatalf("❌ 数据库文件不存在: %s", dbPath)
+		log.Fatalf("❌ Database file does not exist: %s", dbPath)
 	}
 
-	// 2. 备份数据库
+	// 2. Backup database
 	backupPath := fmt.Sprintf("%s.pre_encryption_backup", dbPath)
-	log.Printf("📦 备份数据库到: %s", backupPath)
+	log.Printf("📦 Backing up database to: %s", backupPath)
 
 	input, err := os.ReadFile(dbPath)
 	if err != nil {
-		log.Fatalf("❌ 读取数据库失败: %v", err)
+		log.Fatalf("❌ Failed to read database: %v", err)
 	}
 
 	if err := os.WriteFile(backupPath, input, 0600); err != nil {
-		log.Fatalf("❌ 备份失败: %v", err)
+		log.Fatalf("❌ Backup failed: %v", err)
 	}
 
-	// 3. 打开数据库
+	// 3. Open database
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
-		log.Fatalf("❌ 打开数据库失败: %v", err)
+		log.Fatalf("❌ Failed to open database: %v", err)
 	}
 	defer db.Close()
 
-	// 4. 初始化 CryptoService（从环境变量加载密钥）
+	// 4. Initialize CryptoService (load key from environment variables)
 	cs, err := crypto.NewCryptoService()
 	if err != nil {
-		log.Fatalf("❌ 初始化加密服务失败: %v", err)
+		log.Fatalf("❌ Failed to initialize encryption service: %v", err)
 	}
 
-	// 5. 迁移交易所配置
+	// 5. Migrate exchange configurations
 	if err := migrateExchanges(db, cs); err != nil {
-		log.Fatalf("❌ 迁移交易所配置失败: %v", err)
+		log.Fatalf("❌ Failed to migrate exchange configurations: %v", err)
 	}
 
-	// 6. 迁移 AI 模型配置
+	// 6. Migrate AI model configurations
 	if err := migrateAIModels(db, cs); err != nil {
-		log.Fatalf("❌ 迁移 AI 模型配置失败: %v", err)
+		log.Fatalf("❌ Failed to migrate AI model configurations: %v", err)
 	}
 
-	log.Println("✅ 数据迁移完成！")
-	log.Printf("📝 原始数据备份位于: %s", backupPath)
-	log.Println("⚠️  请验证系统功能正常后，手动删除备份文件")
+	log.Println("✅ Data migration completed!")
+	log.Printf("📝 Original data backed up at: %s", backupPath)
+	log.Println("⚠️  Please verify system functionality before manually deleting backup file")
 }
 
-// migrateExchanges 迁移交易所配置
+// migrateExchanges migrates exchange configurations
 func migrateExchanges(db *sql.DB, cs *crypto.CryptoService) error {
-	log.Println("🔄 迁移交易所配置...")
+	log.Println("🔄 Migrating exchange configurations...")
 
-	// 查询所有未加密的记录（加密数据以 ENC:v1: 开头）
+	// Query all unencrypted records (encrypted data starts with ENC:v1:)
 	rows, err := db.Query(`
 		SELECT user_id, id, api_key, secret_key,
 		       COALESCE(hyperliquid_private_key, ''),
@@ -96,22 +96,22 @@ func migrateExchanges(db *sql.DB, cs *crypto.CryptoService) error {
 			return err
 		}
 
-		// 加密每个字段
+		// Encrypt each field
 		encAPIKey, err := cs.EncryptForStorage(apiKey)
 		if err != nil {
-			return fmt.Errorf("加密 API Key 失败: %w", err)
+			return fmt.Errorf("failed to encrypt API Key: %w", err)
 		}
 
 		encSecretKey, err := cs.EncryptForStorage(secretKey)
 		if err != nil {
-			return fmt.Errorf("加密 Secret Key 失败: %w", err)
+			return fmt.Errorf("failed to encrypt Secret Key: %w", err)
 		}
 
 		encHLPrivateKey := ""
 		if hlPrivateKey != "" {
 			encHLPrivateKey, err = cs.EncryptForStorage(hlPrivateKey)
 			if err != nil {
-				return fmt.Errorf("加密 Hyperliquid Private Key 失败: %w", err)
+				return fmt.Errorf("failed to encrypt Hyperliquid Private Key: %w", err)
 			}
 		}
 
@@ -119,11 +119,11 @@ func migrateExchanges(db *sql.DB, cs *crypto.CryptoService) error {
 		if asterPrivateKey != "" {
 			encAsterPrivateKey, err = cs.EncryptForStorage(asterPrivateKey)
 			if err != nil {
-				return fmt.Errorf("加密 Aster Private Key 失败: %w", err)
+				return fmt.Errorf("failed to encrypt Aster Private Key: %w", err)
 			}
 		}
 
-		// 更新数据库
+		// Update database
 		_, err = tx.Exec(`
 			UPDATE exchanges
 			SET api_key = ?, secret_key = ?,
@@ -132,10 +132,10 @@ func migrateExchanges(db *sql.DB, cs *crypto.CryptoService) error {
 		`, encAPIKey, encSecretKey, encHLPrivateKey, encAsterPrivateKey, userID, exchangeID)
 
 		if err != nil {
-			return fmt.Errorf("更新数据库失败: %w", err)
+			return fmt.Errorf("failed to update database: %w", err)
 		}
 
-		log.Printf("  ✓ 已加密: [%s] %s", userID, exchangeID)
+		log.Printf("  ✓ Encrypted: [%s] %s", userID, exchangeID)
 		count++
 	}
 
@@ -143,13 +143,13 @@ func migrateExchanges(db *sql.DB, cs *crypto.CryptoService) error {
 		return err
 	}
 
-	log.Printf("✅ 已迁移 %d 个交易所配置", count)
+	log.Printf("✅ Migrated %d exchange configurations", count)
 	return nil
 }
 
-// migrateAIModels 迁移 AI 模型配置
+// migrateAIModels migrates AI model configurations
 func migrateAIModels(db *sql.DB, cs *crypto.CryptoService) error {
-	log.Println("🔄 迁移 AI 模型配置...")
+	log.Println("🔄 Migrating AI model configurations...")
 
 	rows, err := db.Query(`
 		SELECT user_id, id, api_key
@@ -176,7 +176,7 @@ func migrateAIModels(db *sql.DB, cs *crypto.CryptoService) error {
 
 		encAPIKey, err := cs.EncryptForStorage(apiKey)
 		if err != nil {
-			return fmt.Errorf("加密 API Key 失败: %w", err)
+			return fmt.Errorf("failed to encrypt API Key: %w", err)
 		}
 
 		_, err = tx.Exec(`
@@ -184,10 +184,10 @@ func migrateAIModels(db *sql.DB, cs *crypto.CryptoService) error {
 		`, encAPIKey, userID, modelID)
 
 		if err != nil {
-			return fmt.Errorf("更新数据库失败: %w", err)
+			return fmt.Errorf("failed to update database: %w", err)
 		}
 
-		log.Printf("  ✓ 已加密: [%s] %s", userID, modelID)
+		log.Printf("  ✓ Encrypted: [%s] %s", userID, modelID)
 		count++
 	}
 
@@ -195,6 +195,6 @@ func migrateAIModels(db *sql.DB, cs *crypto.CryptoService) error {
 		return err
 	}
 
-	log.Printf("✅ 已迁移 %d 个 AI 模型配置", count)
+	log.Printf("✅ Migrated %d AI model configurations", count)
 	return nil
 }

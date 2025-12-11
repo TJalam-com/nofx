@@ -7,8 +7,8 @@ import (
 	"nofx/mcp"
 )
 
-// configureMCPClient 根据配置创建/克隆 MCP 客户端（返回 mcp.AIClient 接口）。
-// 说明：mcp.New() 返回接口类型，这里统一转为具体实现再做拷贝，避免并发共享状态。
+// configureMCPClient creates/clones an MCP client based on configuration (returns mcp.AIClient interface).
+// Note: mcp.New() returns an interface type; here we convert to concrete implementation before copying to avoid concurrent shared state.
 func configureMCPClient(cfg BacktestConfig, base mcp.AIClient) (mcp.AIClient, error) {
 	provider := strings.ToLower(strings.TrimSpace(cfg.AICfg.Provider))
 
@@ -36,6 +36,41 @@ func configureMCPClient(cfg BacktestConfig, base mcp.AIClient) (mcp.AIClient, er
 		qc := mcp.NewQwenClientWithOptions()
 		qc.(*mcp.QwenClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
 		return qc, nil
+	case "claude":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("claude provider requires api key")
+		}
+		cc := mcp.NewClaudeClientWithOptions()
+		cc.(*mcp.ClaudeClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return cc, nil
+	case "kimi":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("kimi provider requires api key")
+		}
+		kc := mcp.NewKimiClientWithOptions()
+		kc.(*mcp.KimiClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return kc, nil
+	case "gemini":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("gemini provider requires api key")
+		}
+		gc := mcp.NewGeminiClientWithOptions()
+		gc.(*mcp.GeminiClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return gc, nil
+	case "grok":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("grok provider requires api key")
+		}
+		grokC := mcp.NewGrokClientWithOptions()
+		grokC.(*mcp.GrokClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return grokC, nil
+	case "openai":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("openai provider requires api key")
+		}
+		oaiC := mcp.NewOpenAIClientWithOptions()
+		oaiC.(*mcp.OpenAIClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return oaiC, nil
 	case "custom":
 		if cfg.AICfg.BaseURL == "" || cfg.AICfg.APIKey == "" || cfg.AICfg.Model == "" {
 			return nil, fmt.Errorf("custom provider requires base_url, api key and model")
@@ -48,9 +83,9 @@ func configureMCPClient(cfg BacktestConfig, base mcp.AIClient) (mcp.AIClient, er
 	}
 }
 
-// cloneBaseClient 复制基础客户端以避免共享可变状态。
+// cloneBaseClient copies the base client to avoid shared mutable state.
 func cloneBaseClient(base mcp.AIClient) *mcp.Client {
-	// 优先尝试复用传入的基础客户端（深拷贝）
+	// Prefer to reuse the passed-in base client (deep copy)
 	switch c := base.(type) {
 	case *mcp.Client:
 		cp := *c
@@ -65,7 +100,32 @@ func cloneBaseClient(base mcp.AIClient) *mcp.Client {
 			cp := *c.Client
 			return &cp
 		}
+	case *mcp.ClaudeClient:
+		if c != nil && c.Client != nil {
+			cp := *c.Client
+			return &cp
+		}
+	case *mcp.KimiClient:
+		if c != nil && c.Client != nil {
+			cp := *c.Client
+			return &cp
+		}
+	case *mcp.GeminiClient:
+		if c != nil && c.Client != nil {
+			cp := *c.Client
+			return &cp
+		}
+	case *mcp.GrokClient:
+		if c != nil && c.Client != nil {
+			cp := *c.Client
+			return &cp
+		}
+	case *mcp.OpenAIClient:
+		if c != nil && c.Client != nil {
+			cp := *c.Client
+			return &cp
+		}
 	}
-	// 回退到新的默认客户端
+	// Fall back to a new default client
 	return mcp.NewClient().(*mcp.Client)
 }

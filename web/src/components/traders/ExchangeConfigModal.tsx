@@ -11,16 +11,28 @@ import {
   WebCryptoEnvironmentCheck,
   type WebCryptoCheckStatus,
 } from '../WebCryptoEnvironmentCheck'
-import { BookOpen, Trash2, HelpCircle } from 'lucide-react'
+import { BookOpen, Trash2, HelpCircle, ExternalLink, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Tooltip } from './Tooltip'
 import { getShortName } from './utils'
+
+// Supported exchange templates for creating new accounts
+const SUPPORTED_EXCHANGE_TEMPLATES = [
+  { exchange_type: 'binance', name: 'Binance Futures', type: 'cex' as const },
+  { exchange_type: 'bybit', name: 'Bybit Futures', type: 'cex' as const },
+  { exchange_type: 'okx', name: 'OKX Futures', type: 'cex' as const },
+  { exchange_type: 'hyperliquid', name: 'Hyperliquid', type: 'dex' as const },
+  { exchange_type: 'aster', name: 'Aster DEX', type: 'dex' as const },
+  { exchange_type: 'lighter', name: 'Lighter', type: 'dex' as const },
+]
 
 interface ExchangeConfigModalProps {
   allExchanges: Exchange[]
   editingExchangeId: string | null
   onSave: (
-    exchangeId: string,
+    exchangeId: string | null, // null for creating new account
+    exchangeType: string,
+    accountName: string,
     apiKey: string,
     secretKey?: string,
     passphrase?: string, // OKX专用
@@ -46,9 +58,8 @@ export function ExchangeConfigModal({
   onClose,
   language,
 }: ExchangeConfigModalProps) {
-  const [selectedExchangeId, setSelectedExchangeId] = useState(
-    editingExchangeId || ''
-  )
+  // Selected exchange type for creating new accounts
+  const [selectedExchangeType, setSelectedExchangeType] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [secretKey, setSecretKey] = useState('')
   const [passphrase, setPassphrase] = useState('')
@@ -84,14 +95,43 @@ export function ExchangeConfigModal({
     null | 'hyperliquid' | 'aster' | 'lighter'
   >(null)
 
-  // 获取当前编辑的交易所信息
-  const selectedExchange = allExchanges?.find(
-    (e) => e.id === selectedExchangeId
-  )
+  // 保存中状态
+  const [isSaving, setIsSaving] = useState(false)
+
+  // 账户名称
+  const [accountName, setAccountName] = useState('')
+
+  // 获取当前编辑的交易所信息或模板
+  // For editing: find the existing account by id (UUID)
+  // For creating: use the selected exchange template
+  const selectedExchange = editingExchangeId
+    ? allExchanges?.find((e) => e.id === editingExchangeId)
+    : null
+
+  // Get the exchange template for displaying UI fields
+  const selectedTemplate = editingExchangeId
+    ? SUPPORTED_EXCHANGE_TEMPLATES.find((t) => t.exchange_type === selectedExchange?.exchange_type)
+    : SUPPORTED_EXCHANGE_TEMPLATES.find((t) => t.exchange_type === selectedExchangeType)
+
+  // Get the current exchange type (from existing account or selected template)
+  const currentExchangeType = editingExchangeId
+    ? selectedExchange?.exchange_type
+    : selectedExchangeType
+
+  // 交易所注册链接配置
+  const exchangeRegistrationLinks: Record<string, { url: string; hasReferral?: boolean }> = {
+    binance: { url: 'https://www.binance.com/join?ref=NOFXENG', hasReferral: true },
+    okx: { url: 'https://www.okx.com/join/1865360', hasReferral: true },
+    bybit: { url: 'https://partner.bybit.com/b/83856', hasReferral: true },
+    hyperliquid: { url: 'https://app.hyperliquid.xyz/join/AITRADING', hasReferral: true },
+    aster: { url: 'https://www.asterdex.com/en/referral/fdfc0e', hasReferral: true },
+    lighter: { url: 'https://lighter.xyz', hasReferral: false },
+  }
 
   // 如果是编辑现有交易所，初始化表单数据
   useEffect(() => {
     if (editingExchangeId && selectedExchange) {
+      setAccountName(selectedExchange.account_name || '')
       setApiKey(selectedExchange.apiKey || '')
       setSecretKey(selectedExchange.secretKey || '')
       setPassphrase('') // Don't load existing passphrase for security
@@ -114,7 +154,7 @@ export function ExchangeConfigModal({
 
   // 加载服务器IP（当选择binance时）
   useEffect(() => {
-    if (selectedExchangeId === 'binance' && !serverIP) {
+    if (currentExchangeType === 'binance' && !serverIP) {
       setLoadingIP(true)
       api
         .getServerIP()
@@ -128,7 +168,7 @@ export function ExchangeConfigModal({
           setLoadingIP(false)
         })
     }
-  }, [selectedExchangeId])
+  }, [currentExchangeType])
 
   const handleCopyIP = async (ip: string) => {
     try {
@@ -218,64 +258,85 @@ export function ExchangeConfigModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedExchangeId) return
+    if (isSaving) return
 
-    // 根据交易所类型验证不同字段
-    if (selectedExchange?.id === 'binance') {
-      if (!apiKey.trim() || !secretKey.trim()) return
-      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), '', testnet)
-    } else if (selectedExchange?.id === 'okx') {
-      if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) return
-      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), passphrase.trim(), testnet)
-    } else if (selectedExchange?.id === 'hyperliquid') {
-      if (!apiKey.trim() || !hyperliquidWalletAddr.trim()) return // 验证私钥和钱包地址
-      await onSave(
-        selectedExchangeId,
-        apiKey.trim(),
-        '',
-        '',
-        testnet,
-        hyperliquidWalletAddr.trim()
-      )
-    } else if (selectedExchange?.id === 'aster') {
-      if (!asterUser.trim() || !asterSigner.trim() || !asterPrivateKey.trim())
-        return
-      await onSave(
-        selectedExchangeId,
-        '',
-        '',
-        '',
-        testnet,
-        undefined,
-        asterUser.trim(),
-        asterSigner.trim(),
-        asterPrivateKey.trim()
-      )
-    } else if (selectedExchange?.id === 'lighter') {
-      if (!lighterWalletAddr.trim() || !lighterPrivateKey.trim()) return
-      await onSave(
-        selectedExchangeId,
-        lighterPrivateKey.trim(),
-        '',
-        '',
-        testnet,
-        lighterWalletAddr.trim(),
-        undefined,
-        undefined,
-        undefined,
-        lighterWalletAddr.trim(),
-        lighterPrivateKey.trim(),
-        lighterApiKeyPrivateKey.trim()
-      )
-    } else {
-      // 默认情况（其他CEX交易所）
-      if (!apiKey.trim() || !secretKey.trim()) return
-      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), '', testnet)
+    // For creating, we need the exchange type
+    if (!editingExchangeId && !selectedExchangeType) return
+
+    // Validate account name
+    const trimmedAccountName = accountName.trim()
+    if (!trimmedAccountName) {
+      toast.error(language === 'zh' ? '请输入账户名称' : 'Please enter account name')
+      return
+    }
+
+    const exchangeId = editingExchangeId || null
+    const exchangeType = currentExchangeType || ''
+
+    setIsSaving(true)
+    try {
+      // 根据交易所类型验证不同字段
+      if (currentExchangeType === 'binance') {
+        if (!apiKey.trim() || !secretKey.trim()) return
+        await onSave(exchangeId, exchangeType, trimmedAccountName, apiKey.trim(), secretKey.trim(), '', testnet)
+      } else if (currentExchangeType === 'okx') {
+        if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) return
+        await onSave(exchangeId, exchangeType, trimmedAccountName, apiKey.trim(), secretKey.trim(), passphrase.trim(), testnet)
+      } else if (currentExchangeType === 'hyperliquid') {
+        if (!apiKey.trim() || !hyperliquidWalletAddr.trim()) return // 验证私钥和钱包地址
+        await onSave(
+          exchangeId,
+          exchangeType,
+          trimmedAccountName,
+          apiKey.trim(),
+          '',
+          '',
+          testnet,
+          hyperliquidWalletAddr.trim()
+        )
+      } else if (currentExchangeType === 'aster') {
+        if (!asterUser.trim() || !asterSigner.trim() || !asterPrivateKey.trim())
+          return
+        await onSave(
+          exchangeId,
+          exchangeType,
+          trimmedAccountName,
+          '',
+          '',
+          '',
+          testnet,
+          undefined,
+          asterUser.trim(),
+          asterSigner.trim(),
+          asterPrivateKey.trim()
+        )
+      } else if (currentExchangeType === 'lighter') {
+        if (!lighterWalletAddr.trim() || !lighterPrivateKey.trim()) return
+        await onSave(
+          exchangeId,
+          exchangeType,
+          trimmedAccountName,
+          lighterPrivateKey.trim(),
+          '',
+          '',
+          testnet,
+          lighterWalletAddr.trim(),
+          undefined,
+          undefined,
+          undefined,
+          lighterWalletAddr.trim(),
+          lighterPrivateKey.trim(),
+          lighterApiKeyPrivateKey.trim()
+        )
+      } else {
+        // 默认情况（其他CEX交易所）
+        if (!apiKey.trim() || !secretKey.trim()) return
+        await onSave(exchangeId, exchangeType, trimmedAccountName, apiKey.trim(), secretKey.trim(), '', testnet)
+      }
+    } finally {
+      setIsSaving(false)
     }
   }
-
-  // 可选择的交易所列表（所有支持的交易所）
-  const availableExchanges = allExchanges || []
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -296,7 +357,7 @@ export function ExchangeConfigModal({
               : t('addExchange', language)}
           </h3>
           <div className="flex items-center gap-2">
-            {selectedExchange?.id === 'binance' && (
+            {currentExchangeType === 'binance' && (
               <button
                 type="button"
                 onClick={() => setShowGuide(true)}
@@ -355,8 +416,8 @@ export function ExchangeConfigModal({
                     {t('environmentSteps.selectTitle', language)}
                   </div>
                   <select
-                    value={selectedExchangeId}
-                    onChange={(e) => setSelectedExchangeId(e.target.value)}
+                    value={selectedExchangeType}
+                    onChange={(e) => setSelectedExchangeType(e.target.value)}
                     className="w-full px-3 py-2 rounded"
                     style={{
                       background: '#0B0E11',
@@ -364,16 +425,19 @@ export function ExchangeConfigModal({
                       color: '#EAECEF',
                     }}
                     aria-label={t('selectExchange', language)}
-                    disabled={webCryptoStatus !== 'secure'}
+                    disabled={
+                      webCryptoStatus !== 'secure' &&
+                      webCryptoStatus !== 'disabled'
+                    }
                     required
                   >
                     <option value="">
                       {t('pleaseSelectExchange', language)}
                     </option>
-                    {availableExchanges.map((exchange) => (
-                      <option key={exchange.id} value={exchange.id}>
-                        {getShortName(exchange.name)} (
-                        {exchange.type.toUpperCase()})
+                    {SUPPORTED_EXCHANGE_TEMPLATES.map((template) => (
+                      <option key={template.exchange_type} value={template.exchange_type}>
+                        {getShortName(template.name)} (
+                        {template.type.toUpperCase()})
                       </option>
                     ))}
                   </select>
@@ -381,40 +445,101 @@ export function ExchangeConfigModal({
               </div>
             )}
 
-            {selectedExchange && (
+            {selectedTemplate && (
               <div
                 className="p-4 rounded"
                 style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 flex items-center justify-center">
-                    {getExchangeIcon(selectedExchange.id, {
+                    {getExchangeIcon(selectedTemplate.exchange_type, {
                       width: 32,
                       height: 32,
                     })}
                   </div>
                   <div>
                     <div className="font-semibold" style={{ color: '#EAECEF' }}>
-                      {getShortName(selectedExchange.name)}
+                      {getShortName(selectedTemplate.name)}
+                      {editingExchangeId && selectedExchange?.account_name && (
+                        <span className="text-sm font-normal ml-2" style={{ color: '#848E9C' }}>
+                          - {selectedExchange.account_name}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs" style={{ color: '#848E9C' }}>
-                      {selectedExchange.type.toUpperCase()} •{' '}
-                      {selectedExchange.id}
+                      {selectedTemplate.type.toUpperCase()} •{' '}
+                      {selectedTemplate.exchange_type}
                     </div>
                   </div>
                 </div>
+
+                {/* 账户名称输入 */}
+                <div className="mt-3">
+                  <label
+                    className="block text-sm font-semibold mb-2"
+                    style={{ color: '#EAECEF' }}
+                  >
+                    {language === 'zh' ? '账户名称' : 'Account Name'} *
+                  </label>
+                  <input
+                    type="text"
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                    placeholder={language === 'zh' ? '例如：主账户、套利账户' : 'e.g., Main Account, Arbitrage Account'}
+                    className="w-full px-3 py-2 rounded"
+                    style={{
+                      background: '#1E2329',
+                      border: '1px solid #2B3139',
+                      color: '#EAECEF',
+                    }}
+                    required
+                  />
+                  <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
+                    {language === 'zh'
+                      ? '为此账户设置一个易于识别的名称，以便区分同一交易所的多个账户'
+                      : 'Set an easily recognizable name for this account to distinguish multiple accounts on the same exchange'}
+                  </div>
+                </div>
+
+                {/* 注册链接 */}
+                <a
+                  href={exchangeRegistrationLinks[currentExchangeType || '']?.url || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3 rounded-lg mt-3 transition-all hover:scale-[1.02]"
+                  style={{
+                    background: 'rgba(240, 185, 11, 0.08)',
+                    border: '1px solid rgba(240, 185, 11, 0.2)',
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" style={{ color: '#F0B90B' }} />
+                    <span className="text-sm" style={{ color: '#EAECEF' }}>
+                      {language === 'zh' ? '还没有交易所账号？点击注册' : "No exchange account? Register here"}
+                    </span>
+                    {exchangeRegistrationLinks[currentExchangeType || '']?.hasReferral && (
+                      <span
+                        className="text-xs px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(14, 203, 129, 0.2)', color: '#0ECB81' }}
+                      >
+                        {language === 'zh' ? '折扣优惠' : 'Discount'}
+                      </span>
+                    )}
+                  </div>
+                  <ExternalLink className="w-4 h-4" style={{ color: '#848E9C' }} />
+                </a>
               </div>
             )}
 
-            {selectedExchange && (
+            {selectedTemplate && (
               <>
                 {/* Binance/Bybit/OKX 的输入字段 */}
-                {(selectedExchange.id === 'binance' ||
-                  selectedExchange.id === 'bybit' ||
-                  selectedExchange.id === 'okx') && (
+                {(currentExchangeType === 'binance' ||
+                  currentExchangeType === 'bybit' ||
+                  currentExchangeType === 'okx') && (
                     <>
                       {/* 币安用户配置提示 (D1 方案) */}
-                      {selectedExchange.id === 'binance' && (
+                      {currentExchangeType === 'binance' && (
                         <div
                           className="mb-4 p-3 rounded cursor-pointer transition-colors"
                           style={{
@@ -556,7 +681,7 @@ export function ExchangeConfigModal({
                         />
                       </div>
 
-                      {selectedExchange.id === 'okx' && (
+                      {currentExchangeType === 'okx' && (
                         <div>
                           <label
                             className="block text-sm font-semibold mb-2"
@@ -581,7 +706,7 @@ export function ExchangeConfigModal({
                       )}
 
                       {/* Binance 白名单IP提示 */}
-                      {selectedExchange.id === 'binance' && (
+                      {currentExchangeType === 'binance' && (
                         <div
                           className="p-4 rounded"
                           style={{
@@ -641,14 +766,44 @@ export function ExchangeConfigModal({
                   )}
 
                 {/* Aster 交易所的字段 */}
-                {selectedExchange.id === 'aster' && (
+                {currentExchangeType === 'aster' && (
                   <>
+                    {/* API Pro 代理钱包说明 banner */}
+                    <div
+                      className="p-3 rounded mb-4"
+                      style={{
+                        background: 'rgba(240, 185, 11, 0.1)',
+                        border: '1px solid rgba(240, 185, 11, 0.3)',
+                      }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span style={{ color: '#F0B90B', fontSize: '16px' }}>
+                          🔐
+                        </span>
+                        <div className="flex-1">
+                          <div
+                            className="text-sm font-semibold mb-1"
+                            style={{ color: '#F0B90B' }}
+                          >
+                            {t('asterApiProTitle', language)}
+                          </div>
+                          <div
+                            className="text-xs"
+                            style={{ color: '#848E9C', lineHeight: '1.5' }}
+                          >
+                            {t('asterApiProDesc', language)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 主钱包地址 */}
                     <div>
                       <label
                         className="block text-sm font-semibold mb-2 flex items-center gap-2"
                         style={{ color: '#EAECEF' }}
                       >
-                        {t('user', language)}
+                        {t('asterUserLabel', language)}
                         <Tooltip content={t('asterUserDesc', language)}>
                           <HelpCircle
                             className="w-4 h-4 cursor-help"
@@ -660,7 +815,7 @@ export function ExchangeConfigModal({
                         type="text"
                         value={asterUser}
                         onChange={(e) => setAsterUser(e.target.value)}
-                        placeholder={t('enterUser', language)}
+                        placeholder={t('enterAsterUser', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
                           background: '#0B0E11',
@@ -669,14 +824,21 @@ export function ExchangeConfigModal({
                         }}
                         required
                       />
+                      <div
+                        className="text-xs mt-1"
+                        style={{ color: '#848E9C' }}
+                      >
+                        {t('asterUserDesc', language)}
+                      </div>
                     </div>
 
+                    {/* API Pro 代理钱包地址 */}
                     <div>
                       <label
                         className="block text-sm font-semibold mb-2 flex items-center gap-2"
                         style={{ color: '#EAECEF' }}
                       >
-                        {t('signer', language)}
+                        {t('asterSignerLabel', language)}
                         <Tooltip content={t('asterSignerDesc', language)}>
                           <HelpCircle
                             className="w-4 h-4 cursor-help"
@@ -688,7 +850,7 @@ export function ExchangeConfigModal({
                         type="text"
                         value={asterSigner}
                         onChange={(e) => setAsterSigner(e.target.value)}
-                        placeholder={t('enterSigner', language)}
+                        placeholder={t('enterAsterSigner', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
                           background: '#0B0E11',
@@ -697,14 +859,21 @@ export function ExchangeConfigModal({
                         }}
                         required
                       />
+                      <div
+                        className="text-xs mt-1"
+                        style={{ color: '#848E9C' }}
+                      >
+                        {t('asterSignerDesc', language)}
+                      </div>
                     </div>
 
+                    {/* API Pro 代理钱包私钥 */}
                     <div>
                       <label
                         className="block text-sm font-semibold mb-2 flex items-center gap-2"
                         style={{ color: '#EAECEF' }}
                       >
-                        {t('privateKey', language)}
+                        {t('asterPrivateKeyLabel', language)}
                         <Tooltip content={t('asterPrivateKeyDesc', language)}>
                           <HelpCircle
                             className="w-4 h-4 cursor-help"
@@ -716,7 +885,7 @@ export function ExchangeConfigModal({
                         type="password"
                         value={asterPrivateKey}
                         onChange={(e) => setAsterPrivateKey(e.target.value)}
-                        placeholder={t('enterPrivateKey', language)}
+                        placeholder={t('enterAsterPrivateKey', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
                           background: '#0B0E11',
@@ -725,12 +894,18 @@ export function ExchangeConfigModal({
                         }}
                         required
                       />
+                      <div
+                        className="text-xs mt-1"
+                        style={{ color: '#848E9C' }}
+                      >
+                        {t('asterPrivateKeyDesc', language)}
+                      </div>
                     </div>
                   </>
                 )}
 
                 {/* Hyperliquid 交易所的字段 */}
-                {selectedExchange.id === 'hyperliquid' && (
+                {currentExchangeType === 'hyperliquid' && (
                   <>
                     {/* 安全提示 banner */}
                     <div
@@ -866,7 +1041,7 @@ export function ExchangeConfigModal({
                 )}
 
                 {/* LIGHTER 特定配置 */}
-                {selectedExchange?.id === 'lighter' && (
+                {currentExchangeType === 'lighter' && (
                   <>
                     {/* L1 Wallet Address */}
                     <div className="mb-4">
@@ -1000,36 +1175,38 @@ export function ExchangeConfigModal({
             <button
               type="submit"
               disabled={
-                !selectedExchange ||
-                (selectedExchange.id === 'binance' &&
+                isSaving ||
+                !selectedTemplate ||
+                !accountName.trim() ||
+                (currentExchangeType === 'binance' &&
                   (!apiKey.trim() || !secretKey.trim())) ||
-                (selectedExchange.id === 'okx' &&
+                (currentExchangeType === 'okx' &&
                   (!apiKey.trim() ||
                     !secretKey.trim() ||
                     !passphrase.trim())) ||
-                (selectedExchange.id === 'hyperliquid' &&
+                (currentExchangeType === 'hyperliquid' &&
                   (!apiKey.trim() || !hyperliquidWalletAddr.trim())) || // 验证私钥和钱包地址
-                (selectedExchange.id === 'aster' &&
+                (currentExchangeType === 'aster' &&
                   (!asterUser.trim() ||
                     !asterSigner.trim() ||
                     !asterPrivateKey.trim())) ||
-                (selectedExchange.id === 'lighter' &&
+                (currentExchangeType === 'lighter' &&
                   (!lighterWalletAddr.trim() || !lighterPrivateKey.trim())) ||
-                (selectedExchange.id === 'bybit' &&
+                (currentExchangeType === 'bybit' &&
                   (!apiKey.trim() || !secretKey.trim())) ||
-                (selectedExchange.type === 'cex' &&
-                  selectedExchange.id !== 'hyperliquid' &&
-                  selectedExchange.id !== 'aster' &&
-                  selectedExchange.id !== 'lighter' &&
-                  selectedExchange.id !== 'binance' &&
-                  selectedExchange.id !== 'bybit' &&
-                  selectedExchange.id !== 'okx' &&
+                (selectedTemplate?.type === 'cex' &&
+                  currentExchangeType !== 'hyperliquid' &&
+                  currentExchangeType !== 'aster' &&
+                  currentExchangeType !== 'lighter' &&
+                  currentExchangeType !== 'binance' &&
+                  currentExchangeType !== 'bybit' &&
+                  currentExchangeType !== 'okx' &&
                   (!apiKey.trim() || !secretKey.trim()))
               }
               className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
               style={{ background: '#F0B90B', color: '#000' }}
             >
-              {t('saveConfig', language)}
+              {isSaving ? t('saving', language) || '保存中...' : t('saveConfig', language)}
             </button>
           </div>
         </form>

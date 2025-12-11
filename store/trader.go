@@ -2,31 +2,33 @@ package store
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 )
 
-// TraderStore 交易员存储
+// TraderStore trader storage
 type TraderStore struct {
 	db          *sql.DB
 	decryptFunc func(string) string
 }
 
-// Trader 交易员配置
+// Trader trader configuration
 type Trader struct {
 	ID                  string    `json:"id"`
 	UserID              string    `json:"user_id"`
 	Name                string    `json:"name"`
 	AIModelID           string    `json:"ai_model_id"`
 	ExchangeID          string    `json:"exchange_id"`
-	StrategyID          string    `json:"strategy_id"`           // 关联策略ID
+	StrategyID          string    `json:"strategy_id"`           // Associated strategy ID
 	InitialBalance      float64   `json:"initial_balance"`
 	ScanIntervalMinutes int       `json:"scan_interval_minutes"`
 	IsRunning           bool      `json:"is_running"`
 	IsCrossMargin       bool      `json:"is_cross_margin"`
+	ShowInCompetition   bool      `json:"show_in_competition"`   // Whether to show in competition page
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 
-	// 以下字段已废弃，保留用于向后兼容，新交易员应使用 StrategyID
+	// Following fields are deprecated, kept for backward compatibility, new traders should use StrategyID
 	BTCETHLeverage       int    `json:"btc_eth_leverage,omitempty"`
 	AltcoinLeverage      int    `json:"altcoin_leverage,omitempty"`
 	TradingSymbols       string `json:"trading_symbols,omitempty"`
@@ -37,12 +39,12 @@ type Trader struct {
 	SystemPromptTemplate string `json:"system_prompt_template,omitempty"`
 }
 
-// TraderFullConfig 交易员完整配置（包含AI模型、交易所和策略）
+// TraderFullConfig trader full configuration (includes AI model, exchange and strategy)
 type TraderFullConfig struct {
 	Trader   *Trader
 	AIModel  *AIModel
 	Exchange *Exchange
-	Strategy *Strategy // 关联的策略配置
+	Strategy *Strategy // Associated strategy configuration
 }
 
 func (s *TraderStore) initTables() error {
@@ -66,15 +68,14 @@ func (s *TraderStore) initTables() error {
 			system_prompt_template TEXT DEFAULT 'default',
 			is_cross_margin BOOLEAN DEFAULT 1,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
 		return err
 	}
 
-	// 触发器
+	// Trigger
 	_, err = s.db.Exec(`
 		CREATE TRIGGER IF NOT EXISTS update_traders_updated_at
 		AFTER UPDATE ON traders
@@ -86,7 +87,7 @@ func (s *TraderStore) initTables() error {
 		return err
 	}
 
-	// 向后兼容
+	// Backward compatibility
 	alterQueries := []string{
 		`ALTER TABLE traders ADD COLUMN custom_prompt TEXT DEFAULT ''`,
 		`ALTER TABLE traders ADD COLUMN override_base_prompt BOOLEAN DEFAULT 0`,
@@ -98,12 +99,92 @@ func (s *TraderStore) initTables() error {
 		`ALTER TABLE traders ADD COLUMN use_oi_top BOOLEAN DEFAULT 0`,
 		`ALTER TABLE traders ADD COLUMN system_prompt_template TEXT DEFAULT 'default'`,
 		`ALTER TABLE traders ADD COLUMN strategy_id TEXT DEFAULT ''`,
+		`ALTER TABLE traders ADD COLUMN show_in_competition BOOLEAN DEFAULT 1`,
 	}
 	for _, q := range alterQueries {
 		s.db.Exec(q)
 	}
 
+	// Migration: Remove FOREIGN KEY constraint from existing traders table
+	// SQLite doesn't support ALTER TABLE DROP CONSTRAINT, so we need to recreate the table
+	if err := s.migrateTradersRemoveFK(); err != nil {
+		// Log but don't fail - this is a best-effort migration
+		// The constraint may not exist in older databases
+	}
+
 	return nil
+}
+
+// migrateTradersRemoveFK removes FOREIGN KEY constraint from traders table if it exists
+func (s *TraderStore) migrateTradersRemoveFK() error {
+	// Check if the table has a foreign key constraint by examining the schema
+	var sql string
+	err := s.db.QueryRow(`SELECT sql FROM sqlite_master WHERE type='table' AND name='traders'`).Scan(&sql)
+	if err != nil {
+		return err
+	}
+
+	// If no FOREIGN KEY in schema, no migration needed
+	if !strings.Contains(sql, "FOREIGN KEY") {
+		return nil
+	}
+
+	// Recreate table without FOREIGN KEY constraint
+	_, err = s.db.Exec(`
+		-- Create new table without FOREIGN KEY
+		CREATE TABLE IF NOT EXISTS traders_new (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL DEFAULT 'default',
+			name TEXT NOT NULL,
+			ai_model_id TEXT NOT NULL,
+			exchange_id TEXT NOT NULL,
+			initial_balance REAL NOT NULL,
+			scan_interval_minutes INTEGER DEFAULT 3,
+			is_running BOOLEAN DEFAULT 0,
+			btc_eth_leverage INTEGER DEFAULT 5,
+			altcoin_leverage INTEGER DEFAULT 5,
+			trading_symbols TEXT DEFAULT '',
+			use_coin_pool BOOLEAN DEFAULT 0,
+			use_oi_top BOOLEAN DEFAULT 0,
+			custom_prompt TEXT DEFAULT '',
+			override_base_prompt BOOLEAN DEFAULT 0,
+			system_prompt_template TEXT DEFAULT 'default',
+			is_cross_margin BOOLEAN DEFAULT 1,
+			strategy_id TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+
+		-- Copy data from old table
+		INSERT OR IGNORE INTO traders_new
+		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance,
+		       scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage,
+		       trading_symbols, use_coin_pool, use_oi_top, custom_prompt,
+		       override_base_prompt, system_prompt_template, is_cross_margin,
+		       COALESCE(strategy_id, ''), created_at, updated_at
+		FROM traders;
+
+		-- Drop old table
+		DROP TABLE traders;
+
+		-- Rename new table
+		ALTER TABLE traders_new RENAME TO traders;
+	`)
+
+	if err != nil {
+		return err
+	}
+
+	// Recreate trigger
+	_, err = s.db.Exec(`
+		CREATE TRIGGER IF NOT EXISTS update_traders_updated_at
+		AFTER UPDATE ON traders
+		BEGIN
+			UPDATE traders SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+		END
+	`)
+
+	return err
 }
 
 func (s *TraderStore) decrypt(encrypted string) string {
@@ -113,26 +194,27 @@ func (s *TraderStore) decrypt(encrypted string) string {
 	return encrypted
 }
 
-// Create 创建交易员
+// Create creates trader
 func (s *TraderStore) Create(trader *Trader) error {
 	_, err := s.db.Exec(`
 		INSERT INTO traders (id, user_id, name, ai_model_id, exchange_id, strategy_id, initial_balance,
-		                     scan_interval_minutes, is_running, is_cross_margin,
+		                     scan_interval_minutes, is_running, is_cross_margin, show_in_competition,
 		                     btc_eth_leverage, altcoin_leverage, trading_symbols, use_coin_pool,
 		                     use_oi_top, custom_prompt, override_base_prompt, system_prompt_template)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, trader.ID, trader.UserID, trader.Name, trader.AIModelID, trader.ExchangeID, trader.StrategyID,
-		trader.InitialBalance, trader.ScanIntervalMinutes, trader.IsRunning, trader.IsCrossMargin,
+		trader.InitialBalance, trader.ScanIntervalMinutes, trader.IsRunning, trader.IsCrossMargin, trader.ShowInCompetition,
 		trader.BTCETHLeverage, trader.AltcoinLeverage, trader.TradingSymbols, trader.UseCoinPool,
 		trader.UseOITop, trader.CustomPrompt, trader.OverrideBasePrompt, trader.SystemPromptTemplate)
 	return err
 }
 
-// List 获取用户的交易员列表
+// List gets user's trader list
 func (s *TraderStore) List(userID string) ([]*Trader, error) {
 	rows, err := s.db.Query(`
 		SELECT id, user_id, name, ai_model_id, exchange_id, COALESCE(strategy_id, ''),
 		       initial_balance, scan_interval_minutes, is_running, COALESCE(is_cross_margin, 1),
+		       COALESCE(show_in_competition, 1),
 		       COALESCE(btc_eth_leverage, 5), COALESCE(altcoin_leverage, 5), COALESCE(trading_symbols, ''),
 		       COALESCE(use_coin_pool, 0), COALESCE(use_oi_top, 0), COALESCE(custom_prompt, ''),
 		       COALESCE(override_base_prompt, 0), COALESCE(system_prompt_template, 'default'),
@@ -151,6 +233,7 @@ func (s *TraderStore) List(userID string) ([]*Trader, error) {
 		err := rows.Scan(
 			&t.ID, &t.UserID, &t.Name, &t.AIModelID, &t.ExchangeID, &t.StrategyID,
 			&t.InitialBalance, &t.ScanIntervalMinutes, &t.IsRunning, &t.IsCrossMargin,
+			&t.ShowInCompetition,
 			&t.BTCETHLeverage, &t.AltcoinLeverage, &t.TradingSymbols,
 			&t.UseCoinPool, &t.UseOITop, &t.CustomPrompt, &t.OverrideBasePrompt,
 			&t.SystemPromptTemplate, &createdAt, &updatedAt,
@@ -165,45 +248,55 @@ func (s *TraderStore) List(userID string) ([]*Trader, error) {
 	return traders, nil
 }
 
-// UpdateStatus 更新交易员运行状态
+// UpdateStatus updates trader running status
 func (s *TraderStore) UpdateStatus(userID, id string, isRunning bool) error {
 	_, err := s.db.Exec(`UPDATE traders SET is_running = ? WHERE id = ? AND user_id = ?`, isRunning, id, userID)
 	return err
 }
 
-// Update 更新交易员配置
+// UpdateShowInCompetition updates trader competition visibility
+func (s *TraderStore) UpdateShowInCompetition(userID, id string, showInCompetition bool) error {
+	_, err := s.db.Exec(`UPDATE traders SET show_in_competition = ? WHERE id = ? AND user_id = ?`, showInCompetition, id, userID)
+	return err
+}
+
+// Update updates trader configuration
 func (s *TraderStore) Update(trader *Trader) error {
 	_, err := s.db.Exec(`
 		UPDATE traders SET
 			name = ?, ai_model_id = ?, exchange_id = ?, strategy_id = ?,
-			scan_interval_minutes = ?, is_cross_margin = ?,
+			scan_interval_minutes = ?, is_cross_margin = ?, show_in_competition = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND user_id = ?
 	`, trader.Name, trader.AIModelID, trader.ExchangeID, trader.StrategyID,
-		trader.ScanIntervalMinutes, trader.IsCrossMargin, trader.ID, trader.UserID)
+		trader.ScanIntervalMinutes, trader.IsCrossMargin, trader.ShowInCompetition, trader.ID, trader.UserID)
 	return err
 }
 
-// UpdateInitialBalance 更新初始余额
+// UpdateInitialBalance updates initial balance
 func (s *TraderStore) UpdateInitialBalance(userID, id string, newBalance float64) error {
 	_, err := s.db.Exec(`UPDATE traders SET initial_balance = ? WHERE id = ? AND user_id = ?`, newBalance, id, userID)
 	return err
 }
 
-// UpdateCustomPrompt 更新自定义提示词
+// UpdateCustomPrompt updates custom prompt
 func (s *TraderStore) UpdateCustomPrompt(userID, id string, customPrompt string, overrideBase bool) error {
 	_, err := s.db.Exec(`UPDATE traders SET custom_prompt = ?, override_base_prompt = ? WHERE id = ? AND user_id = ?`,
 		customPrompt, overrideBase, id, userID)
 	return err
 }
 
-// Delete 删除交易员
+// Delete deletes trader and associated data
 func (s *TraderStore) Delete(userID, id string) error {
+	// Delete associated equity snapshots first
+	_, _ = s.db.Exec(`DELETE FROM trader_equity_snapshots WHERE trader_id = ?`, id)
+
+	// Delete the trader
 	_, err := s.db.Exec(`DELETE FROM traders WHERE id = ? AND user_id = ?`, id, userID)
 	return err
 }
 
-// GetFullConfig 获取交易员完整配置
+// GetFullConfig gets trader full configuration
 func (s *TraderStore) GetFullConfig(userID, traderID string) (*TraderFullConfig, error) {
 	var trader Trader
 	var aiModel AIModel
@@ -222,7 +315,8 @@ func (s *TraderStore) GetFullConfig(userID, traderID string) (*TraderFullConfig,
 			t.created_at, t.updated_at,
 			a.id, a.user_id, a.name, a.provider, a.enabled, a.api_key,
 			COALESCE(a.custom_api_url, ''), COALESCE(a.custom_model_name, ''), a.created_at, a.updated_at,
-			e.id, e.user_id, e.name, e.type, e.enabled, e.api_key, e.secret_key, COALESCE(e.passphrase, ''), e.testnet,
+			e.id, COALESCE(e.exchange_type, '') as exchange_type, COALESCE(e.account_name, '') as account_name,
+			e.user_id, e.name, e.type, e.enabled, e.api_key, e.secret_key, COALESCE(e.passphrase, ''), e.testnet,
 			COALESCE(e.hyperliquid_wallet_addr, ''), COALESCE(e.aster_user, ''), COALESCE(e.aster_signer, ''),
 			COALESCE(e.aster_private_key, ''), COALESCE(e.lighter_wallet_addr, ''), COALESCE(e.lighter_private_key, ''),
 			COALESCE(e.lighter_api_key_private_key, ''), e.created_at, e.updated_at
@@ -238,7 +332,8 @@ func (s *TraderStore) GetFullConfig(userID, traderID string) (*TraderFullConfig,
 		&trader.SystemPromptTemplate, &traderCreatedAt, &traderUpdatedAt,
 		&aiModel.ID, &aiModel.UserID, &aiModel.Name, &aiModel.Provider, &aiModel.Enabled, &aiModel.APIKey,
 		&aiModel.CustomAPIURL, &aiModel.CustomModelName, &aiModelCreatedAt, &aiModelUpdatedAt,
-		&exchange.ID, &exchange.UserID, &exchange.Name, &exchange.Type, &exchange.Enabled,
+		&exchange.ID, &exchange.ExchangeType, &exchange.AccountName,
+		&exchange.UserID, &exchange.Name, &exchange.Type, &exchange.Enabled,
 		&exchange.APIKey, &exchange.SecretKey, &exchange.Passphrase, &exchange.Testnet, &exchange.HyperliquidWalletAddr,
 		&exchange.AsterUser, &exchange.AsterSigner, &exchange.AsterPrivateKey,
 		&exchange.LighterWalletAddr, &exchange.LighterPrivateKey, &exchange.LighterAPIKeyPrivateKey,
@@ -255,7 +350,7 @@ func (s *TraderStore) GetFullConfig(userID, traderID string) (*TraderFullConfig,
 	exchange.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", exchangeCreatedAt)
 	exchange.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", exchangeUpdatedAt)
 
-	// 解密
+	// Decrypt
 	aiModel.APIKey = s.decrypt(aiModel.APIKey)
 	exchange.APIKey = s.decrypt(exchange.APIKey)
 	exchange.SecretKey = s.decrypt(exchange.SecretKey)
@@ -264,12 +359,12 @@ func (s *TraderStore) GetFullConfig(userID, traderID string) (*TraderFullConfig,
 	exchange.LighterPrivateKey = s.decrypt(exchange.LighterPrivateKey)
 	exchange.LighterAPIKeyPrivateKey = s.decrypt(exchange.LighterAPIKeyPrivateKey)
 
-	// 加载关联的策略
+	// Load associated strategy
 	var strategy *Strategy
 	if trader.StrategyID != "" {
 		strategy, _ = s.getStrategyByID(userID, trader.StrategyID)
 	}
-	// 如果没有关联策略，获取用户的激活策略或默认策略
+	// If no associated strategy, get user's active strategy or default strategy
 	if strategy == nil {
 		strategy, _ = s.getActiveOrDefaultStrategy(userID)
 	}
@@ -282,7 +377,7 @@ func (s *TraderStore) GetFullConfig(userID, traderID string) (*TraderFullConfig,
 	}, nil
 }
 
-// getStrategyByID 内部方法：根据ID获取策略
+// getStrategyByID internal method: gets strategy by ID
 func (s *TraderStore) getStrategyByID(userID, strategyID string) (*Strategy, error) {
 	var strategy Strategy
 	var createdAt, updatedAt string
@@ -301,12 +396,12 @@ func (s *TraderStore) getStrategyByID(userID, strategyID string) (*Strategy, err
 	return &strategy, nil
 }
 
-// getActiveOrDefaultStrategy 内部方法：获取用户激活的策略或系统默认策略
+// getActiveOrDefaultStrategy internal method: gets user's active strategy or system default strategy
 func (s *TraderStore) getActiveOrDefaultStrategy(userID string) (*Strategy, error) {
 	var strategy Strategy
 	var createdAt, updatedAt string
 
-	// 先尝试获取用户激活的策略
+	// First try to get user's active strategy
 	err := s.db.QueryRow(`
 		SELECT id, user_id, name, description, is_active, is_default, config, created_at, updated_at
 		FROM strategies WHERE user_id = ? AND is_active = 1
@@ -320,7 +415,7 @@ func (s *TraderStore) getActiveOrDefaultStrategy(userID string) (*Strategy, erro
 		return &strategy, nil
 	}
 
-	// 回退到系统默认策略
+	// Fallback to system default strategy
 	err = s.db.QueryRow(`
 		SELECT id, user_id, name, description, is_active, is_default, config, created_at, updated_at
 		FROM strategies WHERE is_default = 1 LIMIT 1
@@ -336,11 +431,39 @@ func (s *TraderStore) getActiveOrDefaultStrategy(userID string) (*Strategy, erro
 	return &strategy, nil
 }
 
-// ListAll 获取所有用户的交易员列表
+// ListAll gets all users' trader list
+// GetByID gets a trader by ID without requiring userID (for public APIs)
+func (s *TraderStore) GetByID(traderID string) (*Trader, error) {
+	var t Trader
+	var createdAt, updatedAt string
+	err := s.db.QueryRow(`
+		SELECT id, user_id, name, ai_model_id, exchange_id, COALESCE(strategy_id, ''),
+		       initial_balance, scan_interval_minutes, is_running, COALESCE(is_cross_margin, 1),
+		       COALESCE(btc_eth_leverage, 5), COALESCE(altcoin_leverage, 5), COALESCE(trading_symbols, ''),
+		       COALESCE(use_coin_pool, 0), COALESCE(use_oi_top, 0), COALESCE(custom_prompt, ''),
+		       COALESCE(override_base_prompt, 0), COALESCE(system_prompt_template, 'default'),
+		       created_at, updated_at
+		FROM traders WHERE id = ?
+	`, traderID).Scan(
+		&t.ID, &t.UserID, &t.Name, &t.AIModelID, &t.ExchangeID, &t.StrategyID,
+		&t.InitialBalance, &t.ScanIntervalMinutes, &t.IsRunning, &t.IsCrossMargin,
+		&t.BTCETHLeverage, &t.AltcoinLeverage, &t.TradingSymbols,
+		&t.UseCoinPool, &t.UseOITop, &t.CustomPrompt, &t.OverrideBasePrompt,
+		&t.SystemPromptTemplate, &createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	t.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+	return &t, nil
+}
+
 func (s *TraderStore) ListAll() ([]*Trader, error) {
 	rows, err := s.db.Query(`
 		SELECT id, user_id, name, ai_model_id, exchange_id, COALESCE(strategy_id, ''),
 		       initial_balance, scan_interval_minutes, is_running, COALESCE(is_cross_margin, 1),
+		       COALESCE(show_in_competition, 1),
 		       COALESCE(btc_eth_leverage, 5), COALESCE(altcoin_leverage, 5), COALESCE(trading_symbols, ''),
 		       COALESCE(use_coin_pool, 0), COALESCE(use_oi_top, 0), COALESCE(custom_prompt, ''),
 		       COALESCE(override_base_prompt, 0), COALESCE(system_prompt_template, 'default'),
@@ -359,6 +482,7 @@ func (s *TraderStore) ListAll() ([]*Trader, error) {
 		err := rows.Scan(
 			&t.ID, &t.UserID, &t.Name, &t.AIModelID, &t.ExchangeID, &t.StrategyID,
 			&t.InitialBalance, &t.ScanIntervalMinutes, &t.IsRunning, &t.IsCrossMargin,
+			&t.ShowInCompetition,
 			&t.BTCETHLeverage, &t.AltcoinLeverage, &t.TradingSymbols,
 			&t.UseCoinPool, &t.UseOITop, &t.CustomPrompt, &t.OverrideBasePrompt,
 			&t.SystemPromptTemplate, &createdAt, &updatedAt,

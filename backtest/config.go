@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"nofx/market"
+	"nofx/store"
 )
 
-// AIConfig 定义回测中使用的 AI 客户端配置。
+// AIConfig defines the AI client configuration used in backtesting.
 type AIConfig struct {
 	Provider    string  `json:"provider"`
 	Model       string  `json:"model"`
@@ -23,7 +24,7 @@ type LeverageConfig struct {
 	AltcoinLeverage int `json:"altcoin_leverage"`
 }
 
-// BacktestConfig 描述一次回测运行的输入配置。
+// BacktestConfig describes the input configuration for a backtest run.
 type BacktestConfig struct {
 	RunID                string   `json:"run_id"`
 	UserID               string   `json:"user_id,omitempty"`
@@ -54,7 +55,7 @@ type BacktestConfig struct {
 	ReplayDecisionDir         string `json:"replay_decision_dir,omitempty"`
 }
 
-// Validate 对配置进行合法性检查并填充默认值。
+// Validate performs validity checks on the configuration and fills in default values.
 func (cfg *BacktestConfig) Validate() error {
 	if cfg == nil {
 		return fmt.Errorf("config is nil")
@@ -151,7 +152,7 @@ func (cfg *BacktestConfig) Validate() error {
 	return nil
 }
 
-// Duration 返回回测区间时长。
+// Duration returns the backtest interval duration.
 func (cfg *BacktestConfig) Duration() time.Duration {
 	if cfg == nil {
 		return 0
@@ -160,11 +161,11 @@ func (cfg *BacktestConfig) Duration() time.Duration {
 }
 
 const (
-	// FillPolicyNextOpen 使用下一根 K 线的开盘价成交。
+	// FillPolicyNextOpen uses the open price of the next bar for execution.
 	FillPolicyNextOpen = "next_open"
-	// FillPolicyBarVWAP 采用当前 K 线的近似 VWAP 成交。
+	// FillPolicyBarVWAP uses the approximate VWAP of the current bar for execution.
 	FillPolicyBarVWAP = "bar_vwap"
-	// FillPolicyMidPrice 采用 (high+low)/2 的中间价成交。
+	// FillPolicyMidPrice uses the mid-price (high+low)/2 for execution.
 	FillPolicyMidPrice = "mid"
 )
 
@@ -174,5 +175,63 @@ func validateFillPolicy(policy string) error {
 		return nil
 	default:
 		return fmt.Errorf("unsupported fill_policy '%s'", policy)
+	}
+}
+
+// ToStrategyConfig converts BacktestConfig to StrategyConfig for unified prompt generation.
+// This ensures backtest uses the same StrategyEngine logic as live trading.
+func (cfg *BacktestConfig) ToStrategyConfig() *store.StrategyConfig {
+	// Determine primary and longer timeframe from the timeframes list
+	primaryTF := "5m"
+	longerTF := "4h"
+	if len(cfg.Timeframes) > 0 {
+		primaryTF = cfg.Timeframes[0]
+	}
+	if len(cfg.Timeframes) > 1 {
+		longerTF = cfg.Timeframes[len(cfg.Timeframes)-1]
+	}
+
+	return &store.StrategyConfig{
+		CoinSource: store.CoinSourceConfig{
+			SourceType:    "static",
+			StaticCoins:   cfg.Symbols,
+			UseCoinPool:   false,
+			CoinPoolLimit: len(cfg.Symbols),
+			UseOITop:      false,
+			OITopLimit:    0,
+		},
+		Indicators: store.IndicatorConfig{
+			Klines: store.KlineConfig{
+				PrimaryTimeframe:     primaryTF,
+				PrimaryCount:         30,
+				LongerTimeframe:      longerTF,
+				LongerCount:          10,
+				EnableMultiTimeframe: len(cfg.Timeframes) > 1,
+				SelectedTimeframes:   cfg.Timeframes,
+			},
+			EnableRawKlines:   true,
+			EnableEMA:         true,
+			EnableMACD:        true,
+			EnableRSI:         true,
+			EnableATR:         true,
+			EnableVolume:      true,
+			EnableOI:          true,
+			EnableFundingRate: true,
+			EMAPeriods:        []int{20, 50},
+			RSIPeriods:        []int{7, 14},
+			ATRPeriods:        []int{14},
+		},
+		CustomPrompt: cfg.CustomPrompt,
+		RiskControl: store.RiskControlConfig{
+			MaxPositions:                 3,
+			BTCETHMaxLeverage:            cfg.Leverage.BTCETHLeverage,
+			AltcoinMaxLeverage:           cfg.Leverage.AltcoinLeverage,
+			BTCETHMaxPositionValueRatio:  5.0,
+			AltcoinMaxPositionValueRatio: 1.0,
+			MaxMarginUsage:               0.9,
+			MinPositionSize:              12,
+			MinRiskRewardRatio:           3.0,
+			MinConfidence:                75,
+		},
 	}
 }

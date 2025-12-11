@@ -352,14 +352,24 @@ export const translations = {
     enterHyperliquidMainWalletAddress: 'Enter Main wallet address',
     hyperliquidMainWalletAddressDesc:
       'Main wallet address that holds your trading funds (never expose its private key)',
+    // Aster API Pro Configuration
+    asterApiProTitle: 'Aster API Pro Wallet Configuration',
+    asterApiProDesc:
+      'Use API Pro wallet for secure trading: API wallet signs transactions, main wallet holds funds (never expose main wallet private key)',
     asterUserDesc:
-      'Main wallet address - The EVM wallet address you use to log in to Aster (Note: Only EVM wallets are supported, Solana wallets are not supported)',
+      'Main wallet address - The EVM wallet address you use to log in to Aster (Note: Only EVM wallets are supported)',
     asterSignerDesc:
-      'API wallet address - Generate from https://www.asterdex.com/en/api-wallet',
+      'API Pro wallet address (0x...) - Generate from https://www.asterdex.com/en/api-wallet',
     asterPrivateKeyDesc:
-      'API wallet private key - Get from https://www.asterdex.com/en/api-wallet (only used locally for signing, never transmitted)',
+      'API Pro wallet private key - Get from https://www.asterdex.com/en/api-wallet (only used locally for signing, never transmitted)',
     asterUsdtWarning:
       'Important: Aster only tracks USDT balance. Please ensure you use USDT as margin currency to avoid P&L calculation errors caused by price fluctuations of other assets (BNB, ETH, etc.)',
+    asterUserLabel: 'Main Wallet Address',
+    asterSignerLabel: 'API Pro Wallet Address',
+    asterPrivateKeyLabel: 'API Pro Wallet Private Key',
+    enterAsterUser: 'Enter main wallet address (0x...)',
+    enterAsterSigner: 'Enter API Pro wallet address (0x...)',
+    enterAsterPrivateKey: 'Enter API Pro wallet private key',
 
     // LIGHTER Configuration
     lighterWalletAddress: 'L1 Wallet Address',
@@ -508,10 +518,16 @@ export const translations = {
       'Custom API base URL, e.g.: https://api.openai.com/v1',
     leaveBlankForDefault: 'Leave blank to use default API address',
     modelConfigInfo1:
-      '• API Key will be encrypted and stored, please ensure it is valid',
-    modelConfigInfo2: '• Base URL is used for custom API server address',
+      '• For official API, only API Key is required, leave other fields blank',
+    modelConfigInfo2: '• Custom Base URL and Model Name only needed for third-party proxies',
     modelConfigInfo3:
-      '• After deleting configuration, traders using this model will not work properly',
+      '• API Key is encrypted and stored securely',
+    defaultModel: 'Default model',
+    applyApiKey: 'Apply API Key',
+    kimiApiNote: 'Kimi requires API Key from international site (moonshot.ai), China region keys are not compatible',
+    leaveBlankForDefaultModel: 'Leave blank to use default model',
+    customModelName: 'Model Name (Optional)',
+    customModelNamePlaceholder: 'e.g.: deepseek-chat, qwen3-max, gpt-4o',
     saveConfig: 'Save Configuration',
     editExchange: 'Edit Exchange',
     addExchange: 'Add Exchange',
@@ -963,6 +979,9 @@ export const translations = {
       unsupportedDesc:
         'Open NOFX over HTTPS (or http://localhost during development) and avoid insecure iframes/reverse proxies so the browser can enable Web Crypto.',
       summary: 'Current origin: {origin} • Protocol: {protocol}',
+      disabledTitle: 'Transport encryption disabled',
+      disabledDesc:
+        'Server-side transport encryption is disabled. API keys will be transmitted in plaintext. Enable TRANSPORT_ENCRYPTION=true for enhanced security.',
     },
 
     environmentSteps: {
@@ -1339,20 +1358,29 @@ export const translations = {
       '使用代理钱包安全交易：代理钱包用于签名（餘額~0），主钱包持有资金（永不暴露私钥）',
     hyperliquidAgentPrivateKey: '代理私钥',
     enterHyperliquidAgentPrivateKey: '输入代理钱包私钥',
-    hyperliquidAgentPrivateKeyDesc:
-      '代理钱包私钥，用于签名交易（为了安全应保持余额接近0）',
+    hyperliquidAgentPrivateKeyDesc: '代理钱包仅有交易权限，无法提现',
     hyperliquidMainWalletAddress: '主钱包地址',
     enterHyperliquidMainWalletAddress: '输入主钱包地址',
     hyperliquidMainWalletAddressDesc:
       '持有交易资金的主钱包地址（永不暴露其私钥）',
+    // Aster API Pro 配置
+    asterApiProTitle: 'Aster API Pro 代理钱包配置',
+    asterApiProDesc:
+      '使用 API Pro 代理钱包安全交易：代理钱包用于签名交易，主钱包持有资金（永不暴露主钱包私钥）',
     asterUserDesc:
-      '主钱包地址 - 您用于登录 Aster 的 EVM 钱包地址（注意：仅支持 EVM 钱包，不支持 Solana 钱包）',
+      '主钱包地址 - 您用于登录 Aster 的 EVM 钱包地址（仅支持 EVM 钱包）',
     asterSignerDesc:
-      'API 钱包地址 - 从 https://www.asterdex.com/zh-CN/api-wallet 生成',
+      'API Pro 代理钱包地址 (0x...) - 从 https://www.asterdex.com/zh-CN/api-wallet 生成',
     asterPrivateKeyDesc:
-      'API 钱包私钥 - 从 https://www.asterdex.com/zh-CN/api-wallet 获取（仅在本地用于签名，不会被传输）',
+      'API Pro 代理钱包私钥 - 从 https://www.asterdex.com/zh-CN/api-wallet 获取（仅在本地用于签名，不会被传输）',
     asterUsdtWarning:
       '重要提示：Aster 仅统计 USDT 余额。请确保您使用 USDT 作为保证金币种，避免其他资产（BNB、ETH等）的价格波动导致盈亏统计错误',
+    asterUserLabel: '主钱包地址',
+    asterSignerLabel: 'API Pro 代理钱包地址',
+    asterPrivateKeyLabel: 'API Pro 代理钱包私钥',
+    enterAsterUser: '输入主钱包地址 (0x...)',
+    enterAsterSigner: '输入 API Pro 代理钱包地址 (0x...)',
+    enterAsterPrivateKey: '输入 API Pro 代理钱包私钥',
 
     // LIGHTER 配置
     lighterWalletAddress: 'L1 錢包地址',
@@ -1484,9 +1512,15 @@ export const translations = {
     customBaseURL: 'Base URL (可选)',
     customBaseURLPlaceholder: '自定义API基础URL，如: https://api.openai.com/v1',
     leaveBlankForDefault: '留空则使用默认API地址',
-    modelConfigInfo1: '• API Key将被加密存储，请确保密钥有效',
-    modelConfigInfo2: '• Base URL用于自定义API服务器地址',
-    modelConfigInfo3: '• 删除配置后，使用此模型的交易员将无法正常工作',
+    modelConfigInfo1: '• 使用官方 API 时，只需填写 API Key，其他字段留空即可',
+    modelConfigInfo2: '• 自定义 Base URL 和 Model Name 仅在使用第三方代理时需要填写',
+    modelConfigInfo3: '• API Key 加密存储，不会明文展示',
+    defaultModel: '默认模型',
+    applyApiKey: '申请 API Key',
+    kimiApiNote: 'Kimi 需要从国际站申请 API Key (moonshot.ai)，中国区 Key 不通用',
+    leaveBlankForDefaultModel: '留空使用默认模型名称',
+    customModelName: 'Model Name (可选)',
+    customModelNamePlaceholder: '例如: deepseek-chat, qwen3-max, gpt-4o',
     saveConfig: '保存配置',
     editExchange: '编辑交易所',
     addExchange: '添加交易所',
@@ -1906,6 +1940,9 @@ export const translations = {
       unsupportedDesc:
         '请通过 HTTPS 或本机 localhost 访问 NOFX，并避免嵌入不安全 iframe/反向代理，以符合浏览器的 Web Crypto 规则。',
       summary: '当前来源：{origin} · 协议：{protocol}',
+      disabledTitle: '传输加密已禁用',
+      disabledDesc:
+        '服务端传输加密已关闭，API 密钥将以明文传输。如需增强安全性，请设置 TRANSPORT_ENCRYPTION=true。',
     },
 
     environmentSteps: {

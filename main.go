@@ -11,48 +11,58 @@ import (
 	"nofx/market"
 	"nofx/mcp"
 	"nofx/store"
+	"nofx/trader"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	// 加载 .env 环境变量
+	// Load .env environment variables
 	_ = godotenv.Load()
 
-	// 初始化日志
+	// Initialize logger
 	logger.Init(nil)
 
 	logger.Info("╔════════════════════════════════════════════════════════════╗")
-	logger.Info("║    🤖 AI多模型交易系统 - 支持 DeepSeek & Qwen            ║")
+	logger.Info("║    🤖 AI Multi-Model Trading System - DeepSeek & Qwen      ║")
 	logger.Info("╚════════════════════════════════════════════════════════════╝")
 
-	// 初始化全局配置（从 .env 加载）
+	// Initialize global configuration (loaded from .env)
 	config.Init()
 	cfg := config.Get()
-	logger.Info("✅ 配置加载完成")
+	logger.Info("✅ Configuration loaded")
 
-	// 初始化数据库
-	dbPath := "data.db"
+	// Initialize database
+	// Default path is data/data.db to work with Docker volume mount (/app/data)
+	dbPath := "data/data.db"
 	if len(os.Args) > 1 {
 		dbPath = os.Args[1]
 	}
+	// Ensure data directory exists
+	if dir := filepath.Dir(dbPath); dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			logger.Errorf("Failed to create data directory: %v", err)
+		}
+	}
 
-	logger.Infof("📋 初始化数据库: %s", dbPath)
+	logger.Infof("📋 Initializing database: %s", dbPath)
 	st, err := store.New(dbPath)
 	if err != nil {
-		logger.Fatalf("❌ 初始化数据库失败: %v", err)
+		logger.Fatalf("❌ Failed to initialize database: %v", err)
 	}
 	defer st.Close()
 	backtest.UseDatabase(st.DB())
 
-	// 初始化加密服务
-	logger.Info("🔐 初始化加密服务...")
+	// Initialize encryption service
+	logger.Info("🔐 Initializing encryption service...")
 	cryptoService, err := crypto.NewCryptoService()
 	if err != nil {
-		logger.Fatalf("❌ 初始化加密服务失败: %v", err)
+		logger.Fatalf("❌ Failed to initialize encryption service: %v", err)
 	}
 	encryptFunc := func(plaintext string) string {
 		if plaintext == "" {
@@ -60,7 +70,7 @@ func main() {
 		}
 		encrypted, err := cryptoService.EncryptForStorage(plaintext)
 		if err != nil {
-			logger.Warnf("⚠️ 加密失败: %v", err)
+			logger.Warnf("⚠️ Encryption failed: %v", err)
 			return plaintext
 		}
 		return encrypted
@@ -74,83 +84,91 @@ func main() {
 		}
 		decrypted, err := cryptoService.DecryptFromStorage(encrypted)
 		if err != nil {
-			logger.Warnf("⚠️ 解密失败: %v", err)
+			logger.Warnf("⚠️ Decryption failed: %v", err)
 			return encrypted
 		}
 		return decrypted
 	}
 	st.SetCryptoFuncs(encryptFunc, decryptFunc)
-	logger.Info("✅ 加密服务初始化成功")
+	logger.Info("✅ Encryption service initialized successfully")
 
-	// 设置 JWT 密钥
+	// Set JWT secret
 	auth.SetJWTSecret(cfg.JWTSecret)
-	logger.Info("🔑 JWT 密钥已设置")
+	logger.Info("🔑 JWT secret configured")
 
-	// 创建 TraderManager 与 BacktestManager
+	// Start WebSocket market monitor FIRST (before loading traders that may need market data)
+	// This ensures WSMonitorCli is initialized before any trader tries to access it
+	go market.NewWSMonitor(150).Start(nil)
+	logger.Info("📊 WebSocket market monitor started")
+	// Give WebSocket monitor time to initialize
+	time.Sleep(500 * time.Millisecond)
+
+	// Create TraderManager and BacktestManager
 	traderManager := manager.NewTraderManager()
 	mcpClient := newSharedMCPClient()
 	backtestManager := backtest.NewManager(mcpClient)
 	if err := backtestManager.RestoreRuns(); err != nil {
-		logger.Warnf("⚠️ 恢复历史回测失败: %v", err)
+		logger.Warnf("⚠️ Failed to restore backtest history: %v", err)
 	}
 
-	// 从数据库加载所有交易员到内存
+	// Start position sync manager (detects manual closures, TP/SL triggers)
+	positionSyncManager := trader.NewPositionSyncManager(st, 0) // 0 = use default 10s interval
+	positionSyncManager.Start()
+	defer positionSyncManager.Stop()
+
+	// Load all traders from database to memory (may auto-start traders with IsRunning=true)
 	if err := traderManager.LoadTradersFromStore(st); err != nil {
-		logger.Fatalf("❌ 加载交易员失败: %v", err)
+		logger.Fatalf("❌ Failed to load traders: %v", err)
 	}
 
-	// 显示加载的交易员信息
+	// Display loaded trader information
 	traders, err := st.Trader().List("default")
 	if err != nil {
-		logger.Fatalf("❌ 获取交易员列表失败: %v", err)
+		logger.Fatalf("❌ Failed to get trader list: %v", err)
 	}
 
-	logger.Info("🤖 数据库中的AI交易员配置:")
+	logger.Info("🤖 AI Trader Configurations in Database:")
 	if len(traders) == 0 {
-		logger.Info("  (无交易员配置，请通过Web管理界面创建)")
+		logger.Info("  (No trader configurations, please create via Web interface)")
 	} else {
 		for _, t := range traders {
-			status := "❌ 已停止"
+			status := "❌ Stopped"
 			if t.IsRunning {
-				status = "✅ 运行中"
+				status = "✅ Running"
 			}
-			logger.Infof("  • %s [%s] %s - AI模型: %s, 交易所: %s",
+			logger.Infof("  • %s [%s] %s - AI Model: %s, Exchange: %s",
 				t.Name, t.ID[:8], status, t.AIModelID, t.ExchangeID)
 		}
 	}
 
-	// 启动 WebSocket 行情监控（获取所有 USDT 永续合约的行情数据）
-	go market.NewWSMonitor(150).Start(nil)
-	logger.Info("📊 WebSocket 行情监控已启动")
-
-	// 启动API服务器
+	// Start API server
 	server := api.NewServer(traderManager, st, cryptoService, backtestManager, cfg.APIServerPort)
 	go func() {
 		if err := server.Start(); err != nil {
-			logger.Fatalf("❌ API服务器启动失败: %v", err)
+			logger.Fatalf("❌ Failed to start API server: %v", err)
 		}
 	}()
 
-	// 等待中断信号
+	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	logger.Info("✅ 系统启动完成，等待交易指令...")
-	logger.Info("📌 提示: 使用 Ctrl+C 停止系统")
+	logger.Info("✅ System started successfully, waiting for trading commands...")
+	logger.Info("📌 Tip: Use Ctrl+C to stop the system")
 
 	<-quit
-	logger.Info("📴 收到停止信号，正在关闭系统...")
+	logger.Info("📴 Shutdown signal received, closing system...")
 
-	// 停止所有交易员
+	// Stop all traders
 	traderManager.StopAll()
-	logger.Info("✅ 系统已安全关闭")
+	logger.Info("✅ System shut down safely")
 }
 
-// newSharedMCPClient 创建共享的 MCP AI 客户端（用于回测）
+// newSharedMCPClient creates a shared MCP AI client (for backtesting)
 func newSharedMCPClient() mcp.AIClient {
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
 	if apiKey == "" {
-		logger.Warn("⚠️ DEEPSEEK_API_KEY 未设置，AI 功能将不可用")
+		logger.Warn("⚠️ DEEPSEEK_API_KEY not set, AI features will be unavailable")
 		return nil
 	}
 	return mcp.NewDeepSeekClient()

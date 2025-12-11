@@ -18,6 +18,8 @@ import { t, type Language } from './i18n/translations'
 import { confirmToast, notify } from './lib/notify'
 import { useSystemConfig } from './hooks/useSystemConfig'
 import { DecisionCard } from './components/DecisionCard'
+import { PunkAvatar, getTraderAvatar } from './components/PunkAvatar'
+import { OFFICIAL_LINKS } from './constants/branding'
 import { BacktestPage } from './components/BacktestPage'
 import { LogOut, Loader2 } from 'lucide-react'
 import type {
@@ -27,6 +29,7 @@ import type {
   DecisionRecord,
   Statistics,
   TraderInfo,
+  Exchange,
 } from './types'
 
 type Page =
@@ -51,6 +54,23 @@ function getModelDisplayName(modelId: string): string {
     default:
       return modelId.toUpperCase()
   }
+}
+
+// Helper function to get exchange display name from exchange ID (UUID)
+function getExchangeDisplayNameFromList(exchangeId: string | undefined, exchanges: Exchange[] | undefined): string {
+  if (!exchangeId) return 'Unknown'
+  const exchange = exchanges?.find(e => e.id === exchangeId)
+  if (!exchange) return exchangeId.substring(0, 8).toUpperCase() + '...'
+  const typeName = exchange.exchange_type?.toUpperCase() || exchange.name
+  return exchange.account_name ? `${typeName} - ${exchange.account_name}` : typeName
+}
+
+// Helper function to get exchange type from exchange ID (UUID) - for TradingView charts
+function getExchangeTypeFromList(exchangeId: string | undefined, exchanges: Exchange[] | undefined): string {
+  if (!exchangeId) return 'BINANCE'
+  const exchange = exchanges?.find(e => e.id === exchangeId)
+  if (!exchange) return 'BINANCE' // Default to BINANCE for charts
+  return exchange.exchange_type?.toUpperCase() || 'BINANCE'
 }
 
 function App() {
@@ -125,6 +145,16 @@ function App() {
     {
       refreshInterval: 10000,
       shouldRetryOnError: false, // 避免在后端未运行时无限重试
+    }
+  )
+
+  // 获取exchanges列表（用于显示交易所名称）
+  const { data: exchanges } = useSWR<Exchange[]>(
+    user && token ? 'exchanges' : null,
+    api.getExchangeConfigs,
+    {
+      refreshInterval: 60000, // 1分钟刷新一次
+      shouldRetryOnError: false,
     }
   )
 
@@ -443,6 +473,7 @@ function App() {
               setRoute('/traders')
               setCurrentPage('traders')
             }}
+            exchanges={exchanges}
           />
         )}
       </main>
@@ -458,9 +489,10 @@ function App() {
         >
           <p>{t('footerTitle', language)}</p>
           <p className="mt-1">{t('footerWarning', language)}</p>
-          <div className="mt-4">
+          <div className="mt-4 flex items-center justify-center gap-3 flex-wrap">
+            {/* GitHub */}
             <a
-              href="https://github.com/tinkle-community/nofx"
+              href={OFFICIAL_LINKS.github}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
@@ -480,15 +512,64 @@ function App() {
                 e.currentTarget.style.borderColor = '#2B3139'
               }}
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-              >
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
               </svg>
               GitHub
+            </a>
+            {/* Twitter/X */}
+            <a
+              href={OFFICIAL_LINKS.twitter}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
+              style={{
+                background: '#1E2329',
+                color: '#848E9C',
+                border: '1px solid #2B3139',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#2B3139'
+                e.currentTarget.style.color = '#EAECEF'
+                e.currentTarget.style.borderColor = '#1DA1F2'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#1E2329'
+                e.currentTarget.style.color = '#848E9C'
+                e.currentTarget.style.borderColor = '#2B3139'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              Twitter
+            </a>
+            {/* Telegram */}
+            <a
+              href={OFFICIAL_LINKS.telegram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
+              style={{
+                background: '#1E2329',
+                color: '#848E9C',
+                border: '1px solid #2B3139',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#2B3139'
+                e.currentTarget.style.color = '#EAECEF'
+                e.currentTarget.style.borderColor = '#0088cc'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#1E2329'
+                e.currentTarget.style.color = '#848E9C'
+                e.currentTarget.style.borderColor = '#2B3139'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+              </svg>
+              Telegram
             </a>
           </div>
         </div>
@@ -511,6 +592,7 @@ function TraderDetailsPage({
   selectedTraderId,
   onTraderSelect,
   onNavigateToTraders,
+  exchanges,
 }: {
   selectedTrader?: TraderInfo
   traders?: TraderInfo[]
@@ -525,6 +607,7 @@ function TraderDetailsPage({
   stats?: Statistics
   lastUpdate: string
   language: Language
+  exchanges?: Exchange[]
 }) {
   const [closingPosition, setClosingPosition] = useState<string | null>(null)
   const [selectedChartSymbol, setSelectedChartSymbol] = useState<string | undefined>(undefined)
@@ -718,17 +801,14 @@ function TraderDetailsPage({
       >
         <div className="flex items-start justify-between mb-3">
           <h2
-            className="text-2xl font-bold flex items-center gap-2"
+            className="text-2xl font-bold flex items-center gap-3"
             style={{ color: '#EAECEF' }}
           >
-            <span
-              className="w-10 h-10 rounded-full flex items-center justify-center text-xl"
-              style={{
-                background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
-              }}
-            >
-              🤖
-            </span>
+            <PunkAvatar
+              seed={getTraderAvatar(selectedTrader.trader_id, selectedTrader.trader_name)}
+              size={48}
+              className="rounded-lg"
+            />
             {selectedTrader.trader_name}
           </h2>
 
@@ -758,7 +838,7 @@ function TraderDetailsPage({
           )}
         </div>
         <div
-          className="flex items-center gap-4 text-sm"
+          className="flex items-center gap-4 text-sm flex-wrap"
           style={{ color: '#848E9C' }}
         >
           <span>
@@ -775,6 +855,20 @@ function TraderDetailsPage({
                 selectedTrader.ai_model.split('_').pop() ||
                 selectedTrader.ai_model
               )}
+            </span>
+          </span>
+          <span>•</span>
+          <span>
+            Exchange:{' '}
+            <span className="font-semibold" style={{ color: '#EAECEF' }}>
+              {getExchangeDisplayNameFromList(selectedTrader.exchange_id, exchanges)}
+            </span>
+          </span>
+          <span>•</span>
+          <span>
+            Strategy:{' '}
+            <span className="font-semibold" style={{ color: '#F0B90B' }}>
+              {selectedTrader.strategy_name || 'No Strategy'}
             </span>
           </span>
           {status && (
@@ -844,7 +938,7 @@ function TraderDetailsPage({
               traderId={selectedTrader.trader_id}
               selectedSymbol={selectedChartSymbol}
               updateKey={chartUpdateKey}
-              exchangeId={selectedTrader.exchange_id}
+              exchangeId={getExchangeTypeFromList(selectedTrader.exchange_id, exchanges)}
             />
           </div>
 

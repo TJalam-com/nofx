@@ -7,139 +7,167 @@ import (
 	"time"
 )
 
-// StrategyStore 策略存储
+// StrategyStore strategy storage
 type StrategyStore struct {
 	db *sql.DB
 }
 
-// Strategy 策略配置
+// Strategy strategy configuration
 type Strategy struct {
 	ID          string    `json:"id"`
 	UserID      string    `json:"user_id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	IsActive    bool      `json:"is_active"`    // 是否激活（一个用户只能有一个激活的策略）
-	IsDefault   bool      `json:"is_default"`   // 是否为系统默认策略
-	Config      string    `json:"config"`       // JSON 格式的策略配置
+	IsActive    bool      `json:"is_active"`    // whether it is active (a user can only have one active strategy)
+	IsDefault   bool      `json:"is_default"`   // whether it is a system default strategy
+	Config      string    `json:"config"`       // strategy configuration in JSON format
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// StrategyConfig 策略配置详情（JSON 结构）
+// StrategyConfig strategy configuration details (JSON structure)
 type StrategyConfig struct {
-	// 币种来源配置
+	// coin source configuration
 	CoinSource CoinSourceConfig `json:"coin_source"`
-	// 量化数据配置
+	// quantitative data configuration
 	Indicators IndicatorConfig `json:"indicators"`
-	// 自定义 Prompt（附加在最后）
+	// custom prompt (appended at the end)
 	CustomPrompt string `json:"custom_prompt,omitempty"`
-	// 风险控制配置
+	// risk control configuration
 	RiskControl RiskControlConfig `json:"risk_control"`
-	// System Prompt 可编辑部分
+	// editable sections of System Prompt
 	PromptSections PromptSectionsConfig `json:"prompt_sections,omitempty"`
 }
 
-// PromptSectionsConfig System Prompt 可编辑部分
+// PromptSectionsConfig editable sections of System Prompt
 type PromptSectionsConfig struct {
-	// 角色定义（标题+描述）
+	// role definition (title + description)
 	RoleDefinition string `json:"role_definition,omitempty"`
-	// 交易频率认知
+	// trading frequency awareness
 	TradingFrequency string `json:"trading_frequency,omitempty"`
-	// 开仓标准
+	// entry standards
 	EntryStandards string `json:"entry_standards,omitempty"`
-	// 决策流程
+	// decision process
 	DecisionProcess string `json:"decision_process,omitempty"`
 }
 
-// CoinSourceConfig 币种来源配置
+// CoinSourceConfig coin source configuration
 type CoinSourceConfig struct {
-	// 来源类型: "static" | "coinpool" | "oi_top" | "mixed"
+	// source type: "static" | "coinpool" | "oi_top" | "mixed"
 	SourceType string `json:"source_type"`
-	// 静态币种列表（当 source_type = "static" 时使用）
+	// static coin list (used when source_type = "static")
 	StaticCoins []string `json:"static_coins,omitempty"`
-	// 是否使用 AI500 币种池
+	// whether to use AI500 coin pool
 	UseCoinPool bool `json:"use_coin_pool"`
-	// AI500 币种池最大数量
+	// AI500 coin pool maximum count
 	CoinPoolLimit int `json:"coin_pool_limit,omitempty"`
-	// AI500 币种池 API URL（策略级别配置）
+	// AI500 coin pool API URL (strategy-level configuration)
 	CoinPoolAPIURL string `json:"coin_pool_api_url,omitempty"`
-	// 是否使用 OI Top
+	// whether to use OI Top
 	UseOITop bool `json:"use_oi_top"`
-	// OI Top 最大数量
+	// OI Top maximum count
 	OITopLimit int `json:"oi_top_limit,omitempty"`
-	// OI Top API URL（策略级别配置）
+	// OI Top API URL (strategy-level configuration)
 	OITopAPIURL string `json:"oi_top_api_url,omitempty"`
 }
 
-// IndicatorConfig 指标配置
+// IndicatorConfig indicator configuration
 type IndicatorConfig struct {
-	// K线配置
+	// K-line configuration
 	Klines KlineConfig `json:"klines"`
-	// 技术指标开关
+	// raw kline data (OHLCV) - always enabled, required for AI analysis
+	EnableRawKlines bool `json:"enable_raw_klines"`
+	// technical indicator switches
 	EnableEMA         bool `json:"enable_ema"`
 	EnableMACD        bool `json:"enable_macd"`
 	EnableRSI         bool `json:"enable_rsi"`
 	EnableATR         bool `json:"enable_atr"`
 	EnableVolume      bool `json:"enable_volume"`
-	EnableOI          bool `json:"enable_oi"`          // 持仓量
-	EnableFundingRate bool `json:"enable_funding_rate"` // 资金费率
-	// EMA 周期配置
-	EMAPeriods []int `json:"ema_periods,omitempty"` // 默认 [20, 50]
-	// RSI 周期配置
-	RSIPeriods []int `json:"rsi_periods,omitempty"` // 默认 [7, 14]
-	// ATR 周期配置
-	ATRPeriods []int `json:"atr_periods,omitempty"` // 默认 [14]
-	// 外部数据源
+	EnableOI          bool `json:"enable_oi"`           // open interest
+	EnableFundingRate bool `json:"enable_funding_rate"` // funding rate
+	// EMA period configuration
+	EMAPeriods []int `json:"ema_periods,omitempty"` // default [20, 50]
+	// RSI period configuration
+	RSIPeriods []int `json:"rsi_periods,omitempty"` // default [7, 14]
+	// ATR period configuration
+	ATRPeriods []int `json:"atr_periods,omitempty"` // default [14]
+	// external data sources
 	ExternalDataSources []ExternalDataSource `json:"external_data_sources,omitempty"`
-	// 量化数据源（资金流向、持仓变化、价格变化）
-	EnableQuantData  bool   `json:"enable_quant_data"`            // 是否启用量化数据
-	QuantDataAPIURL  string `json:"quant_data_api_url,omitempty"` // 量化数据 API 地址
+	// quantitative data sources (capital flow, position changes, price changes)
+	EnableQuantData    bool   `json:"enable_quant_data"`              // whether to enable quantitative data
+	QuantDataAPIURL    string `json:"quant_data_api_url,omitempty"`   // quantitative data API address
+	EnableQuantOI      bool   `json:"enable_quant_oi"`                // whether to show OI data
+	EnableQuantNetflow bool   `json:"enable_quant_netflow"`           // whether to show Netflow data
 }
 
-// KlineConfig K线配置
+// KlineConfig K-line configuration
 type KlineConfig struct {
-	// 主时间周期: "1m", "3m", "5m", "15m", "1h", "4h"
+	// primary timeframe: "1m", "3m", "5m", "15m", "1h", "4h"
 	PrimaryTimeframe string `json:"primary_timeframe"`
-	// 主时间周期 K 线数量
+	// primary timeframe K-line count
 	PrimaryCount int `json:"primary_count"`
-	// 长周期时间框架
+	// longer timeframe
 	LongerTimeframe string `json:"longer_timeframe,omitempty"`
-	// 长周期 K 线数量
+	// longer timeframe K-line count
 	LongerCount int `json:"longer_count,omitempty"`
-	// 是否启用多时间框架分析
+	// whether to enable multi-timeframe analysis
 	EnableMultiTimeframe bool `json:"enable_multi_timeframe"`
-	// 选中的时间周期列表（新增：支持多周期选择）
+	// selected timeframe list (new: supports multi-timeframe selection)
 	SelectedTimeframes []string `json:"selected_timeframes,omitempty"`
 }
 
-// ExternalDataSource 外部数据源配置
+// ExternalDataSource external data source configuration
 type ExternalDataSource struct {
-	Name        string            `json:"name"`         // 数据源名称
-	Type        string            `json:"type"`         // 类型: "api" | "webhook"
+	Name        string            `json:"name"`         // data source name
+	Type        string            `json:"type"`         // type: "api" | "webhook"
 	URL         string            `json:"url"`          // API URL
-	Method      string            `json:"method"`       // HTTP 方法
+	Method      string            `json:"method"`       // HTTP method
 	Headers     map[string]string `json:"headers,omitempty"`
-	DataPath    string            `json:"data_path,omitempty"`    // JSON 数据路径
-	RefreshSecs int               `json:"refresh_secs,omitempty"` // 刷新间隔（秒）
+	DataPath    string            `json:"data_path,omitempty"`    // JSON data path
+	RefreshSecs int               `json:"refresh_secs,omitempty"` // refresh interval (seconds)
 }
 
-// RiskControlConfig 风险控制配置
+// RiskControlConfig risk control configuration
+// All parameters are clearly defined without ambiguity:
+//
+// Position Limits:
+//   - MaxPositions: max number of coins held simultaneously (CODE ENFORCED)
+//
+// Trading Leverage (exchange leverage for opening positions):
+//   - BTCETHMaxLeverage: BTC/ETH max exchange leverage (AI guided)
+//   - AltcoinMaxLeverage: Altcoin max exchange leverage (AI guided)
+//
+// Position Value Limits (single position notional value / account equity):
+//   - BTCETHMaxPositionValueRatio: BTC/ETH max = equity × ratio (CODE ENFORCED)
+//   - AltcoinMaxPositionValueRatio: Altcoin max = equity × ratio (CODE ENFORCED)
+//
+// Risk Controls:
+//   - MaxMarginUsage: max margin utilization percentage (CODE ENFORCED)
+//   - MinPositionSize: minimum position size in USDT (CODE ENFORCED)
+//   - MinRiskRewardRatio: min take_profit / stop_loss ratio (AI guided)
+//   - MinConfidence: min AI confidence to open position (AI guided)
 type RiskControlConfig struct {
-	// 最大持仓数量
+	// Max number of coins held simultaneously (CODE ENFORCED)
 	MaxPositions int `json:"max_positions"`
-	// BTC/ETH 最大杠杆
+
+	// BTC/ETH exchange leverage for opening positions (AI guided)
 	BTCETHMaxLeverage int `json:"btc_eth_max_leverage"`
-	// 山寨币最大杠杆
+	// Altcoin exchange leverage for opening positions (AI guided)
 	AltcoinMaxLeverage int `json:"altcoin_max_leverage"`
-	// 最小风险回报比
-	MinRiskRewardRatio float64 `json:"min_risk_reward_ratio"`
-	// 最大保证金使用率
+
+	// BTC/ETH single position max value = equity × this ratio (CODE ENFORCED, default: 5)
+	BTCETHMaxPositionValueRatio float64 `json:"btc_eth_max_position_value_ratio"`
+	// Altcoin single position max value = equity × this ratio (CODE ENFORCED, default: 1)
+	AltcoinMaxPositionValueRatio float64 `json:"altcoin_max_position_value_ratio"`
+
+	// Max margin utilization (e.g. 0.9 = 90%) (CODE ENFORCED)
 	MaxMarginUsage float64 `json:"max_margin_usage"`
-	// 单币种最大仓位比例（相对账户净值）
-	MaxPositionRatio float64 `json:"max_position_ratio"`
-	// 最小开仓金额（USDT）
+	// Min position size in USDT (CODE ENFORCED)
 	MinPositionSize float64 `json:"min_position_size"`
-	// 最小信心度
+
+	// Min take_profit / stop_loss ratio (AI guided)
+	MinRiskRewardRatio float64 `json:"min_risk_reward_ratio"`
+	// Min AI confidence to open position (AI guided)
 	MinConfidence int `json:"min_confidence"`
 }
 
@@ -161,11 +189,11 @@ func (s *StrategyStore) initTables() error {
 		return err
 	}
 
-	// 创建索引
+	// create indexes
 	_, _ = s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_strategies_user_id ON strategies(user_id)`)
 	_, _ = s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_strategies_is_active ON strategies(is_active)`)
 
-	// 触发器：更新时自动更新 updated_at
+	// trigger: automatically update updated_at on update
 	_, err = s.db.Exec(`
 		CREATE TRIGGER IF NOT EXISTS update_strategies_updated_at
 		AFTER UPDATE ON strategies
@@ -178,22 +206,21 @@ func (s *StrategyStore) initTables() error {
 }
 
 func (s *StrategyStore) initDefaultData() error {
-	// 检查是否已有默认策略
-	var count int
-	s.db.QueryRow(`SELECT COUNT(*) FROM strategies WHERE is_default = 1`).Scan(&count)
-	if count > 0 {
-		return nil
-	}
+	// No longer pre-populate strategies - create on demand when user configures
+	return nil
+}
 
-	// 创建系统默认策略
-	defaultConfig := StrategyConfig{
+// GetDefaultStrategyConfig returns the default strategy configuration for the given language
+func GetDefaultStrategyConfig(lang string) StrategyConfig {
+	config := StrategyConfig{
 		CoinSource: CoinSourceConfig{
 			SourceType:     "coinpool",
 			UseCoinPool:    true,
-			CoinPoolLimit:  30,
+			CoinPoolLimit:  10,
 			CoinPoolAPIURL: "http://nofxaios.com:30006/api/ai500/list?auth=cm_568c67eae410d912c54c",
 			UseOITop:       false,
-			OITopLimit:     0,
+			OITopLimit:     20,
+			OITopAPIURL:    "http://nofxaios.com:30006/api/oi/top-ranking?limit=20&duration=1h&auth=cm_568c67eae410d912c54c",
 		},
 		Indicators: IndicatorConfig{
 			Klines: KlineConfig{
@@ -204,61 +231,81 @@ func (s *StrategyStore) initDefaultData() error {
 				EnableMultiTimeframe: true,
 				SelectedTimeframes:   []string{"5m", "15m", "1h", "4h"},
 			},
-			EnableEMA:         true,
-			EnableMACD:        true,
-			EnableRSI:         true,
-			EnableATR:         true,
+			EnableRawKlines:   true, // Required - raw OHLCV data for AI analysis
+			EnableEMA:         false,
+			EnableMACD:        false,
+			EnableRSI:         false,
+			EnableATR:         false,
 			EnableVolume:      true,
 			EnableOI:          true,
 			EnableFundingRate: true,
 			EMAPeriods:        []int{20, 50},
 			RSIPeriods:        []int{7, 14},
 			ATRPeriods:        []int{14},
-			EnableQuantData:  true,
-			QuantDataAPIURL:  "http://nofxaios.com:30006/api/coin/{symbol}?include=netflow,oi,price&auth=cm_568c67eae410d912c54c",
+			EnableQuantData:    true,
+			QuantDataAPIURL:    "http://nofxaios.com:30006/api/coin/{symbol}?include=netflow,oi,price&auth=cm_568c67eae410d912c54c",
+			EnableQuantOI:      true,
+			EnableQuantNetflow: true,
 		},
 		RiskControl: RiskControlConfig{
-			MaxPositions:       3,
-			BTCETHMaxLeverage:  5,
-			AltcoinMaxLeverage: 5,
-			MinRiskRewardRatio: 3.0,
-			MaxMarginUsage:     0.9,
-			MaxPositionRatio:   1.5,
-			MinPositionSize:    12,
-			MinConfidence:      75,
-		},
-		PromptSections: PromptSectionsConfig{
-			RoleDefinition: `# 你是专业的加密货币交易AI
-
-你的任务是根据提供的市场数据做出交易决策。你是一位经验丰富的量化交易员，擅长技术分析和风险管理。`,
-			TradingFrequency: `# ⏱️ 交易频率认知
-
-- 优秀交易员：每天2-4笔 ≈ 每小时0.1-0.2笔
-- 每小时>2笔 = 过度交易
-- 单笔持仓时间≥30-60分钟
-如果你发现自己每个周期都在交易 → 标准过低；若持仓<30分钟就平仓 → 过于急躁。`,
-			EntryStandards: `# 🎯 开仓标准（严格）
-
-只在多重信号共振时开仓。自由运用任何有效的分析方法，避免单一指标、信号矛盾、横盘震荡、刚平仓即重启等低质量行为。`,
-			DecisionProcess: `# 📋 决策流程
-
-1. 检查持仓 → 是否该止盈/止损
-2. 扫描候选币 + 多时间框 → 是否存在强信号
-3. 先写思维链，再输出结构化JSON`,
+			MaxPositions:                    3,   // Max 3 coins simultaneously (CODE ENFORCED)
+			BTCETHMaxLeverage:               5,   // BTC/ETH exchange leverage (AI guided)
+			AltcoinMaxLeverage:              5,   // Altcoin exchange leverage (AI guided)
+			BTCETHMaxPositionValueRatio:     5.0, // BTC/ETH: max position = 5x equity (CODE ENFORCED)
+			AltcoinMaxPositionValueRatio:    1.0, // Altcoin: max position = 1x equity (CODE ENFORCED)
+			MaxMarginUsage:                  0.9, // Max 90% margin usage (CODE ENFORCED)
+			MinPositionSize:                 12,  // Min 12 USDT per position (CODE ENFORCED)
+			MinRiskRewardRatio:              3.0, // Min 3:1 profit/loss ratio (AI guided)
+			MinConfidence:                   75,  // Min 75% confidence (AI guided)
 		},
 	}
 
-	configJSON, _ := json.Marshal(defaultConfig)
+	if lang == "zh" {
+		config.PromptSections = PromptSectionsConfig{
+			RoleDefinition: `# 你是一个专业的加密货币交易AI
 
-	_, err := s.db.Exec(`
-		INSERT INTO strategies (id, user_id, name, description, is_active, is_default, config)
-		VALUES ('default', 'system', '默认山寨策略', '系统默认的山寨币交易策略，使用 AI500 币种池，包含完整的技术指标', 0, 1, ?)
-	`, string(configJSON))
+你的任务是根据提供的市场数据做出交易决策。你是一个经验丰富的量化交易员，擅长技术分析和风险管理。`,
+			TradingFrequency: `# ⏱️ 交易频率意识
 
-	return err
+- 优秀交易员：每天2-4笔 ≈ 每小时0.1-0.2笔
+- 每小时超过2笔 = 过度交易
+- 单笔持仓时间 ≥ 30-60分钟
+如果你发现自己每个周期都在交易 → 标准太低；如果持仓不到30分钟就平仓 → 太冲动。`,
+			EntryStandards: `# 🎯 入场标准（严格）
+
+只在多个信号共振时入场。自由使用任何有效的分析方法，避免单一指标、信号矛盾、横盘震荡、或平仓后立即重新开仓等低质量行为。`,
+			DecisionProcess: `# 📋 决策流程
+
+1. 检查持仓 → 是否止盈/止损
+2. 扫描候选币种 + 多时间框架 → 是否存在强信号
+3. 先写思维链，再输出结构化JSON`,
+		}
+	} else {
+		config.PromptSections = PromptSectionsConfig{
+			RoleDefinition: `# You are a professional cryptocurrency trading AI
+
+Your task is to make trading decisions based on the provided market data. You are an experienced quantitative trader skilled in technical analysis and risk management.`,
+			TradingFrequency: `# ⏱️ Trading Frequency Awareness
+
+- Excellent trader: 2-4 trades per day ≈ 0.1-0.2 trades per hour
+- >2 trades per hour = overtrading
+- Single position holding time ≥ 30-60 minutes
+If you find yourself trading every cycle → standards are too low; if closing positions in <30 minutes → too impulsive.`,
+			EntryStandards: `# 🎯 Entry Standards (Strict)
+
+Only enter positions when multiple signals resonate. Freely use any effective analysis methods, avoid low-quality behaviors such as single indicators, contradictory signals, sideways oscillation, or immediately restarting after closing positions.`,
+			DecisionProcess: `# 📋 Decision Process
+
+1. Check positions → whether to take profit/stop loss
+2. Scan candidate coins + multi-timeframe → whether strong signals exist
+3. Write chain of thought first, then output structured JSON`,
+		}
+	}
+
+	return config
 }
 
-// Create 创建策略
+// Create create a strategy
 func (s *StrategyStore) Create(strategy *Strategy) error {
 	_, err := s.db.Exec(`
 		INSERT INTO strategies (id, user_id, name, description, is_active, is_default, config)
@@ -267,7 +314,7 @@ func (s *StrategyStore) Create(strategy *Strategy) error {
 	return err
 }
 
-// Update 更新策略
+// Update update a strategy
 func (s *StrategyStore) Update(strategy *Strategy) error {
 	_, err := s.db.Exec(`
 		UPDATE strategies SET
@@ -277,22 +324,22 @@ func (s *StrategyStore) Update(strategy *Strategy) error {
 	return err
 }
 
-// Delete 删除策略
+// Delete delete a strategy
 func (s *StrategyStore) Delete(userID, id string) error {
-	// 不允许删除系统默认策略
+	// do not allow deleting system default strategy
 	var isDefault bool
 	s.db.QueryRow(`SELECT is_default FROM strategies WHERE id = ?`, id).Scan(&isDefault)
 	if isDefault {
-		return fmt.Errorf("不能删除系统默认策略")
+		return fmt.Errorf("cannot delete system default strategy")
 	}
 
 	_, err := s.db.Exec(`DELETE FROM strategies WHERE id = ? AND user_id = ?`, id, userID)
 	return err
 }
 
-// List 获取用户的策略列表
+// List get user's strategy list
 func (s *StrategyStore) List(userID string) ([]*Strategy, error) {
-	// 获取用户自己的策略 + 系统默认策略
+	// get user's own strategies + system default strategy
 	rows, err := s.db.Query(`
 		SELECT id, user_id, name, description, is_active, is_default, config, created_at, updated_at
 		FROM strategies
@@ -323,7 +370,7 @@ func (s *StrategyStore) List(userID string) ([]*Strategy, error) {
 	return strategies, nil
 }
 
-// Get 获取单个策略
+// Get get a single strategy
 func (s *StrategyStore) Get(userID, id string) (*Strategy, error) {
 	var st Strategy
 	var createdAt, updatedAt string
@@ -344,7 +391,7 @@ func (s *StrategyStore) Get(userID, id string) (*Strategy, error) {
 	return &st, nil
 }
 
-// GetActive 获取用户当前激活的策略
+// GetActive get user's currently active strategy
 func (s *StrategyStore) GetActive(userID string) (*Strategy, error) {
 	var st Strategy
 	var createdAt, updatedAt string
@@ -358,7 +405,7 @@ func (s *StrategyStore) GetActive(userID string) (*Strategy, error) {
 		&createdAt, &updatedAt,
 	)
 	if err == sql.ErrNoRows {
-		// 没有激活的策略，返回系统默认策略
+		// no active strategy, return system default strategy
 		return s.GetDefault()
 	}
 	if err != nil {
@@ -369,7 +416,7 @@ func (s *StrategyStore) GetActive(userID string) (*Strategy, error) {
 	return &st, nil
 }
 
-// GetDefault 获取系统默认策略
+// GetDefault get system default strategy
 func (s *StrategyStore) GetDefault() (*Strategy, error) {
 	var st Strategy
 	var createdAt, updatedAt string
@@ -391,22 +438,22 @@ func (s *StrategyStore) GetDefault() (*Strategy, error) {
 	return &st, nil
 }
 
-// SetActive 设置激活策略（会先取消其他策略的激活状态）
+// SetActive set active strategy (will first deactivate other strategies)
 func (s *StrategyStore) SetActive(userID, strategyID string) error {
-	// 开启事务
+	// begin transaction
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// 先取消该用户所有策略的激活状态
+	// first deactivate all strategies for the user
 	_, err = tx.Exec(`UPDATE strategies SET is_active = 0 WHERE user_id = ?`, userID)
 	if err != nil {
 		return err
 	}
 
-	// 激活指定策略
+	// activate specified strategy
 	_, err = tx.Exec(`UPDATE strategies SET is_active = 1 WHERE id = ? AND (user_id = ? OR is_default = 1)`, strategyID, userID)
 	if err != nil {
 		return err
@@ -415,20 +462,20 @@ func (s *StrategyStore) SetActive(userID, strategyID string) error {
 	return tx.Commit()
 }
 
-// Duplicate 复制策略（用于基于默认策略创建自定义策略）
+// Duplicate duplicate a strategy (used to create custom strategy based on default strategy)
 func (s *StrategyStore) Duplicate(userID, sourceID, newID, newName string) error {
-	// 获取源策略
+	// get source strategy
 	source, err := s.Get(userID, sourceID)
 	if err != nil {
-		return fmt.Errorf("获取源策略失败: %w", err)
+		return fmt.Errorf("failed to get source strategy: %w", err)
 	}
 
-	// 创建新策略
+	// create new strategy
 	newStrategy := &Strategy{
 		ID:          newID,
 		UserID:      userID,
 		Name:        newName,
-		Description: "基于 [" + source.Name + "] 创建",
+		Description: "Created based on [" + source.Name + "]",
 		IsActive:    false,
 		IsDefault:   false,
 		Config:      source.Config,
@@ -437,20 +484,20 @@ func (s *StrategyStore) Duplicate(userID, sourceID, newID, newName string) error
 	return s.Create(newStrategy)
 }
 
-// ParseConfig 解析策略配置 JSON
+// ParseConfig parse strategy configuration JSON
 func (s *Strategy) ParseConfig() (*StrategyConfig, error) {
 	var config StrategyConfig
 	if err := json.Unmarshal([]byte(s.Config), &config); err != nil {
-		return nil, fmt.Errorf("解析策略配置失败: %w", err)
+		return nil, fmt.Errorf("failed to parse strategy configuration: %w", err)
 	}
 	return &config, nil
 }
 
-// SetConfig 设置策略配置
+// SetConfig set strategy configuration
 func (s *Strategy) SetConfig(config *StrategyConfig) error {
 	data, err := json.Marshal(config)
 	if err != nil {
-		return fmt.Errorf("序列化策略配置失败: %w", err)
+		return fmt.Errorf("failed to serialize strategy configuration: %w", err)
 	}
 	s.Config = string(data)
 	return nil

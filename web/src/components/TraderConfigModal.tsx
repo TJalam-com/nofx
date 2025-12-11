@@ -3,13 +3,23 @@ import type { AIModel, Exchange, CreateTraderRequest, Strategy } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { toast } from 'sonner'
-import { Pencil, Plus, X as IconX, Sparkles } from 'lucide-react'
+import { Pencil, Plus, X as IconX, Sparkles, ExternalLink, UserPlus } from 'lucide-react'
 import { httpClient } from '../lib/httpClient'
 
 // 提取下划线后面的名称部分
 function getShortName(fullName: string): string {
   const parts = fullName.split('_')
   return parts.length > 1 ? parts[parts.length - 1] : fullName
+}
+
+// 交易所注册链接配置
+const EXCHANGE_REGISTRATION_LINKS: Record<string, { url: string; hasReferral?: boolean }> = {
+  binance: { url: 'https://www.binance.com/join?ref=NOFXENG', hasReferral: true },
+  okx: { url: 'https://www.okx.com/join/1865360', hasReferral: true },
+  bybit: { url: 'https://partner.bybit.com/b/83856', hasReferral: true },
+  hyperliquid: { url: 'https://app.hyperliquid.xyz/join/AITRADING', hasReferral: true },
+  aster: { url: 'https://www.asterdex.com/en/referral/fdfc0e', hasReferral: true },
+  lighter: { url: 'https://lighter.xyz', hasReferral: false },
 }
 
 import type { TraderConfigData } from '../types'
@@ -22,6 +32,7 @@ interface FormState {
   exchange_id: string
   strategy_id: string
   is_cross_margin: boolean
+  show_in_competition: boolean
   scan_interval_minutes: number
   initial_balance?: number
 }
@@ -52,6 +63,7 @@ export function TraderConfigModal({
     exchange_id: '',
     strategy_id: '',
     is_cross_margin: true,
+    show_in_competition: true,
     scan_interval_minutes: 3,
   })
   const [isSaving, setIsSaving] = useState(false)
@@ -99,6 +111,7 @@ export function TraderConfigModal({
         exchange_id: availableExchanges[0]?.id || '',
         strategy_id: '',
         is_cross_margin: true,
+        show_in_competition: true,
         scan_interval_minutes: 3,
       })
     }
@@ -152,6 +165,7 @@ export function TraderConfigModal({
         exchange_id: formData.exchange_id,
         strategy_id: formData.strategy_id || undefined,
         is_cross_margin: formData.is_cross_margin,
+        show_in_competition: formData.show_in_competition,
         scan_interval_minutes: formData.scan_interval_minutes,
       }
 
@@ -266,12 +280,36 @@ export function TraderConfigModal({
                   >
                     {availableExchanges.map((exchange) => (
                       <option key={exchange.id} value={exchange.id}>
-                        {getShortName(
-                          exchange.name || exchange.id
-                        ).toUpperCase()}
+                        {getShortName(exchange.name || exchange.exchange_type || exchange.id).toUpperCase()}
+                        {exchange.account_name ? ` - ${exchange.account_name}` : ''}
                       </option>
                     ))}
                   </select>
+                  {/* Exchange Registration Link */}
+                  {formData.exchange_id && (() => {
+                    // Find the selected exchange to get its type
+                    const selectedExchange = availableExchanges.find(e => e.id === formData.exchange_id)
+                    const exchangeType = selectedExchange?.exchange_type?.toLowerCase() || ''
+                    const regLink = EXCHANGE_REGISTRATION_LINKS[exchangeType]
+                    if (!regLink) return null
+                    return (
+                      <a
+                        href={regLink.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1.5 text-xs text-[#848E9C] hover:text-[#F0B90B] transition-colors"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>还没有交易所账号？点击注册</span>
+                        {regLink.hasReferral && (
+                          <span className="px-1.5 py-0.5 bg-[#F0B90B]/10 text-[#F0B90B] rounded text-[10px]">
+                            折扣优惠
+                          </span>
+                        )}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
@@ -334,7 +372,7 @@ export function TraderConfigModal({
                         selectedStrategy.config.coin_source.source_type === 'oi_top' ? 'OI Top' : '混合'}
                     </div>
                     <div>
-                      风控等级: {((selectedStrategy.config.risk_control?.max_position_ratio || 0.3) * 100).toFixed(0)}% 仓位
+                      保证金上限: {((selectedStrategy.config.risk_control?.max_margin_usage || 0.9) * 100).toFixed(0)}%
                     </div>
                   </div>
                 </div>
@@ -403,6 +441,40 @@ export function TraderConfigModal({
                     {t('scanIntervalRecommend', language)}
                   </p>
                 </div>
+              </div>
+
+              {/* Competition visibility */}
+              <div>
+                <label className="text-sm text-[#EAECEF] block mb-2">
+                  竞技场显示
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('show_in_competition', true)}
+                    className={`flex-1 px-3 py-2 rounded text-sm ${
+                      formData.show_in_competition
+                        ? 'bg-[#F0B90B] text-black'
+                        : 'bg-[#0B0E11] text-[#848E9C] border border-[#2B3139]'
+                    }`}
+                  >
+                    显示
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('show_in_competition', false)}
+                    className={`flex-1 px-3 py-2 rounded text-sm ${
+                      !formData.show_in_competition
+                        ? 'bg-[#F0B90B] text-black'
+                        : 'bg-[#0B0E11] text-[#848E9C] border border-[#2B3139]'
+                    }`}
+                  >
+                    隐藏
+                  </button>
+                </div>
+                <p className="text-xs text-[#848E9C] mt-1">
+                  隐藏后将不在竞技场页面显示此交易员
+                </p>
               </div>
 
               {/* Initial Balance (Edit mode only) */}

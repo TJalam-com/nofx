@@ -1,89 +1,134 @@
 package logger
 
 import (
+	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	// Log 全局logger实例
+	// Log is the global logger instance
 	Log *logrus.Logger
+	// logFile holds the current log file handle
+	logFile *os.File
 )
 
+// compactFormatter is a custom formatter for cleaner log output
+type compactFormatter struct {
+	logrus.TextFormatter
+}
+
+func (f *compactFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	level := strings.ToUpper(entry.Level.String())[0:4]
+	timestamp := entry.Time.Format("01-02 15:04:05")
+
+	// Skip frames to find actual caller (skip logrus + our wrapper functions)
+	caller := ""
+	for i := 3; i < 10; i++ {
+		_, file, line, ok := runtime.Caller(i)
+		if !ok {
+			break
+		}
+		// Skip logrus internal and our logger.go
+		if !strings.Contains(file, "logrus") && !strings.HasSuffix(file, "logger/logger.go") {
+			// Get package name from path (e.g., "nofx/manager/trader_manager.go" -> "manager")
+			dir := filepath.Dir(file)
+			pkg := filepath.Base(dir)
+			caller = fmt.Sprintf("%s/%s:%d", pkg, filepath.Base(file), line)
+			break
+		}
+	}
+
+	msg := fmt.Sprintf("%s [%s] %s %s\n", timestamp, level, caller, entry.Message)
+	return []byte(msg), nil
+}
+
 func init() {
-	// 自动初始化默认 logger，确保在 Init 被调用前也能使用
+	// Auto-initialize default logger to ensure it works before Init is called
 	Log = logrus.New()
 	Log.SetLevel(logrus.InfoLevel)
-	Log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02 15:04:05",
-		ForceColors:     true,
-	})
+	Log.SetFormatter(&compactFormatter{})
 	Log.SetOutput(os.Stdout)
 }
 
 // ============================================================================
-// 初始化函数
+// Initialization functions
 // ============================================================================
 
-// Init 初始化全局logger
-// 如果config为nil，使用默认配置（console输出，info级别）
+// Init initializes the global logger
+// If config is nil, uses default configuration (console output, info level)
 func Init(cfg *Config) error {
 	Log = logrus.New()
 
-	// 如果没有配置，使用默认值
+	// Use default values if no config provided
 	if cfg == nil {
 		cfg = &Config{Level: "info"}
 	}
 
-	// 设置默认值
+	// Set default values
 	cfg.SetDefaults()
 
-	// 设置日志级别
+	// Set log level
 	level, err := logrus.ParseLevel(cfg.Level)
 	if err != nil {
 		level = logrus.InfoLevel
 	}
 	Log.SetLevel(level)
 
-	// 设置格式化器（固定使用彩色文本格式）
-	Log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02 15:04:05",
-		ForceColors:     true,
-	})
+	// Set compact formatter
+	Log.SetFormatter(&compactFormatter{})
 
-	// 设置输出目标（默认stdout）
-	Log.SetOutput(os.Stdout)
+	// Setup log file output (write to both stdout and file)
+	logDir := "data"
+	if err := os.MkdirAll(logDir, 0755); err == nil {
+		logFileName := filepath.Join(logDir, fmt.Sprintf("nofx_%s.log", time.Now().Format("2006-01-02")))
+		f, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			logFile = f
+			// Write to both stdout and file
+			Log.SetOutput(io.MultiWriter(os.Stdout, f))
+		} else {
+			Log.SetOutput(os.Stdout)
+		}
+	} else {
+		Log.SetOutput(os.Stdout)
+	}
 
-	// 启用调用位置信息
 	Log.SetReportCaller(true)
 
 	return nil
 }
 
-// InitWithSimpleConfig 使用简化配置初始化logger
-// 适用于只需要基本功能的场景
+// InitWithSimpleConfig initializes logger with simplified config
+// Suitable for scenarios that only need basic functionality
 func InitWithSimpleConfig(level string) error {
 	return Init(&Config{Level: level})
 }
 
-// Shutdown 优雅关闭logger
+// Shutdown gracefully shuts down the logger
 func Shutdown() {
-	// 预留用于未来扩展
+	if logFile != nil {
+		logFile.Close()
+		logFile = nil
+	}
 }
 
 // ============================================================================
-// 日志记录函数
+// Logging functions
 // ============================================================================
 
-// WithFields 创建带字段的logger entry
+// WithFields creates logger entry with fields
 func WithFields(fields logrus.Fields) *logrus.Entry {
 	return Log.WithFields(fields)
 }
 
-// WithField 创建带单个字段的logger entry
+// WithField creates logger entry with a single field
 func WithField(key string, value interface{}) *logrus.Entry {
 	return Log.WithField(key, value)
 }
@@ -138,14 +183,14 @@ func Panicf(format string, args ...interface{}) {
 }
 
 // ============================================================================
-// MCP Logger 适配器
+// MCP Logger adapter
 // ============================================================================
 
-// MCPLogger 适配器，使 MCP 包使用全局 logger
-// 实现 mcp.Logger 接口
+// MCPLogger adapter that allows MCP package to use the global logger
+// Implements mcp.Logger interface
 type MCPLogger struct{}
 
-// NewMCPLogger 创建 MCP 日志适配器
+// NewMCPLogger creates MCP log adapter
 func NewMCPLogger() *MCPLogger {
 	return &MCPLogger{}
 }
