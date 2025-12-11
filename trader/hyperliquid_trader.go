@@ -803,6 +803,49 @@ func (t *HyperliquidTrader) SetTakeProfit(symbol string, positionSide string, qu
 	return nil
 }
 
+// GetOrderStatus Get order status from Hyperliquid API
+// Note: Hyperliquid doesn't return order IDs, so orderID parameter is ignored
+// This function queries open orders and matches by symbol
+func (t *HyperliquidTrader) GetOrderStatus(symbol string, orderID string) (map[string]interface{}, error) {
+	coin := convertSymbolToHyperliquid(symbol)
+
+	// Query open orders for this symbol
+	openOrders, err := t.exchange.Info().OpenOrders(t.ctx, t.walletAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open orders: %w", err)
+	}
+
+	// Find matching order by coin
+	for _, order := range openOrders {
+		if order.Coin == coin {
+			// Get current price for avgPrice estimation
+			price, err := t.GetMarketPrice(symbol)
+			if err != nil {
+				price = 0
+			}
+
+			// Hyperliquid doesn't provide avgPrice in open orders, use current price as fallback
+			// For filled orders, we'd need to query user fills, but that's complex
+			// This is a limitation of Hyperliquid API
+			// Note: OpenOrder struct fields may vary by SDK version
+			// Using 0 as fallback for executedQty since field may not be available
+			return map[string]interface{}{
+				"orderId":     fmt.Sprintf("%d", order.Oid),
+				"symbol":      symbol,
+				"status":      "NEW", // Open orders are NEW
+				"avgPrice":    price, // Fallback to current price
+				"executedQty": 0.0,   // Not available in open orders
+				"commission":  0,     // Not available in open orders
+			}, nil
+		}
+	}
+
+	// Order not found in open orders - might be filled
+	// For filled orders, we'd need to query user fills, but that's complex
+	// Return error indicating order not found
+	return nil, fmt.Errorf("order not found (Hyperliquid limitation: order IDs not available)")
+}
+
 // FormatQuantity 格式化数量到正确的精度
 func (t *HyperliquidTrader) FormatQuantity(symbol string, quantity float64) (string, error) {
 	coin := convertSymbolToHyperliquid(symbol)

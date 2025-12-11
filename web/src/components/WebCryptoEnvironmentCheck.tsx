@@ -9,6 +9,7 @@ export type WebCryptoCheckStatus =
   | 'secure'
   | 'insecure'
   | 'unsupported'
+  | 'disabled'
 
 interface WebCryptoEnvironmentCheckProps {
   language: Language
@@ -23,16 +24,43 @@ export function WebCryptoEnvironmentCheck({
 }: WebCryptoEnvironmentCheckProps) {
   const [status, setStatus] = useState<WebCryptoCheckStatus>('idle')
   const [summary, setSummary] = useState<string | null>(null)
+  const [encryptionConfig, setEncryptionConfig] = useState<{
+    transport_encryption_enabled: boolean
+  } | null>(null)
 
   useEffect(() => {
     onStatusChange?.(status)
   }, [onStatusChange, status])
+
+  useEffect(() => {
+    // Fetch encryption configuration
+    fetch('/api/crypto/config')
+      .then((res) => res.json())
+      .then((data) => {
+        setEncryptionConfig(data)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch encryption config:', err)
+      })
+  }, [])
 
   const runCheck = useCallback(() => {
     setStatus('checking')
     setSummary(null)
 
     setTimeout(() => {
+      // Check if transport encryption is disabled
+      if (encryptionConfig && !encryptionConfig.transport_encryption_enabled) {
+        setStatus('disabled')
+        setSummary(
+          t('environmentCheck.summary', language, {
+            origin: window.location.origin || 'N/A',
+            protocol: window.location.protocol || 'unknown',
+          })
+        )
+        return
+      }
+
       const result = diagnoseWebCryptoEnvironment()
       setSummary(
         t('environmentCheck.summary', language, {
@@ -53,7 +81,7 @@ export function WebCryptoEnvironmentCheck({
 
       setStatus('secure')
     }, 0)
-  }, [language, t])
+  }, [language, t, encryptionConfig])
 
   useEffect(() => {
     runCheck()
@@ -62,7 +90,8 @@ export function WebCryptoEnvironmentCheck({
   const isCompact = variant === 'compact'
   const containerClass = isCompact
     ? 'p-3 rounded border border-gray-700 bg-gray-900 space-y-3'
-    : 'p-4 rounded border border-[#2B3139] bg-[#0B0E11] space-y-4'
+    : 'p-4 rounded border space-y-4'
+  const containerStyle = !isCompact ? { borderColor: 'var(--panel-border)', background: 'var(--navy-primary)' } : undefined
 
   const descriptionColor = isCompact ? '#CBD5F5' : '#A1AEC8'
   const showInfo = status !== 'idle'
@@ -118,13 +147,24 @@ export function WebCryptoEnvironmentCheck({
         <span>{t('environmentCheck.checking', language)}</span>
       </div>
     ),
+    disabled: () => (
+      <div className="flex items-start gap-2 text-blue-400 text-xs">
+        <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+        <div>
+          <div className="font-semibold">
+            {t('environmentCheck.disabledTitle', language)}
+          </div>
+          <div>{t('environmentCheck.disabledDesc', language)}</div>
+        </div>
+      </div>
+    ),
     idle: () => null,
   }
 
   const renderStatus = () => statusRendererMap[status]()
 
   return (
-    <div className={containerClass}>
+    <div className={containerClass} style={containerStyle}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {showInfo && (
           <div className="text-xs" style={{ color: descriptionColor }}>

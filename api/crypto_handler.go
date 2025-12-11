@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 	"nofx/crypto"
+	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,6 +54,21 @@ func (h *CryptoHandler) HandleDecryptSensitiveData(c *gin.Context) {
 
 	c.JSON(http.StatusOK, map[string]string{
 		"plaintext": decrypted,
+	})
+}
+
+// ==================== Crypto Configuration Endpoint ====================
+
+// HandleGetCryptoConfig Get encryption configuration status
+func (h *CryptoHandler) HandleGetCryptoConfig(c *gin.Context) {
+	transportEncryptionEnabled := strings.ToLower(os.Getenv("TRANSPORT_ENCRYPTION")) == "true"
+	
+	// Check if public key is available
+	publicKeyAvailable := h.cryptoService.GetPublicKeyPEM() != ""
+	
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"transport_encryption_enabled": transportEncryptionEnabled,
+		"public_key_available":         publicKeyAvailable,
 	})
 }
 

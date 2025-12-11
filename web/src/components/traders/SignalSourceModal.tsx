@@ -12,6 +12,7 @@ interface SignalSourceModalProps {
   language: Language
   configuredModels?: AIModel[]
   configuredExchanges?: Exchange[]
+  onCopyTrader?: (traderId: string) => void
 }
 
 export function SignalSourceModal({
@@ -22,6 +23,7 @@ export function SignalSourceModal({
   language,
   configuredModels = [],
   configuredExchanges = [],
+  onCopyTrader,
 }: SignalSourceModalProps) {
   const { user } = useAuth()
   const userIsFollower = isFollower(user)
@@ -30,6 +32,11 @@ export function SignalSourceModal({
   const [runningTraders, setRunningTraders] = useState<RunningTrader[]>([])
   const [selectedTraderId, setSelectedTraderId] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [defaultURLs, setDefaultURLs] = useState<{
+    coin_pool_url: string
+    oi_top_url: string
+    quant_data_url: string
+  } | null>(null)
 
   // Check if follower has configured models and exchanges
   const hasConfiguredModels = configuredModels.length > 0
@@ -37,6 +44,18 @@ export function SignalSourceModal({
   const canSaveAsFollower = userIsFollower 
     ? (hasConfiguredModels && hasConfiguredExchanges && selectedTraderId !== '')
     : true
+
+  // Load default URLs
+  useEffect(() => {
+    api
+      .getDefaultURLs()
+      .then((urls) => {
+        setDefaultURLs(urls)
+      })
+      .catch((err) => {
+        console.error('Failed to load default URLs:', err)
+      })
+  }, [])
 
   // Load running traders for followers
   useEffect(() => {
@@ -61,22 +80,24 @@ export function SignalSourceModal({
       return // Prevent submission if validation fails
     }
     if (userIsFollower) {
-      // For followers, we don't save to user signal source
-      // The selected trader will be used when creating/editing a trader
-      // For now, we'll just close the modal
-      // The actual saving will happen in TraderConfigModal
-      onClose()
+      // For followers, trigger copy trader flow
+      if (selectedTraderId && onCopyTrader) {
+        onCopyTrader(selectedTraderId)
+        onClose()
+      } else {
+        onClose()
+      }
     } else {
       onSave(coinPool.trim(), oiTop.trim())
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
       <div
         className="bg-gray-800 rounded-lg w-full max-w-lg relative my-8"
         style={{
-          background: '#1E2329',
+          background: 'var(--navy-dark)',
           maxHeight: 'calc(100vh - 4rem)',
         }}
       >
@@ -112,8 +133,8 @@ export function SignalSourceModal({
                     onChange={(e) => setSelectedTraderId(e.target.value)}
                     className="w-full px-3 py-2 rounded"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                   >
@@ -126,8 +147,8 @@ export function SignalSourceModal({
                   </select>
                 )}
                 <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                  Select a running trader from any user to copy their signals.
-                  This will be used when creating a new trader.
+                  Select a running trader from any user to copy their trades.
+                  Click "Create Trader" to open the trader configuration with this trader's settings.
                 </div>
                 {userIsFollower && (!hasConfiguredModels || !hasConfiguredExchanges) && (
                   <div
@@ -161,12 +182,34 @@ export function SignalSourceModal({
               // Regular user mode: Show URL inputs
               <>
                 <div>
-                  <label
-                    className="block text-sm font-semibold mb-2"
-                    style={{ color: '#EAECEF' }}
-                  >
-                    COIN POOL URL
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label
+                      className="block text-sm font-semibold"
+                      style={{ color: '#EAECEF' }}
+                    >
+                      COIN POOL URL
+                    </label>
+                    {defaultURLs && (
+                      <button
+                        type="button"
+                        onClick={() => setCoinPool(defaultURLs.coin_pool_url)}
+                        className="text-xs px-2 py-1 rounded"
+                        style={{
+                          background: 'var(--navy-light)',
+                          color: '#EAECEF',
+                          border: '1px solid var(--panel-border)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--navy-primary)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'var(--navy-light)'
+                        }}
+                      >
+                        Fill Default
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="url"
                     value={coinPool}
@@ -174,8 +217,8 @@ export function SignalSourceModal({
                     placeholder="https://api.example.com/coinpool"
                     className="w-full px-3 py-2 rounded"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                   />
@@ -185,12 +228,34 @@ export function SignalSourceModal({
                 </div>
 
                 <div>
-                  <label
-                    className="block text-sm font-semibold mb-2"
-                    style={{ color: '#EAECEF' }}
-                  >
-                    OI TOP URL
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label
+                      className="block text-sm font-semibold"
+                      style={{ color: '#EAECEF' }}
+                    >
+                      OI TOP URL
+                    </label>
+                    {defaultURLs && (
+                      <button
+                        type="button"
+                        onClick={() => setOiTop(defaultURLs.oi_top_url)}
+                        className="text-xs px-2 py-1 rounded"
+                        style={{
+                          background: 'var(--navy-light)',
+                          color: '#EAECEF',
+                          border: '1px solid var(--panel-border)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--navy-primary)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'var(--navy-light)'
+                        }}
+                      >
+                        Fill Default
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="url"
                     value={oiTop}
@@ -198,8 +263,8 @@ export function SignalSourceModal({
                     placeholder="https://api.example.com/oitop"
                     className="w-full px-3 py-2 rounded"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                   />
@@ -233,13 +298,13 @@ export function SignalSourceModal({
 
           <div
             className="flex gap-3 mt-6 pt-4 sticky bottom-0"
-            style={{ background: '#1E2329' }}
+              style={{ background: 'var(--navy-dark)' }}
           >
             <button
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2 rounded text-sm font-semibold"
-              style={{ background: '#2B3139', color: '#848E9C' }}
+              style={{ background: 'var(--navy-light)', color: '#848E9C' }}
             >
               {t('cancel', language)}
             </button>
@@ -248,11 +313,11 @@ export function SignalSourceModal({
               disabled={!canSaveAsFollower}
               className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ 
-                background: canSaveAsFollower ? 'var(--green-primary)' : '#2B3139', 
+                background: canSaveAsFollower ? 'var(--green-primary)' : 'var(--navy-light)', 
                 color: canSaveAsFollower ? '#000' : '#848E9C' 
               }}
             >
-              {t('save', language)}
+              {userIsFollower ? (t('createTrader', language) || 'Create Trader') : t('save', language)}
             </button>
           </div>
         </form>

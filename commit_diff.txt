@@ -1,0 +1,505 @@
+﻿commit a77c54dbefda798ef6dec7dc0cb8a45c7fbc4585
+Author: tinkle-community <tinklefund@gmail.com>
+Date:   Sat Dec 6 19:16:37 2025 +0800
+
+    feat: add one-click close position for all exchanges
+    - Add handleClosePosition API endpoint in server.go
+    - Add closePosition API function in frontend
+    - Add close position button to positions table in App.tsx and TraderDashboard.tsx
+    - Fix GetFullConfig to include passphrase field for OKX
+    - Fix OKX CloseLong/CloseShort to use position quantity directly (already in contracts)
+
+diff --git a/api/server.go b/api/server.go
+index ee10b335..eca75a90 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -135,6 +135,7 @@ func (s *Server) setupRoutes() {
+ 			protected.POST("/traders/:id/stop", s.handleStopTrader)
+ 			protected.PUT("/traders/:id/prompt", s.handleUpdateTraderPrompt)
+ 			protected.POST("/traders/:id/sync-balance", s.handleSyncBalance)
++			protected.POST("/traders/:id/close-position", s.handleClosePosition)
+ 
+ 			// AIµ¿íσ₧ïΘàìτ╜«
+ 			protected.GET("/models", s.handleGetModelConfigs)
+@@ -1098,6 +1099,122 @@ func (s *Server) handleSyncBalance(c *gin.Context) {
+ 	})
+ }
+ 
++// handleClosePosition Σ╕ÇΘö«σ╣│Σ╗ô
++func (s *Server) handleClosePosition(c *gin.Context) {
++	userID := c.GetString("user_id")
++	traderID := c.Param("id")
++
++	var req struct {
++		Symbol string `json:"symbol" binding:"required"`
++		Side   string `json:"side" binding:"required"` // "LONG" or "SHORT"
++	}
++
++	if err := c.ShouldBindJSON(&req); err != nil {
++		c.JSON(http.StatusBadRequest, gin.H{"error": "σÅéµò░ΘöÖΦ»»: symbolσÆîsideσ┐àσí½"})
++		return
++	}
++
++	logger.Infof("≡ƒö╗ τö¿µê╖ %s Φ»╖µ▒éσ╣│Σ╗ô: trader=%s, symbol=%s, side=%s", userID, traderID, req.Symbol, req.Side)
++
++	// Σ╗Äµò░µì«σ║ôΦÄ╖σÅûΣ║ñµÿôσæÿΘàìτ╜«∩╝êσîàσÉ½Σ║ñµÿôµëÇΣ┐íµü»∩╝ë
++	fullConfig, err := s.store.Trader().GetFullConfig(userID, traderID)
++	if err != nil {
++		c.JSON(http.StatusNotFound, gin.H{"error": "Σ║ñµÿôσæÿΣ╕ìσ¡ÿσ£¿"})
++		return
++	}
++
++	traderConfig := fullConfig.Trader
++	exchangeCfg := fullConfig.Exchange
++
++	if exchangeCfg == nil || !exchangeCfg.Enabled {
++		c.JSON(http.StatusBadRequest, gin.H{"error": "Σ║ñµÿôµëÇµ£¬Θàìτ╜«µêûµ£¬σÉ»τö¿"})
++		return
++	}
++
++	// σê¢σ╗║Σ╕┤µù╢ trader µëºΦíîσ╣│Σ╗ô
++	var tempTrader trader.Trader
++	var createErr error
++
++	switch traderConfig.ExchangeID {
++	case "binance":
++		tempTrader = trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID)
++	case "hyperliquid":
++		tempTrader, createErr = trader.NewHyperliquidTrader(
++			exchangeCfg.APIKey,
++			exchangeCfg.HyperliquidWalletAddr,
++			exchangeCfg.Testnet,
++		)
++	case "aster":
++		tempTrader, createErr = trader.NewAsterTrader(
++			exchangeCfg.AsterUser,
++			exchangeCfg.AsterSigner,
++			exchangeCfg.AsterPrivateKey,
++		)
++	case "bybit":
++		tempTrader = trader.NewBybitTrader(
++			exchangeCfg.APIKey,
++			exchangeCfg.SecretKey,
++		)
++	case "okx":
++		tempTrader = trader.NewOKXTrader(
++			exchangeCfg.APIKey,
++			exchangeCfg.SecretKey,
++			exchangeCfg.Passphrase,
++		)
++	case "lighter":
++		if exchangeCfg.LighterAPIKeyPrivateKey != "" {
++			tempTrader, createErr = trader.NewLighterTraderV2(
++				exchangeCfg.LighterPrivateKey,
++				exchangeCfg.LighterWalletAddr,
++				exchangeCfg.LighterAPIKeyPrivateKey,
++				exchangeCfg.Testnet,
++			)
++		} else {
++			tempTrader, createErr = trader.NewLighterTrader(
++				exchangeCfg.LighterPrivateKey,
++				exchangeCfg.LighterWalletAddr,
++				exchangeCfg.Testnet,
++			)
++		}
++	default:
++		c.JSON(http.StatusBadRequest, gin.H{"error": "Σ╕ìµö»µîüτÜäΣ║ñµÿôµëÇτ▒╗σ₧ï"})
++		return
++	}
++
++	if createErr != nil {
++		logger.Infof("ΓÜá∩╕Å σê¢σ╗║Σ╕┤µù╢ trader σñ▒Φ┤Ñ: %v", createErr)
++		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Φ┐₧µÄÑΣ║ñµÿôµëÇσñ▒Φ┤Ñ: %v", createErr)})
++		return
++	}
++
++	// µëºΦíîσ╣│Σ╗ôµôìΣ╜£
++	var result map[string]interface{}
++	var closeErr error
++
++	if req.Side == "LONG" {
++		result, closeErr = tempTrader.CloseLong(req.Symbol, 0) // 0 Φí¿τñ║σà¿Θâ¿σ╣│Σ╗ô
++	} else if req.Side == "SHORT" {
++		result, closeErr = tempTrader.CloseShort(req.Symbol, 0) // 0 Φí¿τñ║σà¿Θâ¿σ╣│Σ╗ô
++	} else {
++		c.JSON(http.StatusBadRequest, gin.H{"error": "sideσ┐àΘí╗µÿ»LONGµêûSHORT"})
++		return
++	}
++
++	if closeErr != nil {
++		logger.Infof("Γ¥î σ╣│Σ╗ôσñ▒Φ┤Ñ: symbol=%s, side=%s, error=%v", req.Symbol, req.Side, closeErr)
++		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("σ╣│Σ╗ôσñ▒Φ┤Ñ: %v", closeErr)})
++		return
++	}
++
++	logger.Infof("Γ£à σ╣│Σ╗ôµêÉσèƒ: symbol=%s, side=%s, result=%v", req.Symbol, req.Side, result)
++	c.JSON(http.StatusOK, gin.H{
++		"message": "σ╣│Σ╗ôµêÉσèƒ",
++		"symbol":  req.Symbol,
++		"side":    req.Side,
++		"result":  result,
++	})
++}
++
+ // handleGetModelConfigs ΦÄ╖σÅûAIµ¿íσ₧ïΘàìτ╜«
+ func (s *Server) handleGetModelConfigs(c *gin.Context) {
+ 	userID := c.GetString("user_id")
+diff --git a/img.png b/img.png
+deleted file mode 100644
+index 232ce693..00000000
+Binary files a/img.png and /dev/null differ
+diff --git a/img_1.png b/img_1.png
+new file mode 100644
+index 00000000..14f3112a
+Binary files /dev/null and b/img_1.png differ
+diff --git a/store/trader.go b/store/trader.go
+index 485e9bb2..329ba7d2 100644
+--- a/store/trader.go
++++ b/store/trader.go
+@@ -227,7 +227,7 @@ func (s *TraderStore) GetFullConfig(userID, traderID string) (*TraderFullConfig,
+ 			t.created_at, t.updated_at,
+ 			a.id, a.user_id, a.name, a.provider, a.enabled, a.api_key,
+ 			COALESCE(a.custom_api_url, ''), COALESCE(a.custom_model_name, ''), a.created_at, a.updated_at,
+-			e.id, e.user_id, e.name, e.type, e.enabled, e.api_key, e.secret_key, e.testnet,
++			e.id, e.user_id, e.name, e.type, e.enabled, e.api_key, e.secret_key, COALESCE(e.passphrase, ''), e.testnet,
+ 			COALESCE(e.hyperliquid_wallet_addr, ''), COALESCE(e.aster_user, ''), COALESCE(e.aster_signer, ''),
+ 			COALESCE(e.aster_private_key, ''), COALESCE(e.lighter_wallet_addr, ''), COALESCE(e.lighter_private_key, ''),
+ 			COALESCE(e.lighter_api_key_private_key, ''), e.created_at, e.updated_at
+@@ -244,7 +244,7 @@ func (s *TraderStore) GetFullConfig(userID, traderID string) (*TraderFullConfig,
+ 		&aiModel.ID, &aiModel.UserID, &aiModel.Name, &aiModel.Provider, &aiModel.Enabled, &aiModel.APIKey,
+ 		&aiModel.CustomAPIURL, &aiModel.CustomModelName, &aiModelCreatedAt, &aiModelUpdatedAt,
+ 		&exchange.ID, &exchange.UserID, &exchange.Name, &exchange.Type, &exchange.Enabled,
+-		&exchange.APIKey, &exchange.SecretKey, &exchange.Testnet, &exchange.HyperliquidWalletAddr,
++		&exchange.APIKey, &exchange.SecretKey, &exchange.Passphrase, &exchange.Testnet, &exchange.HyperliquidWalletAddr,
+ 		&exchange.AsterUser, &exchange.AsterSigner, &exchange.AsterPrivateKey,
+ 		&exchange.LighterWalletAddr, &exchange.LighterPrivateKey, &exchange.LighterAPIKeyPrivateKey,
+ 		&exchangeCreatedAt, &exchangeUpdatedAt,
+@@ -264,6 +264,7 @@ func (s *TraderStore) GetFullConfig(userID, traderID string) (*TraderFullConfig,
+ 	aiModel.APIKey = s.decrypt(aiModel.APIKey)
+ 	exchange.APIKey = s.decrypt(exchange.APIKey)
+ 	exchange.SecretKey = s.decrypt(exchange.SecretKey)
++	exchange.Passphrase = s.decrypt(exchange.Passphrase)
+ 	exchange.AsterPrivateKey = s.decrypt(exchange.AsterPrivateKey)
+ 	exchange.LighterPrivateKey = s.decrypt(exchange.LighterPrivateKey)
+ 	exchange.LighterAPIKeyPrivateKey = s.decrypt(exchange.LighterAPIKeyPrivateKey)
+diff --git a/trader/okx_trader.go b/trader/okx_trader.go
+index 057d201b..0ab9028b 100644
+--- a/trader/okx_trader.go
++++ b/trader/okx_trader.go
+@@ -195,7 +195,9 @@ func (t *OKXTrader) doRequest(method, path string, body interface{}) ([]byte, er
+ 		return nil, fmt.Errorf("Φºúµ₧Éσôìσ║öσñ▒Φ┤Ñ: %w", err)
+ 	}
+ 
+-	if okxResp.Code != "0" {
++	// code=1 Φí¿τñ║Θâ¿σêåµêÉσèƒ∩╝îΘ£ÇΦªüµúÇµƒÑ data ΘçîτÜäσà╖Σ╜ôτ╗ôµ₧£
++	// code=2 Φí¿τñ║σà¿Θâ¿σñ▒Φ┤Ñ
++	if okxResp.Code != "0" && okxResp.Code != "1" {
+ 		return nil, fmt.Errorf("OKX APIΘöÖΦ»»: code=%s, msg=%s", okxResp.Code, okxResp.Msg)
+ 	}
+ 
+@@ -639,7 +641,7 @@ func (t *OKXTrader) OpenShort(symbol string, quantity float64, leverage int) (ma
+ func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]interface{}, error) {
+ 	instId := t.convertSymbol(symbol)
+ 
+-	// σªéµ₧£µò░ΘçÅΣ╕║0∩╝îΦÄ╖σÅûσ╜ôσëìµîüΣ╗ô
++	// σªéµ₧£µò░ΘçÅΣ╕║0∩╝îΦÄ╖σÅûσ╜ôσëìµîüΣ╗ô∩╝êpositionAmt σ░▒µÿ»σ╝áµò░∩╝ë
+ 	if quantity == 0 {
+ 		positions, err := t.GetPositions()
+ 		if err != nil {
+@@ -647,7 +649,7 @@ func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]inter
+ 		}
+ 		for _, pos := range positions {
+ 			if pos["symbol"] == symbol && pos["side"] == "long" {
+-				quantity = pos["positionAmt"].(float64)
++				quantity = pos["positionAmt"].(float64) // Φ┐Öσ╖▓τ╗Åµÿ»σ╝áµò░
+ 				break
+ 			}
+ 		}
+@@ -656,19 +658,17 @@ func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]inter
+ 		}
+ 	}
+ 
+-	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»
++	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»τö¿Σ║Äµá╝σ╝Åσîûσ╝áµò░
+ 	inst, err := t.getInstrument(symbol)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σñ▒Φ┤Ñ: %w", err)
+ 	}
+ 
+-	price, err := t.GetMarketPrice(symbol)
+-	if err != nil {
+-		return nil, fmt.Errorf("ΦÄ╖σÅûσ╕éΣ╗╖σñ▒Φ┤Ñ: %w", err)
+-	}
++	// quantity σ╖▓τ╗Åµÿ»σ╝áµò░∩╝îτ¢┤µÄÑµá╝σ╝Åσîû
++	szStr := t.formatSize(quantity, inst)
+ 
+-	sz := quantity * price / inst.CtVal
+-	szStr := t.formatSize(sz, inst)
++	logger.Infof("≡ƒö╗ OKXσ╣│σñÜΣ╗ôσÅéµò░: symbol=%s, instId=%s, quantity(σ╝áµò░)=%f, szStr=%s",
++		symbol, instId, quantity, szStr)
+ 
+ 	body := map[string]interface{}{
+ 		"instId":  instId,
+@@ -720,7 +720,7 @@ func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]inter
+ func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]interface{}, error) {
+ 	instId := t.convertSymbol(symbol)
+ 
+-	// σªéµ₧£µò░ΘçÅΣ╕║0∩╝îΦÄ╖σÅûσ╜ôσëìµîüΣ╗ô
++	// σªéµ₧£µò░ΘçÅΣ╕║0∩╝îΦÄ╖σÅûσ╜ôσëìµîüΣ╗ô∩╝êpositionAmt σ░▒µÿ»σ╝áµò░∩╝ë
+ 	if quantity == 0 {
+ 		positions, err := t.GetPositions()
+ 		if err != nil {
+@@ -728,7 +728,7 @@ func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]inte
+ 		}
+ 		for _, pos := range positions {
+ 			if pos["symbol"] == symbol && pos["side"] == "short" {
+-				quantity = pos["positionAmt"].(float64)
++				quantity = pos["positionAmt"].(float64) // Φ┐Öσ╖▓τ╗Åµÿ»σ╝áµò░
+ 				break
+ 			}
+ 		}
+@@ -737,19 +737,17 @@ func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]inte
+ 		}
+ 	}
+ 
+-	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»
++	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»τö¿Σ║Äµá╝σ╝Åσîûσ╝áµò░
+ 	inst, err := t.getInstrument(symbol)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σñ▒Φ┤Ñ: %w", err)
+ 	}
+ 
+-	price, err := t.GetMarketPrice(symbol)
+-	if err != nil {
+-		return nil, fmt.Errorf("ΦÄ╖σÅûσ╕éΣ╗╖σñ▒Φ┤Ñ: %w", err)
+-	}
++	// quantity σ╖▓τ╗Åµÿ»σ╝áµò░∩╝îτ¢┤µÄÑµá╝σ╝Åσîû
++	szStr := t.formatSize(quantity, inst)
+ 
+-	sz := quantity * price / inst.CtVal
+-	szStr := t.formatSize(sz, inst)
++	logger.Infof("≡ƒö╗ OKXσ╣│τ⌐║Σ╗ôσÅéµò░: symbol=%s, instId=%s, quantity(σ╝áµò░)=%f, szStr=%s",
++		symbol, instId, quantity, szStr)
+ 
+ 	body := map[string]interface{}{
+ 		"instId":  instId,
+@@ -762,6 +760,8 @@ func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]inte
+ 		"tag":     okxTag,
+ 	}
+ 
++	logger.Infof("≡ƒö╗ OKXσ╣│τ⌐║Σ╗ôΦ»╖µ▒éΣ╜ô: %+v", body)
++
+ 	data, err := t.doRequest("POST", okxOrderPath, body)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("σ╣│τ⌐║Σ╗ôσñ▒Φ┤Ñ: %w", err)
+@@ -780,12 +780,13 @@ func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]inte
+ 	if len(orders) == 0 || orders[0].SCode != "0" {
+ 		msg := "µ£¬τƒÑΘöÖΦ»»"
+ 		if len(orders) > 0 {
+-			msg = orders[0].SMsg
++			msg = fmt.Sprintf("sCode=%s, sMsg=%s", orders[0].SCode, orders[0].SMsg)
+ 		}
++		logger.Infof("Γ¥î OKXσ╣│τ⌐║Σ╗ôσñ▒Φ┤Ñ: %s, σôìσ║ö: %s", msg, string(data))
+ 		return nil, fmt.Errorf("σ╣│τ⌐║Σ╗ôσñ▒Φ┤Ñ: %s", msg)
+ 	}
+ 
+-	logger.Infof("Γ£ô OKXσ╣│τ⌐║Σ╗ôµêÉσèƒ: %s", symbol)
++	logger.Infof("Γ£ô OKXσ╣│τ⌐║Σ╗ôµêÉσèƒ: %s, ordId=%s", symbol, orders[0].OrdId)
+ 
+ 	// σ╣│Σ╗ôσÉÄσÅûµ╢êµîéσìò
+ 	t.CancelAllOrders(symbol)
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index 74a2c172..aee15153 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -18,6 +18,7 @@ import { t, type Language } from './i18n/translations'
+ import { useSystemConfig } from './hooks/useSystemConfig'
+ import { DecisionCard } from './components/DecisionCard'
+ import { BacktestPage } from './components/BacktestPage'
++import { LogOut, Loader2 } from 'lucide-react'
+ import type {
+   SystemStatus,
+   AccountInfo,
+@@ -524,6 +525,31 @@ function TraderDetailsPage({
+   lastUpdate: string
+   language: Language
+ }) {
++  const [closingPosition, setClosingPosition] = useState<string | null>(null)
++
++  // σ╣│Σ╗ôµôìΣ╜£
++  const handleClosePosition = async (symbol: string, side: string) => {
++    if (!selectedTraderId) return
++
++    const confirmMsg = language === 'zh'
++      ? `τí«σ«ÜΦªüσ╣│Σ╗ô ${symbol} ${side === 'LONG' ? 'σñÜΣ╗ô' : 'τ⌐║Σ╗ô'} σÉù∩╝ƒ`
++      : `Are you sure you want to close ${symbol} ${side === 'LONG' ? 'LONG' : 'SHORT'} position?`
++
++    if (!confirm(confirmMsg)) return
++
++    setClosingPosition(symbol)
++    try {
++      await api.closePosition(selectedTraderId, symbol, side)
++      const successMsg = language === 'zh' ? 'σ╣│Σ╗ôµêÉσèƒ' : 'Position closed successfully'
++      alert(successMsg)
++      window.location.reload()
++    } catch (err: unknown) {
++      const errorMsg = err instanceof Error ? err.message : (language === 'zh' ? 'σ╣│Σ╗ôσñ▒Φ┤Ñ' : 'Failed to close position')
++      alert(errorMsg)
++    } finally {
++      setClosingPosition(null)
++    }
++  }
+   // If API failed with error, show empty state (likely backend not running)
+   if (tradersError) {
+     return (
+@@ -836,6 +862,9 @@ function TraderDetailsPage({
+                       <th className="pb-3 font-semibold text-gray-400">
+                         {t('side', language)}
+                       </th>
++                      <th className="pb-3 font-semibold text-gray-400">
++                        {language === 'zh' ? 'µôìΣ╜£' : 'Action'}
++                      </th>
+                       <th className="pb-3 font-semibold text-gray-400">
+                         {t('entryPrice', language)}
+                       </th>
+@@ -889,6 +918,27 @@ function TraderDetailsPage({
+                             )}
+                           </span>
+                         </td>
++                        <td className="py-3">
++                          <button
++                            type="button"
++                            onClick={() => handleClosePosition(pos.symbol, pos.side.toUpperCase())}
++                            disabled={closingPosition === pos.symbol}
++                            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
++                            style={{
++                              background: 'rgba(246, 70, 93, 0.1)',
++                              color: '#F6465D',
++                              border: '1px solid rgba(246, 70, 93, 0.3)',
++                            }}
++                            title={language === 'zh' ? 'σ╣│Σ╗ô' : 'Close Position'}
++                          >
++                            {closingPosition === pos.symbol ? (
++                              <Loader2 className="w-3 h-3 animate-spin" />
++                            ) : (
++                              <LogOut className="w-3 h-3" />
++                            )}
++                            {language === 'zh' ? 'σ╣│Σ╗ô' : 'Close'}
++                          </button>
++                        </td>
+                         <td
+                           className="py-3 font-mono"
+                           style={{ color: '#EAECEF' }}
+diff --git a/web/src/lib/api.ts b/web/src/lib/api.ts
+index 4c1411a9..166ea4e0 100644
+--- a/web/src/lib/api.ts
++++ b/web/src/lib/api.ts
+@@ -102,6 +102,15 @@ export const api = {
+     if (!result.success) throw new Error('σü£µ¡óΣ║ñµÿôσæÿσñ▒Φ┤Ñ')
+   },
+ 
++  async closePosition(traderId: string, symbol: string, side: string): Promise<{ message: string }> {
++    const result = await httpClient.post<{ message: string }>(
++      `${API_BASE}/traders/${traderId}/close-position`,
++      { symbol, side }
++    )
++    if (!result.success) throw new Error('σ╣│Σ╗ôσñ▒Φ┤Ñ')
++    return result.data!
++  },
++
+   async updateTraderPrompt(
+     traderId: string,
+     customPrompt: string
+diff --git a/web/src/pages/TraderDashboard.tsx b/web/src/pages/TraderDashboard.tsx
+index f2a458cf..131574a9 100644
+--- a/web/src/pages/TraderDashboard.tsx
++++ b/web/src/pages/TraderDashboard.tsx
+@@ -18,6 +18,8 @@ import {
+   Check,
+   X,
+   XCircle,
++  LogOut,
++  Loader2,
+ } from 'lucide-react'
+ import { stripLeadingIcons } from '../lib/text'
+ import type {
+@@ -63,6 +65,9 @@ export default function TraderDashboard() {
+   const [selectedChartSymbol, setSelectedChartSymbol] = useState<string | undefined>()
+   const [chartUpdateKey, setChartUpdateKey] = useState(0)
+ 
++  // σ╣│Σ╗ôµôìΣ╜£τè╢µÇü
++  const [closingPosition, setClosingPosition] = useState<string | null>(null) // symbol being closed
++
+   // τé╣σç╗µîüΣ╗ôσ╕üτºìµù╢Φ░âτö¿
+   const handlePositionSymbolClick = (symbol: string) => {
+     setSelectedChartSymbol(symbol)
+@@ -75,6 +80,31 @@ export default function TraderDashboard() {
+     localStorage.setItem('decisionLimit', newLimit.toString())
+   }
+ 
++  // σ╣│Σ╗ôµôìΣ╜£
++  const handleClosePosition = async (symbol: string, side: string) => {
++    if (!selectedTraderId) return
++
++    const confirmMsg = language === 'zh'
++      ? `τí«σ«ÜΦªüσ╣│Σ╗ô ${symbol} ${side === 'LONG' ? 'σñÜΣ╗ô' : 'τ⌐║Σ╗ô'} σÉù∩╝ƒ`
++      : `Are you sure you want to close ${symbol} ${side === 'LONG' ? 'LONG' : 'SHORT'} position?`
++
++    if (!confirm(confirmMsg)) return
++
++    setClosingPosition(symbol)
++    try {
++      await api.closePosition(selectedTraderId, symbol, side)
++      const successMsg = language === 'zh' ? 'σ╣│Σ╗ôµêÉσèƒ' : 'Position closed successfully'
++      alert(successMsg)
++      // σê╖µû░µîüΣ╗ôµò░µì«
++      window.location.reload()
++    } catch (err: unknown) {
++      const errorMsg = err instanceof Error ? err.message : (language === 'zh' ? 'σ╣│Σ╗ôσñ▒Φ┤Ñ' : 'Failed to close position')
++      alert(errorMsg)
++    } finally {
++      setClosingPosition(null)
++    }
++  }
++
+   // ΦÄ╖σÅûtraderσêùΦí¿∩╝êΣ╗àσ£¿τö¿µê╖τÖ╗σ╜òµù╢∩╝ë
+   const { data: traders, error: tradersError } = useSWR<TraderInfo[]>(
+     user && token ? 'traders' : null,
+@@ -474,6 +504,9 @@ export default function TraderDashboard() {
+                       <th className="pb-3 font-semibold text-gray-400">
+                         {t('side', language)}
+                       </th>
++                      <th className="pb-3 font-semibold text-gray-400">
++                        {language === 'zh' ? 'µôìΣ╜£' : 'Action'}
++                      </th>
+                       <th className="pb-3 font-semibold text-gray-400">
+                         {t('entryPrice', language)}
+                       </th>
+@@ -544,6 +577,27 @@ export default function TraderDashboard() {
+                             )}
+                           </span>
+                         </td>
++                        <td className="py-3">
++                          <button
++                            type="button"
++                            onClick={() => handleClosePosition(pos.symbol, pos.side.toUpperCase())}
++                            disabled={closingPosition === pos.symbol}
++                            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
++                            style={{
++                              background: 'rgba(246, 70, 93, 0.1)',
++                              color: '#F6465D',
++                              border: '1px solid rgba(246, 70, 93, 0.3)',
++                            }}
++                            title={language === 'zh' ? 'σ╣│Σ╗ô' : 'Close Position'}
++                          >
++                            {closingPosition === pos.symbol ? (
++                              <Loader2 className="w-3 h-3 animate-spin" />
++                            ) : (
++                              <LogOut className="w-3 h-3" />
++                            )}
++                            {language === 'zh' ? 'σ╣│Σ╗ô' : 'Close'}
++                          </button>
++                        </td>
+                         <td
+                           className="py-3 font-mono"
+                           style={{ color: '#EAECEF' }}

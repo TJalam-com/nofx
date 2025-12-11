@@ -161,7 +161,7 @@ export function RegisterPage() {
       className="flex items-center justify-center py-12"
       style={{
         minHeight: 'calc(100vh - 64px)',
-        background: 'var(--background)',
+        background: 'var(--navy-primary)',
       }}
     >
       <div className="w-full max-w-md">
@@ -188,7 +188,7 @@ export function RegisterPage() {
         <div
           className="rounded-lg p-6"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             border: '1px solid var(--panel-border)',
           }}
         >
@@ -326,8 +326,8 @@ export function RegisterPage() {
                     }
                     className="w-full px-3 py-2 rounded font-mono"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                     placeholder={t('betaCodePlaceholder', language)}
@@ -360,7 +360,7 @@ export function RegisterPage() {
                 className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
                 style={{
                   background: 'var(--brand-yellow)',
-                  color: 'var(--brand-black)',
+                  color: 'var(--navy-primary)',
                 }}
               >
                 {loading
@@ -389,7 +389,7 @@ export function RegisterPage() {
                 <div
                   className="p-3 rounded"
                   style={{
-                    background: 'var(--brand-black)',
+                    background: 'var(--navy-primary)',
                     border: '1px solid var(--panel-border)',
                   }}
                 >
@@ -410,7 +410,7 @@ export function RegisterPage() {
                 <div
                   className="p-3 rounded"
                   style={{
-                    background: 'var(--brand-black)',
+                    background: 'var(--navy-primary)',
                     border: '1px solid var(--panel-border)',
                   }}
                 >
@@ -447,7 +447,7 @@ export function RegisterPage() {
                       <code
                         className="flex-1 px-2 py-1 text-xs rounded font-mono"
                         style={{
-                          background: 'var(--panel-bg-hover)',
+                          background: 'var(--navy-light)',
                           color: 'var(--brand-light-gray)',
                         }}
                       >
@@ -458,7 +458,7 @@ export function RegisterPage() {
                         className="px-2 py-1 text-xs rounded"
                         style={{
                           background: 'var(--brand-yellow)',
-                          color: 'var(--brand-black)',
+                          color: 'var(--navy-primary)',
                         }}
                       >
                         {t('copy', language)}
@@ -470,7 +470,7 @@ export function RegisterPage() {
                 <div
                   className="p-3 rounded"
                   style={{
-                    background: 'var(--brand-black)',
+                    background: 'var(--navy-primary)',
                     border: '1px solid var(--panel-border)',
                   }}
                 >
@@ -492,7 +492,7 @@ export function RegisterPage() {
               <button
                 onClick={handleSetupComplete}
                 className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
-                style={{ background: '#F0B90B', color: '#000' }}
+                style={{ background: '#00CC66', color: 'var(--navy-primary)' }}
               >
                 {t('setupCompleteContinue', language)}
               </button>
@@ -525,7 +525,7 @@ export function RegisterPage() {
                   }
                   className="w-full px-3 py-2 rounded text-center text-2xl font-mono"
                   style={{
-                    background: 'var(--brand-black)',
+                    background: 'var(--navy-primary)',
                     border: '1px solid var(--panel-border)',
                     color: 'var(--brand-light-gray)',
                   }}
@@ -553,7 +553,7 @@ export function RegisterPage() {
                   onClick={() => setStep('setup-otp')}
                   className="flex-1 px-4 py-2 rounded text-sm font-semibold"
                   style={{
-                    background: 'var(--panel-bg-hover)',
+                    background: 'var(--navy-light)',
                     color: 'var(--text-secondary)',
                   }}
                 >
@@ -563,7 +563,7 @@ export function RegisterPage() {
                   type="submit"
                   disabled={loading || otpCode.length !== 6}
                   className="flex-1 px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
-                  style={{ background: '#F0B90B', color: '#000' }}
+                  style={{ background: '#00CC66', color: 'var(--navy-primary)' }}
                 >
                   {loading
                     ? t('loading', language)

@@ -3,6 +3,23 @@ import { t, type Language } from '../../../i18n/translations'
 import { getModelDisplayName } from '../index'
 import type { TraderInfo } from '../../../types'
 
+// Format strategy template name for display
+function formatStrategyName(templateName: string | undefined | null): string {
+  if (!templateName) return 'Default'
+  const nameMap: Record<string, string> = {
+    default: 'Default',
+    adaptive: 'Adaptive',
+    adaptive_relaxed: 'Adaptive Relaxed',
+    Hansen: 'Hansen',
+    nof1: 'Nof1',
+    taro_long_prompts: 'Taro Long',
+    risk_management: 'Risk Management',
+    'risk-management': 'Risk Management',
+  }
+  const lowerName = templateName.toLowerCase()
+  return nameMap[lowerName] || templateName.charAt(0).toUpperCase() + templateName.slice(1)
+}
+
 interface TradersGridProps {
   language: Language
   traders: TraderInfo[] | undefined
@@ -40,7 +57,7 @@ export function TradersGrid({
         <div
           key={trader.trader_id}
           className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 rounded transition-all hover:translate-y-[-1px] gap-3 md:gap-4"
-          style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+          style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
         >
           <div className="flex items-center gap-3 md:gap-4">
             <div
@@ -74,6 +91,14 @@ export function TradersGrid({
                 )}{' '}
                 Model • {trader.exchange_id?.toUpperCase()}
               </div>
+              {trader.system_prompt_template && (
+                <div
+                  className="text-xs truncate mt-0.5"
+                  style={{ color: '#848E9C' }}
+                >
+                  Strategy: {formatStrategyName(trader.system_prompt_template)}
+                </div>
+              )}
             </div>
           </div>
 
@@ -104,7 +129,7 @@ export function TradersGrid({
               </div>
             </div>
 
-            {/* Actions: 禁止换行,超出横向滚动 */}
+            {/* Actions: No line breaks, horizontal scroll on overflow */}
             <div className="flex gap-1.5 md:gap-2 flex-nowrap overflow-x-auto items-center">
               <button
                 onClick={() => onTraderSelect(trader.trader_id)}
@@ -126,7 +151,7 @@ export function TradersGrid({
                   background: trader.is_running
                     ? 'rgba(132, 142, 156, 0.1)'
                     : 'rgba(255, 193, 7, 0.1)',
-                  color: trader.is_running ? '#848E9C' : '#FFC107',
+                  color: trader.is_running ? '#848E9C' : '#00FF7F',
                 }}
               >
                 <Pencil className="w-3 h-3 md:w-4 md:h-4" />

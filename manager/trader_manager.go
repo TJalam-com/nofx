@@ -240,6 +240,7 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		MaxDrawdown:           maxDrawdown,
 		StopTradingTime:       time.Duration(stopTradingMinutes) * time.Minute,
 		IsCrossMargin:         traderCfg.IsCrossMargin,
+		ShowInCompetition:     traderCfg.ShowInCompetition,
 		DefaultCoins:          defaultCoins,
 		TradingCoins:          tradingCoins,
 		SystemPromptTemplate:  traderCfg.SystemPromptTemplate, // System prompt template
@@ -365,6 +366,7 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		MaxDrawdown:           maxDrawdown,
 		StopTradingTime:       time.Duration(stopTradingMinutes) * time.Minute,
 		IsCrossMargin:         traderCfg.IsCrossMargin,
+		ShowInCompetition:     traderCfg.ShowInCompetition,
 		DefaultCoins:          defaultCoins,
 		TradingCoins:          tradingCoins,
 		SystemPromptTemplate:  traderCfg.SystemPromptTemplate, // System prompt template
@@ -612,10 +614,15 @@ func (tm *TraderManager) GetCompetitionData(database *config.Database) (map[stri
 
 	tm.mu.RLock()
 
-	// Get all trader list
+	// Get all trader list (only those with ShowInCompetition = true)
 	allTraders := make([]*trader.AutoTrader, 0, len(tm.traders))
-	for _, t := range tm.traders {
-		allTraders = append(allTraders, t)
+	for id, t := range tm.traders {
+		if t.GetShowInCompetition() {
+			allTraders = append(allTraders, t)
+			logger.Infof("📋 Competition data includes trader: %s (%s)", t.GetName(), id)
+		} else {
+			logger.Infof("📋 Competition data excludes trader (hidden): %s (%s)", t.GetName(), id)
+		}
 	}
 	tm.mu.RUnlock()
 

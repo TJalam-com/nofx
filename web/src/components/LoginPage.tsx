@@ -156,7 +156,7 @@ export function LoginPage() {
       className="flex items-center justify-center py-12"
       style={{
         minHeight: 'calc(100vh - 64px)',
-        background: 'var(--background)',
+        background: 'var(--navy-primary)',
       }}
     >
       <div className="w-full max-w-md">
@@ -187,7 +187,7 @@ export function LoginPage() {
         <div
           className="rounded-lg p-6"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             border: '1px solid var(--panel-border)',
           }}
         >
@@ -206,7 +206,7 @@ export function LoginPage() {
                   onChange={(e) => setAdminPassword(e.target.value)}
                   className="w-full px-3 py-2 rounded"
                   style={{
-                    background: 'var(--brand-black)',
+                    background: 'var(--navy-primary)',
                     border: '1px solid var(--panel-border)',
                     color: 'var(--brand-light-gray)',
                   }}
@@ -233,7 +233,7 @@ export function LoginPage() {
                 className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
                 style={{
                   background: 'var(--green-primary)',
-                  color: '#000',
+                  color: 'var(--navy-primary)',
                 }}
               >
                 {loading ? t('loading', language) : t('loginButton', language)}
@@ -320,7 +320,7 @@ export function LoginPage() {
                 className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
                 style={{
                   background: 'var(--green-primary)',
-                  color: '#000',
+                  color: 'var(--navy-primary)',
                 }}
               >
                 {loading ? t('loading', language) : t('loginButton', language)}
@@ -352,7 +352,7 @@ export function LoginPage() {
                   }
                   className="w-full px-3 py-2 rounded text-center text-2xl font-mono"
                   style={{
-                    background: 'var(--brand-black)',
+                    background: 'var(--navy-primary)',
                     border: '1px solid var(--panel-border)',
                     color: 'var(--brand-light-gray)',
                   }}
@@ -380,7 +380,7 @@ export function LoginPage() {
                   onClick={() => setStep('login')}
                   className="flex-1 px-4 py-2 rounded text-sm font-semibold"
                   style={{
-                    background: 'var(--panel-bg-hover)',
+                    background: 'var(--navy-light)',
                     color: 'var(--text-secondary)',
                   }}
                 >
@@ -390,7 +390,7 @@ export function LoginPage() {
                   type="submit"
                   disabled={loading || otpCode.length !== 6}
                   className="flex-1 px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
-                  style={{ background: 'var(--green-primary)', color: '#000' }}
+                  style={{ background: 'var(--green-primary)', color: 'var(--navy-primary)' }}
                 >
                   {loading ? t('loading', language) : t('verifyOTP', language)}
                 </button>

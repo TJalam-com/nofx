@@ -122,8 +122,8 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
     <div
       className="rounded p-5 transition-all duration-300 hover:translate-y-[-2px]"
       style={{
-        border: '1px solid #2B3139',
-        background: '#1E2329',
+        border: '1px solid var(--panel-border)',
+        background: 'var(--panel-bg)',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
       }}
     >
@@ -215,8 +215,8 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
             <div
               className="mt-2 rounded p-4 text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto"
               style={{
-                background: '#0B0E11',
-                border: '1px solid #2B3139',
+                background: 'var(--navy-primary)',
+                border: '1px solid var(--panel-border)',
                 color: '#EAECEF',
               }}
             >
@@ -244,8 +244,8 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
             <div
               className="mt-2 rounded p-4 text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto"
               style={{
-                background: '#0B0E11',
-                border: '1px solid #2B3139',
+                background: 'var(--navy-primary)',
+                border: '1px solid var(--panel-border)',
                 color: '#EAECEF',
               }}
             >
@@ -261,7 +261,7 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
             <div
               key={`${action.symbol}-${index}`}
               className="flex items-center gap-2 text-sm rounded px-3 py-2"
-              style={{ background: '#0B0E11' }}
+              style={{ background: 'var(--navy-primary)' }}
             >
               <span
                 className="font-mono font-bold"
@@ -306,7 +306,7 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
       {decision.execution_log && decision.execution_log.length > 0 && (
         <div
           className="rounded p-3 text-xs font-mono space-y-1"
-          style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+          style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
         >
           {decision.execution_log.map((log, index) => (
             <div key={`${log}-${index}`} style={{ color: '#EAECEF' }}>

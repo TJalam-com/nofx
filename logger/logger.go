@@ -1,8 +1,15 @@
 package logger
 
 import (
+	"fmt"
+	"io"
+	"log"
 	"nofx/config"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -11,9 +18,49 @@ var (
 	// Log is the global logger instance
 	Log *logrus.Logger
 
+	// logFile holds the current log file handle
+	logFile *os.File
+
 	// telegramHook saves hook reference for graceful shutdown
 	telegramHook *TelegramHook
 )
+
+// compactFormatter is a custom formatter for cleaner log output
+type compactFormatter struct {
+	logrus.TextFormatter
+}
+
+func (f *compactFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	level := strings.ToUpper(entry.Level.String())[0:4]
+
+	// Skip frames to find actual caller (skip logrus + our wrapper functions)
+	caller := ""
+	for i := 3; i < 10; i++ {
+		_, file, line, ok := runtime.Caller(i)
+		if !ok {
+			break
+		}
+		// Skip logrus internal and our logger.go
+		if !strings.Contains(file, "logrus") && !strings.HasSuffix(file, "logger/logger.go") {
+			// Get package name from path (e.g., "nofx/manager/trader_manager.go" -> "manager")
+			dir := filepath.Dir(file)
+			pkg := filepath.Base(dir)
+			caller = fmt.Sprintf("%s/%s:%d", pkg, filepath.Base(file), line)
+			break
+		}
+	}
+
+	msg := fmt.Sprintf("[%s] %s %s\n", level, caller, entry.Message)
+	return []byte(msg), nil
+}
+
+func init() {
+	// Auto-initialize default logger to ensure it works before Init is called
+	Log = logrus.New()
+	Log.SetLevel(logrus.InfoLevel)
+	Log.SetFormatter(&compactFormatter{})
+	Log.SetOutput(os.Stdout)
+}
 
 // ============================================================================
 // Initialization functions
@@ -39,17 +86,25 @@ func Init(cfg *Config) error {
 	}
 	Log.SetLevel(level)
 
-	// Set formatter (always use colored text format)
-	Log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02 15:04:05",
-		ForceColors:     true,
-	})
+	// Set compact formatter
+	Log.SetFormatter(&compactFormatter{})
 
-	// Set output target (default stdout)
-	Log.SetOutput(os.Stdout)
+	// Setup log file output (write to both stdout and file)
+	logDir := "data"
+	if err := os.MkdirAll(logDir, 0755); err == nil {
+		logFileName := filepath.Join(logDir, fmt.Sprintf("nofx_%s.log", time.Now().Format("2006-01-02")))
+		f, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			logFile = f
+			// Write to both stdout and file
+			Log.SetOutput(io.MultiWriter(os.Stdout, f))
+		} else {
+			Log.SetOutput(os.Stdout)
+		}
+	} else {
+		Log.SetOutput(os.Stdout)
+	}
 
-	// Enable caller location info
 	Log.SetReportCaller(true)
 
 	// Add Telegram Hook (optional)
@@ -138,8 +193,12 @@ func InitFromParams(level string, telegramEnabled bool, botToken string, chatID 
 	return Init(cfg)
 }
 
-// Shutdown gracefully shuts down logger (mainly for closing Telegram sender)
+// Shutdown gracefully shuts down logger (mainly for closing Telegram sender and log file)
 func Shutdown() {
+	if logFile != nil {
+		logFile.Close()
+		logFile = nil
+	}
 	if telegramHook != nil {
 		telegramHook.Stop()
 		telegramHook = nil
@@ -150,61 +209,133 @@ func Shutdown() {
 // Logging functions
 // ============================================================================
 
+// ensureLogger ensures Log is initialized, initializes with default config if nil
+func ensureLogger() {
+	if Log == nil {
+		// Initialize with default config if not already initialized
+		if err := InitWithSimpleConfig("info"); err != nil {
+			// If initialization fails, Log will still be nil
+			// This should not happen, but we handle it gracefully
+			return
+		}
+	}
+}
+
 // WithFields creates logger entry with fields
 func WithFields(fields logrus.Fields) *logrus.Entry {
+	ensureLogger()
+	if Log == nil {
+		// If Log is still nil after ensureLogger, return a no-op entry
+		// This prevents panic but caller should check for nil
+		return logrus.NewEntry(logrus.New())
+	}
 	return Log.WithFields(fields)
 }
 
 // WithField creates logger entry with single field
 func WithField(key string, value interface{}) *logrus.Entry {
+	ensureLogger()
+	if Log == nil {
+		// If Log is still nil after ensureLogger, return a no-op entry
+		// This prevents panic but caller should check for nil
+		return logrus.NewEntry(logrus.New())
+	}
 	return Log.WithField(key, value)
 }
 
 // add debug, info, warn
 func Debug(args ...interface{}) {
+	if Log == nil {
+		log.Print(append([]interface{}{"[DEBUG] "}, args...)...)
+		return
+	}
 	Log.Debug(args...)
 }
 
 func Info(args ...interface{}) {
+	if Log == nil {
+		log.Print(append([]interface{}{"[INFO] "}, args...)...)
+		return
+	}
 	Log.Info(args...)
 }
 
 func Warn(args ...interface{}) {
+	if Log == nil {
+		log.Print(append([]interface{}{"[WARN] "}, args...)...)
+		return
+	}
 	Log.Warn(args...)
 }
 
 func Debugf(format string, args ...interface{}) {
+	if Log == nil {
+		log.Printf("[DEBUG] "+format, args...)
+		return
+	}
 	Log.Debugf(format, args...)
 }
 
 func Infof(format string, args ...interface{}) {
+	if Log == nil {
+		log.Printf("[INFO] "+format, args...)
+		return
+	}
 	Log.Infof(format, args...)
 }
 
 func Warnf(format string, args ...interface{}) {
+	if Log == nil {
+		log.Printf("[WARN] "+format, args...)
+		return
+	}
 	Log.Warnf(format, args...)
 }
 
 func Error(args ...interface{}) {
+	if Log == nil {
+		log.Print(append([]interface{}{"[ERROR] "}, args...)...)
+		return
+	}
 	Log.Error(args...)
 }
 
 func Errorf(format string, args ...interface{}) {
+	if Log == nil {
+		log.Printf("[ERROR] "+format, args...)
+		return
+	}
 	Log.Errorf(format, args...)
 }
 
 func Fatal(args ...interface{}) {
+	if Log == nil {
+		log.Fatal(append([]interface{}{"[FATAL] "}, args...)...)
+		return
+	}
 	Log.Fatal(args...)
 }
 
 func Fatalf(format string, args ...interface{}) {
+	if Log == nil {
+		log.Fatalf("[FATAL] "+format, args...)
+		return
+	}
 	Log.Fatalf(format, args...)
 }
 
 func Panic(args ...interface{}) {
+	if Log == nil {
+		log.Panic(append([]interface{}{"[PANIC] "}, args...)...)
+		return
+	}
 	Log.Panic(args...)
 }
 
 func Panicf(format string, args ...interface{}) {
+	if Log == nil {
+		log.Panicf("[PANIC] "+format, args...)
+		return
+	}
 	Log.Panicf(format, args...)
 }

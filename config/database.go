@@ -41,6 +41,7 @@ type DatabaseInterface interface {
 	UpdateTraderCustomPrompt(userID, id string, customPrompt string, overrideBase bool) error
 	DeleteTrader(userID, id string) error
 	GetTraderConfig(userID, traderID string) (*TraderRecord, *AIModelConfig, *ExchangeConfig, error)
+	GetTraderByID(traderID string) (*TraderRecord, error)
 	GetSystemConfig(key string) (string, error)
 	SetSystemConfig(key, value string) error
 	CreateUserSignalSource(userID, coinPoolURL, oiTopURL string) error
@@ -74,6 +75,14 @@ type Database struct {
 
 // NewDatabase create configuration database
 func NewDatabase(dbPath string) (*Database, error) {
+	// Ensure data directory exists for database persistence (especially in Docker)
+	dir := filepath.Dir(dbPath)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create data directory: %w", err)
+		}
+	}
+
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -220,9 +229,18 @@ func (d *Database) createTables() error {
 			use_oi_top BOOLEAN DEFAULT 0,
 			use_tradingview BOOLEAN DEFAULT 0,
 			followed_trader_id TEXT,
+			enable_raw_klines BOOLEAN DEFAULT 1,
+			enable_ema BOOLEAN DEFAULT 0,
+			enable_macd BOOLEAN DEFAULT 0,
+			enable_rsi BOOLEAN DEFAULT 0,
+			enable_atr BOOLEAN DEFAULT 0,
+			enable_volume BOOLEAN DEFAULT 1,
+			enable_oi BOOLEAN DEFAULT 1,
+			enable_funding BOOLEAN DEFAULT 1,
+			indicator_timeframe TEXT DEFAULT '3m',
+			quant_data_url TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 
 		// Users table
@@ -443,12 +461,35 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
+		// Trader positions table
+		`CREATE TABLE IF NOT EXISTS trader_positions (
+			id TEXT PRIMARY KEY,
+			trader_id TEXT NOT NULL,
+			symbol TEXT NOT NULL,
+			side TEXT NOT NULL,
+			entry_price REAL NOT NULL,
+			exit_price REAL,
+			quantity REAL NOT NULL,
+			entry_fee REAL DEFAULT 0,
+			exit_fee REAL DEFAULT 0,
+			realized_pnl REAL,
+			leverage INTEGER DEFAULT 1,
+			opened_at DATETIME NOT NULL,
+			closed_at DATETIME,
+			order_id_open TEXT,
+			order_id_close TEXT,
+			FOREIGN KEY (trader_id) REFERENCES traders(id) ON DELETE CASCADE
+		)`,
+
 		// Indexes
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_user ON tradingview_alerts(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_trader ON tradingview_alerts(trader_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_status ON tradingview_alerts(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_applications_user_id ON trader_applications(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_applications_status ON trader_applications(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_trader_positions_trader ON trader_positions(trader_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_trader_positions_symbol ON trader_positions(symbol)`,
+		`CREATE INDEX IF NOT EXISTS idx_trader_positions_closed_at ON trader_positions(closed_at)`,
 
 		// Trigger: automatically update webhook_api_keys updated_at
 		`CREATE TRIGGER IF NOT EXISTS update_webhook_api_keys_updated_at
@@ -494,6 +535,18 @@ func (d *Database) createTables() error {
 		{"traders", "followed_trader_id", `ALTER TABLE traders ADD COLUMN followed_trader_id TEXT`},
 		{"ai_models", "custom_api_url", `ALTER TABLE ai_models ADD COLUMN custom_api_url TEXT DEFAULT ''`},
 		{"ai_models", "custom_model_name", `ALTER TABLE ai_models ADD COLUMN custom_model_name TEXT DEFAULT ''`},
+		// Indicator configuration fields
+		{"traders", "enable_raw_klines", `ALTER TABLE traders ADD COLUMN enable_raw_klines BOOLEAN DEFAULT 1`},
+		{"traders", "enable_ema", `ALTER TABLE traders ADD COLUMN enable_ema BOOLEAN DEFAULT 0`},
+		{"traders", "enable_macd", `ALTER TABLE traders ADD COLUMN enable_macd BOOLEAN DEFAULT 0`},
+		{"traders", "enable_rsi", `ALTER TABLE traders ADD COLUMN enable_rsi BOOLEAN DEFAULT 0`},
+		{"traders", "enable_atr", `ALTER TABLE traders ADD COLUMN enable_atr BOOLEAN DEFAULT 0`},
+		{"traders", "enable_volume", `ALTER TABLE traders ADD COLUMN enable_volume BOOLEAN DEFAULT 1`},
+		{"traders", "enable_oi", `ALTER TABLE traders ADD COLUMN enable_oi BOOLEAN DEFAULT 1`},
+		{"traders", "enable_funding", `ALTER TABLE traders ADD COLUMN enable_funding BOOLEAN DEFAULT 1`},
+		{"traders", "indicator_timeframe", `ALTER TABLE traders ADD COLUMN indicator_timeframe TEXT DEFAULT '3m'`},
+		{"traders", "quant_data_url", `ALTER TABLE traders ADD COLUMN quant_data_url TEXT DEFAULT ''`},
+		{"traders", "show_in_competition", `ALTER TABLE traders ADD COLUMN show_in_competition BOOLEAN DEFAULT 1`},
 	}
 
 	for _, alterQuery := range alterQueries {
@@ -517,9 +570,14 @@ func (d *Database) createTables() error {
 	}
 
 	// Check if exchanges table primary key structure migration is needed
+	log.Printf("🔄 Checking exchanges table migration status...")
 	err := d.migrateExchangesTable()
 	if err != nil {
-		log.Printf("⚠️  Failed to migrate exchanges table: %v", err)
+		log.Printf("❌ Failed to migrate exchanges table: %v", err)
+		log.Printf("⚠️  System will continue but exchange operations may fail. Please check database structure.")
+		// Don't return error - allow system to continue, UpdateExchange will handle gracefully
+	} else {
+		log.Printf("✅ Exchanges table migration check completed successfully")
 	}
 
 	// Fix foreign key constraint issues in traders table
@@ -599,47 +657,6 @@ func tuneSQLiteConnection(db *sql.DB) error {
 
 // initDefaultData initialize default data
 func (d *Database) initDefaultData() error {
-	// Initialize AI models (using default user)
-	aiModels := []struct {
-		id, name, provider string
-	}{
-		{"deepseek", "DeepSeek", "deepseek"},
-		{"qwen", "Qwen", "qwen"},
-		// Note: "risk_management" is a prompt template, not an AI model
-	}
-
-	for _, model := range aiModels {
-		_, err := d.db.Exec(`
-			INSERT OR IGNORE INTO ai_models (id, user_id, name, provider, enabled) 
-			VALUES (?, 'default', ?, ?, 0)
-		`, model.id, model.name, model.provider)
-		if err != nil {
-			return fmt.Errorf("failed to initialize AI model: %w", err)
-		}
-	}
-
-	// Initialize exchanges (using default user)
-	exchanges := []struct {
-		id, name, typ string
-	}{
-		{"binance", "Binance Futures", "binance"},
-		{"bybit", "Bybit Futures", "bybit"},
-		{"hyperliquid", "Hyperliquid", "hyperliquid"},
-		{"aster", "Aster DEX", "aster"},
-		{"lighter", "LIGHTER DEX", "lighter"},
-		{"okx", "OKX Futures", "okx"},
-	}
-
-	for _, exchange := range exchanges {
-		_, err := d.db.Exec(`
-			INSERT OR IGNORE INTO exchanges (id, user_id, name, type, enabled) 
-			VALUES (?, 'default', ?, ?, 0)
-		`, exchange.id, exchange.name, exchange.typ)
-		if err != nil {
-			return fmt.Errorf("failed to initialize exchange: %w", err)
-		}
-	}
-
 	// Initialize system configuration - create all fields, set default values, later synced by config.json
 	systemConfigs := map[string]string{
 		"beta_mode":            "false",                                                                               // Default beta mode off
@@ -653,6 +670,7 @@ func (d *Database) initDefaultData() error {
 		"altcoin_leverage":     "5",                                                                                   // Altcoin leverage multiplier
 		"jwt_secret":           "",                                                                                    // JWT secret, empty by default, generated by config.json or system
 		"registration_enabled": "true",                                                                                // Default allow registration
+		"max_users":            "1",                                                                                   // Maximum number of users allowed (0 = unlimited, default = 1)
 	}
 
 	for key, value := range systemConfigs {
@@ -670,22 +688,122 @@ func (d *Database) initDefaultData() error {
 
 // migrateExchangesTable migrate exchanges table to support multi-user
 func (d *Database) migrateExchangesTable() error {
-	// Check if already migrated
-	var count int
+	// Check if migration is in progress (exchanges_new exists)
+	var newTableExists int
 	err := d.db.QueryRow(`
 		SELECT COUNT(*) FROM sqlite_master 
 		WHERE type='table' AND name='exchanges_new'
-	`).Scan(&count)
+	`).Scan(&newTableExists)
 	if err != nil {
 		return err
 	}
 
-	// If already migrated, return directly
-	if count > 0 {
-		return nil
+	// If migration is in progress, try to complete it
+	if newTableExists > 0 {
+		log.Printf("⚠️  Migration in progress (exchanges_new exists), attempting to complete...")
+		// Try to complete the migration by copying data, dropping old table, and renaming
+		var exchangesExists int
+		err = d.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='exchanges'`).Scan(&exchangesExists)
+		if err == nil && exchangesExists > 0 {
+			// Old table still exists, complete the migration
+			log.Printf("🔄 Completing partial migration...")
+			// Copy any new data that might have been added
+			_, err = d.db.Exec(`
+				INSERT OR IGNORE INTO exchanges_new (id, user_id, name, type, enabled, api_key, secret_key, testnet,
+				                           hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
+				                           lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, okx_passphrase, created_at, updated_at)
+				SELECT id, COALESCE(user_id, 'default'), name, type, enabled, api_key, secret_key, testnet,
+				       COALESCE(hyperliquid_wallet_addr, ''), COALESCE(aster_user, ''), COALESCE(aster_signer, ''),
+				       COALESCE(aster_private_key, ''), COALESCE(lighter_wallet_addr, ''), COALESCE(lighter_private_key, ''),
+				       COALESCE(lighter_api_key_private_key, ''), COALESCE(okx_passphrase, ''),
+				       COALESCE(created_at, datetime('now')), COALESCE(updated_at, datetime('now'))
+				FROM exchanges
+			`)
+			if err != nil {
+				log.Printf("⚠️  Failed to copy data during migration completion: %v", err)
+			}
+			// Drop old table and rename
+			_, err = d.db.Exec(`DROP TABLE IF EXISTS exchanges`)
+			if err != nil {
+				log.Printf("⚠️  Failed to drop old table: %v", err)
+				return fmt.Errorf("failed to complete migration: %w", err)
+			}
+			_, err = d.db.Exec(`ALTER TABLE exchanges_new RENAME TO exchanges`)
+			if err != nil {
+				log.Printf("⚠️  Failed to rename table: %v", err)
+				return fmt.Errorf("failed to complete migration: %w", err)
+			}
+			log.Printf("✅ Completed partial migration successfully")
+			return nil
+		} else {
+			// Old table doesn't exist, just rename
+			_, err = d.db.Exec(`ALTER TABLE exchanges_new RENAME TO exchanges`)
+			if err == nil {
+				log.Printf("✅ Completed migration by renaming exchanges_new")
+				return nil
+			}
+		}
+		// If we get here, migration is stuck - return error to force retry
+		return fmt.Errorf("migration appears stuck (exchanges_new exists but migration incomplete)")
+	}
+
+	// Check if exchanges table exists
+	var exchangesExists int
+	err = d.db.QueryRow(`
+		SELECT COUNT(*) FROM sqlite_master 
+		WHERE type='table' AND name='exchanges'
+	`).Scan(&exchangesExists)
+	if err != nil {
+		return err
+	}
+
+	// If exchanges table exists, check if it has composite primary key
+	if exchangesExists > 0 {
+		// Check if table has composite primary key by querying sqlite_master
+		var tableSQL string
+		err = d.db.QueryRow(`
+			SELECT sql FROM sqlite_master 
+			WHERE type='table' AND name='exchanges'
+		`).Scan(&tableSQL)
+		if err != nil {
+			log.Printf("⚠️  Failed to get table SQL: %v", err)
+			return err
+		}
+
+		// Check if PRIMARY KEY (id, user_id) exists in table definition
+		// SQLite may format this differently, so check multiple patterns
+		hasCompositeKey := strings.Contains(tableSQL, "PRIMARY KEY (id, user_id)") ||
+			strings.Contains(tableSQL, "PRIMARY KEY(id,user_id)") ||
+			strings.Contains(tableSQL, "PRIMARY KEY(id, user_id)") ||
+			strings.Contains(tableSQL, "PRIMARY KEY (id,user_id)")
+
+		if hasCompositeKey {
+			// Migration already completed, just ensure okx_passphrase column exists
+			log.Printf("✅ Exchanges table already has composite primary key, migration not needed")
+			exists, err := d.columnExists("exchanges", "okx_passphrase")
+			if err != nil {
+				log.Printf("⚠️  Error checking if okx_passphrase column exists: %v", err)
+			} else if !exists {
+				log.Printf("🔄 Adding missing okx_passphrase column to exchanges table (post-migration)...")
+				_, err = d.db.Exec(`ALTER TABLE exchanges ADD COLUMN okx_passphrase TEXT DEFAULT ''`)
+				if err != nil {
+					log.Printf("⚠️  Failed to add okx_passphrase column: %v", err)
+				} else {
+					log.Printf("✅ Successfully added okx_passphrase column")
+				}
+			}
+			return nil
+		}
+		// Table exists but doesn't have composite primary key - need to migrate
+		log.Printf("🔄 Exchanges table exists but needs migration to composite primary key...")
+		log.Printf("📋 Current table structure: %s", tableSQL)
 	}
 
 	log.Printf("🔄 Starting exchanges table migration...")
+	log.Printf("📋 This will convert exchanges table from single PRIMARY KEY to composite PRIMARY KEY (id, user_id)")
+
+	// Drop exchanges_new if it exists (cleanup from previous failed migration)
+	_, _ = d.db.Exec(`DROP TABLE IF EXISTS exchanges_new`)
 
 	// Create new exchanges table with composite primary key
 	_, err = d.db.Exec(`
@@ -705,6 +823,7 @@ func (d *Database) migrateExchangesTable() error {
 			lighter_wallet_addr TEXT DEFAULT '',
 			lighter_private_key TEXT DEFAULT '',
 			lighter_api_key_private_key TEXT DEFAULT '',
+			okx_passphrase TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id, user_id),
@@ -714,26 +833,69 @@ func (d *Database) migrateExchangesTable() error {
 	if err != nil {
 		return fmt.Errorf("failed to create new exchanges table: %w", err)
 	}
+	log.Printf("✅ Created exchanges_new table with composite primary key")
 
-	// Copy data to new table
-	_, err = d.db.Exec(`
-		INSERT INTO exchanges_new 
-		SELECT * FROM exchanges
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to copy data: %w", err)
+	// Copy data to new table - handle case where old table might not have all columns
+	if exchangesExists > 0 {
+		log.Printf("📋 Copying data from old exchanges table to new table...")
+		// Use explicit column list with COALESCE to handle missing columns gracefully
+		// Handle duplicate IDs by appending user_id - if user_id is NULL or missing, use 'default'
+		result, err := d.db.Exec(`
+			INSERT INTO exchanges_new (id, user_id, name, type, enabled, api_key, secret_key, testnet,
+			                           hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
+			                           lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, okx_passphrase, created_at, updated_at)
+			SELECT id, COALESCE(user_id, 'default'), name, type, enabled, api_key, secret_key, testnet,
+			       COALESCE(hyperliquid_wallet_addr, ''), COALESCE(aster_user, ''), COALESCE(aster_signer, ''),
+			       COALESCE(aster_private_key, ''), COALESCE(lighter_wallet_addr, ''), COALESCE(lighter_private_key, ''),
+			       COALESCE(lighter_api_key_private_key, ''), COALESCE(okx_passphrase, ''),
+			       COALESCE(created_at, datetime('now')), COALESCE(updated_at, datetime('now'))
+			FROM exchanges
+		`)
+		if err != nil {
+			log.Printf("❌ Failed to copy data: %v", err)
+			// Try to clean up
+			_, _ = d.db.Exec(`DROP TABLE IF EXISTS exchanges_new`)
+			return fmt.Errorf("failed to copy data: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		log.Printf("✅ Copied %d rows from old table to new table", rowsAffected)
 	}
 
-	// Delete old table
-	_, err = d.db.Exec(`DROP TABLE exchanges`)
-	if err != nil {
-		return fmt.Errorf("failed to delete old table: %w", err)
+	// Delete old table (only if it existed)
+	if exchangesExists > 0 {
+		log.Printf("🗑️  Dropping old exchanges table...")
+		_, err = d.db.Exec(`DROP TABLE exchanges`)
+		if err != nil {
+			log.Printf("❌ Failed to drop old table: %v", err)
+			// Try to clean up
+			_, _ = d.db.Exec(`DROP TABLE IF EXISTS exchanges_new`)
+			return fmt.Errorf("failed to delete old table: %w", err)
+		}
+		log.Printf("✅ Old table dropped successfully")
 	}
 
 	// Rename new table
+	log.Printf("🔄 Renaming exchanges_new to exchanges...")
 	_, err = d.db.Exec(`ALTER TABLE exchanges_new RENAME TO exchanges`)
 	if err != nil {
+		log.Printf("❌ Failed to rename table: %v", err)
 		return fmt.Errorf("failed to rename table: %w", err)
+	}
+	log.Printf("✅ Table renamed successfully")
+
+	// Ensure okx_passphrase column exists (for databases migrated before this column was added)
+	exists, err := d.columnExists("exchanges", "okx_passphrase")
+	if err != nil {
+		log.Printf("⚠️  Error checking if okx_passphrase column exists: %v", err)
+	} else if !exists {
+		log.Printf("🔄 Adding missing okx_passphrase column to exchanges table...")
+		_, err = d.db.Exec(`ALTER TABLE exchanges ADD COLUMN okx_passphrase TEXT DEFAULT ''`)
+		if err != nil {
+			log.Printf("⚠️  Failed to add okx_passphrase column: %v", err)
+			// Don't return error, continue with migration
+		} else {
+			log.Printf("✅ Successfully added okx_passphrase column")
+		}
 	}
 
 	// Recreate trigger
@@ -764,15 +926,17 @@ func (d *Database) migrateTradersTable() error {
 		return nil
 	}
 
-	// Check if contains FOREIGN KEY (exchange_id) or FOREIGN KEY (ai_model_id)
-	if !strings.Contains(tableSQL, "FOREIGN KEY (exchange_id)") && !strings.Contains(tableSQL, "FOREIGN KEY (ai_model_id)") {
-		// No longer has these foreign key constraints, no migration needed
+	// Check if contains FOREIGN KEY constraint on user_id
+	// This constraint causes issues when database is reset while user has cached JWT token
+	if !strings.Contains(tableSQL, "FOREIGN KEY (user_id)") {
+		// No foreign key constraint on user_id, no migration needed
 		return nil
 	}
 
-	log.Printf("🔄 Starting traders table migration, removing foreign key constraints...")
+	log.Printf("🔄 Starting traders table migration, removing foreign key constraint on user_id...")
 
-	// Create new traders table without foreign key constraints on exchange_id and ai_model_id
+	// Create new traders table without foreign key constraint on user_id
+	// Include all columns to match current CREATE TABLE structure
 	_, err = d.db.Exec(`
 		CREATE TABLE traders_new (
 			id TEXT PRIMARY KEY,
@@ -788,31 +952,50 @@ func (d *Database) migrateTradersTable() error {
 			trading_symbols TEXT DEFAULT '',
 			use_coin_pool BOOLEAN DEFAULT 0,
 			use_oi_top BOOLEAN DEFAULT 0,
+			use_tradingview BOOLEAN DEFAULT 0,
+			followed_trader_id TEXT,
 			custom_prompt TEXT DEFAULT '',
 			override_base_prompt BOOLEAN DEFAULT 0,
 			system_prompt_template TEXT DEFAULT 'default',
 			is_cross_margin BOOLEAN DEFAULT 1,
+			enable_raw_klines BOOLEAN DEFAULT 1,
+			enable_ema BOOLEAN DEFAULT 0,
+			enable_macd BOOLEAN DEFAULT 0,
+			enable_rsi BOOLEAN DEFAULT 0,
+			enable_atr BOOLEAN DEFAULT 0,
+			enable_volume BOOLEAN DEFAULT 1,
+			enable_oi BOOLEAN DEFAULT 1,
+			enable_funding BOOLEAN DEFAULT 1,
+			indicator_timeframe TEXT DEFAULT '3m',
+			quant_data_url TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to create new traders table: %w", err)
 	}
 
-	// Copy data to new table
+	// Copy data to new table, including all columns
 	_, err = d.db.Exec(`
 		INSERT INTO traders_new (id, user_id, name, ai_model_id, exchange_id, initial_balance, 
 			scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage, trading_symbols,
-			use_coin_pool, use_oi_top, custom_prompt, override_base_prompt, system_prompt_template,
-			is_cross_margin, created_at, updated_at)
+			use_coin_pool, use_oi_top, use_tradingview, followed_trader_id,
+			custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin,
+			enable_raw_klines, enable_ema, enable_macd, enable_rsi, enable_atr,
+			enable_volume, enable_oi, enable_funding, indicator_timeframe, quant_data_url,
+			created_at, updated_at)
 		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, 
 			scan_interval_minutes, is_running, 
 			COALESCE(btc_eth_leverage, 5), COALESCE(altcoin_leverage, 5), 
 			COALESCE(trading_symbols, ''), COALESCE(use_coin_pool, 0), COALESCE(use_oi_top, 0),
+			COALESCE(use_tradingview, 0), COALESCE(followed_trader_id, ''),
 			COALESCE(custom_prompt, ''), COALESCE(override_base_prompt, 0), 
 			COALESCE(system_prompt_template, 'default'), COALESCE(is_cross_margin, 1),
+			COALESCE(enable_raw_klines, 1), COALESCE(enable_ema, 0), COALESCE(enable_macd, 0),
+			COALESCE(enable_rsi, 0), COALESCE(enable_atr, 0), COALESCE(enable_volume, 1),
+			COALESCE(enable_oi, 1), COALESCE(enable_funding, 1),
+			COALESCE(indicator_timeframe, '3m'), COALESCE(quant_data_url, ''),
 			created_at, updated_at
 		FROM traders
 	`)
@@ -834,7 +1017,7 @@ func (d *Database) migrateTradersTable() error {
 		return fmt.Errorf("failed to rename traders table: %w", err)
 	}
 
-	log.Printf("✅ traders table migration completed, foreign key constraints removed")
+	log.Printf("✅ traders table migration completed, foreign key constraint on user_id removed")
 	return nil
 }
 
@@ -955,27 +1138,39 @@ type ExchangeConfig struct {
 
 // TraderRecord trader configuration (database entity)
 type TraderRecord struct {
-	ID                   string    `json:"id"`
-	UserID               string    `json:"user_id"`
-	Name                 string    `json:"name"`
-	AIModelID            string    `json:"ai_model_id"`
-	ExchangeID           string    `json:"exchange_id"`
-	InitialBalance       float64   `json:"initial_balance"`
-	ScanIntervalMinutes  int       `json:"scan_interval_minutes"`
-	IsRunning            bool      `json:"is_running"`
-	BTCETHLeverage       int       `json:"btc_eth_leverage"`       // BTC/ETH leverage multiplier
-	AltcoinLeverage      int       `json:"altcoin_leverage"`       // Altcoin leverage multiplier
-	TradingSymbols       string    `json:"trading_symbols"`        // Trading symbols, comma-separated
-	UseCoinPool          bool      `json:"use_coin_pool"`          // Whether to use COIN POOL signal source
-	UseOITop             bool      `json:"use_oi_top"`             // Whether to use OI TOP signal source
-	UseTradingView       bool      `json:"use_tradingview"`        // Whether to use TradingView signal source
-	FollowedTraderID     string    `json:"followed_trader_id"`     // Followed trader ID (for follower role)
-	CustomPrompt         string    `json:"custom_prompt"`          // Custom trading strategy prompt
-	OverrideBasePrompt   bool      `json:"override_base_prompt"`   // Whether to override base prompt
-	SystemPromptTemplate string    `json:"system_prompt_template"` // System prompt template name
-	IsCrossMargin        bool      `json:"is_cross_margin"`        // Whether cross margin mode (true=cross, false=isolated)
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                   string  `json:"id"`
+	UserID               string  `json:"user_id"`
+	Name                 string  `json:"name"`
+	AIModelID            string  `json:"ai_model_id"`
+	ExchangeID           string  `json:"exchange_id"`
+	InitialBalance       float64 `json:"initial_balance"`
+	ScanIntervalMinutes  int     `json:"scan_interval_minutes"`
+	IsRunning            bool    `json:"is_running"`
+	BTCETHLeverage       int     `json:"btc_eth_leverage"`       // BTC/ETH leverage multiplier
+	AltcoinLeverage      int     `json:"altcoin_leverage"`       // Altcoin leverage multiplier
+	TradingSymbols       string  `json:"trading_symbols"`        // Trading symbols, comma-separated
+	UseCoinPool          bool    `json:"use_coin_pool"`          // Whether to use COIN POOL signal source
+	UseOITop             bool    `json:"use_oi_top"`             // Whether to use OI TOP signal source
+	UseTradingView       bool    `json:"use_tradingview"`        // Whether to use TradingView signal source
+	FollowedTraderID     string  `json:"followed_trader_id"`     // Followed trader ID (for follower role)
+	CustomPrompt         string  `json:"custom_prompt"`          // Custom trading strategy prompt
+	OverrideBasePrompt   bool    `json:"override_base_prompt"`   // Whether to override base prompt
+	SystemPromptTemplate string  `json:"system_prompt_template"` // System prompt template name
+	IsCrossMargin        bool    `json:"is_cross_margin"`        // Whether cross margin mode (true=cross, false=isolated)
+	ShowInCompetition    bool    `json:"show_in_competition"`     // Whether to show in competition page
+	// Indicator configuration
+	EnableRawKlines    bool      `json:"enable_raw_klines"`   // Raw OHLCV klines (always true, required)
+	EnableEMA          bool      `json:"enable_ema"`          // Enable EMA indicator
+	EnableMACD         bool      `json:"enable_macd"`         // Enable MACD indicator
+	EnableRSI          bool      `json:"enable_rsi"`          // Enable RSI indicator
+	EnableATR          bool      `json:"enable_atr"`          // Enable ATR indicator
+	EnableVolume       bool      `json:"enable_volume"`       // Enable volume data
+	EnableOI           bool      `json:"enable_oi"`           // Enable open interest data
+	EnableFunding      bool      `json:"enable_funding"`      // Enable funding rate data
+	IndicatorTimeframe string    `json:"indicator_timeframe"` // Timeframe for indicators (e.g., "3m", "15m", "1h", "4h")
+	QuantDataURL       string    `json:"quant_data_url"`      // External quant data API URL with {symbol} placeholder
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 // PromptTemplateConfig prompt template configuration
@@ -1002,21 +1197,21 @@ type UserSignalSource struct {
 // TradingViewAlert TradingView alert
 type TradingViewAlert struct {
 	ID           string     `json:"id"`
-	UserID      string     `json:"user_id"`
-	TraderID    string     `json:"trader_id"`
-	RawPayload  string     `json:"raw_payload"`
-	Symbol      string     `json:"symbol"`
-	Action      string     `json:"action"`
-	Exchange    string     `json:"exchange"`
-	Entry       float64    `json:"entry"`
-	SL          float64    `json:"sl"`
-	TP          float64    `json:"tp"`
-	Quantity    float64    `json:"quantity"`
-	PositionSize float64  `json:"position_size"`
-	PriceType   string     `json:"pricetype"`
-	Status      string     `json:"status"`
-	CreatedAt   time.Time  `json:"created_at"`
-	ProcessedAt *time.Time `json:"processed_at"`
+	UserID       string     `json:"user_id"`
+	TraderID     string     `json:"trader_id"`
+	RawPayload   string     `json:"raw_payload"`
+	Symbol       string     `json:"symbol"`
+	Action       string     `json:"action"`
+	Exchange     string     `json:"exchange"`
+	Entry        float64    `json:"entry"`
+	SL           float64    `json:"sl"`
+	TP           float64    `json:"tp"`
+	Quantity     float64    `json:"quantity"`
+	PositionSize float64    `json:"position_size"`
+	PriceType    string     `json:"pricetype"`
+	Status       string     `json:"status"`
+	CreatedAt    time.Time  `json:"created_at"`
+	ProcessedAt  *time.Time `json:"processed_at"`
 }
 
 // TraderApplication trader application
@@ -1167,6 +1362,13 @@ func (d *Database) GetAllUsers() ([]string, error) {
 		userIDs = append(userIDs, userID)
 	}
 	return userIDs, nil
+}
+
+// GetUserCount returns the total number of users
+func (d *Database) GetUserCount() (int, error) {
+	var count int
+	err := d.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count)
+	return count, err
 }
 
 // GetAllUsersWithRoles get all users and their roles (for admin use)
@@ -1350,7 +1552,16 @@ func (d *Database) GetAllTraders() ([]*TraderRecord, error) {
 		       COALESCE(followed_trader_id, '') as followed_trader_id,
 		       COALESCE(custom_prompt, '') as custom_prompt, COALESCE(override_base_prompt, 0) as override_base_prompt,
 		       COALESCE(system_prompt_template, 'default') as system_prompt_template,
-		       COALESCE(is_cross_margin, 1) as is_cross_margin, created_at, updated_at
+		       COALESCE(is_cross_margin, 1) as is_cross_margin,
+		       COALESCE(show_in_competition, 1) as show_in_competition,
+		       COALESCE(enable_raw_klines, 1) as enable_raw_klines,
+		       COALESCE(enable_ema, 0) as enable_ema, COALESCE(enable_macd, 0) as enable_macd,
+		       COALESCE(enable_rsi, 0) as enable_rsi, COALESCE(enable_atr, 0) as enable_atr,
+		       COALESCE(enable_volume, 1) as enable_volume, COALESCE(enable_oi, 1) as enable_oi,
+		       COALESCE(enable_funding, 1) as enable_funding,
+		       COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
+		       COALESCE(quant_data_url, '') as quant_data_url,
+		       created_at, updated_at
 		FROM traders ORDER BY created_at DESC
 	`)
 	if err != nil {
@@ -1369,7 +1580,11 @@ func (d *Database) GetAllTraders() ([]*TraderRecord, error) {
 			&trader.UseCoinPool, &trader.UseOITop, &trader.UseTradingView,
 			&trader.FollowedTraderID,
 			&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
-			&trader.IsCrossMargin,
+			&trader.IsCrossMargin, &trader.ShowInCompetition,
+			&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
+			&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
+			&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
+			&trader.QuantDataURL,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
@@ -1552,7 +1767,23 @@ func (d *Database) UpdateAIModel(userID, id string, enabled bool, apiKey, custom
 
 	if err == nil {
 		// Found existing configuration (exact ID match), update it
-		encryptedAPIKey := d.encryptSensitiveData(apiKey)
+		// Preserve existing API key if new key is empty
+		var encryptedAPIKey string
+		if apiKey == "" {
+			// Get existing encrypted API key from database
+			var existingEncryptedKey sql.NullString
+			err := d.db.QueryRow(`SELECT api_key FROM ai_models WHERE id = ? AND user_id = ?`, existingID, userID).Scan(&existingEncryptedKey)
+			if err == nil && existingEncryptedKey.Valid && existingEncryptedKey.String != "" {
+				// Use existing encrypted key (don't re-encrypt)
+				encryptedAPIKey = existingEncryptedKey.String
+			} else {
+				// No existing key, encrypt empty string
+				encryptedAPIKey = d.encryptSensitiveData("")
+			}
+		} else {
+			// New key provided, encrypt it
+			encryptedAPIKey = d.encryptSensitiveData(apiKey)
+		}
 		_, err = d.db.Exec(`
 			UPDATE ai_models SET enabled = ?, api_key = ?, custom_api_url = ?, custom_model_name = ?, updated_at = datetime('now')
 			WHERE id = ? AND user_id = ?
@@ -1569,7 +1800,23 @@ func (d *Database) UpdateAIModel(userID, id string, enabled bool, apiKey, custom
 	if err == nil {
 		// Found existing configuration (matched by provider, backward compatible), update it
 		log.Printf("⚠️  Using old provider matching to update model: %s -> %s", provider, existingID)
-		encryptedAPIKey := d.encryptSensitiveData(apiKey)
+		// Preserve existing API key if new key is empty
+		var encryptedAPIKey string
+		if apiKey == "" {
+			// Get existing encrypted API key from database
+			var existingEncryptedKey sql.NullString
+			err := d.db.QueryRow(`SELECT api_key FROM ai_models WHERE id = ? AND user_id = ?`, existingID, userID).Scan(&existingEncryptedKey)
+			if err == nil && existingEncryptedKey.Valid && existingEncryptedKey.String != "" {
+				// Use existing encrypted key (don't re-encrypt)
+				encryptedAPIKey = existingEncryptedKey.String
+			} else {
+				// No existing key, encrypt empty string
+				encryptedAPIKey = d.encryptSensitiveData("")
+			}
+		} else {
+			// New key provided, encrypt it
+			encryptedAPIKey = d.encryptSensitiveData(apiKey)
+		}
 		_, err = d.db.Exec(`
 			UPDATE ai_models SET enabled = ?, api_key = ?, custom_api_url = ?, custom_model_name = ?, updated_at = datetime('now')
 			WHERE id = ? AND user_id = ?
@@ -1795,6 +2042,37 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 
 		log.Printf("🆕 UpdateExchange: creating new record ID=%s, name=%s, type=%s", id, name, typ)
 
+		// Check table structure to determine INSERT strategy
+		var tableSQL string
+		checkErr := d.db.QueryRow(`SELECT sql FROM sqlite_master WHERE type='table' AND name='exchanges'`).Scan(&tableSQL)
+		hasCompositeKey := false
+		if checkErr == nil {
+			hasCompositeKey = strings.Contains(tableSQL, "PRIMARY KEY (id, user_id)")
+			if hasCompositeKey {
+				log.Printf("✅ UpdateExchange: detected composite primary key structure")
+			} else {
+				log.Printf("⚠️ UpdateExchange: detected old single primary key structure, using INSERT OR IGNORE")
+			}
+		} else {
+			log.Printf("⚠️ UpdateExchange: failed to check table structure: %v, assuming composite key", checkErr)
+			hasCompositeKey = true // Default to new structure
+		}
+
+		// Ensure okx_passphrase column exists before INSERT (defensive check)
+		exists, err := d.columnExists("exchanges", "okx_passphrase")
+		if err != nil {
+			log.Printf("⚠️  Error checking if okx_passphrase column exists: %v", err)
+		} else if !exists {
+			log.Printf("🔄 Adding missing okx_passphrase column to exchanges table (defensive check)...")
+			_, err = d.db.Exec(`ALTER TABLE exchanges ADD COLUMN okx_passphrase TEXT DEFAULT ''`)
+			if err != nil {
+				log.Printf("⚠️  Failed to add okx_passphrase column: %v", err)
+				// Continue anyway, will fail on INSERT if column truly missing
+			} else {
+				log.Printf("✅ Successfully added okx_passphrase column")
+			}
+		}
+
 		// Encrypt sensitive fields
 		encryptedAPIKey := d.encryptSensitiveData(apiKey)
 		encryptedSecretKey := d.encryptSensitiveData(secretKey)
@@ -1803,20 +2081,113 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		encryptedLighterAPIKeyPrivateKey := d.encryptSensitiveData(lighterAPIKeyPrivateKey)
 		encryptedOkxPassphrase := d.encryptSensitiveData(okxPassphrase)
 
-		// Create user-specific configuration, using original exchange ID
-		_, err = d.db.Exec(`
+		// Create user-specific configuration
+		// Use INSERT OR IGNORE for old structure to handle UNIQUE constraint gracefully
+		insertQuery := `
 			INSERT INTO exchanges (id, user_id, name, type, enabled, api_key, secret_key, testnet,
 			                       hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
 			                       lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, okx_passphrase, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-		`, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey, encryptedLighterAPIKeyPrivateKey, encryptedOkxPassphrase)
+		`
+
+		// For old structure (single PRIMARY KEY), use INSERT OR IGNORE to handle conflicts
+		if !hasCompositeKey {
+			insertQuery = strings.Replace(insertQuery, "INSERT INTO", "INSERT OR IGNORE INTO", 1)
+		}
+
+		_, err = d.db.Exec(insertQuery, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey, encryptedLighterAPIKeyPrivateKey, encryptedOkxPassphrase)
 
 		if err != nil {
 			log.Printf("❌ UpdateExchange: failed to create record: %v", err)
+			return err
+		}
+
+		// Verify the record was actually created (INSERT OR IGNORE may silently ignore)
+		var recordExists int
+		verifyErr := d.db.QueryRow(`SELECT COUNT(*) FROM exchanges WHERE id = ? AND user_id = ?`, id, userID).Scan(&recordExists)
+		if verifyErr != nil {
+			log.Printf("⚠️ UpdateExchange: failed to verify record creation: %v", verifyErr)
+			return verifyErr
+		}
+
+		if recordExists == 0 {
+			// INSERT was ignored (old structure - record exists for different user_id)
+			// This shouldn't happen with composite key, but can happen with old structure
+			log.Printf("⚠️ UpdateExchange: INSERT was ignored (record may exist for different user_id in old structure)")
+
+			if !hasCompositeKey {
+				// Old structure detected - try to trigger migration
+				log.Printf("🔄 UpdateExchange: old structure detected, attempting to trigger migration...")
+				migrateErr := d.migrateExchangesTable()
+				if migrateErr != nil {
+					log.Printf("❌ UpdateExchange: migration failed: %v", migrateErr)
+					// Check if record exists for any user_id (old structure limitation)
+					var anyRecordExists int
+					checkErr := d.db.QueryRow(`SELECT COUNT(*) FROM exchanges WHERE id = ?`, id).Scan(&anyRecordExists)
+					if checkErr == nil && anyRecordExists > 0 {
+						return fmt.Errorf("exchange '%s' already exists for another user. Database migration is required to support multiple users. Migration attempt failed: %v", id, migrateErr)
+					}
+					return fmt.Errorf("failed to create exchange configuration and migration failed: %v", migrateErr)
+				}
+
+				// Verify migration actually completed by checking table structure again
+				var tableSQLAfterMigration string
+				verifyMigrateErr := d.db.QueryRow(`SELECT sql FROM sqlite_master WHERE type='table' AND name='exchanges'`).Scan(&tableSQLAfterMigration)
+				if verifyMigrateErr != nil {
+					log.Printf("⚠️ UpdateExchange: failed to verify migration completion: %v", verifyMigrateErr)
+				} else {
+					hasCompositeKeyAfterMigration := strings.Contains(tableSQLAfterMigration, "PRIMARY KEY (id, user_id)") ||
+						strings.Contains(tableSQLAfterMigration, "PRIMARY KEY(id,user_id)") ||
+						strings.Contains(tableSQLAfterMigration, "PRIMARY KEY(id, user_id)") ||
+						strings.Contains(tableSQLAfterMigration, "PRIMARY KEY (id,user_id)")
+
+					if !hasCompositeKeyAfterMigration {
+						log.Printf("❌ UpdateExchange: migration reported success but table structure still shows old format")
+						return fmt.Errorf("migration did not complete successfully - table structure unchanged. Please check database manually")
+					}
+					log.Printf("✅ UpdateExchange: migration verified - table now has composite primary key")
+				}
+
+				// Migration succeeded, retry INSERT with new structure
+				log.Printf("✅ UpdateExchange: migration completed, retrying INSERT...")
+				_, retryErr := d.db.Exec(`
+					INSERT INTO exchanges (id, user_id, name, type, enabled, api_key, secret_key, testnet,
+					                       hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
+					                       lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, okx_passphrase, created_at, updated_at)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+				`, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey, encryptedLighterAPIKeyPrivateKey, encryptedOkxPassphrase)
+
+				if retryErr != nil {
+					return fmt.Errorf("failed to create record after migration: %v", retryErr)
+				}
+
+				// Verify it was created
+				var verifyAfterMigration int
+				verifyErr := d.db.QueryRow(`SELECT COUNT(*) FROM exchanges WHERE id = ? AND user_id = ?`, id, userID).Scan(&verifyAfterMigration)
+				if verifyErr != nil || verifyAfterMigration == 0 {
+					return fmt.Errorf("record not created after migration, verification failed")
+				}
+
+				log.Printf("✅ UpdateExchange: record created successfully after migration")
+				return nil
+			}
+
+			// For composite key, this shouldn't happen, but try UPDATE as fallback
+			log.Printf("🔄 UpdateExchange: attempting UPDATE as fallback")
+			result, updateErr := d.db.Exec(query, args...)
+			if updateErr != nil {
+				return fmt.Errorf("failed to create or update: insert ignored and update failed: %v", updateErr)
+			}
+			rowsAffected, _ := result.RowsAffected()
+			if rowsAffected == 0 {
+				return fmt.Errorf("failed to create exchange configuration: record not created and update affected no rows")
+			}
+			log.Printf("✅ UpdateExchange: updated existing record after insert ignore")
 		} else {
 			log.Printf("✅ UpdateExchange: record created successfully")
 		}
-		return err
+
+		return nil
 	}
 
 	log.Printf("✅ UpdateExchange: updated existing record successfully")
@@ -2112,10 +2483,17 @@ func (d *Database) DeletePromptTemplate(userID, id string) error {
 
 // CreateTrader create trader
 func (d *Database) CreateTrader(trader *TraderRecord) error {
+	// Ensure enable_raw_klines is always true
+	trader.EnableRawKlines = true
+	// Set defaults if not provided
+	if trader.IndicatorTimeframe == "" {
+		trader.IndicatorTimeframe = "3m"
+	}
+	// Set default ShowInCompetition to true (database default handles this, but ensure consistency)
 	_, err := d.db.Exec(`
-		INSERT INTO traders (id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage, trading_symbols, use_coin_pool, use_oi_top, use_tradingview, followed_trader_id, custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, trader.ID, trader.UserID, trader.Name, trader.AIModelID, trader.ExchangeID, trader.InitialBalance, trader.ScanIntervalMinutes, trader.IsRunning, trader.BTCETHLeverage, trader.AltcoinLeverage, trader.TradingSymbols, trader.UseCoinPool, trader.UseOITop, trader.UseTradingView, trader.FollowedTraderID, trader.CustomPrompt, trader.OverrideBasePrompt, trader.SystemPromptTemplate, trader.IsCrossMargin)
+		INSERT INTO traders (id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage, trading_symbols, use_coin_pool, use_oi_top, use_tradingview, followed_trader_id, custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin, show_in_competition, enable_raw_klines, enable_ema, enable_macd, enable_rsi, enable_atr, enable_volume, enable_oi, enable_funding, indicator_timeframe, quant_data_url)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, trader.ID, trader.UserID, trader.Name, trader.AIModelID, trader.ExchangeID, trader.InitialBalance, trader.ScanIntervalMinutes, trader.IsRunning, trader.BTCETHLeverage, trader.AltcoinLeverage, trader.TradingSymbols, trader.UseCoinPool, trader.UseOITop, trader.UseTradingView, trader.FollowedTraderID, trader.CustomPrompt, trader.OverrideBasePrompt, trader.SystemPromptTemplate, trader.IsCrossMargin, trader.ShowInCompetition, trader.EnableRawKlines, trader.EnableEMA, trader.EnableMACD, trader.EnableRSI, trader.EnableATR, trader.EnableVolume, trader.EnableOI, trader.EnableFunding, trader.IndicatorTimeframe, trader.QuantDataURL)
 	return err
 }
 
@@ -2130,7 +2508,16 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 		       COALESCE(followed_trader_id, '') as followed_trader_id,
 		       COALESCE(custom_prompt, '') as custom_prompt, COALESCE(override_base_prompt, 0) as override_base_prompt,
 		       COALESCE(system_prompt_template, 'default') as system_prompt_template,
-		       COALESCE(is_cross_margin, 1) as is_cross_margin, created_at, updated_at
+		       COALESCE(is_cross_margin, 1) as is_cross_margin,
+		       COALESCE(show_in_competition, 1) as show_in_competition,
+		       COALESCE(enable_raw_klines, 1) as enable_raw_klines,
+		       COALESCE(enable_ema, 0) as enable_ema, COALESCE(enable_macd, 0) as enable_macd,
+		       COALESCE(enable_rsi, 0) as enable_rsi, COALESCE(enable_atr, 0) as enable_atr,
+		       COALESCE(enable_volume, 1) as enable_volume, COALESCE(enable_oi, 1) as enable_oi,
+		       COALESCE(enable_funding, 1) as enable_funding,
+		       COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
+		       COALESCE(quant_data_url, '') as quant_data_url,
+		       created_at, updated_at
 		FROM traders WHERE user_id = ? ORDER BY created_at DESC
 	`, userID)
 	if err != nil {
@@ -2149,12 +2536,18 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 			&trader.UseCoinPool, &trader.UseOITop, &trader.UseTradingView,
 			&trader.FollowedTraderID,
 			&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
-			&trader.IsCrossMargin,
+			&trader.IsCrossMargin, &trader.ShowInCompetition,
+			&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
+			&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
+			&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
+			&trader.QuantDataURL,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
 			return nil, err
 		}
+		// Ensure enable_raw_klines is always true
+		trader.EnableRawKlines = true
 		// Parse time string
 		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
@@ -2166,6 +2559,10 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 
 // GetFollowerTraders get all traders following specified trader list
 func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord, error) {
+	log.Printf("🔍 DEBUG [GetFollowerTraders]: Querying followers for parent trader ID: '%s'", followedTraderID)
+	
+	// Query handles both NULL and empty string by using COALESCE in SELECT, but WHERE clause needs to handle both
+	// SQLite: NULL != '' and '' != NULL, so we need to check both cases
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running,
 		       COALESCE(btc_eth_leverage, 5) as btc_eth_leverage, COALESCE(altcoin_leverage, 5) as altcoin_leverage,
@@ -2175,18 +2572,30 @@ func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord,
 		       COALESCE(followed_trader_id, '') as followed_trader_id,
 		       COALESCE(custom_prompt, '') as custom_prompt, COALESCE(override_base_prompt, 0) as override_base_prompt,
 		       COALESCE(system_prompt_template, 'default') as system_prompt_template,
-		       COALESCE(is_cross_margin, 1) as is_cross_margin, created_at, updated_at
+		       COALESCE(is_cross_margin, 1) as is_cross_margin,
+		       COALESCE(show_in_competition, 1) as show_in_competition,
+		       COALESCE(enable_raw_klines, 1) as enable_raw_klines,
+		       COALESCE(enable_ema, 0) as enable_ema, COALESCE(enable_macd, 0) as enable_macd,
+		       COALESCE(enable_rsi, 0) as enable_rsi, COALESCE(enable_atr, 0) as enable_atr,
+		       COALESCE(enable_volume, 1) as enable_volume, COALESCE(enable_oi, 1) as enable_oi,
+		       COALESCE(enable_funding, 1) as enable_funding,
+		       COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
+		       COALESCE(quant_data_url, '') as quant_data_url,
+		       created_at, updated_at
 		FROM traders 
-		WHERE followed_trader_id = ? AND is_running = 1
+		WHERE COALESCE(followed_trader_id, '') = ?
 		ORDER BY created_at DESC
 	`, followedTraderID)
 	if err != nil {
+		log.Printf("❌ DEBUG [GetFollowerTraders]: Query failed for parent trader ID '%s': %v", followedTraderID, err)
 		return nil, err
 	}
 	defer rows.Close()
 
 	var traders []*TraderRecord
+	rowCount := 0
 	for rows.Next() {
+		rowCount++
 		var trader TraderRecord
 		var createdAt, updatedAt string
 		err := rows.Scan(
@@ -2196,18 +2605,28 @@ func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord,
 			&trader.UseCoinPool, &trader.UseOITop, &trader.UseTradingView,
 			&trader.FollowedTraderID,
 			&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
-			&trader.IsCrossMargin,
+			&trader.IsCrossMargin, &trader.ShowInCompetition,
+			&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
+			&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
+			&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
+			&trader.QuantDataURL,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
+			log.Printf("❌ DEBUG [GetFollowerTraders]: Row scan failed for parent trader ID '%s', row %d: %v", followedTraderID, rowCount, err)
 			return nil, err
 		}
+		// Ensure enable_raw_klines is always true
+		trader.EnableRawKlines = true
 		// Parse time string
 		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 		traders = append(traders, &trader)
+		log.Printf("✅ DEBUG [GetFollowerTraders]: Found follower - ID: '%s', Name: '%s', UserID: '%s', FollowedTraderID: '%s', IsRunning: %v", 
+			trader.ID, trader.Name, trader.UserID, trader.FollowedTraderID, trader.IsRunning)
 	}
 
+	log.Printf("📊 DEBUG [GetFollowerTraders]: Query completed for parent trader ID '%s' - Found %d followers", followedTraderID, len(traders))
 	return traders, nil
 }
 
@@ -2241,6 +2660,8 @@ func (d *Database) UpdateTraderStatus(userID, id string, isRunning bool) error {
 
 // UpdateTrader update trader configuration
 func (d *Database) UpdateTrader(trader *TraderRecord) error {
+	// Ensure enable_raw_klines is always true
+	trader.EnableRawKlines = true
 	log.Printf("🔍 DEBUG [UpdateTrader DB]: Updating trader %s (user_id: %s) with system_prompt_template: '%s'", trader.ID, trader.UserID, trader.SystemPromptTemplate)
 	result, err := d.db.Exec(`
 		UPDATE traders SET
@@ -2249,14 +2670,22 @@ func (d *Database) UpdateTrader(trader *TraderRecord) error {
 			trading_symbols = ?, use_coin_pool = ?, use_oi_top = ?, use_tradingview = ?,
 			followed_trader_id = ?,
 			custom_prompt = ?, override_base_prompt = ?,
-			system_prompt_template = ?, is_cross_margin = ?, updated_at = CURRENT_TIMESTAMP
+			system_prompt_template = ?, is_cross_margin = ?, show_in_competition = ?,
+			enable_raw_klines = ?, enable_ema = ?, enable_macd = ?, enable_rsi = ?, enable_atr = ?,
+			enable_volume = ?, enable_oi = ?, enable_funding = ?,
+			indicator_timeframe = ?, quant_data_url = ?,
+			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND user_id = ?
 	`, trader.Name, trader.AIModelID, trader.ExchangeID,
 		trader.ScanIntervalMinutes, trader.BTCETHLeverage, trader.AltcoinLeverage,
 		trader.TradingSymbols, trader.UseCoinPool, trader.UseOITop, trader.UseTradingView,
 		trader.FollowedTraderID,
 		trader.CustomPrompt, trader.OverrideBasePrompt,
-		trader.SystemPromptTemplate, trader.IsCrossMargin, trader.ID, trader.UserID)
+		trader.SystemPromptTemplate, trader.IsCrossMargin, trader.ShowInCompetition,
+		trader.EnableRawKlines, trader.EnableEMA, trader.EnableMACD, trader.EnableRSI, trader.EnableATR,
+		trader.EnableVolume, trader.EnableOI, trader.EnableFunding,
+		trader.IndicatorTimeframe, trader.QuantDataURL,
+		trader.ID, trader.UserID)
 	if err != nil {
 		log.Printf("❌ DEBUG [UpdateTrader DB]: Update failed for trader %s: %v", trader.ID, err)
 		return err
@@ -2276,6 +2705,12 @@ func (d *Database) UpdateTraderCustomPrompt(userID, id string, customPrompt stri
 // ⚠️ Note: system will not automatically call this method, only for users to manually synchronize after deposit/withdrawal
 func (d *Database) UpdateTraderInitialBalance(userID, id string, newBalance float64) error {
 	_, err := d.db.Exec(`UPDATE traders SET initial_balance = ? WHERE id = ? AND user_id = ?`, newBalance, id, userID)
+	return err
+}
+
+// UpdateTraderShowInCompetition updates trader competition visibility
+func (d *Database) UpdateTraderShowInCompetition(userID, id string, showInCompetition bool) error {
+	_, err := d.db.Exec(`UPDATE traders SET show_in_competition = ? WHERE id = ? AND user_id = ?`, showInCompetition, id, userID)
 	return err
 }
 
@@ -2308,6 +2743,13 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 			COALESCE(t.override_base_prompt, 0) as override_base_prompt,
 			COALESCE(t.system_prompt_template, 'default') as system_prompt_template,
 			COALESCE(t.is_cross_margin, 1) as is_cross_margin,
+			COALESCE(t.enable_raw_klines, 1) as enable_raw_klines,
+			COALESCE(t.enable_ema, 0) as enable_ema, COALESCE(t.enable_macd, 0) as enable_macd,
+			COALESCE(t.enable_rsi, 0) as enable_rsi, COALESCE(t.enable_atr, 0) as enable_atr,
+			COALESCE(t.enable_volume, 1) as enable_volume, COALESCE(t.enable_oi, 1) as enable_oi,
+			COALESCE(t.enable_funding, 1) as enable_funding,
+			COALESCE(t.indicator_timeframe, '3m') as indicator_timeframe,
+			COALESCE(t.quant_data_url, '') as quant_data_url,
 			t.created_at, t.updated_at,
 			a.id, a.user_id, a.name, a.provider, a.enabled, a.api_key,
 			COALESCE(a.custom_api_url, '') as custom_api_url,
@@ -2335,6 +2777,10 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 		&trader.FollowedTraderID,
 		&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
 		&trader.IsCrossMargin,
+		&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
+		&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
+		&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
+		&trader.QuantDataURL,
 		&traderCreatedAt, &traderUpdatedAt,
 		&aiModel.ID, &aiModel.UserID, &aiModel.Name, &aiModel.Provider, &aiModel.Enabled, &aiModel.APIKey,
 		&aiModel.CustomAPIURL, &aiModel.CustomModelName,
@@ -2351,6 +2797,8 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 		return nil, nil, nil, err
 	}
 
+	// Ensure enable_raw_klines is always true
+	trader.EnableRawKlines = true
 	// Parse time string
 	trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", traderCreatedAt)
 	trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", traderUpdatedAt)
@@ -2369,6 +2817,58 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 	exchange.OkxPassphrase = d.decryptSensitiveData(exchange.OkxPassphrase)
 
 	return &trader, &aiModel, &exchange, nil
+}
+
+// GetTraderByID get trader by ID without userID (for public competition data)
+func (d *Database) GetTraderByID(traderID string) (*TraderRecord, error) {
+	var trader TraderRecord
+	var createdAt, updatedAt string
+
+	err := d.db.QueryRow(`
+		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running,
+		       COALESCE(btc_eth_leverage, 5) as btc_eth_leverage, COALESCE(altcoin_leverage, 5) as altcoin_leverage,
+		       COALESCE(trading_symbols, '') as trading_symbols,
+		       COALESCE(use_coin_pool, 0) as use_coin_pool, COALESCE(use_oi_top, 0) as use_oi_top,
+		       COALESCE(use_tradingview, 0) as use_tradingview,
+		       COALESCE(followed_trader_id, '') as followed_trader_id,
+		       COALESCE(custom_prompt, '') as custom_prompt, COALESCE(override_base_prompt, 0) as override_base_prompt,
+		       COALESCE(system_prompt_template, 'default') as system_prompt_template,
+		       COALESCE(is_cross_margin, 1) as is_cross_margin,
+		       COALESCE(enable_raw_klines, 1) as enable_raw_klines,
+		       COALESCE(enable_ema, 0) as enable_ema, COALESCE(enable_macd, 0) as enable_macd,
+		       COALESCE(enable_rsi, 0) as enable_rsi, COALESCE(enable_atr, 0) as enable_atr,
+		       COALESCE(enable_volume, 1) as enable_volume, COALESCE(enable_oi, 1) as enable_oi,
+		       COALESCE(enable_funding, 1) as enable_funding,
+		       COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
+		       COALESCE(quant_data_url, '') as quant_data_url,
+		       created_at, updated_at
+		FROM traders WHERE id = ?
+	`, traderID).Scan(
+		&trader.ID, &trader.UserID, &trader.Name, &trader.AIModelID, &trader.ExchangeID,
+		&trader.InitialBalance, &trader.ScanIntervalMinutes, &trader.IsRunning,
+		&trader.BTCETHLeverage, &trader.AltcoinLeverage, &trader.TradingSymbols,
+		&trader.UseCoinPool, &trader.UseOITop, &trader.UseTradingView,
+		&trader.FollowedTraderID,
+		&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
+		&trader.IsCrossMargin,
+		&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
+		&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
+		&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
+		&trader.QuantDataURL,
+		&createdAt, &updatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure enable_raw_klines is always true
+	trader.EnableRawKlines = true
+	// Parse time string
+	trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+
+	return &trader, nil
 }
 
 // GetSystemConfig get system configuration
@@ -2670,6 +3170,13 @@ func (d *Database) GetTradersWithTradingViewEnabled(userID string) ([]*TraderRec
 			scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage,
 			trading_symbols, use_coin_pool, use_oi_top, use_tradingview,
 			custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin,
+			COALESCE(enable_raw_klines, 1) as enable_raw_klines,
+			COALESCE(enable_ema, 0) as enable_ema, COALESCE(enable_macd, 0) as enable_macd,
+			COALESCE(enable_rsi, 0) as enable_rsi, COALESCE(enable_atr, 0) as enable_atr,
+			COALESCE(enable_volume, 1) as enable_volume, COALESCE(enable_oi, 1) as enable_oi,
+			COALESCE(enable_funding, 1) as enable_funding,
+			COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
+			COALESCE(quant_data_url, '') as quant_data_url,
 			created_at, updated_at
 		FROM traders
 		WHERE user_id = ? AND use_tradingview = 1
@@ -2692,12 +3199,17 @@ func (d *Database) GetTradersWithTradingViewEnabled(userID string) ([]*TraderRec
 			&trader.TradingSymbols, &trader.UseCoinPool, &trader.UseOITop,
 			&trader.UseTradingView, &trader.CustomPrompt, &trader.OverrideBasePrompt,
 			&trader.SystemPromptTemplate, &trader.IsCrossMargin,
+			&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
+			&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
+			&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
+			&trader.QuantDataURL,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
 			continue
 		}
-
+		// Ensure enable_raw_klines is always true
+		trader.EnableRawKlines = true
 		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 		traders = append(traders, &trader)
@@ -2845,6 +3357,131 @@ func (d *Database) GetBetaCodeStats() (total, used int, err error) {
 	}
 
 	return total, used, nil
+}
+
+// PositionRecord represents a position record in the database
+type PositionRecord struct {
+	ID           string
+	TraderID     string
+	Symbol       string
+	Side         string
+	EntryPrice   float64
+	ExitPrice    float64
+	Quantity     float64
+	EntryFee     float64
+	ExitFee      float64
+	RealizedPnL  float64
+	Leverage     int
+	OpenedAt     time.Time
+	ClosedAt     *time.Time
+	OrderIDOpen  string
+	OrderIDClose string
+}
+
+// SavePosition save position record to database
+func (d *Database) SavePosition(traderID, symbol, side string, entryPrice, exitPrice, quantity, entryFee, exitFee, realizedPnL float64, leverage int, orderIDOpen, orderIDClose string, openedAt time.Time, closedAt *time.Time) error {
+	id := fmt.Sprintf("%s_%s_%d", traderID, symbol, openedAt.Unix())
+
+	var closedAtStr interface{}
+	if closedAt != nil {
+		closedAtStr = closedAt.Format("2006-01-02 15:04:05")
+	}
+
+	var exitPriceVal interface{}
+	if exitPrice > 0 {
+		exitPriceVal = exitPrice
+	}
+
+	var realizedPnLVal interface{}
+	if realizedPnL != 0 {
+		realizedPnLVal = realizedPnL
+	}
+
+	query := `
+		INSERT OR REPLACE INTO trader_positions 
+		(id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	_, err := d.db.Exec(query, id, traderID, symbol, side, entryPrice, exitPriceVal, quantity, entryFee, exitFee, realizedPnLVal, leverage, openedAt.Format("2006-01-02 15:04:05"), closedAtStr, orderIDOpen, orderIDClose)
+	return err
+}
+
+// GetPositionHistory get position history for a trader
+func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*PositionRecord, error) {
+	query := `
+		SELECT id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close
+		FROM trader_positions
+		WHERE trader_id = ?
+		ORDER BY opened_at DESC
+		LIMIT ? OFFSET ?
+	`
+
+	rows, err := d.db.Query(query, traderID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var positions []*PositionRecord
+	for rows.Next() {
+		var pos PositionRecord
+		var closedAtStr sql.NullString
+
+		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &pos.ExitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &pos.RealizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose)
+		if err != nil {
+			return nil, err
+		}
+
+		if closedAtStr.Valid {
+			closedAt, err := time.Parse("2006-01-02 15:04:05", closedAtStr.String)
+			if err == nil {
+				pos.ClosedAt = &closedAt
+			}
+		}
+
+		positions = append(positions, &pos)
+	}
+
+	return positions, rows.Err()
+}
+
+// GetOpenPositions get open positions for a trader
+func (d *Database) GetOpenPositions(traderID string) ([]*PositionRecord, error) {
+	query := `
+		SELECT id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close
+		FROM trader_positions
+		WHERE trader_id = ? AND closed_at IS NULL
+		ORDER BY opened_at DESC
+	`
+
+	rows, err := d.db.Query(query, traderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var positions []*PositionRecord
+	for rows.Next() {
+		var pos PositionRecord
+		var closedAtStr sql.NullString
+
+		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &pos.ExitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &pos.RealizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose)
+		if err != nil {
+			return nil, err
+		}
+
+		if closedAtStr.Valid {
+			closedAt, err := time.Parse("2006-01-02 15:04:05", closedAtStr.String)
+			if err == nil {
+				pos.ClosedAt = &closedAt
+			}
+		}
+
+		positions = append(positions, &pos)
+	}
+
+	return positions, rows.Err()
 }
 
 // SetCryptoService set encryption service

@@ -22,7 +22,20 @@ type FundingRateCache struct {
 var (
 	fundingRateMap sync.Map // map[string]*FundingRateCache
 	frCacheTTL     = 1 * time.Hour
+	klineCount     = 10    // Default number of klines to include in AI prompts
 )
+
+// SetKlineCount sets the number of klines to include in AI prompts
+func SetKlineCount(count int) {
+	if count > 0 {
+		klineCount = count
+	}
+}
+
+// getKlineCount returns the configured kline count (default: 10)
+func getKlineCount() int {
+	return klineCount
+}
 
 // Get retrieves market data for the specified token
 func Get(symbol string) (*Data, error) {
@@ -92,10 +105,12 @@ func Get(symbol string) (*Data, error) {
 	fundingRate, _ := getFundingRate(symbol)
 
 	// Calculate intraday series data
-	intradayData := calculateIntradaySeries(klines3m)
+	// Use default kline count of 10 if not configured
+	klineCount := getKlineCount()
+	intradayData := calculateIntradaySeries(klines3m, klineCount)
 
 	// Calculate longer-term data
-	longerTermData := calculateLongerTermData(klines4h)
+	longerTermData := calculateLongerTermData(klines4h, klineCount)
 
 	return &Data{
 		Symbol:            symbol,
@@ -227,25 +242,41 @@ func calculateATR(klines []Kline, period int) float64 {
 }
 
 // calculateIntradaySeries calculates intraday series data
-func calculateIntradaySeries(klines []Kline) *IntradayData {
+func calculateIntradaySeries(klines []Kline, klineCount int) *IntradayData {
+	if klineCount <= 0 {
+		klineCount = 10 // Default to 10 if invalid
+	}
+	
 	data := &IntradayData{
-		MidPrices:   make([]float64, 0, 10),
-		EMA20Values: make([]float64, 0, 10),
-		MACDValues:  make([]float64, 0, 10),
-		RSI7Values:  make([]float64, 0, 10),
-		RSI14Values: make([]float64, 0, 10),
-		Volume:      make([]float64, 0, 10),
+		MidPrices:   make([]float64, 0, klineCount),
+		EMA20Values: make([]float64, 0, klineCount),
+		MACDValues:  make([]float64, 0, klineCount),
+		RSI7Values:  make([]float64, 0, klineCount),
+		RSI14Values: make([]float64, 0, klineCount),
+		Volume:      make([]float64, 0, klineCount),
+		Klines:      make([]KlineBar, 0, klineCount),
 	}
 
-	// Get latest 10 data points
-	start := len(klines) - 10
+	// Get latest klineCount data points
+	start := len(klines) - klineCount
 	if start < 0 {
 		start = 0
 	}
 
 	for i := start; i < len(klines); i++ {
-		data.MidPrices = append(data.MidPrices, klines[i].Close)
-		data.Volume = append(data.Volume, klines[i].Volume)
+		k := klines[i]
+		data.MidPrices = append(data.MidPrices, k.Close)
+		data.Volume = append(data.Volume, k.Volume)
+		
+		// Store complete OHLCV data as KlineBar
+		data.Klines = append(data.Klines, KlineBar{
+			Time:   time.Unix(k.CloseTime/1000, 0),
+			Open:   k.Open,
+			High:   k.High,
+			Low:    k.Low,
+			Close:  k.Close,
+			Volume: k.Volume,
+		})
 
 		// Calculate EMA20 for each point
 		if i >= 19 {
@@ -277,10 +308,15 @@ func calculateIntradaySeries(klines []Kline) *IntradayData {
 }
 
 // calculateLongerTermData calculates longer-term data
-func calculateLongerTermData(klines []Kline) *LongerTermData {
+func calculateLongerTermData(klines []Kline, klineCount int) *LongerTermData {
+	if klineCount <= 0 {
+		klineCount = 10 // Default to 10 if invalid
+	}
+	
 	data := &LongerTermData{
-		MACDValues:  make([]float64, 0, 10),
-		RSI14Values: make([]float64, 0, 10),
+		MACDValues:  make([]float64, 0, klineCount),
+		RSI14Values: make([]float64, 0, klineCount),
+		Klines:      make([]KlineBar, 0, klineCount),
 	}
 
 	// Calculate EMA
@@ -303,9 +339,23 @@ func calculateLongerTermData(klines []Kline) *LongerTermData {
 	}
 
 	// Calculate MACD and RSI sequences
-	start := len(klines) - 10
+	// Get latest klineCount data points
+	start := len(klines) - klineCount
 	if start < 0 {
 		start = 0
+	}
+	
+	// Store complete OHLCV data as KlineBar
+	for i := start; i < len(klines); i++ {
+		k := klines[i]
+		data.Klines = append(data.Klines, KlineBar{
+			Time:   time.Unix(k.CloseTime/1000, 0),
+			Open:   k.Open,
+			High:   k.High,
+			Low:    k.Low,
+			Close:  k.Close,
+			Volume: k.Volume,
+		})
 	}
 
 	for i := start; i < len(klines); i++ {
@@ -428,11 +478,69 @@ func Format(data *Data) string {
 			oiLatestStr, oiAverageStr))
 	}
 
+	// Display multi-timeframe OI delta if quant data is available
+	if data.QuantData != nil && data.QuantData.OIDelta != nil && len(data.QuantData.OIDelta) > 0 {
+		oiDeltaParts := []string{}
+		// Order timeframes: 1m, 5m, 15m, 30m, 1h, 4h, 8h, 12h, 24h, 2d, 3d
+		timeframeOrder := []string{"1m", "5m", "15m", "30m", "1h", "4h", "8h", "12h", "24h", "2d", "3d"}
+		for _, tf := range timeframeOrder {
+			if delta, exists := data.QuantData.OIDelta[tf]; exists {
+				sign := "+"
+				if delta.OIDelta < 0 {
+					sign = ""
+				}
+				oiDeltaParts = append(oiDeltaParts, fmt.Sprintf("%s: %s%.0f", tf, sign, delta.OIDelta))
+			}
+		}
+		if len(oiDeltaParts) > 0 {
+			sb.WriteString(fmt.Sprintf("OI Delta (%s)\n\n", strings.Join(oiDeltaParts, ", ")))
+		}
+	}
+
+	// Display multi-timeframe Netflow if quant data is available
+	if data.QuantData != nil && data.QuantData.Netflow != nil && len(data.QuantData.Netflow) > 0 {
+		netflowParts := []string{}
+		// Order timeframes: 1m, 5m, 15m, 30m, 1h, 4h, 8h, 12h, 24h, 2d, 3d
+		timeframeOrder := []string{"1m", "5m", "15m", "30m", "1h", "4h", "8h", "12h", "24h", "2d", "3d"}
+		for _, tf := range timeframeOrder {
+			if netflow, exists := data.QuantData.Netflow[tf]; exists {
+				total := netflow.Total
+				// Format large numbers with K/M/B suffixes
+				var formatted string
+				if total >= 1000000000 {
+					formatted = fmt.Sprintf("%.2fB", total/1000000000)
+				} else if total >= 1000000 {
+					formatted = fmt.Sprintf("%.2fM", total/1000000)
+				} else if total >= 1000 {
+					formatted = fmt.Sprintf("%.2fK", total/1000)
+				} else {
+					formatted = fmt.Sprintf("%.0f", total)
+				}
+				sign := "+"
+				if total < 0 {
+					sign = ""
+				}
+				netflowParts = append(netflowParts, fmt.Sprintf("%s: %s%s", tf, sign, formatted))
+			}
+		}
+		if len(netflowParts) > 0 {
+			sb.WriteString(fmt.Sprintf("Netflow (%s USDT)\n\n", strings.Join(netflowParts, ", ")))
+		}
+	}
+
 	sb.WriteString(fmt.Sprintf("Funding Rate: %.2e\n\n", data.FundingRate))
 
 	if data.IntradaySeries != nil {
 		sb.WriteString("Intraday series (3‑minute intervals, oldest → latest):\n\n")
 
+		// Format klines as OHLCV table if available
+		if len(data.IntradaySeries.Klines) > 0 {
+			sb.WriteString("Kline data (OHLCV):\n")
+			sb.WriteString(formatKlineTable(data.IntradaySeries.Klines))
+			sb.WriteString("\n")
+		}
+
+		// Keep backward compatibility: show MidPrices array
 		if len(data.IntradaySeries.MidPrices) > 0 {
 			sb.WriteString(fmt.Sprintf("Mid prices: %s\n\n", formatFloatSlice(data.IntradaySeries.MidPrices)))
 		}
@@ -462,6 +570,13 @@ func Format(data *Data) string {
 
 	if data.LongerTermContext != nil {
 		sb.WriteString("Longer‑term context (4‑hour timeframe):\n\n")
+
+		// Format klines as OHLCV table if available
+		if len(data.LongerTermContext.Klines) > 0 {
+			sb.WriteString("Kline data (OHLCV):\n")
+			sb.WriteString(formatKlineTable(data.LongerTermContext.Klines))
+			sb.WriteString("\n")
+		}
 
 		sb.WriteString(fmt.Sprintf("20‑Period EMA: %.3f vs. 50‑Period EMA: %.3f\n\n",
 			data.LongerTermContext.EMA20, data.LongerTermContext.EMA50))
@@ -524,6 +639,46 @@ func formatFloatSlice(values []float64) string {
 	return "[" + strings.Join(strValues, ", ") + "]"
 }
 
+// formatKlineTable formats klines as a readable table with Time, Open, High, Low, Close, Volume
+// Marks the current (latest) bar for clarity
+func formatKlineTable(klines []KlineBar) string {
+	if len(klines) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	
+	// Table header
+	sb.WriteString("┌─────────────────────┬──────────────┬──────────────┬──────────────┬──────────────┬──────────────┐\n")
+	sb.WriteString("│ Time                 │ Open         │ High         │ Low          │ Close        │ Volume       │\n")
+	sb.WriteString("├─────────────────────┼──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤\n")
+
+	// Table rows (oldest to latest)
+	for i, k := range klines {
+		timeStr := k.Time.Format("2006-01-02 15:04:05")
+		openStr := formatPriceWithDynamicPrecision(k.Open)
+		highStr := formatPriceWithDynamicPrecision(k.High)
+		lowStr := formatPriceWithDynamicPrecision(k.Low)
+		closeStr := formatPriceWithDynamicPrecision(k.Close)
+		volumeStr := formatPriceWithDynamicPrecision(k.Volume)
+
+		// Mark current (latest) bar
+		isCurrent := i == len(klines)-1
+		marker := ""
+		if isCurrent {
+			marker = " ← (current)"
+		}
+
+		sb.WriteString(fmt.Sprintf("│ %-19s │ %-12s │ %-12s │ %-12s │ %-12s │ %-12s │%s\n",
+			timeStr, openStr, highStr, lowStr, closeStr, volumeStr, marker))
+	}
+
+	// Table footer
+	sb.WriteString("└─────────────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──────────────┘")
+
+	return sb.String()
+}
+
 // Normalize normalizes symbol, ensures it's a USDT trading pair
 func Normalize(symbol string) string {
 	symbol = strings.ToUpper(symbol)
@@ -569,12 +724,12 @@ func BuildDataFromKlines(symbol string, primary []Kline, longer []Kline) (*Data,
 		PriceChange4h:     priceChangeFromSeries(primary, 4*time.Hour),
 		OpenInterest:      &OIData{Latest: 0, Average: 0},
 		FundingRate:       0,
-		IntradaySeries:    calculateIntradaySeries(primary),
+		IntradaySeries:    calculateIntradaySeries(primary, getKlineCount()),
 		LongerTermContext: nil,
 	}
 
 	if len(longer) > 0 {
-		data.LongerTermContext = calculateLongerTermData(longer)
+		data.LongerTermContext = calculateLongerTermData(longer, getKlineCount())
 	}
 
 	return data, nil

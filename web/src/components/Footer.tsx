@@ -19,17 +19,23 @@ export default function Footer({ variant = 'full' }: FooterProps) {
       <div className="max-w-[1200px] mx-auto px-6 py-10">
         {variant === 'full' && (
           <>
+            {/* Risk Warning */}
+            <div
+              className="text-center text-sm max-w-4xl mx-auto mb-8"
+              style={{
+                color: 'var(--text-tertiary)',
+              }}
+            >
+              <p className="font-semibold mb-2 text-base" style={{ color: 'var(--text-secondary)' }}>
+                {t('footerTitle', language)}
+              </p>
+              <p className="leading-relaxed text-sm" style={{ color: 'var(--error)' }}>{t('footerWarning', language)}</p>
+            </div>
+
             {/* GitHub Links */}
-            <div className="flex flex-col items-center gap-4 mb-8">
-              <h3
-                className="text-sm font-semibold"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                {t('links', language)}
-              </h3>
-              <div className="flex flex-wrap items-center justify-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-4">
                 <a
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 hover:scale-105"
+                  className="inline-flex items-center gap-2 px-2 py-1 rounded-lg text-xs font-semibold transition-all duration-300 hover:scale-105"
                   href="https://github.com/TJalam-com/nofx"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -50,8 +56,8 @@ export default function Footer({ variant = 'full' }: FooterProps) {
                   }}
                 >
                   <svg
-                    width="18"
-                    height="18"
+                    width="14"
+                    height="14"
                     viewBox="0 0 16 16"
                     fill="currentColor"
                   >
@@ -60,7 +66,7 @@ export default function Footer({ variant = 'full' }: FooterProps) {
                   Original Repository
                 </a>
                 <a
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 hover:scale-105"
+                  className="inline-flex items-center gap-2 px-2 py-1 rounded-lg text-xs font-semibold transition-all duration-300 hover:scale-105"
                   href="https://github.com/TJalam-com/nofx/tree/dev"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -81,8 +87,8 @@ export default function Footer({ variant = 'full' }: FooterProps) {
                   }}
                 >
                   <svg
-                    width="18"
-                    height="18"
+                    width="14"
+                    height="14"
                     viewBox="0 0 16 16"
                     fill="currentColor"
                   >
@@ -90,27 +96,22 @@ export default function Footer({ variant = 'full' }: FooterProps) {
                   </svg>
                   Dev Branch
                 </a>
-              </div>
             </div>
           </>
         )}
 
-        {/* Risk Warning */}
-        <div
-          className={`text-center text-xs max-w-4xl mx-auto ${
-            variant === 'full' ? 'pt-6 mt-8' : 'pt-4'
-          }`}
-          style={{
-            color: 'var(--text-tertiary)',
-            borderTop: variant === 'full' ? '1px solid var(--panel-border)' : 'none',
-          }}
-        >
-          <p className="font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
-            {t('footerTitle', language)}
-          </p>
-          <p className="leading-relaxed" style={{ color: 'var(--error)' }}>{t('footerWarning', language)}</p>
-          
-          {variant === 'simple' && (
+        {variant === 'simple' && (
+          <div
+            className="text-center text-sm max-w-4xl mx-auto pt-4"
+            style={{
+              color: 'var(--text-tertiary)',
+            }}
+          >
+            <p className="font-semibold mb-2 text-base" style={{ color: 'var(--text-secondary)' }}>
+              {t('footerTitle', language)}
+            </p>
+            <p className="leading-relaxed text-sm" style={{ color: 'var(--error)' }}>{t('footerWarning', language)}</p>
+            
             <div className="mt-4">
               <a
                 href="https://github.com/TJalam-com/nofx"
@@ -144,8 +145,8 @@ export default function Footer({ variant = 'full' }: FooterProps) {
                 GitHub
               </a>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </footer>
   )

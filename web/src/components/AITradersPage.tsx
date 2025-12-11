@@ -37,11 +37,13 @@ import {
   Radio,
   Pencil,
   UserCheck,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { confirmToast } from '../lib/notify'
 import { toast } from 'sonner'
 
-// 获取友好的AI模型名称
+// Get friendly AI model name
 function getModelDisplayName(modelId: string): string {
   switch (modelId.toLowerCase()) {
     case 'deepseek':
@@ -55,10 +57,27 @@ function getModelDisplayName(modelId: string): string {
   }
 }
 
-// 提取下划线后面的名称部分
+// Extract name part after underscore
 function getShortName(fullName: string): string {
   const parts = fullName.split('_')
   return parts.length > 1 ? parts[parts.length - 1] : fullName
+}
+
+// Format strategy template name for display
+function formatStrategyName(templateName: string | undefined | null): string {
+  if (!templateName) return 'Default'
+  const nameMap: Record<string, string> = {
+    default: 'Default',
+    adaptive: 'Adaptive',
+    adaptive_relaxed: 'Adaptive Relaxed',
+    Hansen: 'Hansen',
+    nof1: 'Nof1',
+    taro_long_prompts: 'Taro Long',
+    risk_management: 'Risk Management',
+    'risk-management': 'Risk Management',
+  }
+  const lowerName = templateName.toLowerCase()
+  return nameMap[lowerName] || templateName.charAt(0).toUpperCase() + templateName.slice(1)
 }
 
 interface AITradersPageProps {
@@ -104,38 +123,33 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
 
   // Check if we should open create modal with a trader to copy (from CompetitionPage)
   useEffect(() => {
-    const copyTraderId = sessionStorage.getItem('copyTraderId')
+    // Only run this check once when component mounts or when user/token becomes available
+    if (!user || !token) {
+      return
+    }
+
     const urlParams = new URLSearchParams(window.location.search)
     const action = urlParams.get('action')
+    const copyTraderId = sessionStorage.getItem('copyTraderId')
     
-    console.log('🔍 AITradersPage - Checking copy action:', {
-      copyTraderId,
-      action,
-      user: user ? { id: user.id, email: user.email, role: user.role } : null,
-      token: !!token,
-      showCreateModal,
-      currentPath: window.location.pathname,
-      currentSearch: window.location.search
-    })
-    
-    if (copyTraderId && action === 'copy' && user && token && !showCreateModal) {
-      console.log('✅ All conditions met, opening create modal with copyTraderId:', copyTraderId)
+    // Check if we have both the action parameter and copyTraderId
+    if (action === 'copy' && copyTraderId && !showCreateModal) {
+      console.log('✅ Opening create modal with copyTraderId:', copyTraderId)
       setShowCreateModal(true)
-      // The TraderConfigModal will handle the copyTraderId from sessionStorage
-    } else {
-      if (!copyTraderId) console.log('❌ No copyTraderId found in sessionStorage')
-      if (action !== 'copy') console.log('❌ Action is not "copy", got:', action)
-      if (!user) console.log('❌ User not available')
-      if (!token) console.log('❌ Token not available')
-      if (showCreateModal) console.log('⚠️ Create modal already open')
+      // Clean up URL query param but keep copyTraderId in sessionStorage for TraderConfigModal
+      window.history.replaceState({}, '', '/traders')
+    } else if (action === 'copy' && !copyTraderId) {
+      // Action is set but no copyTraderId - clean up URL
+      console.warn('⚠️ Action is "copy" but no copyTraderId found in sessionStorage')
+      window.history.replaceState({}, '', '/traders')
     }
   }, [user, token, showCreateModal])
 
-  // 加载AI模型和交易所配置
+  // Load AI model and exchange configurations
   useEffect(() => {
     const loadConfigs = async () => {
       if (!user || !token) {
-        // 未登录时只加载公开的支持模型和交易所
+        // When not logged in, only load public supported models and exchanges
         try {
           const [supportedModels, supportedExchanges] = await Promise.all([
             api.getSupportedModels(),
@@ -166,7 +180,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         setSupportedModels(supportedModels)
         setSupportedExchanges(supportedExchanges)
 
-        // 加载用户信号源配置
+        // Load user signal source configuration
         try {
           const signalSource = await api.getUserSignalSource()
           setUserSignalSource({
@@ -174,7 +188,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             oiTopUrl: signalSource.oi_top_url || '',
           })
         } catch (error) {
-          console.log('📡 用户信号源配置暂未设置')
+          console.log('📡 User signal source configuration not set yet')
         }
       } catch (error) {
         console.error('Failed to load configs:', error)
@@ -183,30 +197,30 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     loadConfigs()
   }, [user, token])
 
-  // 只显示已配置的模型和交易所
-  // 注意：后端返回的数据不包含敏感信息（apiKey等），所以通过其他字段判断是否已配置
+  // Only show configured models and exchanges
+  // Note: Backend returns data without sensitive information (apiKey, etc.), so check other fields to determine if configured
   const configuredModels =
     allModels?.filter((m) => {
-      // 如果模型已启用，说明已配置
-      // 或者有自定义API URL，也说明已配置
+      // If model is enabled, it's configured
+      // Or if it has custom API URL, it's also configured
       return m.enabled || (m.customApiUrl && m.customApiUrl.trim() !== '')
     }) || []
   const configuredExchanges =
     allExchanges?.filter((e) => {
-      // Aster 交易所检查特殊字段
+      // Aster exchange checks special fields
       if (e.id === 'aster') {
         return e.asterUser && e.asterUser.trim() !== ''
       }
-      // Hyperliquid 需要检查钱包地址（后端会返回这个字段）
+      // Hyperliquid needs wallet address check (backend returns this field)
       if (e.id === 'hyperliquid') {
         return e.hyperliquidWalletAddr && e.hyperliquidWalletAddr.trim() !== ''
       }
-      // 其他交易所：如果已启用，说明已配置（后端返回的已配置交易所会有 enabled: true）
+      // Other exchanges: if enabled, it's configured (backend returns configured exchanges with enabled: true)
       return e.enabled
     }) || []
 
-  // 只在创建交易员时使用已启用且配置完整的
-  // 注意：后端返回的数据不包含敏感信息，所以只检查 enabled 状态和必要的非敏感字段
+  // Only use enabled and fully configured models/exchanges when creating traders
+  // Note: Backend returns data without sensitive information, so only check enabled status and necessary non-sensitive fields
   const enabledModels = allModels?.filter((m) => m.enabled) || []
   
   // For all users, use enabled models (TraderConfigModal will filter out prompt template names)
@@ -216,7 +230,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     allExchanges?.filter((e) => {
       if (!e.enabled) return false
 
-      // Aster 交易所需要特殊字段（后端会返回这些非敏感字段）
+      // Aster exchange needs special fields (backend returns these non-sensitive fields)
       if (e.id === 'aster') {
         return (
           e.asterUser &&
@@ -226,26 +240,26 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         )
       }
 
-      // Hyperliquid 需要钱包地址（后端会返回这个字段）
+      // Hyperliquid needs wallet address (backend returns this field)
       if (e.id === 'hyperliquid') {
         return e.hyperliquidWalletAddr && e.hyperliquidWalletAddr.trim() !== ''
       }
 
-      // 其他交易所：如果已启用，说明已配置完整（后端只返回已配置的交易所）
+      // Other exchanges: if enabled, it's fully configured (backend only returns configured exchanges)
       return true
     }) || []
 
-  // 检查模型是否正在被运行中的交易员使用（用于UI禁用）
+  // Check if model is being used by running traders (for UI disabling)
   const isModelInUse = (modelId: string) => {
     return traders?.some((t) => t.ai_model === modelId && t.is_running)
   }
 
-  // 检查交易所是否正在被运行中的交易员使用（用于UI禁用）
+  // Check if exchange is being used by running traders (for UI disabling)
   const isExchangeInUse = (exchangeId: string) => {
     return traders?.some((t) => t.exchange_id === exchangeId && t.is_running)
   }
 
-  // 检查模型是否被任何交易员使用（包括停止状态的）
+  // Check if model is used by any trader (including stopped ones)
   const isModelUsedByAnyTrader = (modelId: string) => {
     return traders?.some((t) => t.ai_model === modelId) || false
   }
@@ -375,6 +389,30 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     } catch (error) {
       console.error('Failed to update trader:', error)
       toast.error(t('updateTraderFailed', language))
+    }
+  }
+
+  const handleToggleCompetition = async (
+    traderId: string,
+    currentShowInCompetition: boolean
+  ) => {
+    try {
+      const newValue = !currentShowInCompetition
+      await toast.promise(api.toggleCompetition(traderId, newValue), {
+        loading: t('updating', language) || 'Updating...',
+        success: newValue
+          ? t('competitionVisibilityShown', language) ||
+            'Trader is now visible in competition'
+          : t('competitionVisibilityHidden', language) ||
+            'Trader is now hidden from competition',
+        error: t('updateFailed', language) || 'Update failed',
+      })
+
+      // Immediately refresh traders list to update status
+      await mutateTraders()
+    } catch (error) {
+      console.error('Failed to toggle competition visibility:', error)
+      toast.error(t('operationFailed', language))
     }
   }
 
@@ -686,7 +724,11 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     hyperliquidWalletAddr?: string,
     asterUser?: string,
     asterSigner?: string,
-    asterPrivateKey?: string
+    asterPrivateKey?: string,
+    lighterWalletAddr?: string,
+    lighterPrivateKey?: string,
+    lighterApiKeyPrivateKey?: string,
+    okxPassphrase?: string
   ) => {
     try {
       // 找到要配置的交易所（从supportedExchanges中）
@@ -716,6 +758,10 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                   asterUser,
                   asterSigner,
                   asterPrivateKey,
+                  lighterWalletAddr,
+                  lighterPrivateKey,
+                  lighterApiKeyPrivateKey,
+                  okxPassphrase,
                   enabled: true,
                 }
               : e
@@ -731,6 +777,10 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           asterUser,
           asterSigner,
           asterPrivateKey,
+          lighterWalletAddr,
+          lighterPrivateKey,
+          lighterApiKeyPrivateKey,
+          okxPassphrase,
           enabled: true,
         }
         updatedExchanges = [...(allExchanges || []), newExchange]
@@ -749,6 +799,10 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
               aster_user: exchange.asterUser || '',
               aster_signer: exchange.asterSigner || '',
               aster_private_key: exchange.asterPrivateKey || '',
+              lighter_wallet_addr: exchange.lighterWalletAddr || '',
+              lighter_private_key: exchange.lighterPrivateKey || '',
+              lighter_api_key_private_key: exchange.lighterApiKeyPrivateKey || '',
+              okx_passphrase: exchange.okxPassphrase || '',
             },
           ])
         ),
@@ -800,6 +854,45 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     }
   }
 
+  // Show loading skeleton when traders data is not yet loaded
+  if (traders === undefined) {
+    return (
+      <div className="space-y-4 md:space-y-6">
+        {/* Header Skeleton */}
+        <div className="binance-card p-6 animate-pulse">
+          <div className="skeleton h-8 w-48 mb-3"></div>
+          <div className="flex gap-4">
+            <div className="skeleton h-4 w-32"></div>
+            <div className="skeleton h-4 w-24"></div>
+            <div className="skeleton h-4 w-28"></div>
+          </div>
+        </div>
+        {/* Configuration Cards Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          {[1, 2].map((i) => (
+            <div key={i} className="binance-card p-3 md:p-4 animate-pulse">
+              <div className="skeleton h-6 w-32 mb-3"></div>
+              <div className="space-y-2 md:space-y-3">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="skeleton h-16 w-full"></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Traders List Skeleton */}
+        <div className="binance-card p-4 md:p-6 animate-pulse">
+          <div className="skeleton h-6 w-40 mb-4 md:mb-5"></div>
+          <div className="space-y-3 md:space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="skeleton h-20 w-full"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Header */}
@@ -808,11 +901,11 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           <div
             className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center"
             style={{
-              background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
-              boxShadow: '0 4px 14px rgba(240, 185, 11, 0.4)',
+              background: 'linear-gradient(135deg, #00CC66 0%, #00FF7F 100%)',
+              boxShadow: '0 4px 14px rgba(0, 255, 127, 0.4)',
             }}
           >
-            <Bot className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#000' }} />
+            <Bot className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--navy-primary)' }} />
           </div>
           <div>
             <h1
@@ -823,8 +916,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
               <span
                 className="text-xs font-normal px-2 py-1 rounded"
                 style={{
-                  background: 'rgba(240, 185, 11, 0.15)',
-                  color: '#F0B90B',
+                  background: 'rgba(0, 255, 127, 0.15)',
+                  color: '#00CC66',
                 }}
               >
                 {displayTraders?.length || 0} {t('active', language)}
@@ -841,7 +934,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             onClick={handleAddModel}
             className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
             style={{
-              background: '#2B3139',
+              background: 'var(--panel-border)',
               color: '#EAECEF',
               border: '1px solid #474D57',
             }}
@@ -854,7 +947,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             onClick={handleAddExchange}
             className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
             style={{
-              background: '#2B3139',
+              background: 'var(--panel-border)',
               color: '#EAECEF',
               border: '1px solid #474D57',
             }}
@@ -867,7 +960,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             onClick={() => setShowSignalSourceModal(true)}
             className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
             style={{
-              background: '#2B3139',
+              background: 'var(--panel-border)',
               color: '#EAECEF',
               border: '1px solid #474D57',
             }}
@@ -885,8 +978,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             style={{
               background:
                 configuredModels.length > 0 && configuredExchanges.length > 0
-                  ? '#F0B90B'
-                  : '#2B3139',
+                  ? '#00CC66'
+                  : 'var(--panel-border)',
               color:
                 configuredModels.length > 0 && configuredExchanges.length > 0
                   ? '#000'
@@ -937,8 +1030,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                 onClick={() => setShowSignalSourceModal(true)}
                 className="mt-3 px-3 py-1.5 rounded text-sm font-semibold transition-all hover:scale-105"
                 style={{
-                  background: '#F0B90B',
-                  color: '#000',
+                  background: '#00CC66',
+                  color: 'var(--navy-primary)',
                 }}
               >
                 {t('configureSignalSourceNow', language)}
@@ -972,7 +1065,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                       ? 'cursor-not-allowed'
                       : 'cursor-pointer hover:bg-gray-700'
                   }`}
-                  style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
                   onClick={() => handleModelClick(model.id)}
                 >
                   <div className="flex items-center gap-2 md:gap-3">
@@ -1037,7 +1130,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           >
             <Landmark
               className="w-4 h-4 md:w-5 md:h-5"
-              style={{ color: '#F0B90B' }}
+              style={{ color: '#00CC66' }}
             />
             {t('exchanges', language)}
           </h3>
@@ -1052,7 +1145,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                       ? 'cursor-not-allowed'
                       : 'cursor-pointer hover:bg-gray-700'
                   }`}
-                  style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
                   onClick={() => handleExchangeClick(exchange.id)}
                 >
                   <div className="flex items-center gap-2 md:gap-3">
@@ -1106,7 +1199,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           >
             <Users
               className="w-5 h-5 md:w-6 md:h-6"
-              style={{ color: '#F0B90B' }}
+              style={{ color: '#00CC66' }}
             />
             {t('currentTraders', language)}
           </h2>
@@ -1118,7 +1211,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
               <div
                 key={trader.trader_id}
                 className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 rounded transition-all hover:translate-y-[-1px] gap-3 md:gap-4"
-                style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+                style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
               >
                 <div className="flex items-center gap-3 md:gap-4">
                   <div
@@ -1152,6 +1245,14 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                       )}{' '}
                       Model • {trader.exchange_id?.toUpperCase()}
                     </div>
+                    {trader.system_prompt_template && (
+                      <div
+                        className="text-xs truncate mt-0.5"
+                        style={{ color: '#848E9C' }}
+                      >
+                        Strategy: {formatStrategyName(trader.system_prompt_template)}
+                      </div>
+                    )}
                     {/* Replication badges */}
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {trader.followed_trader_id && (
@@ -1227,8 +1328,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                       style={{
                         background: trader.is_running
                           ? 'rgba(132, 142, 156, 0.1)'
-                          : 'rgba(255, 193, 7, 0.1)',
-                        color: trader.is_running ? '#848E9C' : '#FFC107',
+                          : 'rgba(0, 255, 127, 0.1)',
+                        color: trader.is_running ? '#848E9C' : '#00FF7F',
                       }}
                     >
                       <Pencil className="w-3 h-3 md:w-4 md:h-4" />
@@ -1258,6 +1359,40 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                       {trader.is_running
                         ? t('stop', language)
                         : t('start', language)}
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        handleToggleCompetition(
+                          trader.trader_id,
+                          trader.show_in_competition ?? true
+                        )
+                      }
+                      className="px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 whitespace-nowrap flex items-center gap-1"
+                      style={
+                        trader.show_in_competition !== false
+                          ? {
+                              background: 'rgba(14, 203, 129, 0.1)',
+                              color: '#0ECB81',
+                            }
+                          : {
+                              background: 'rgba(132, 142, 156, 0.1)',
+                              color: '#848E9C',
+                            }
+                      }
+                      title={
+                        trader.show_in_competition !== false
+                          ? t('competitionVisibilityShown', language) ||
+                            'Visible in competition'
+                          : t('competitionVisibilityHidden', language) ||
+                            'Hidden from competition'
+                      }
+                    >
+                      {trader.show_in_competition !== false ? (
+                        <Eye className="w-3 h-3 md:w-4 md:h-4" />
+                      ) : (
+                        <EyeOff className="w-3 h-3 md:w-4 md:h-4" />
+                      )}
                     </button>
 
                     <button
@@ -1320,7 +1455,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             </div>
             {(configuredModels.length === 0 ||
               configuredExchanges.length === 0) && (
-              <div className="text-xs md:text-sm text-yellow-500">
+              <div className="text-xs md:text-sm text-green-500">
                 {configuredModels.length === 0 &&
                 configuredExchanges.length === 0
                   ? t('configureModelsAndExchangesFirst', language)
@@ -1431,7 +1566,7 @@ function Tooltip({
         <div
           className="absolute z-10 px-3 py-2 text-sm rounded-lg shadow-lg w-64 left-1/2 transform -translate-x-1/2 bottom-full mb-2"
           style={{
-            background: '#2B3139',
+            background: 'var(--panel-border)',
             color: '#EAECEF',
             border: '1px solid #474D57',
           }}
@@ -1444,7 +1579,7 @@ function Tooltip({
               height: 0,
               borderLeft: '6px solid transparent',
               borderRight: '6px solid transparent',
-              borderTop: '6px solid #2B3139',
+              borderTop: '6px solid var(--panel-border)',
             }}
           />
         </div>
@@ -1476,11 +1611,11 @@ function SignalSourceModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
       <div
         className="bg-gray-800 rounded-lg w-full max-w-lg relative my-8"
         style={{
-          background: '#1E2329',
+            background: 'var(--panel-bg)',
           maxHeight: 'calc(100vh - 4rem)',
         }}
       >
@@ -1507,8 +1642,8 @@ function SignalSourceModal({
                 placeholder="https://api.example.com/coinpool"
                 className="w-full px-3 py-2 rounded"
                 style={{
-                  background: '#0B0E11',
-                  border: '1px solid #2B3139',
+                  background: 'var(--navy-primary)',
+                  border: '1px solid var(--panel-border)',
                   color: '#EAECEF',
                 }}
               />
@@ -1531,8 +1666,8 @@ function SignalSourceModal({
                 placeholder="https://api.example.com/oitop"
                 className="w-full px-3 py-2 rounded"
                 style={{
-                  background: '#0B0E11',
-                  border: '1px solid #2B3139',
+                  background: 'var(--navy-primary)',
+                  border: '1px solid var(--panel-border)',
                   color: '#EAECEF',
                 }}
               />
@@ -1544,13 +1679,13 @@ function SignalSourceModal({
             <div
               className="p-4 rounded"
               style={{
-                background: 'rgba(240, 185, 11, 0.1)',
-                border: '1px solid rgba(240, 185, 11, 0.2)',
+                background: 'rgba(0, 255, 127, 0.1)',
+                border: '1px solid rgba(0, 255, 127, 0.2)',
               }}
             >
               <div
                 className="text-sm font-semibold mb-2"
-                style={{ color: '#F0B90B' }}
+                style={{ color: '#00CC66' }}
               >
                 ℹ️ {t('information', language)}
               </div>
@@ -1564,20 +1699,20 @@ function SignalSourceModal({
 
           <div
             className="flex gap-3 mt-6 pt-4 sticky bottom-0"
-            style={{ background: '#1E2329' }}
+            style={{ background: 'var(--panel-bg)' }}
           >
             <button
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2 rounded text-sm font-semibold"
-              style={{ background: '#2B3139', color: '#848E9C' }}
+              style={{ background: 'var(--panel-border)', color: '#848E9C' }}
             >
               {t('cancel', language)}
             </button>
             <button
               type="submit"
               className="flex-1 px-4 py-2 rounded text-sm font-semibold"
-              style={{ background: '#F0B90B', color: '#000' }}
+              style={{ background: '#00CC66', color: 'var(--navy-primary)' }}
             >
               {t('save', language)}
             </button>
@@ -1646,17 +1781,17 @@ function ModelConfigModal({
   const availableModels = allModels || []
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
       <div
         className="bg-gray-800 rounded-lg w-full max-w-lg relative my-8"
         style={{
-          background: '#1E2329',
+            background: 'var(--panel-bg)',
           maxHeight: 'calc(100vh - 4rem)',
         }}
       >
         <div
           className="flex items-center justify-between p-6 pb-4 sticky top-0 z-10"
-          style={{ background: '#1E2329' }}
+          style={{ background: 'var(--panel-bg)' }}
         >
           <h3 className="text-xl font-bold" style={{ color: '#EAECEF' }}>
             {editingModelId
@@ -1694,8 +1829,8 @@ function ModelConfigModal({
                   onChange={(e) => setSelectedModelId(e.target.value)}
                   className="w-full px-3 py-2 rounded"
                   style={{
-                    background: '#0B0E11',
-                    border: '1px solid #2B3139',
+                    background: 'var(--navy-primary)',
+                    border: '1px solid var(--panel-border)',
                     color: '#EAECEF',
                   }}
                   required
@@ -1713,7 +1848,7 @@ function ModelConfigModal({
             {selectedModel && (
               <div
                 className="p-4 rounded"
-                style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+                style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 flex items-center justify-center">
@@ -1763,8 +1898,8 @@ function ModelConfigModal({
                     placeholder={t('enterAPIKey', language)}
                     className="w-full px-3 py-2 rounded"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                     required
@@ -1785,8 +1920,8 @@ function ModelConfigModal({
                     placeholder={t('customBaseURLPlaceholder', language)}
                     className="w-full px-3 py-2 rounded"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                   />
@@ -1809,8 +1944,8 @@ function ModelConfigModal({
                     placeholder="例如: deepseek-chat, qwen3-max, gpt-5"
                     className="w-full px-3 py-2 rounded"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                   />
@@ -1822,13 +1957,13 @@ function ModelConfigModal({
                 <div
                   className="p-4 rounded"
                   style={{
-                    background: 'rgba(240, 185, 11, 0.1)',
-                    border: '1px solid rgba(240, 185, 11, 0.2)',
+                    background: 'rgba(0, 255, 127, 0.1)',
+                    border: '1px solid rgba(0, 255, 127, 0.2)',
                   }}
                 >
                   <div
                     className="text-sm font-semibold mb-2"
-                    style={{ color: '#F0B90B' }}
+                    style={{ color: '#00CC66' }}
                   >
                     ℹ️ {t('information', language)}
                   </div>
@@ -1847,13 +1982,13 @@ function ModelConfigModal({
 
           <div
             className="flex gap-3 mt-6 pt-4 sticky bottom-0"
-            style={{ background: '#1E2329' }}
+            style={{ background: 'var(--panel-bg)' }}
           >
             <button
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2 rounded text-sm font-semibold"
-              style={{ background: '#2B3139', color: '#848E9C' }}
+              style={{ background: 'var(--panel-border)', color: '#848E9C' }}
             >
               {t('cancel', language)}
             </button>
@@ -1861,7 +1996,7 @@ function ModelConfigModal({
               type="submit"
               disabled={!selectedModel || !apiKey.trim()}
               className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
-              style={{ background: '#F0B90B', color: '#000' }}
+              style={{ background: '#00CC66', color: 'var(--navy-primary)' }}
             >
               {t('saveConfig', language)}
             </button>
@@ -1891,7 +2026,11 @@ function ExchangeConfigModal({
     hyperliquidWalletAddr?: string,
     asterUser?: string,
     asterSigner?: string,
-    asterPrivateKey?: string
+    asterPrivateKey?: string,
+    lighterWalletAddr?: string,
+    lighterPrivateKey?: string,
+    lighterApiKeyPrivateKey?: string,
+    okxPassphrase?: string
   ) => Promise<void>
   onDelete: (exchangeId: string) => void
   onClose: () => void
@@ -1997,17 +2136,17 @@ function ExchangeConfigModal({
             setTimeout(() => setCopiedIP(false), 2000)
             toast.success(t('ipCopied', language))
           } else {
-            throw new Error('复制命令执行失败')
+            throw new Error('Copy command execution failed')
           }
         } finally {
           document.body.removeChild(textArea)
         }
       }
     } catch (err) {
-      console.error('复制失败:', err)
-      // 显示错误提示
+      console.error('Copy failed:', err)
+      // Show error notification
       toast.error(
-        t('copyIPFailed', language) || `复制失败: ${ip}\n请手动复制此IP地址`
+        t('copyIPFailed', language) || `Failed to copy: ${ip}\nPlease manually copy this IP address`
       )
     }
   }
@@ -2091,7 +2230,20 @@ function ExchangeConfigModal({
       )
     } else if (selectedExchange?.id === 'okx') {
       if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) return
-      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
+      await onSave(
+        selectedExchangeId,
+        apiKey.trim(),
+        secretKey.trim(),
+        testnet,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        passphrase.trim()
+      )
     } else {
       // 默认情况（其他CEX交易所）
       if (!apiKey.trim() || !secretKey.trim()) return
@@ -2103,17 +2255,17 @@ function ExchangeConfigModal({
   const availableExchanges = allExchanges || []
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
       <div
         className="bg-gray-800 rounded-lg w-full max-w-lg relative my-8"
         style={{
-          background: '#1E2329',
+            background: 'var(--panel-bg)',
           maxHeight: 'calc(100vh - 4rem)',
         }}
       >
         <div
           className="flex items-center justify-between p-6 pb-4 sticky top-0 z-10"
-          style={{ background: '#1E2329' }}
+          style={{ background: 'var(--panel-bg)' }}
         >
           <h3 className="text-xl font-bold" style={{ color: '#EAECEF' }}>
             {editingExchangeId
@@ -2127,8 +2279,8 @@ function ExchangeConfigModal({
                 onClick={() => setShowGuide(true)}
                 className="px-3 py-2 rounded text-sm font-semibold transition-all hover:scale-105 flex items-center gap-2"
                 style={{
-                  background: 'rgba(240, 185, 11, 0.1)',
-                  color: '#F0B90B',
+                  background: 'rgba(0, 255, 127, 0.1)',
+                  color: '#00CC66',
                 }}
               >
                 <BookOpen className="w-4 h-4" />
@@ -2162,7 +2314,7 @@ function ExchangeConfigModal({
                 <div className="space-y-2">
                   <div
                     className="text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: '#F0B90B' }}
+                    style={{ color: '#00CC66' }}
                   >
                     {t('environmentSteps.checkTitle', language)}
                   </div>
@@ -2175,7 +2327,7 @@ function ExchangeConfigModal({
                 <div className="space-y-2">
                   <div
                     className="text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: '#F0B90B' }}
+                    style={{ color: '#00CC66' }}
                   >
                     {t('environmentSteps.selectTitle', language)}
                   </div>
@@ -2184,12 +2336,12 @@ function ExchangeConfigModal({
                     onChange={(e) => setSelectedExchangeId(e.target.value)}
                     className="w-full px-3 py-2 rounded"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                     aria-label={t('selectExchange', language)}
-                    disabled={webCryptoStatus !== 'secure'}
+                    disabled={webCryptoStatus !== 'secure' && webCryptoStatus !== 'disabled'}
                     required
                   >
                     <option value="">
@@ -2209,7 +2361,7 @@ function ExchangeConfigModal({
             {selectedExchange && (
               <div
                 className="p-4 rounded"
-                style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+                style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 flex items-center justify-center">
@@ -2233,12 +2385,15 @@ function ExchangeConfigModal({
 
             {selectedExchange && (
               <>
-                {/* Binance/Bybit 和其他 CEX 交易所的字段 */}
+                {/* Binance/Bybit/OKX 和其他 CEX 交易所的字段 */}
                 {(selectedExchange.id === 'binance' ||
                   selectedExchange.id === 'bybit' ||
-                  selectedExchange.type === 'cex') &&
-                  selectedExchange.id !== 'hyperliquid' &&
-                  selectedExchange.id !== 'aster' && (
+                  selectedExchange.id === 'okx' ||
+                  (selectedExchange.type === 'cex' &&
+                    selectedExchange.id !== 'hyperliquid' &&
+                    selectedExchange.id !== 'aster' &&
+                    selectedExchange.id !== 'okx' &&
+                    selectedExchange.id !== 'lighter')) && (
                     <>
                       {/* 币安用户配置提示 (D1 方案) */}
                       {selectedExchange.id === 'binance' && (
@@ -2257,9 +2412,9 @@ function ExchangeConfigModal({
                                 className="text-sm font-medium"
                                 style={{ color: '#EAECEF' }}
                               >
-                                <strong>币安用户必读：</strong>
-                                使用「现货与合约交易」API，不要用「统一账户
-                                API」
+                                <strong>Binance Users Must Read:</strong>
+                                Use the 'Spot and Futures Trading' API, do not use the 'Unified Account
+                                API'
                               </span>
                             </div>
                             <span style={{ color: '#8b949e' }}>
@@ -2279,38 +2434,38 @@ function ExchangeConfigModal({
                               onClick={(e) => e.stopPropagation()}
                             >
                               <p className="mb-2" style={{ color: '#8b949e' }}>
-                                <strong>原因：</strong>统一账户 API
-                                权限结构不同，会导致订单提交失败
+                                <strong>Reason:</strong> The Unified Account API
+                                has a different permission structure, which will cause order submission to fail
                               </p>
 
                               <p
                                 className="font-semibold mb-1"
                                 style={{ color: '#EAECEF' }}
                               >
-                                正确配置步骤：
+                                Correct Configuration Steps:
                               </p>
                               <ol
                                 className="list-decimal list-inside space-y-1 mb-3"
                                 style={{ paddingLeft: '0.5rem' }}
                               >
                                 <li>
-                                  登录币安 → 个人中心 →{' '}
-                                  <strong>API 管理</strong>
+                                  Log in to Binance → Personal Center →{' '}
+                                  <strong>API Management</strong>
                                 </li>
                                 <li>
-                                  创建 API → 选择「
-                                  <strong>系统生成的 API 密钥</strong>」
+                                  Create API → Select '
+                                  <strong>System-generated API Key</strong>'
                                 </li>
                                 <li>
-                                  勾选「<strong>现货与合约交易</strong>」（
+                                  Check '<strong>Spot and Futures Trading</strong>' (
                                   <span style={{ color: '#f85149' }}>
-                                    不选统一账户
+                                    do not select Unified Account
                                   </span>
-                                  ）
+                                  )
                                 </li>
                                 <li>
-                                  IP 限制选「<strong>无限制</strong>
-                                  」或添加服务器 IP
+                                  IP Restriction: Select '<strong>Unrestricted</strong>
+                                  ' or add server IP
                                 </li>
                               </ol>
 
@@ -2321,18 +2476,18 @@ function ExchangeConfigModal({
                                   border: '1px solid #9e6a03',
                                 }}
                               >
-                                💡 <strong>多资产模式用户注意：</strong>
-                                如果您开启了多资产模式，将强制使用全仓模式。建议关闭多资产模式以支持逐仓交易。
+                                💡 <strong>Multi-Asset Mode Users Note:</strong>
+                                If you have enabled Multi-Asset Mode, it will force the use of Cross Margin mode. It is recommended to disable Multi-Asset Mode to support Isolated Margin trading.
                               </p>
 
                               <a
-                                href="https://www.binance.com/zh-CN/support/faq/how-to-create-api-keys-on-binance-360002502072"
+                                href="https://www.binance.com/en/support/faq/how-to-create-api-keys-on-binance-360002502072"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-block text-sm hover:underline"
                                 style={{ color: '#58a6ff' }}
                               >
-                                📖 查看币安官方教程 ↗
+                                📖 View Binance Official Tutorial ↗
                               </a>
                             </div>
                           )}
@@ -2353,8 +2508,8 @@ function ExchangeConfigModal({
                           placeholder={t('enterAPIKey', language)}
                           className="w-full px-3 py-2 rounded"
                           style={{
-                            background: '#0B0E11',
-                            border: '1px solid #2B3139',
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--panel-border)',
                             color: '#EAECEF',
                           }}
                           required
@@ -2375,8 +2530,8 @@ function ExchangeConfigModal({
                           placeholder={t('enterSecretKey', language)}
                           className="w-full px-3 py-2 rounded"
                           style={{
-                            background: '#0B0E11',
-                            border: '1px solid #2B3139',
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--panel-border)',
                             color: '#EAECEF',
                           }}
                           required
@@ -2398,8 +2553,8 @@ function ExchangeConfigModal({
                             placeholder={t('enterPassphrase', language)}
                             className="w-full px-3 py-2 rounded"
                             style={{
-                              background: '#0B0E11',
-                              border: '1px solid #2B3139',
+                              background: 'var(--navy-primary)',
+                              border: '1px solid var(--panel-border)',
                               color: '#EAECEF',
                             }}
                             required
@@ -2412,13 +2567,13 @@ function ExchangeConfigModal({
                         <div
                           className="p-4 rounded"
                           style={{
-                            background: 'rgba(240, 185, 11, 0.1)',
-                            border: '1px solid rgba(240, 185, 11, 0.2)',
+                            background: 'rgba(0, 255, 127, 0.1)',
+                            border: '1px solid rgba(0, 255, 127, 0.2)',
                           }}
                         >
                           <div
                             className="text-sm font-semibold mb-2"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: '#00CC66' }}
                           >
                             {t('whitelistIP', language)}
                           </div>
@@ -2439,11 +2594,11 @@ function ExchangeConfigModal({
                           ) : serverIP && serverIP.public_ip ? (
                             <div
                               className="flex items-center gap-2 p-2 rounded"
-                              style={{ background: '#0B0E11' }}
+                              style={{ background: 'var(--navy-primary)' }}
                             >
                               <code
                                 className="flex-1 text-sm font-mono"
-                                style={{ color: '#F0B90B' }}
+                                style={{ color: '#00CC66' }}
                               >
                                 {serverIP.public_ip}
                               </code>
@@ -2452,8 +2607,8 @@ function ExchangeConfigModal({
                                 onClick={() => handleCopyIP(serverIP.public_ip)}
                                 className="px-3 py-1 rounded text-xs font-semibold transition-all hover:scale-105"
                                 style={{
-                                  background: 'rgba(240, 185, 11, 0.2)',
-                                  color: '#F0B90B',
+                                  background: 'rgba(0, 255, 127, 0.2)',
+                                  color: '#00CC66',
                                 }}
                               >
                                 {copiedIP
@@ -2479,7 +2634,7 @@ function ExchangeConfigModal({
                         <Tooltip content={t('asterUserDesc', language)}>
                           <HelpCircle
                             className="w-4 h-4 cursor-help"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: '#00CC66' }}
                           />
                         </Tooltip>
                       </label>
@@ -2490,8 +2645,8 @@ function ExchangeConfigModal({
                         placeholder={t('enterUser', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -2507,7 +2662,7 @@ function ExchangeConfigModal({
                         <Tooltip content={t('asterSignerDesc', language)}>
                           <HelpCircle
                             className="w-4 h-4 cursor-help"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: '#00CC66' }}
                           />
                         </Tooltip>
                       </label>
@@ -2518,8 +2673,8 @@ function ExchangeConfigModal({
                         placeholder={t('enterSigner', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -2535,7 +2690,7 @@ function ExchangeConfigModal({
                         <Tooltip content={t('asterPrivateKeyDesc', language)}>
                           <HelpCircle
                             className="w-4 h-4 cursor-help"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: '#00CC66' }}
                           />
                         </Tooltip>
                       </label>
@@ -2546,8 +2701,8 @@ function ExchangeConfigModal({
                         placeholder={t('enterPrivateKey', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -2563,18 +2718,18 @@ function ExchangeConfigModal({
                     <div
                       className="p-3 rounded mb-4"
                       style={{
-                        background: 'rgba(240, 185, 11, 0.1)',
-                        border: '1px solid rgba(240, 185, 11, 0.3)',
+                        background: 'rgba(0, 255, 127, 0.1)',
+                        border: '1px solid rgba(0, 255, 127, 0.3)',
                       }}
                     >
                       <div className="flex items-start gap-2">
-                        <span style={{ color: '#F0B90B', fontSize: '16px' }}>
+                        <span style={{ color: '#00CC66', fontSize: '16px' }}>
                           🔐
                         </span>
                         <div className="flex-1">
                           <div
                             className="text-sm font-semibold mb-1"
-                            style={{ color: '#F0B90B' }}
+                            style={{ color: '#00CC66' }}
                           >
                             {t('hyperliquidAgentWalletTitle', language)}
                           </div>
@@ -2608,8 +2763,8 @@ function ExchangeConfigModal({
                             )}
                             className="w-full px-3 py-2 rounded"
                             style={{
-                              background: '#0B0E11',
-                              border: '1px solid #2B3139',
+                              background: 'var(--navy-primary)',
+                              border: '1px solid var(--panel-border)',
                               color: '#EAECEF',
                             }}
                           />
@@ -2618,8 +2773,8 @@ function ExchangeConfigModal({
                             onClick={() => setSecureInputTarget('hyperliquid')}
                             className="px-3 py-2 rounded text-xs font-semibold transition-all hover:scale-105"
                             style={{
-                              background: '#F0B90B',
-                              color: '#000',
+                              background: '#00CC66',
+                              color: 'var(--navy-primary)',
                               whiteSpace: 'nowrap',
                             }}
                           >
@@ -2676,8 +2831,8 @@ function ExchangeConfigModal({
                         )}
                         className="w-full px-3 py-2 rounded"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -2697,13 +2852,13 @@ function ExchangeConfigModal({
 
           <div
             className="flex gap-3 mt-6 pt-4 sticky bottom-0"
-            style={{ background: '#1E2329' }}
+            style={{ background: 'var(--panel-bg)' }}
           >
             <button
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2 rounded text-sm font-semibold"
-              style={{ background: '#2B3139', color: '#848E9C' }}
+              style={{ background: 'var(--panel-border)', color: '#848E9C' }}
             >
               {t('cancel', language)}
             </button>
@@ -2734,7 +2889,7 @@ function ExchangeConfigModal({
                   (!apiKey.trim() || !secretKey.trim()))
               }
               className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
-              style={{ background: '#F0B90B', color: '#000' }}
+              style={{ background: '#00CC66', color: 'var(--navy-primary)' }}
             >
               {t('saveConfig', language)}
             </button>
@@ -2745,12 +2900,13 @@ function ExchangeConfigModal({
       {/* Binance Setup Guide Modal */}
       {showGuide && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          style={{ background: 'rgba(0, 31, 63, 0.75)' }}
           onClick={() => setShowGuide(false)}
         >
           <div
             className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl relative"
-            style={{ background: '#1E2329' }}
+            style={{ background: 'var(--panel-bg)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -2758,13 +2914,13 @@ function ExchangeConfigModal({
                 className="text-xl font-bold flex items-center gap-2"
                 style={{ color: '#EAECEF' }}
               >
-                <BookOpen className="w-6 h-6" style={{ color: '#F0B90B' }} />
+                <BookOpen className="w-6 h-6" style={{ color: '#00CC66' }} />
                 {t('binanceSetupGuide', language)}
               </h3>
               <button
                 onClick={() => setShowGuide(false)}
                 className="px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
-                style={{ background: '#2B3139', color: '#848E9C' }}
+                style={{ background: 'var(--panel-border)', color: '#848E9C' }}
               >
                 {t('closeGuide', language)}
               </button>

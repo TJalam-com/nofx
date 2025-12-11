@@ -195,7 +195,7 @@ export default function AdminTraderApplicationsPage() {
     switch (status) {
       case 'pending':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
             <Clock className="w-3 h-3" />
             Pending
           </span>
@@ -251,7 +251,7 @@ export default function AdminTraderApplicationsPage() {
             disabled={applicationsLoading}
             className="px-4 py-2 rounded-lg border font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
             style={{
-              background: 'var(--panel-bg)',
+              background: 'var(--navy-dark)',
               borderColor: 'var(--panel-border)',
               color: 'var(--text-primary)',
             }}
@@ -305,7 +305,7 @@ export default function AdminTraderApplicationsPage() {
         <div
           className="text-center py-12 rounded-lg border"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             borderColor: 'var(--panel-border)',
           }}
         >
@@ -331,7 +331,7 @@ export default function AdminTraderApplicationsPage() {
                 key={app.id}
                 className="rounded-lg border p-4"
                 style={{
-                  background: 'var(--panel-bg)',
+                  background: 'var(--navy-dark)',
                   borderColor: 'var(--panel-border)',
                 }}
               >
@@ -388,7 +388,7 @@ export default function AdminTraderApplicationsPage() {
                             disabled={isRejecting || app.status !== 'pending'}
                             className="px-4 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border"
                             style={{
-                              background: 'var(--panel-bg)',
+                              background: 'var(--navy-dark)',
                               borderColor: 'var(--panel-border)',
                               color: 'var(--text-primary)',
                             }}
@@ -403,7 +403,7 @@ export default function AdminTraderApplicationsPage() {
                       onClick={() => toggleExpand(app.id)}
                       className="p-2 rounded-lg border transition-colors"
                       style={{
-                        background: 'var(--panel-bg)',
+                        background: 'var(--navy-dark)',
                         borderColor: 'var(--panel-border)',
                         color: 'var(--text-primary)',
                       }}
@@ -457,7 +457,7 @@ export default function AdminTraderApplicationsPage() {
                               rel="noopener noreferrer"
                               className="text-sm px-3 py-1 rounded border transition-colors hover:opacity-80"
                               style={{
-                                background: 'var(--panel-bg)',
+                                background: 'var(--navy-dark)',
                                 borderColor: 'var(--panel-border)',
                                 color: 'var(--green-primary)',
                               }}
@@ -488,7 +488,7 @@ export default function AdminTraderApplicationsPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-6 px-4 py-3 rounded-lg border" style={{ 
-              background: 'var(--panel-bg)',
+              background: 'var(--navy-dark)',
               borderColor: 'var(--panel-border)',
             }}>
               <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -500,7 +500,7 @@ export default function AdminTraderApplicationsPage() {
                   disabled={currentPage === 1}
                   className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                   style={{
-                    background: 'var(--panel-bg)',
+                    background: 'var(--navy-dark)',
                     borderColor: 'var(--panel-border)',
                     color: 'var(--text-primary)',
                   }}
@@ -528,7 +528,7 @@ export default function AdminTraderApplicationsPage() {
                           currentPage === pageNum ? 'border-2' : 'border'
                         }`}
                         style={{
-                          background: currentPage === pageNum ? 'var(--green-primary)' : 'var(--panel-bg)',
+                          background: currentPage === pageNum ? 'var(--green-primary)' : 'var(--navy-dark)',
                           borderColor: currentPage === pageNum ? 'var(--green-primary)' : 'var(--panel-border)',
                           color: currentPage === pageNum ? 'var(--navy-primary)' : 'var(--text-primary)',
                         }}
@@ -543,7 +543,7 @@ export default function AdminTraderApplicationsPage() {
                   disabled={currentPage === totalPages}
                   className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                   style={{
-                    background: 'var(--panel-bg)',
+                    background: 'var(--navy-dark)',
                     borderColor: 'var(--panel-border)',
                     color: 'var(--text-primary)',
                   }}
@@ -559,11 +559,11 @@ export default function AdminTraderApplicationsPage() {
 
       {/* Reject Modal */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
           <div
             className="max-w-md w-full rounded-lg p-6 border"
             style={{
-              background: 'var(--panel-bg)',
+              background: 'var(--navy-dark)',
               borderColor: 'var(--panel-border)',
             }}
           >
@@ -599,7 +599,7 @@ export default function AdminTraderApplicationsPage() {
                 }}
                 className="px-4 py-2 rounded-lg border font-semibold transition-colors"
                 style={{
-                  background: 'var(--panel-bg)',
+                  background: 'var(--navy-dark)',
                   borderColor: 'var(--panel-border)',
                   color: 'var(--text-primary)',
                 }}

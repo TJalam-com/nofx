@@ -59,12 +59,12 @@ export function LeaderSpotlight({ leader, allTraders, onViewDetails }: LeaderSpo
                 : '0 4px 16px rgba(246, 70, 93, 0.4)',
             }}
           >
-            <Trophy className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#000' }} />
+            <Trophy className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--navy-primary)' }} />
             <div
               className="absolute -top-1 -right-1 w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center text-xs font-bold"
               style={{
                 background: 'var(--gold-primary)',
-                color: '#000',
+                color: 'var(--navy-primary)',
                 boxShadow: '0 2px 8px rgba(255, 215, 0, 0.5)',
               }}
             >

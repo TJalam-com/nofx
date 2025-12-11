@@ -15,7 +15,7 @@ function TestimonialCard({ quote, authorName, delay }: CardProps) {
     <motion.div
       className="p-6 rounded-xl"
       style={{
-        background: 'var(--brand-dark-gray)',
+        background: 'var(--navy-dark)',
         border: '1px solid rgba(240, 185, 11, 0.1)',
       }}
       initial={{ opacity: 0, y: 20 }}

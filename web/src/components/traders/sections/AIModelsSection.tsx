@@ -37,7 +37,7 @@ export function AIModelsSection({
                   ? 'cursor-not-allowed'
                   : 'cursor-pointer hover:bg-gray-700'
               }`}
-              style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+              style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
               onClick={() => onModelClick(model.id)}
             >
               <div className="flex items-center gap-2 md:gap-3">
@@ -65,6 +65,11 @@ export function AIModelsSection({
                   >
                     {getShortName(model.name)}
                   </div>
+                  {model.customModelName && (
+                    <div className="text-xs mt-0.5" style={{ color: '#848E9C' }}>
+                      {model.customModelName}
+                    </div>
+                  )}
                   <div className="text-xs" style={{ color: '#848E9C' }}>
                     {inUse
                       ? t('inUse', language)

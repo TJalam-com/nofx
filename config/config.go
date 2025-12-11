@@ -41,7 +41,8 @@ type Config struct {
 	Leverage           LeverageConfig `json:"leverage"`
 	JWTSecret          string         `json:"jwt_secret"`
 	DataKLineTime      string         `json:"data_k_line_time"`
-	Log                *LogConfig     `json:"log"` // Logging configuration
+	KlineCount         int            `json:"kline_count"` // Number of klines to include in AI prompts (default: 10)
+	Log                *LogConfig     `json:"log"`         // Logging configuration
 }
 
 // LoadConfig Loads configuration from file

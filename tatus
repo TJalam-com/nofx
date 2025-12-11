@@ -1,0 +1,63 @@
+api/server.go:87: leftover conflict marker
+api/server.go:89: leftover conflict marker
+api/server.go:91: leftover conflict marker
+api/server.go:96: leftover conflict marker
+api/server.go:101: leftover conflict marker
+api/server.go:106: leftover conflict marker
+api/server.go:114: leftover conflict marker
+api/server.go:116: leftover conflict marker
+api/server.go:118: leftover conflict marker
+api/server.go:134: leftover conflict marker
+api/server.go:139: leftover conflict marker
+api/server.go:144: leftover conflict marker
+config/database.go:673: leftover conflict marker
+config/database.go:676: leftover conflict marker
+config/database.go:679: leftover conflict marker
+config/database.go:690: leftover conflict marker
+config/database.go:695: leftover conflict marker
+config/database.go:699: leftover conflict marker
+main.go:27: leftover conflict marker
+main.go:48: leftover conflict marker
+main.go:51: leftover conflict marker
+main.go:196: leftover conflict marker
+main.go:206: leftover conflict marker
+main.go:209: leftover conflict marker
+main.go:228: leftover conflict marker
+main.go:240: leftover conflict marker
+main.go:244: leftover conflict marker
+main.go:392: leftover conflict marker
+main.go:404: leftover conflict marker
+main.go:410: leftover conflict marker
+main.go:418: leftover conflict marker
+main.go:420: leftover conflict marker
+main.go:422: leftover conflict marker
+trader/auto_trader.go:21: leftover conflict marker
+trader/auto_trader.go:41: leftover conflict marker
+trader/auto_trader.go:43: leftover conflict marker
+trader/auto_trader.go:287: leftover conflict marker
+trader/auto_trader.go:290: leftover conflict marker
+trader/auto_trader.go:293: leftover conflict marker
+web/index.html:6: trailing whitespace.
+[32m+[m[41m    [m
+web/index.html:9: trailing whitespace.
+[32m+[m[41m    [m
+web/index.html:12: trailing whitespace.
+[32m+[m[41m    [m
+web/index.html:21: leftover conflict marker
+web/index.html:23: leftover conflict marker
+web/index.html:24: leftover conflict marker
+web/src/components/faq/FAQLayout.tsx:129: leftover conflict marker
+web/src/components/faq/FAQLayout.tsx:130: leftover conflict marker
+web/src/components/faq/FAQLayout.tsx:132: leftover conflict marker
+web/src/layouts/AuthLayout.tsx:6: leftover conflict marker
+web/src/layouts/AuthLayout.tsx:7: leftover conflict marker
+web/src/layouts/AuthLayout.tsx:9: leftover conflict marker
+web/src/layouts/AuthLayout.tsx:16: leftover conflict marker
+web/src/layouts/AuthLayout.tsx:18: leftover conflict marker
+web/src/layouts/AuthLayout.tsx:20: leftover conflict marker
+web/src/layouts/AuthLayout.tsx:27: leftover conflict marker
+web/src/layouts/AuthLayout.tsx:29: leftover conflict marker
+web/src/layouts/AuthLayout.tsx:31: leftover conflict marker
+web/src/main.tsx:76: leftover conflict marker
+web/src/main.tsx:95: leftover conflict marker
+web/src/main.tsx:114: leftover conflict marker

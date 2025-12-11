@@ -81,6 +81,7 @@ export interface DecisionRecord {
   execution_log: string[]
   success: boolean
   error_message: string
+  raw_response?: string // Raw AI response for debugging parse failures
 }
 
 // 统计信息

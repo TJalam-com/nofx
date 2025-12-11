@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Copy, Check, Send, AlertCircle } from 'lucide-react'
 import { api } from '../lib/api'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth, isFollower } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { api as traderApi } from '../lib/api'
 import { t } from '../i18n/translations'
@@ -38,11 +38,11 @@ export default function WebhookPage() {
   "action": "sell",
   "exchange": "BINANCE(FUTURE)",
   "pricetype": "LIMIT",
-  "quantity": "900",
-  "position_size": "-900",
-  "entry": "85.25",
-  "sl": "90.5",
-  "tp": "74.75"
+  "quantity": "0.015",
+  "position_size": "-0.015",
+  "entry": "131.29",
+  "sl": "140",
+  "tp": "120"
 }`)
   const [testResult, setTestResult] = useState<string>('')
   const [isTesting, setIsTesting] = useState(false)
@@ -51,7 +51,8 @@ export default function WebhookPage() {
   const [traders, setTraders] = useState<TraderInfo[]>([])
 
   useEffect(() => {
-    if (user && token) {
+    // Only load data if user is not a follower
+    if (user && token && !isFollower(user)) {
       loadWebhookInfo()
       loadTraders()
       loadRecentAlerts()
@@ -59,6 +60,10 @@ export default function WebhookPage() {
   }, [user, token])
 
   const loadWebhookInfo = async () => {
+    // Skip if user is a follower
+    if (isFollower(user)) {
+      return
+    }
     try {
       const info = await api.getWebhookInfo()
       setWebhookInfo(info)
@@ -74,6 +79,10 @@ export default function WebhookPage() {
         }
       })
     } catch (error) {
+      // Silently handle 403 errors for followers
+      if (error instanceof Error && error.message === 'Permission denied') {
+        return
+      }
       console.error('Failed to load webhook info:', error)
     }
   }
@@ -91,18 +100,27 @@ export default function WebhookPage() {
   }
 
   const loadRecentAlerts = async () => {
+    // Skip if user is a follower
+    if (isFollower(user)) {
+      return
+    }
     try {
       const alerts = await api.getRecentAlerts(
         selectedTraderId || undefined
       )
       setRecentAlerts(alerts)
     } catch (error) {
+      // Silently handle 403 errors for followers
+      if (error instanceof Error && error.message === 'Permission denied') {
+        return
+      }
       console.error('Failed to load alerts:', error)
     }
   }
 
   useEffect(() => {
-    if (selectedTraderId) {
+    // Only load alerts if user is not a follower
+    if (selectedTraderId && !isFollower(user)) {
       loadRecentAlerts()
       // 更新测试payload中的trader_id
       setTestPayload((prevPayload) => {
@@ -115,7 +133,7 @@ export default function WebhookPage() {
         }
       })
     }
-  }, [selectedTraderId])
+  }, [selectedTraderId, user])
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -173,6 +191,23 @@ export default function WebhookPage() {
     )
   }
 
+  // Show access denied message for followers
+  if (isFollower(user)) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <AlertCircle className="mx-auto mb-4 opacity-50" size={48} style={{ color: 'var(--text-secondary)' }} />
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {t('webhookPage.accessDenied', language) || 'Access Restricted'}
+          </h2>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            {t('webhookPage.followerRestriction', language) || 'This feature is only available to traders. Please upgrade your account to access webhook management.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -192,7 +227,7 @@ export default function WebhookPage() {
                 readOnly
                 className="flex-1 rounded px-3 py-2 text-sm"
                 style={{
-                  background: 'var(--panel-bg)',
+                  background: 'var(--navy-dark)',
                   border: '1px solid var(--panel-border)',
                   color: 'var(--text-primary)'
                 }}
@@ -201,11 +236,11 @@ export default function WebhookPage() {
                 onClick={() => webhookInfo && handleCopy(webhookInfo.webhook_url)}
                 className="px-4 py-2 rounded flex items-center gap-2 transition-colors"
                 style={{
-                  background: 'var(--panel-border)',
+                  background: 'var(--navy-dark)',
                   color: 'var(--text-primary)'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--panel-bg-hover)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--panel-border)'}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--navy-light)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--navy-dark)'}
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
@@ -220,7 +255,7 @@ export default function WebhookPage() {
                 readOnly
                 className="flex-1 rounded px-3 py-2 text-sm font-mono"
                 style={{
-                  background: 'var(--panel-bg)',
+                  background: 'var(--navy-dark)',
                   border: '1px solid var(--panel-border)',
                   color: 'var(--text-primary)'
                 }}
@@ -229,11 +264,11 @@ export default function WebhookPage() {
                 onClick={() => webhookInfo && handleCopy(webhookInfo.api_key)}
                 className="px-4 py-2 rounded flex items-center gap-2 transition-colors"
                 style={{
-                  background: 'var(--panel-border)',
+                  background: 'var(--navy-dark)',
                   color: 'var(--text-primary)'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--panel-bg-hover)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--panel-border)'}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--navy-light)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--navy-dark)'}
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
@@ -265,7 +300,7 @@ export default function WebhookPage() {
               }}
               className="w-full rounded px-3 py-2"
               style={{
-                background: 'var(--panel-bg)',
+                background: 'var(--navy-dark)',
                 border: '1px solid var(--panel-border)',
                 color: 'var(--text-primary)'
               }}
@@ -285,7 +320,7 @@ export default function WebhookPage() {
               onChange={(e) => setTestPayload(e.target.value)}
               className="w-full h-64 rounded px-3 py-2 font-mono text-sm"
               style={{
-                background: 'var(--panel-bg)',
+                background: 'var(--navy-dark)',
                 border: '1px solid var(--panel-border)',
                 color: 'var(--text-primary)'
               }}
@@ -302,7 +337,7 @@ export default function WebhookPage() {
           </button>
           {testResult && (
             <div className="mt-4 p-4 rounded" style={{
-              background: 'var(--panel-bg)',
+              background: 'var(--navy-dark)',
               border: '1px solid var(--panel-border)'
             }}>
               <pre className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>{testResult}</pre>
@@ -320,7 +355,7 @@ export default function WebhookPage() {
             onChange={(e) => setSelectedTraderId(e.target.value)}
             className="rounded px-3 py-1 text-sm"
             style={{
-              background: 'var(--panel-bg)',
+              background: 'var(--navy-dark)',
               border: '1px solid var(--panel-border)',
               color: 'var(--text-primary)'
             }}

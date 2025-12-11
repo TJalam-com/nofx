@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/elliottech/lighter-go/types"
@@ -238,6 +239,108 @@ func (t *LighterTraderV2) CreateOrder(symbol string, isAsk bool, quantity float6
 	log.Printf("✓ LIGHTER訂單已創建: %s %s qty=%.4f", symbol, side, quantity)
 
 	return orderResp, nil
+}
+
+// GetOrderStatus Get order status from Lighter V2 API
+func (t *LighterTraderV2) GetOrderStatus(symbol string, orderID string) (map[string]interface{}, error) {
+	if err := t.ensureAuthToken(); err != nil {
+		return nil, fmt.Errorf("認證令牌無效: %w", err)
+	}
+
+	// Query order by order ID
+	endpoint := fmt.Sprintf("%s/api/v1/order/%s", t.baseURL, orderID)
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("創建請求失敗: %w", err)
+	}
+
+	// Add authentication header
+	t.accountMutex.RLock()
+	req.Header.Set("Authorization", t.authToken)
+	t.accountMutex.RUnlock()
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := t.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("請求失敗: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("讀取響應失敗: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("獲取訂單狀態失敗 (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var apiResp struct {
+		Code    int                    `json:"code"`
+		Message string                 `json:"message"`
+		Data    map[string]interface{} `json:"data"`
+	}
+
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return nil, fmt.Errorf("解析響應失敗: %w, body: %s", err, string(body))
+	}
+
+	if apiResp.Code != 200 {
+		return nil, fmt.Errorf("獲取訂單狀態失敗 (code %d): %s", apiResp.Code, apiResp.Message)
+	}
+
+	order := apiResp.Data
+
+	// Extract order details
+	avgPrice := 0.0
+	if val, ok := order["avg_price"]; ok {
+		if f, ok := val.(float64); ok {
+			avgPrice = f
+		} else if s, ok := val.(string); ok {
+			avgPrice, _ = strconv.ParseFloat(s, 64)
+		}
+	}
+	executedQty := 0.0
+	if val, ok := order["filled_quantity"]; ok {
+		if f, ok := val.(float64); ok {
+			executedQty = f
+		} else if s, ok := val.(string); ok {
+			executedQty, _ = strconv.ParseFloat(s, 64)
+		}
+	}
+	commission := 0.0
+	if val, ok := order["fee"]; ok {
+		if f, ok := val.(float64); ok {
+			commission = f
+		} else if s, ok := val.(string); ok {
+			commission, _ = strconv.ParseFloat(s, 64)
+		}
+	}
+	status, _ := order["status"].(string)
+
+	// Map Lighter status to standard status
+	if status == "filled" || status == "FILLED" {
+		status = "FILLED"
+	} else if status == "partially_filled" || status == "PARTIALLY_FILLED" {
+		status = "PARTIALLY_FILLED"
+	} else if status == "open" || status == "OPEN" || status == "pending" {
+		status = "NEW"
+	} else if status == "cancelled" || status == "CANCELLED" {
+		status = "CANCELED"
+	}
+
+	return map[string]interface{}{
+		"orderId":     orderID,
+		"symbol":      symbol,
+		"status":      status,
+		"avgPrice":    avgPrice,
+		"executedQty": executedQty,
+		"commission":  commission,
+		"side":        order["side"],
+		"type":        order["order_type"],
+	}, nil
 }
 
 // SendTxRequest 發送交易請求

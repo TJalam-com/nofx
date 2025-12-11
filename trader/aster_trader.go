@@ -25,29 +25,29 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// AsterTrader Aster交易平台实现
+// AsterTrader Aster exchange platform implementation
 type AsterTrader struct {
 	ctx        context.Context
-	user       string            // 主钱包地址 (ERC20)
-	signer     string            // API钱包地址
-	privateKey *ecdsa.PrivateKey // API钱包私钥
+	user       string            // Main wallet address (ERC20)
+	signer     string            // API wallet address
+	privateKey *ecdsa.PrivateKey // API wallet private key
 	client     *http.Client
 	baseURL    string
 
-	// 缓存交易对精度信息
+	// Cache trading pair precision information
 	symbolPrecision map[string]SymbolPrecision
 	mu              sync.RWMutex
 }
 
-// SymbolPrecision 交易对精度信息
+// SymbolPrecision trading pair precision information
 type SymbolPrecision struct {
 	PricePrecision    int
 	QuantityPrecision int
-	TickSize          float64 // 价格步进值
-	StepSize          float64 // 数量步进值
+	TickSize          float64 // Price step size
+	StepSize          float64 // Quantity step size
 }
 
-// NewAsterTrader 创建Aster交易器
+// NewAsterTrader creates Aster trader
 // user: 主钱包地址 (登录地址)
 // signer: API钱包地址 (从 https://www.asterdex.com/en/api-wallet 获取)
 // privateKey: API钱包私钥 (从 https://www.asterdex.com/en/api-wallet 获取)
@@ -197,19 +197,19 @@ func (t *AsterTrader) formatQuantity(symbol string, quantity float64) (float64, 
 	return math.Round(quantity*multiplier) / multiplier, nil
 }
 
-// formatFloatWithPrecision 将浮点数格式化为指定精度的字符串（去除末尾的0）
+// formatFloatWithPrecision formats float64 to string with specified precision (removes trailing zeros)
 func (t *AsterTrader) formatFloatWithPrecision(value float64, precision int) string {
-	// 使用指定精度格式化
+	// Format with specified precision
 	formatted := strconv.FormatFloat(value, 'f', precision, 64)
 
-	// 去除末尾的0和小数点（如果有）
+	// Remove trailing zeros and decimal point (if any)
 	formatted = strings.TrimRight(formatted, "0")
 	formatted = strings.TrimRight(formatted, ".")
 
 	return formatted
 }
 
-// normalizeAndStringify 对参数进行规范化并序列化为JSON字符串（按key排序）
+// normalizeAndStringify normalizes parameters and serializes to JSON string (sorted by key)
 func (t *AsterTrader) normalizeAndStringify(params map[string]interface{}) (string, error) {
 	normalized, err := t.normalize(params)
 	if err != nil {
@@ -222,7 +222,7 @@ func (t *AsterTrader) normalizeAndStringify(params map[string]interface{}) (stri
 	return string(bs), nil
 }
 
-// normalize 递归规范化参数（按key排序，所有值转为字符串）
+// normalize recursively normalizes parameters (sorted by key, all values converted to string)
 func (t *AsterTrader) normalize(v interface{}) (interface{}, error) {
 	switch val := v.(type) {
 	case map[string]interface{}:
@@ -261,24 +261,24 @@ func (t *AsterTrader) normalize(v interface{}) (interface{}, error) {
 	case bool:
 		return fmt.Sprintf("%v", val), nil
 	default:
-		// 其他类型转为字符串
+		// Convert other types to string
 		return fmt.Sprintf("%v", val), nil
 	}
 }
 
-// sign 对请求参数进行签名
+// sign signs request parameters
 func (t *AsterTrader) sign(params map[string]interface{}, nonce uint64) error {
-	// 添加时间戳和接收窗口
+	// Add timestamp and receive window
 	params["recvWindow"] = "50000"
 	params["timestamp"] = strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 
-	// 规范化参数为JSON字符串
+	// Normalize parameters to JSON string
 	jsonStr, err := t.normalizeAndStringify(params)
 	if err != nil {
 		return err
 	}
 
-	// ABI编码: (string, address, address, uint256)
+	// ABI encoding: (string, address, address, uint256)
 	addrUser := common.HexToAddress(t.user)
 	addrSigner := common.HexToAddress(t.signer)
 	nonceBig := new(big.Int).SetUint64(nonce)
@@ -296,10 +296,10 @@ func (t *AsterTrader) sign(params map[string]interface{}, nonce uint64) error {
 
 	packed, err := arguments.Pack(jsonStr, addrUser, addrSigner, nonceBig)
 	if err != nil {
-		return fmt.Errorf("ABI编码失败: %w", err)
+		return fmt.Errorf("ABI encoding failed: %w", err)
 	}
 
-	// Keccak256哈希
+	// Keccak256 hash
 	hash := crypto.Keccak256(packed)
 
 	// 以太坊签名消息前缀
@@ -1220,6 +1220,62 @@ func (t *AsterTrader) CancelStopOrders(symbol string) error {
 	}
 
 	return nil
+}
+
+// GetOrderStatus Get order status from Aster API (Binance-compatible)
+func (t *AsterTrader) GetOrderStatus(symbol string, orderID string) (map[string]interface{}, error) {
+	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid order ID: %w", err)
+	}
+
+	params := map[string]interface{}{
+		"symbol":  symbol,
+		"orderId": orderIDInt,
+	}
+
+	body, err := t.request("GET", "/fapi/v3/order", params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order status: %w", err)
+	}
+
+	var order map[string]interface{}
+	if err := json.Unmarshal(body, &order); err != nil {
+		return nil, fmt.Errorf("failed to parse order response: %w", err)
+	}
+
+	// Extract order details
+	avgPriceStr, _ := order["avgPrice"].(string)
+	avgPrice, _ := strconv.ParseFloat(avgPriceStr, 64)
+	executedQtyStr, _ := order["executedQty"].(string)
+	executedQty, _ := strconv.ParseFloat(executedQtyStr, 64)
+	commissionStr, _ := order["commission"].(string)
+	commission, _ := strconv.ParseFloat(commissionStr, 64)
+	status, _ := order["status"].(string)
+
+	// Map Aster/Binance status to standard status
+	if status == "FILLED" {
+		status = "FILLED"
+	} else if status == "PARTIALLY_FILLED" {
+		status = "PARTIALLY_FILLED"
+	} else if status == "NEW" {
+		status = "NEW"
+	} else if status == "CANCELED" {
+		status = "CANCELED"
+	}
+
+	return map[string]interface{}{
+		"orderId":     order["orderId"],
+		"symbol":      symbol,
+		"status":      status,
+		"avgPrice":    avgPrice,
+		"executedQty": executedQty,
+		"commission":  commission,
+		"side":        order["side"],
+		"type":        order["type"],
+		"time":        order["time"],
+		"updateTime":  order["updateTime"],
+	}, nil
 }
 
 // FormatQuantity 格式化数量（实现Trader接口）

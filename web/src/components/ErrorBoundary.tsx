@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div
           className="min-h-screen flex items-center justify-center p-6"
-          style={{ background: '#0B0E11', color: '#EAECEF' }}
+          style={{ background: 'var(--navy-primary)', color: '#EAECEF' }}
         >
           <div className="max-w-md w-full">
             <div
@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="px-4 py-2 rounded font-semibold transition-all hover:scale-105"
                 style={{
                   background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
-                  color: '#0B0E11',
+                  color: 'var(--navy-primary)',
                 }}
               >
                 Reload Page

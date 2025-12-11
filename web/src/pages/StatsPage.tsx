@@ -243,7 +243,7 @@ export default function StatsPage() {
         <div
           className="rounded-lg overflow-hidden"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             border: '1px solid var(--panel-border)',
           }}
         >
@@ -364,7 +364,7 @@ export default function StatsPage() {
                       disabled={traderCurrentPage === 1}
                       className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       style={{
-                        background: 'var(--panel-bg)',
+                        background: 'var(--navy-dark)',
                         borderColor: 'var(--panel-border)',
                         color: 'var(--text-primary)',
                       }}
@@ -392,7 +392,7 @@ export default function StatsPage() {
                               traderCurrentPage === pageNum ? 'border-2' : 'border'
                             }`}
                             style={{
-                              background: traderCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-bg)',
+                              background: traderCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--navy-dark)',
                               borderColor: traderCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-border)',
                               color: traderCurrentPage === pageNum ? 'var(--navy-primary)' : 'var(--text-primary)',
                             }}
@@ -407,7 +407,7 @@ export default function StatsPage() {
                       disabled={traderCurrentPage === traderTotalPages}
                       className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       style={{
-                        background: 'var(--panel-bg)',
+                        background: 'var(--navy-dark)',
                         borderColor: 'var(--panel-border)',
                         color: 'var(--text-primary)',
                       }}
@@ -459,7 +459,7 @@ export default function StatsPage() {
         <div
           className="rounded-lg overflow-hidden"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             border: '1px solid var(--panel-border)',
           }}
         >
@@ -510,7 +510,7 @@ export default function StatsPage() {
                           style={{
                             background:
                               userItem.role === 'admin'
-                                ? 'rgba(240, 185, 11, 0.2)'
+                                ? 'rgba(0, 255, 127, 0.2)'
                                 : userItem.role === 'follower'
                                   ? 'rgba(74, 144, 226, 0.2)'
                                   : 'rgba(255, 255, 255, 0.1)',
@@ -545,7 +545,7 @@ export default function StatsPage() {
                           disabled={updatingRoles.has(userItem.id)}
                           className="px-3 py-1.5 rounded text-sm font-semibold transition-all"
                           style={{
-                            background: 'var(--panel-bg)',
+                            background: 'var(--navy-dark)',
                             border: '1px solid var(--panel-border)',
                             color: 'var(--brand-light-gray)',
                             cursor: updatingRoles.has(userItem.id) ? 'not-allowed' : 'pointer',
@@ -575,7 +575,7 @@ export default function StatsPage() {
                       disabled={userCurrentPage === 1}
                       className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       style={{
-                        background: 'var(--panel-bg)',
+                        background: 'var(--navy-dark)',
                         borderColor: 'var(--panel-border)',
                         color: 'var(--text-primary)',
                       }}
@@ -603,7 +603,7 @@ export default function StatsPage() {
                               userCurrentPage === pageNum ? 'border-2' : 'border'
                             }`}
                             style={{
-                              background: userCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-bg)',
+                              background: userCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--navy-dark)',
                               borderColor: userCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-border)',
                               color: userCurrentPage === pageNum ? 'var(--navy-primary)' : 'var(--text-primary)',
                             }}
@@ -618,7 +618,7 @@ export default function StatsPage() {
                       disabled={userCurrentPage === userTotalPages}
                       className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       style={{
-                        background: 'var(--panel-bg)',
+                        background: 'var(--navy-dark)',
                         borderColor: 'var(--panel-border)',
                         color: 'var(--text-primary)',
                       }}

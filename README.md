@@ -937,44 +937,41 @@ Each decision cycle (default 3 minutes), the system executes the following intel
 
 ---
 
-## 🎛️ API Endpoints
+## 🔐 Deployment Modes
 
-### Configuration Management
+NOFX supports two deployment modes for different use cases:
 
+### Secure Mode (TRANSPORT_ENCRYPTION=true)
+
+**Recommended for production deployments**
+
+- **Requires**: HTTPS with valid certificate or localhost
+- **Encryption**: All sensitive data (API keys, secrets) are encrypted using RSA-OAEP + AES-GCM before transmission
+- **Security**: End-to-end encryption protects credentials even over untrusted networks
+- **Use Case**: Production environments, public deployments, untrusted networks
+
+**Setup:**
 ```bash
-GET  /api/models              # Get AI model configurations
-PUT  /api/models              # Update AI model configurations
-GET  /api/exchanges           # Get exchange configurations  
-PUT  /api/exchanges           # Update exchange configurations
+# In .env file or environment variables
+TRANSPORT_ENCRYPTION=true
 ```
 
-### Trader Management
+### Simple Mode (TRANSPORT_ENCRYPTION=false)
 
+**Recommended for local development and trusted networks**
+
+- **Allows**: HTTP access, IP addresses, no HTTPS required
+- **Encryption**: Disabled - data sent as plain JSON
+- **Security**: Relies on network security (trusted LAN, VPN, etc.)
+- **Use Case**: Local development, trusted private networks, testing
+
+**Setup:**
 ```bash
-GET    /api/traders           # List all traders
-POST   /api/traders           # Create new trader
-DELETE /api/traders/:id       # Delete trader
-POST   /api/traders/:id/start # Start trader
-POST   /api/traders/:id/stop  # Stop trader
+# In .env file or environment variables (default)
+TRANSPORT_ENCRYPTION=false
 ```
 
-### Trading Data & Monitoring
-
-```bash
-GET /api/status?trader_id=xxx            # System status
-GET /api/account?trader_id=xxx           # Account info
-GET /api/positions?trader_id=xxx         # Position list
-GET /api/equity-history?trader_id=xxx    # Equity history (chart data)
-GET /api/decisions/latest?trader_id=xxx  # Latest 5 decisions
-GET /api/statistics?trader_id=xxx        # Statistics
-GET /api/performance?trader_id=xxx       # AI performance analysis
-```
-
-### System Endpoints
-
-```bash
-GET /api/health                   # Health check
-```
+**Note**: When transport encryption is disabled, the web interface will show "Transport encryption disabled" status and allow form submission without requiring HTTPS/Web Crypto API.
 
 ---
 

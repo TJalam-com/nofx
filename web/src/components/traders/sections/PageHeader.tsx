@@ -35,7 +35,7 @@ export function PageHeader({
             boxShadow: '0 4px 14px var(--green-glow)',
           }}
         >
-          <Bot className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#000' }} />
+          <Bot className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--navy-primary)' }} />
         </div>
         <div>
           <h1
@@ -64,7 +64,7 @@ export function PageHeader({
           onClick={onAddModel}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             color: 'var(--text-primary)',
             border: '1px solid var(--panel-border)',
           }}
@@ -83,7 +83,7 @@ export function PageHeader({
           onClick={onAddExchange}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             color: 'var(--text-primary)',
             border: '1px solid var(--panel-border)',
           }}
@@ -102,7 +102,7 @@ export function PageHeader({
           onClick={onConfigureSignalSource}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             color: 'var(--text-primary)',
             border: '1px solid var(--panel-border)',
           }}
@@ -122,7 +122,7 @@ export function PageHeader({
           disabled={!canCreateTrader}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 md:gap-2 whitespace-nowrap"
           style={{
-            background: canCreateTrader ? 'var(--green-primary)' : 'var(--panel-bg)',
+            background: canCreateTrader ? 'var(--green-primary)' : 'var(--navy-dark)',
             color: canCreateTrader ? 'var(--navy-primary)' : 'var(--text-tertiary)',
             border: canCreateTrader ? 'none' : '1px solid var(--panel-border)',
           }}

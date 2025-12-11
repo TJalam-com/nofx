@@ -57,10 +57,6 @@ export function CompetitionPage() {
   }
 
   const handleCopyTrader = (traderId: string) => {
-    console.log('🔄 handleCopyTrader called with traderId:', traderId)
-    console.log('👤 User:', user ? { id: user.id, email: user.email, role: user.role } : 'null')
-    console.log('🔑 Token exists:', !!token)
-    
     // Check if this trader is a follower trader (has followed_trader_id)
     const trader = competition?.traders?.find((t) => t.trader_id === traderId)
     if (trader && (trader as any).followed_trader_id) {
@@ -71,26 +67,14 @@ export function CompetitionPage() {
     // Navigate to traders page and open create modal with the trader ID to copy
     // We'll use sessionStorage to pass the trader ID to copy
     if (user && token) {
-      try {
-        sessionStorage.setItem('copyTraderId', traderId)
-        console.log('✅ Stored copyTraderId in sessionStorage:', traderId)
-        console.log('🔍 Verifying sessionStorage:', sessionStorage.getItem('copyTraderId'))
-        
-        console.log('🚀 Attempting navigation to /traders?action=copy')
-        
-        // Use window.location.href for reliable navigation (works with React Router)
-        // This ensures the page actually navigates and the useEffect in AITradersPage will run
-        window.location.href = '/traders?action=copy'
-        console.log('✅ window.location.href set successfully')
-      } catch (error) {
-        console.error('❌ Error in handleCopyTrader:', error)
-        // Fallback navigation
-        console.log('🔄 Using fallback navigation with window.location.href')
-        sessionStorage.setItem('copyTraderId', traderId)
-        window.location.href = '/traders?action=copy'
-      }
+      // Store the trader ID in sessionStorage before navigation
+      sessionStorage.setItem('copyTraderId', traderId)
+      
+      // Navigate to traders page with action=copy query parameter
+      // Using window.location.href ensures a full page reload, which guarantees
+      // sessionStorage persists and the useEffect in AITradersPage will run
+      window.location.href = '/traders?action=copy'
     } else {
-      console.log('❌ User not logged in, redirecting to login')
       // If not logged in, redirect to login
       window.location.href = '/login?redirect=/competition'
     }
@@ -142,7 +126,7 @@ export function CompetitionPage() {
               >
                 <Trophy
                   className="w-7 h-7 md:w-9 md:h-9 relative z-10"
-                  style={{ color: '#000' }}
+                  style={{ color: 'var(--navy-primary)' }}
                 />
               </div>
               <div>
@@ -204,7 +188,7 @@ export function CompetitionPage() {
           className="binance-card-enhanced p-5 md:p-6 animate-slide-in relative overflow-hidden"
           style={{
             animationDelay: '0.1s',
-            background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--bg-dark) 100%)',
+            background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
           }}
         >
           <div className="flex items-center gap-4">
@@ -216,7 +200,7 @@ export function CompetitionPage() {
             >
               <Trophy
                 className="w-6 h-6 md:w-7 md:h-7 relative z-10"
-                style={{ color: '#000' }}
+                style={{ color: 'var(--navy-primary)' }}
               />
               <div
                 className="absolute inset-0 rounded-xl opacity-50"
@@ -244,7 +228,7 @@ export function CompetitionPage() {
           className="binance-card-enhanced p-5 md:p-6 animate-slide-in relative overflow-hidden"
           style={{
             animationDelay: '0.15s',
-            background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--bg-dark) 100%)',
+            background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
           }}
         >
           <div className="flex items-center gap-4">
@@ -294,7 +278,7 @@ export function CompetitionPage() {
           className="binance-card-enhanced p-5 md:p-6 animate-slide-in relative overflow-hidden"
           style={{
             animationDelay: '0.2s',
-            background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--bg-dark) 100%)',
+            background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
           }}
         >
           <div className="flex items-center gap-4">
@@ -365,7 +349,7 @@ export function CompetitionPage() {
               {t('realTimePnL', language)}
             </div>
           </div>
-          <ComparisonChart traders={sortedTraders.slice(0, 5)} />
+          <ComparisonChart traders={sortedTraders.slice(0, 10)} />
         </div>
 
         {/* Right: Leaderboard */}
@@ -426,10 +410,10 @@ export function CompetitionPage() {
                   style={{
                     background: itemClass
                       ? undefined
-                      : 'var(--bg-dark)',
+                      : 'var(--navy-dark)',
                     border: itemClass
                       ? undefined
-                      : '1px solid var(--bg-panel)',
+                      : '1px solid var(--navy-light)',
                     boxShadow: itemClass
                       ? undefined
                       : 'var(--shadow-sm)',
@@ -447,8 +431,8 @@ export function CompetitionPage() {
                           rankBadgeClass
                             ? {}
                             : {
-                                background: 'var(--bg-darker)',
-                                border: '1px solid var(--bg-panel)',
+                                background: 'var(--navy-dark)',
+                                border: '1px solid var(--navy-light)',
                                 color: 'var(--text-gray-light)',
                               }
                         }
@@ -479,7 +463,7 @@ export function CompetitionPage() {
                     {/* Stats */}
                     <div className="flex items-center gap-2 md:gap-4 flex-wrap md:flex-nowrap">
                       {/* Total Equity */}
-                      <div className="text-right bg-black/20 rounded-md px-2 md:px-3 py-1.5 md:py-2 min-w-[70px] md:min-w-[80px]">
+                      <div className="text-right rounded-md px-2 md:px-3 py-1.5 md:py-2 min-w-[70px] md:min-w-[80px]" style={{ background: 'rgba(0, 31, 63, 0.2)' }}>
                         <div className="text-xs uppercase tracking-wider mb-1 font-semibold" style={{ color: 'var(--text-gray-light)' }}>
                           {t('equity', language)}
                         </div>
@@ -492,7 +476,7 @@ export function CompetitionPage() {
                       </div>
 
                       {/* P&L */}
-                      <div className="text-right min-w-[80px] md:min-w-[110px] bg-black/20 rounded-md px-2 md:px-3 py-1.5 md:py-2">
+                      <div className="text-right min-w-[80px] md:min-w-[110px] rounded-md px-2 md:px-3 py-1.5 md:py-2" style={{ background: 'rgba(0, 31, 63, 0.2)' }}>
                         <div className="text-xs uppercase tracking-wider mb-1 font-semibold" style={{ color: 'var(--text-gray-light)' }}>
                           {t('pnl', language)}
                         </div>
@@ -518,7 +502,7 @@ export function CompetitionPage() {
                       </div>
 
                       {/* Positions */}
-                      <div className="text-right bg-black/20 rounded-md px-2 md:px-3 py-1.5 md:py-2 min-w-[60px] md:min-w-[70px]">
+                      <div className="text-right rounded-md px-2 md:px-3 py-1.5 md:py-2 min-w-[60px] md:min-w-[70px]" style={{ background: 'rgba(0, 31, 63, 0.2)' }}>
                         <div className="text-xs uppercase tracking-wider mb-1 font-semibold" style={{ color: 'var(--text-gray-light)' }}>
                           {t('pos', language)}
                         </div>
@@ -600,13 +584,13 @@ export function CompetitionPage() {
                     isWinning
                       ? {
                           background:
-                            'linear-gradient(135deg, rgba(0, 255, 127, 0.12) 0%, var(--bg-dark) 100%)',
+                            'linear-gradient(135deg, rgba(0, 255, 127, 0.12) 0%, var(--navy-dark) 100%)',
                           border: '2px solid var(--success-border)',
                           boxShadow: '0 4px 20px var(--green-glow)',
                         }
                       : {
-                          background: 'var(--bg-dark)',
-                          border: '2px solid var(--bg-panel)',
+                          background: 'var(--navy-dark)',
+                          border: '2px solid var(--navy-light)',
                           boxShadow: 'var(--shadow-sm)',
                         }
                   }

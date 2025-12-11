@@ -84,6 +84,16 @@ export function EquityChart({ traderId }: EquityChartProps) {
     )
   }
 
+  // Show loading skeleton when history data is not yet loaded
+  if (history === undefined) {
+    return (
+      <div className="binance-card p-6">
+        <div className="skeleton h-6 w-40 mb-4"></div>
+        <div className="skeleton h-64 w-full animate-pulse"></div>
+      </div>
+    )
+  }
+
   // 过滤掉无效数据：total_equity为0或小于1的数据点（API失败导致）
   const validHistory = history?.filter((point) => point.total_equity > 1) || []
 
@@ -170,7 +180,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
       return (
         <div
           className="rounded p-3 shadow-xl"
-          style={{ background: '#1E2329', border: '1px solid #2B3139' }}
+          style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
         >
           <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
             Cycle #{data.cycle}
@@ -253,7 +263,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
         {/* Display Mode Toggle */}
         <div
           className="flex gap-0.5 sm:gap-1 rounded p-0.5 sm:p-1 self-start sm:self-auto"
-          style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+          style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
         >
           <button
             onClick={() => setDisplayMode('dollar')}
@@ -262,7 +272,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
               displayMode === 'dollar'
                 ? {
                     background: 'var(--green-primary)',
-                    color: '#000',
+                    color: 'var(--navy-primary)',
                     boxShadow: '0 2px 8px var(--green-glow)',
                   }
                 : { background: 'transparent', color: '#848E9C' }
@@ -277,7 +287,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
               displayMode === 'percent'
                 ? {
                     background: 'var(--green-primary)',
-                    color: '#000',
+                    color: 'var(--navy-primary)',
                     boxShadow: '0 2px 8px var(--green-glow)',
                   }
                 : { background: 'transparent', color: '#848E9C' }
@@ -324,12 +334,12 @@ export function EquityChart({ traderId }: EquityChartProps) {
                 <stop offset="95%" stopColor="var(--green-light)" stopOpacity={0.2} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--panel-border)" />
             <XAxis
               dataKey="time"
               stroke="#5E6673"
               tick={{ fill: '#848E9C', fontSize: 11 }}
-              tickLine={{ stroke: '#2B3139' }}
+              tickLine={{ stroke: 'var(--panel-border)' }}
               interval={Math.floor(chartData.length / 10)}
               angle={-15}
               textAnchor="end"
@@ -338,7 +348,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
             <YAxis
               stroke="#5E6673"
               tick={{ fill: '#848E9C', fontSize: 12 }}
-              tickLine={{ stroke: '#2B3139' }}
+              tickLine={{ stroke: 'var(--panel-border)' }}
               domain={calculateYDomain()}
               tickFormatter={(value) =>
                 displayMode === 'dollar' ? `$${value.toFixed(0)}` : `${value}%`
@@ -379,7 +389,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
       {/* Footer Stats */}
       <div
         className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 pt-3"
-        style={{ borderTop: '1px solid #2B3139' }}
+        style={{ borderTop: '1px solid var(--panel-border)' }}
       >
         <div
           className="p-2 rounded transition-all hover:bg-opacity-50"

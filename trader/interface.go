@@ -50,4 +50,8 @@ type Trader interface {
 
 	// FormatQuantity 格式化数量到正确的精度
 	FormatQuantity(symbol string, quantity float64) (string, error)
+
+	// GetOrderStatus Get order status from exchange
+	// Returns map with: avgPrice (float64), executedQty (float64), commission (float64), status (string)
+	GetOrderStatus(symbol string, orderID string) (map[string]interface{}, error)
 }

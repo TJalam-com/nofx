@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { toast } from 'sonner'
@@ -25,7 +25,7 @@ interface AITradersPageProps {
 
 export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   const { language } = useLanguage()
-  const { user, token } = useAuth()
+  const { user, token, isLoading } = useAuth()
   const navigate = useNavigate()
 
   // Zustand stores
@@ -69,23 +69,78 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     { refreshInterval: 5000 }
   )
 
+  // Track when configurations are ready
+  const [configsReady, setConfigsReady] = useState(false)
+
   // Load configurations
   useEffect(() => {
-    loadConfigs(user, token)
+    let cancelled = false
+    const loadConfigsAsync = async () => {
+      try {
+        await loadConfigs(user, token)
+        if (!cancelled) {
+          setConfigsReady(true)
+        }
+      } catch (error) {
+        console.error('Failed to load configs:', error)
+        // Still mark as ready even on error to avoid blocking copy flow indefinitely
+        if (!cancelled) {
+          setConfigsReady(true)
+        }
+      }
+    }
+    
+    // Reset configsReady when user/token changes
+    setConfigsReady(false)
+    loadConfigsAsync()
+    
+    return () => {
+      cancelled = true
+    }
   }, [user, token, loadConfigs])
 
   // Check if we should open create modal with a trader to copy (from CompetitionPage)
   useEffect(() => {
+    // Wait for auth to finish loading before checking user/token
+    if (isLoading) {
+      return
+    }
+    
+    // Wait for configs to be ready before checking copy intent
+    // This prevents premature "missing config" errors when configs are still loading
+    if (!configsReady) {
+      const copyTraderId = sessionStorage.getItem('copyTraderId')
+      const urlParams = new URLSearchParams(window.location.search)
+      const action = urlParams.get('action')
+      const hasCopyIntent = copyTraderId || action === 'copy'
+      
+      if (hasCopyIntent) {
+        console.log('⏳ AITradersPage - Configs not ready yet, waiting before checking copy intent')
+      }
+      return
+    }
+    
     const copyTraderId = sessionStorage.getItem('copyTraderId')
     const urlParams = new URLSearchParams(window.location.search)
     const action = urlParams.get('action')
     
+    // Early return if there's no copy intent - avoid unnecessary checks and logs
+    const hasCopyIntent = copyTraderId || action === 'copy'
+    if (!hasCopyIntent) {
+      return // Normal page load, no copy action - exit silently
+    }
+    
+    // Only log when there's actual copy intent
     console.log('🔍 AITradersPage - Checking copy action:', {
       copyTraderId,
       action,
       user: user ? { id: user.id, email: user.email, role: user.role } : null,
       token: !!token,
       showCreateModal,
+      isLoading,
+      configsReady,
+      allModelsCount: allModels?.length || 0,
+      allExchangesCount: allExchanges?.length || 0,
       currentPath: window.location.pathname,
       currentSearch: window.location.search
     })
@@ -106,11 +161,10 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         }) || []
       
       if (enabledModels.length === 0 || enabledExchanges.length === 0) {
-        console.log('❌ AITradersPage - Missing AI model or exchange configuration')
-        toast.error('Please configure an AI model and exchange first')
-        // Clear copyTraderId from sessionStorage
-        sessionStorage.removeItem('copyTraderId')
-        // Clean up URL query params
+        console.log('❌ AITradersPage - Missing AI model or exchange configuration (configs loaded but none enabled)')
+        toast.error('Please configure an AI model and exchange first. The copy action will be available after configuration.')
+        // Don't clear copyTraderId - keep it so user can configure and retry
+        // Only clean up URL query params
         window.history.replaceState({}, '', '/traders')
         return
       }
@@ -118,16 +172,19 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       console.log('✅ AITradersPage - All conditions met, opening create modal with copyTraderId:', copyTraderId)
       setShowCreateModal(true)
       // Clean up URL query param but keep copyTraderId in sessionStorage for TraderConfigModal
+      // The TraderConfigModal will clear copyTraderId after successfully loading the trader config
       window.history.replaceState({}, '', '/traders')
-      // The TraderConfigModal will handle the copyTraderId from sessionStorage
     } else {
-      if (!copyTraderId) console.log('❌ AITradersPage - No copyTraderId found in sessionStorage')
-      if (action !== 'copy') console.log('❌ AITradersPage - Action is not "copy", got:', action)
-      if (!user) console.log('❌ AITradersPage - User not available')
-      if (!token) console.log('❌ AITradersPage - Token not available')
-      if (showCreateModal) console.log('⚠️ AITradersPage - Create modal already open')
+      // Only log errors when we're actually expecting a copy action
+      if (hasCopyIntent) {
+        if (!copyTraderId) console.log('❌ AITradersPage - No copyTraderId found in sessionStorage')
+        if (action !== 'copy') console.log('❌ AITradersPage - Action is not "copy", got:', action)
+        if (!user) console.log('❌ AITradersPage - User not available')
+        if (!token) console.log('❌ AITradersPage - Token not available')
+        if (showCreateModal) console.log('⚠️ AITradersPage - Create modal already open')
+      }
     }
-  }, [user, token, showCreateModal, setShowCreateModal, allModels, allExchanges])
+  }, [user, token, showCreateModal, setShowCreateModal, allModels, allExchanges, isLoading, configsReady])
 
   // Business logic hook
   const {
@@ -196,6 +253,15 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     } else {
       navigate(`/dashboard?trader=${traderId}`)
     }
+  }
+
+  // Handle copy trader from SignalSourceModal
+  const handleCopyTraderFromSignalSource = (traderId: string) => {
+    // Store the trader ID in sessionStorage (same pattern as CompetitionPage)
+    sessionStorage.setItem('copyTraderId', traderId)
+    // Close SignalSourceModal and open TraderConfigModal
+    setShowSignalSourceModal(false)
+    setShowCreateModal(true)
   }
 
   return (
@@ -334,6 +400,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           language={language}
           configuredModels={configuredModels}
           configuredExchanges={configuredExchanges}
+          onCopyTrader={user && isFollower(user) ? handleCopyTraderFromSignalSource : undefined}
         />
       )}
     </div>

@@ -102,7 +102,7 @@ export default function AboutSection({ language }: AboutSectionProps) {
             <motion.div
               className="flex items-start gap-4 p-6 rounded-xl border-2 transition-all"
               style={{
-                background: 'var(--panel-bg)',
+                background: 'var(--navy-dark)',
                 borderColor: 'var(--panel-border)',
               }}
               whileHover={{
@@ -158,7 +158,7 @@ export default function AboutSection({ language }: AboutSectionProps) {
                   key={index}
                   className="p-6 lg:p-7 rounded-xl border-2 transition-all relative overflow-hidden h-full"
                   style={{
-                    background: 'var(--panel-bg)',
+                    background: 'var(--navy-dark)',
                     borderColor: 'var(--panel-border)',
                   }}
                   initial={{ opacity: 0, y: 20 }}

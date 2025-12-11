@@ -24,7 +24,7 @@ export function FAQSearchBar({
         placeholder={placeholder}
         className="w-full pl-12 pr-12 py-3 rounded-lg text-base transition-all focus:outline-none focus:ring-2"
         style={{
-          background: 'var(--panel-bg)',
+          background: 'var(--navy-dark)',
           border: '1px solid var(--panel-border)',
           color: 'var(--text-primary)',
         }}

@@ -16,6 +16,7 @@ type Page =
   | 'webhook'
   | 'faq'
   | 'stats'
+  | 'applications'
   | 'login'
   | 'register'
 
@@ -98,7 +99,7 @@ export default function HeaderBar({
                     }
                     navigate('/competition')
                   }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                   style={{
                     color:
                       currentPage === 'competition'
@@ -123,7 +124,7 @@ export default function HeaderBar({
                   <span
                     className="absolute inset-0 rounded-lg transition-opacity duration-300"
                     style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
+                      background: 'rgba(0, 51, 102, 0.3)',
                       zIndex: -1,
                       opacity: currentPage === 'competition' ? 1 : 0,
                       pointerEvents: 'none',
@@ -141,7 +142,7 @@ export default function HeaderBar({
                     }
                     navigate('/traders')
                   }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                   style={{
                     color:
                       currentPage === 'traders'
@@ -166,7 +167,7 @@ export default function HeaderBar({
                   <span
                     className="absolute inset-0 rounded-lg transition-opacity duration-300"
                     style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
+                      background: 'rgba(0, 51, 102, 0.3)',
                       zIndex: -1,
                       opacity: currentPage === 'traders' ? 1 : 0,
                       pointerEvents: 'none',
@@ -184,7 +185,7 @@ export default function HeaderBar({
                     }
                     navigate('/dashboard')
                   }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                   style={{
                     color:
                       currentPage === 'trader'
@@ -209,7 +210,7 @@ export default function HeaderBar({
                   <span
                     className="absolute inset-0 rounded-lg transition-opacity duration-300"
                     style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
+                      background: 'rgba(0, 51, 102, 0.3)',
                       zIndex: -1,
                       opacity: currentPage === 'trader' ? 1 : 0,
                       pointerEvents: 'none',
@@ -229,7 +230,7 @@ export default function HeaderBar({
                         }
                         navigate('/stats')
                       }}
-                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                       style={{
                         color:
                           currentPage === 'stats'
@@ -254,7 +255,7 @@ export default function HeaderBar({
                       <span
                         className="absolute inset-0 rounded-lg transition-opacity duration-300"
                         style={{
-                          background: 'rgba(240, 185, 11, 0.15)',
+                          background: 'rgba(0, 51, 102, 0.3)',
                           zIndex: -1,
                           opacity: currentPage === 'stats' ? 1 : 0,
                           pointerEvents: 'none',
@@ -266,22 +267,42 @@ export default function HeaderBar({
                     <button
                       key="trader-applications-tab"
                       onClick={() => {
+                        if (onPageChange) {
+                          onPageChange('applications')
+                        }
                         navigate('/admin/trader-applications')
                       }}
-                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                       style={{
-                        color: 'var(--brand-light-gray)',
+                        color:
+                          currentPage === 'applications'
+                            ? 'var(--brand-yellow)'
+                            : 'var(--brand-light-gray)',
                         padding: '8px 16px',
                         borderRadius: '8px',
                         position: 'relative',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.color = 'var(--brand-yellow)'
+                        if (currentPage !== 'applications') {
+                          e.currentTarget.style.color = 'var(--brand-yellow)'
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.color = 'var(--brand-light-gray)'
+                        if (currentPage !== 'applications') {
+                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                        }
                       }}
                     >
+                      <span
+                        className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                        style={{
+                          background: 'rgba(0, 51, 102, 0.3)',
+                          zIndex: -1,
+                          opacity: currentPage === 'applications' ? 1 : 0,
+                          pointerEvents: 'none',
+                        }}
+                      />
+
                       Applications
                     </button>
                   </>
@@ -293,7 +314,7 @@ export default function HeaderBar({
                     onClick={() => {
                       navigate('/become-trader')
                     }}
-                    className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                    className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                     style={{
                       color: 'var(--brand-light-gray)',
                       padding: '8px 16px',
@@ -321,7 +342,7 @@ export default function HeaderBar({
                         }
                         navigate('/followers')
                       }}
-                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                       style={{
                         color:
                           currentPage === 'followers'
@@ -346,7 +367,7 @@ export default function HeaderBar({
                       <span
                         className="absolute inset-0 rounded-lg transition-opacity duration-300"
                         style={{
-                          background: 'rgba(240, 185, 11, 0.15)',
+                          background: 'rgba(0, 51, 102, 0.3)',
                           zIndex: -1,
                           opacity: currentPage === 'followers' ? 1 : 0,
                           pointerEvents: 'none',
@@ -364,7 +385,7 @@ export default function HeaderBar({
                         }
                         navigate('/backtest')
                       }}
-                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                       style={{
                         color:
                           currentPage === 'backtest'
@@ -388,7 +409,7 @@ export default function HeaderBar({
                       <span
                         className="absolute inset-0 rounded-lg transition-opacity duration-300"
                         style={{
-                          background: 'rgba(240, 185, 11, 0.15)',
+                          background: 'rgba(0, 51, 102, 0.3)',
                           zIndex: -1,
                           opacity: currentPage === 'backtest' ? 1 : 0,
                           pointerEvents: 'none',
@@ -406,7 +427,7 @@ export default function HeaderBar({
                         }
                         navigate('/webhook')
                       }}
-                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                       style={{
                         color:
                           currentPage === 'webhook'
@@ -430,7 +451,7 @@ export default function HeaderBar({
                       <span
                         className="absolute inset-0 rounded-lg transition-opacity duration-300"
                         style={{
-                          background: 'rgba(240, 185, 11, 0.15)',
+                          background: 'rgba(0, 51, 102, 0.3)',
                           zIndex: -1,
                           opacity: currentPage === 'webhook' ? 1 : 0,
                           pointerEvents: 'none',
@@ -450,7 +471,7 @@ export default function HeaderBar({
                     }
                     navigate('/faq')
                   }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                   style={{
                     color:
                       currentPage === 'faq'
@@ -475,7 +496,7 @@ export default function HeaderBar({
                   <span
                     className="absolute inset-0 rounded-lg transition-opacity duration-300"
                     style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
+                      background: 'rgba(0, 51, 102, 0.3)',
                       zIndex: -1,
                       opacity: currentPage === 'faq' ? 1 : 0,
                       pointerEvents: 'none',
@@ -491,7 +512,7 @@ export default function HeaderBar({
                 <a
                   key="competition-link"
                   href="/competition"
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                   style={{
                     color:
                       currentPage === 'competition'
@@ -516,7 +537,7 @@ export default function HeaderBar({
                   <span
                     className="absolute inset-0 rounded-lg transition-opacity duration-300"
                     style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
+                      background: 'rgba(0, 51, 102, 0.3)',
                       zIndex: -1,
                       opacity: currentPage === 'competition' ? 1 : 0,
                       pointerEvents: 'none',
@@ -529,7 +550,7 @@ export default function HeaderBar({
                 <a
                   key="faq-link"
                   href="/faq"
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                   style={{
                     color:
                       currentPage === 'faq'
@@ -554,7 +575,7 @@ export default function HeaderBar({
                   <span
                     className="absolute inset-0 rounded-lg transition-opacity duration-300"
                     style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
+                      background: 'rgba(0, 51, 102, 0.3)',
                       zIndex: -1,
                       opacity: currentPage === 'faq' ? 1 : 0,
                       pointerEvents: 'none',
@@ -593,22 +614,22 @@ export default function HeaderBar({
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                     className="flex items-center gap-2 px-3 py-2 rounded transition-colors"
                     style={{
-                      background: 'var(--panel-bg)',
+                      background: 'var(--navy-dark)',
                       border: '1px solid var(--panel-border)',
                     }}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.background =
-                        'rgba(255, 255, 255, 0.05)')
+                        'var(--navy-light)')
                     }
                     onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = 'var(--panel-bg)')
+                      (e.currentTarget.style.background = 'var(--navy-dark)')
                     }
                   >
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
                       style={{
                         background: 'var(--brand-yellow)',
-                        color: 'var(--brand-black)',
+                        color: 'var(--navy-primary)',
                       }}
                     >
                       {user.email[0].toUpperCase()}
@@ -629,7 +650,7 @@ export default function HeaderBar({
                     <div
                       className="absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg overflow-hidden z-50"
                       style={{
-                        background: 'var(--brand-dark-gray)',
+                        background: 'var(--navy-dark)',
                         border: '1px solid var(--panel-border)',
                       }}
                     >
@@ -687,7 +708,7 @@ export default function HeaderBar({
                       className="px-4 py-2 rounded font-semibold text-sm transition-colors hover:opacity-90"
                       style={{
                         background: 'var(--brand-yellow)',
-                        color: 'var(--brand-black)',
+                        color: 'var(--navy-primary)',
                       }}
                     >
                       {t('signUp', language)}
@@ -726,8 +747,8 @@ export default function HeaderBar({
         transition={{ duration: 0.3 }}
         className="sm:hidden overflow-hidden"
         style={{
-          background: 'var(--brand-dark-gray)',
-          borderTop: '1px solid rgba(240, 185, 11, 0.1)',
+          background: 'var(--navy-dark)',
+          borderTop: '1px solid rgba(0, 255, 127, 0.1)',
         }}
       >
         <div className="px-4 py-4 space-y-3">
@@ -743,7 +764,7 @@ export default function HeaderBar({
                 onPageChange?.('competition')
                 setMobileMenuOpen(false)
               }}
-              className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+              className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
               style={{
                 color:
                   currentPage === 'competition'
@@ -760,7 +781,7 @@ export default function HeaderBar({
               <span
                 className="absolute inset-0 rounded-lg transition-opacity duration-300"
                 style={{
-                  background: 'rgba(240, 185, 11, 0.15)',
+                  background: 'rgba(0, 51, 102, 0.3)',
                   zIndex: -1,
                   opacity: currentPage === 'competition' ? 1 : 0,
                   pointerEvents: 'none',
@@ -773,7 +794,7 @@ export default function HeaderBar({
             <a
               key="mobile-competition-link"
               href="/competition"
-              className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+              className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
               style={{
                 color:
                   currentPage === 'competition'
@@ -788,7 +809,7 @@ export default function HeaderBar({
               <span
                 className="absolute inset-0 rounded-lg transition-opacity duration-300"
                 style={{
-                  background: 'rgba(240, 185, 11, 0.15)',
+                  background: 'rgba(0, 51, 102, 0.3)',
                   zIndex: -1,
                   opacity: currentPage === 'competition' ? 1 : 0,
                   pointerEvents: 'none',
@@ -810,7 +831,7 @@ export default function HeaderBar({
                   navigate('/traders')
                   setMobileMenuOpen(false)
                 }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500 hover:text-green-500"
                 style={{
                   color:
                     currentPage === 'traders'
@@ -827,7 +848,7 @@ export default function HeaderBar({
                 <span
                   className="absolute inset-0 rounded-lg transition-opacity duration-300"
                   style={{
-                    background: 'rgba(240, 185, 11, 0.15)',
+                    background: 'rgba(0, 51, 102, 0.3)',
                     zIndex: -1,
                     opacity: currentPage === 'traders' ? 1 : 0,
                     pointerEvents: 'none',
@@ -845,7 +866,7 @@ export default function HeaderBar({
                   navigate('/dashboard')
                   setMobileMenuOpen(false)
                 }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500 hover:text-green-500"
                 style={{
                   color:
                     currentPage === 'trader'
@@ -862,7 +883,7 @@ export default function HeaderBar({
                 <span
                   className="absolute inset-0 rounded-lg transition-opacity duration-300"
                   style={{
-                    background: 'rgba(240, 185, 11, 0.15)',
+                    background: 'rgba(0, 51, 102, 0.3)',
                     zIndex: -1,
                     opacity: currentPage === 'trader' ? 1 : 0,
                     pointerEvents: 'none',
@@ -882,7 +903,7 @@ export default function HeaderBar({
                       navigate('/stats')
                       setMobileMenuOpen(false)
                     }}
-                    className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                    className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500 hover:text-green-500"
                     style={{
                       color:
                         currentPage === 'stats'
@@ -898,7 +919,7 @@ export default function HeaderBar({
                     <span
                       className="absolute inset-0 rounded-lg transition-opacity duration-300"
                       style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
+                        background: 'rgba(0, 51, 102, 0.3)',
                         zIndex: -1,
                         opacity: currentPage === 'stats' ? 1 : 0,
                         pointerEvents: 'none',
@@ -909,18 +930,34 @@ export default function HeaderBar({
                   <button
                     key="mobile-trader-applications-tab"
                     onClick={() => {
+                      if (onPageChange) {
+                        onPageChange('applications')
+                      }
                       navigate('/admin/trader-applications')
                       setMobileMenuOpen(false)
                     }}
-                    className="block text-sm font-bold transition-all duration-300 hover:text-yellow-500"
+                    className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500 hover:text-green-500"
                     style={{
-                      color: 'var(--brand-light-gray)',
+                      color:
+                        currentPage === 'applications'
+                          ? 'var(--brand-yellow)'
+                          : 'var(--brand-light-gray)',
                       padding: '12px 16px',
                       borderRadius: '8px',
+                      position: 'relative',
                       width: '100%',
                       textAlign: 'left',
                     }}
                   >
+                    <span
+                      className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                      style={{
+                        background: 'rgba(0, 51, 102, 0.3)',
+                        zIndex: -1,
+                        opacity: currentPage === 'applications' ? 1 : 0,
+                        pointerEvents: 'none',
+                      }}
+                    />
                     Applications
                   </button>
                 </>
@@ -932,7 +969,7 @@ export default function HeaderBar({
                     navigate('/become-trader')
                     setMobileMenuOpen(false)
                   }}
-                  className="block text-sm font-bold transition-all duration-300 hover:text-yellow-500"
+                  className="block text-sm font-bold transition-all duration-300 hover:text-green-500"
                   style={{
                     color: 'var(--brand-light-gray)',
                     padding: '12px 16px',
@@ -954,7 +991,7 @@ export default function HeaderBar({
                     navigate('/webhook')
                     setMobileMenuOpen(false)
                   }}
-                  className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                  className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500 hover:text-green-500"
                   style={{
                     color:
                       currentPage === 'webhook'
@@ -970,7 +1007,7 @@ export default function HeaderBar({
                   <span
                     className="absolute inset-0 rounded-lg transition-opacity duration-300"
                     style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
+                      background: 'rgba(0, 51, 102, 0.3)',
                       zIndex: -1,
                       opacity: currentPage === 'webhook' ? 1 : 0,
                       pointerEvents: 'none',
@@ -988,7 +1025,7 @@ export default function HeaderBar({
                   navigate('/faq')
                   setMobileMenuOpen(false)
                 }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500 hover:text-green-500"
                 style={{
                   color:
                     currentPage === 'faq'
@@ -1005,7 +1042,7 @@ export default function HeaderBar({
                 <span
                   className="absolute inset-0 rounded-lg transition-opacity duration-300"
                   style={{
-                    background: 'rgba(240, 185, 11, 0.15)',
+                    background: 'rgba(0, 51, 102, 0.3)',
                     zIndex: -1,
                     opacity: currentPage === 'faq' ? 1 : 0,
                     pointerEvents: 'none',
@@ -1042,7 +1079,7 @@ export default function HeaderBar({
                   className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
                   style={{
                     background: 'var(--brand-yellow)',
-                    color: 'var(--brand-black)',
+                    color: 'var(--navy-primary)',
                   }}
                 >
                   {user.email[0].toUpperCase()}
@@ -1102,7 +1139,7 @@ export default function HeaderBar({
                     className="block w-full px-4 py-2 rounded font-semibold text-sm text-center transition-colors"
                     style={{
                       background: 'var(--brand-yellow)',
-                      color: 'var(--brand-black)',
+                      color: 'var(--navy-primary)',
                     }}
                     onClick={() => setMobileMenuOpen(false)}
                   >

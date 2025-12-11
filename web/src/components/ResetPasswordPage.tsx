@@ -41,8 +41,8 @@ export function ResetPasswordPage() {
 
     if (result.success) {
       setSuccess(true)
-      toast.success(t('resetPasswordSuccess', language) || '重置成功')
-      // 3秒后跳转到登录页面
+      toast.success(t('resetPasswordSuccess', language) || 'Password reset successful')
+      // Redirect to login page after 3 seconds
       setTimeout(() => {
         navigate('/login')
       }, 3000)
@@ -56,7 +56,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: '#0B0E11' }}>
+    <div className="min-h-screen" style={{ background: 'var(--navy-primary)' }}>
       <Header simple />
 
       <div
@@ -69,7 +69,7 @@ export function ResetPasswordPage() {
             onClick={() => {
               navigate('/login')
             }}
-            className="flex items-center gap-2 mb-6 text-sm hover:text-[#F0B90B] transition-colors"
+            className="flex items-center gap-2 mb-6 text-sm hover:text-[var(--green-primary)] transition-colors"
             style={{ color: '#848E9C' }}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -80,22 +80,22 @@ export function ResetPasswordPage() {
           <div className="text-center mb-8">
             <div
               className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-full"
-              style={{ background: 'rgba(240, 185, 11, 0.1)' }}
+              style={{ background: 'rgba(0, 255, 127, 0.1)' }}
             >
-              <KeyRound className="w-8 h-8" style={{ color: '#F0B90B' }} />
+              <KeyRound className="w-8 h-8" style={{ color: '#00CC66' }} />
             </div>
             <h1 className="text-2xl font-bold" style={{ color: '#EAECEF' }}>
               {t('resetPasswordTitle', language)}
             </h1>
             <p className="text-sm mt-2" style={{ color: '#848E9C' }}>
-              使用邮箱和 Google Authenticator 重置密码
+              {language === 'zh' ? '使用邮箱和 Google Authenticator 重置密码' : 'Reset password using email and Google Authenticator'}
             </p>
           </div>
 
           {/* Reset Password Form */}
           <div
             className="rounded-lg p-6"
-            style={{ background: '#1E2329', border: '1px solid #2B3139' }}
+            style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
           >
             {success ? (
               <div className="text-center py-8">
@@ -107,7 +107,7 @@ export function ResetPasswordPage() {
                   {t('resetPasswordSuccess', language)}
                 </p>
                 <p className="text-sm" style={{ color: '#848E9C' }}>
-                  3秒后将自动跳转到登录页面...
+                  {language === 'zh' ? '3秒后将自动跳转到登录页面...' : 'Redirecting to login page in 3 seconds...'}
                 </p>
               </div>
             ) : (
@@ -240,7 +240,7 @@ export function ResetPasswordPage() {
                   <div className="text-center mb-3">
                     <div className="text-3xl">📱</div>
                     <p className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                      打开 Google Authenticator 获取6位验证码
+                      {language === 'zh' ? '打开 Google Authenticator 获取6位验证码' : 'Open Google Authenticator to get 6-digit verification code'}
                     </p>
                   </div>
                   <input
@@ -251,8 +251,8 @@ export function ResetPasswordPage() {
                     }
                     className="w-full px-3 py-2 rounded text-center text-2xl font-mono"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                     placeholder={t('otpPlaceholder', language)}
@@ -277,7 +277,7 @@ export function ResetPasswordPage() {
                   type="submit"
                   disabled={loading || otpCode.length !== 6 || !passwordValid}
                   className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
-                  style={{ background: '#F0B90B', color: '#000' }}
+                  style={{ background: '#00CC66', color: 'var(--navy-primary)' }}
                 >
                   {loading
                     ? t('loading', language)

@@ -134,6 +134,17 @@ export const api = {
     if (!result.success) throw new Error('更新自定义策略失败')
   },
 
+  async toggleCompetition(
+    traderId: string,
+    showInCompetition: boolean
+  ): Promise<void> {
+    const result = await httpClient.put(
+      `${API_BASE}/traders/${traderId}/competition`,
+      { show_in_competition: showInCompetition }
+    )
+    if (!result.success) throw new Error('Failed to update competition visibility')
+  },
+
   async getTraderConfig(traderId: string): Promise<TraderConfigData> {
     const result = await httpClient.get<TraderConfigData>(
       `${API_BASE}/traders/${traderId}/config`
@@ -225,42 +236,99 @@ export const api = {
     if (!result.success) throw new Error('删除提示词模板失败')
   },
 
-  async updateModelConfigs(request: UpdateModelConfigRequest): Promise<void> {
-    // 获取RSA公钥
-    const publicKey = await CryptoService.fetchPublicKey()
-
-    // 初始化加密服务
-    await CryptoService.initialize(publicKey)
-
-    // 获取用户信息（从localStorage或其他地方）
-    const userId = localStorage.getItem('user_id') || ''
-    const sessionId = sessionStorage.getItem('session_id') || ''
-
-    // 加密敏感数据
-    const encryptedPayload = await CryptoService.encryptSensitiveData(
-      JSON.stringify(request),
-      userId,
-      sessionId
-    )
-
-    // 发送加密数据
-    const result = await httpClient.put(`${API_BASE}/models`, encryptedPayload)
-    if (!result.success) throw new Error('更新模型配置失败')
-  },
-
-  // 交易所配置接口
-  async getExchangeConfigs(): Promise<Exchange[]> {
-    const result = await httpClient.get<Exchange[]>(`${API_BASE}/exchanges`)
-    if (!result.success) throw new Error('获取交易所配置失败')
+  // Get default strategy configuration based on language
+  async getDefaultStrategyConfig(lang: string = 'en'): Promise<{
+    prompt_template: string
+    custom_prompt: string
+  }> {
+    const result = await httpClient.get<{
+      prompt_template: string
+      custom_prompt: string
+    }>(`${API_BASE}/strategies/default-config?lang=${lang}`)
+    if (!result.success) throw new Error('获取默认策略配置失败')
     return result.data!
   },
 
-  // 获取系统支持的交易所列表（无需认证）
+  // Get default URLs for data sources
+  async getDefaultURLs(): Promise<{
+    coin_pool_url: string
+    oi_top_url: string
+    quant_data_url: string
+  }> {
+    const result = await httpClient.get<{
+      coin_pool_url: string
+      oi_top_url: string
+      quant_data_url: string
+    }>(`${API_BASE}/config/default-urls`)
+    if (!result.success) throw new Error('获取默认URL配置失败')
+    return result.data!
+  },
+
+  async getCryptoConfig(): Promise<{
+    transport_encryption_enabled: boolean
+    public_key_available: boolean
+  }> {
+    const result = await httpClient.get<{
+      transport_encryption_enabled: boolean
+      public_key_available: boolean
+    }>(`${API_BASE}/crypto/config`)
+    if (!result.success) throw new Error('Failed to get crypto config')
+    return result.data!
+  },
+
+  async updateModelConfigs(request: UpdateModelConfigRequest): Promise<void> {
+    // Check if transport encryption is enabled
+    // If config check fails, default to plain JSON (safer fallback)
+    let transportEncryptionEnabled = false
+    try {
+      const cryptoConfig = await this.getCryptoConfig()
+      transportEncryptionEnabled = cryptoConfig.transport_encryption_enabled
+    } catch (error) {
+      console.warn('Failed to get crypto config, defaulting to plain JSON:', error)
+      transportEncryptionEnabled = false
+    }
+
+    if (transportEncryptionEnabled) {
+      // Get RSA public key
+      const publicKey = await CryptoService.fetchPublicKey()
+
+      // Initialize encryption service
+      await CryptoService.initialize(publicKey)
+
+      // Get user information
+      const userId = localStorage.getItem('user_id') || ''
+      const sessionId = sessionStorage.getItem('session_id') || ''
+
+      // Encrypt sensitive data
+      const encryptedPayload = await CryptoService.encryptSensitiveData(
+        JSON.stringify(request),
+        userId,
+        sessionId
+      )
+
+      // Send encrypted data
+      const result = await httpClient.put(`${API_BASE}/models`, encryptedPayload)
+      if (!result.success) throw new Error('Failed to update model configuration')
+    } else {
+      // Transport encryption disabled, send plain JSON
+      const result = await httpClient.put(`${API_BASE}/models`, request)
+      if (!result.success) throw new Error('Failed to update model configuration')
+    }
+  },
+
+  // Exchange configuration endpoints
+  async getExchangeConfigs(): Promise<Exchange[]> {
+    const result = await httpClient.get<Exchange[]>(`${API_BASE}/exchanges`)
+    if (!result.success) throw new Error('Failed to get exchange configuration')
+    return result.data!
+  },
+
+  // Get system supported exchanges list (no authentication required)
   async getSupportedExchanges(): Promise<Exchange[]> {
     const result = await httpClient.get<Exchange[]>(
       `${API_BASE}/supported-exchanges`
     )
-    if (!result.success) throw new Error('获取支持的交易所失败')
+    if (!result.success) throw new Error('Failed to get supported exchanges')
     return result.data!
   },
 
@@ -268,36 +336,53 @@ export const api = {
     request: UpdateExchangeConfigRequest
   ): Promise<void> {
     const result = await httpClient.put(`${API_BASE}/exchanges`, request)
-    if (!result.success) throw new Error('更新交易所配置失败')
+    if (!result.success) throw new Error('Failed to update exchange configuration')
   },
 
-  // 使用加密传输更新交易所配置
+  // Update exchange configuration with encrypted transport (when TRANSPORT_ENCRYPTION=true)
   async updateExchangeConfigsEncrypted(
     request: UpdateExchangeConfigRequest
   ): Promise<void> {
-    // 获取RSA公钥
-    const publicKey = await CryptoService.fetchPublicKey()
+    // Check if transport encryption is enabled
+    // If config check fails, default to plain JSON (safer fallback)
+    let transportEncryptionEnabled = false
+    try {
+      const cryptoConfig = await this.getCryptoConfig()
+      transportEncryptionEnabled = cryptoConfig.transport_encryption_enabled
+    } catch (error) {
+      console.warn('Failed to get crypto config, defaulting to plain JSON:', error)
+      transportEncryptionEnabled = false
+    }
 
-    // 初始化加密服务
-    await CryptoService.initialize(publicKey)
+    if (transportEncryptionEnabled) {
+      // Get RSA public key
+      const publicKey = await CryptoService.fetchPublicKey()
 
-    // 获取用户信息（从localStorage或其他地方）
-    const userId = localStorage.getItem('user_id') || ''
-    const sessionId = sessionStorage.getItem('session_id') || ''
+      // Initialize encryption service
+      await CryptoService.initialize(publicKey)
 
-    // 加密敏感数据
-    const encryptedPayload = await CryptoService.encryptSensitiveData(
-      JSON.stringify(request),
-      userId,
-      sessionId
-    )
+      // Get user information
+      const userId = localStorage.getItem('user_id') || ''
+      const sessionId = sessionStorage.getItem('session_id') || ''
 
-    // 发送加密数据
-    const result = await httpClient.put(
-      `${API_BASE}/exchanges`,
-      encryptedPayload
-    )
-    if (!result.success) throw new Error('更新交易所配置失败')
+      // Encrypt sensitive data
+      const encryptedPayload = await CryptoService.encryptSensitiveData(
+        JSON.stringify(request),
+        userId,
+        sessionId
+      )
+
+      // Send encrypted data
+      const result = await httpClient.put(
+        `${API_BASE}/exchanges`,
+        encryptedPayload
+      )
+      if (!result.success) throw new Error('Failed to update exchange configuration')
+    } else {
+      // Transport encryption disabled, send plain JSON
+      const result = await httpClient.put(`${API_BASE}/exchanges`, request)
+      if (!result.success) throw new Error('Failed to update exchange configuration')
+    }
   },
 
   // 获取系统状态（支持trader_id）

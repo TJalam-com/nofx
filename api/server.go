@@ -131,11 +131,18 @@ func (s *Server) setupRoutes() {
 		api.GET("/supported-models", s.handleGetSupportedModels)
 		api.GET("/supported-exchanges", s.handleGetSupportedExchanges)
 
+		// Strategy default configuration (no authentication required)
+		api.GET("/strategies/default-config", s.handleGetDefaultStrategyConfig)
+
+		// Default URLs for data sources (no authentication required)
+		api.GET("/config/default-urls", s.handleGetDefaultURLs)
+
 		// System config (no authentication required, for frontend to determine admin mode/registration status)
 		api.GET("/config", s.handleGetSystemConfig)
 
 		// Crypto related endpoints (no authentication required)
 		api.GET("/crypto/public-key", s.cryptoHandler.HandleGetPublicKey)
+		api.GET("/crypto/config", s.cryptoHandler.HandleGetCryptoConfig)
 		api.POST("/crypto/decrypt", s.cryptoHandler.HandleDecryptSensitiveData)
 
 		// System prompt template management (no authentication required)
@@ -181,6 +188,7 @@ func (s *Server) setupRoutes() {
 			protected.POST("/traders/:id/stop", s.handleStopTrader)
 			protected.PUT("/traders/:id/prompt", s.handleUpdateTraderPrompt)
 			protected.POST("/traders/:id/sync-balance", s.handleSyncBalance)
+			protected.PUT("/traders/:id/competition", s.handleToggleCompetition)
 
 			// AI model configuration
 			protected.GET("/models", s.handleGetModelConfigs)
@@ -454,22 +462,36 @@ func (s *Server) getTraderFromQuery(c *gin.Context) (*manager.TraderManager, str
 
 // AI trader management related structures
 type CreateTraderRequest struct {
-	Name                 string  `json:"name" binding:"required"`
-	AIModelID            string  `json:"ai_model_id" binding:"required"`
-	ExchangeID           string  `json:"exchange_id" binding:"required"`
-	InitialBalance       float64 `json:"initial_balance"`
-	ScanIntervalMinutes  int     `json:"scan_interval_minutes"`
-	BTCETHLeverage       int     `json:"btc_eth_leverage"`
-	AltcoinLeverage      int     `json:"altcoin_leverage"`
-	TradingSymbols       string  `json:"trading_symbols"`
-	CustomPrompt         string  `json:"custom_prompt"`
-	OverrideBasePrompt   bool    `json:"override_base_prompt"`
-	SystemPromptTemplate string  `json:"system_prompt_template"` // System prompt template name
-	IsCrossMargin        *bool   `json:"is_cross_margin"`        // Pointer type, nil means use default value true
-	UseCoinPool          bool    `json:"use_coin_pool"`
-	UseOITop             bool    `json:"use_oi_top"`
-	UseTradingView       bool    `json:"use_tradingview"`
-	FollowedTraderID     string  `json:"followed_trader_id"` // Followed trader ID (for follower role)
+	Name                string  `json:"name" binding:"required"`
+	AIModelID           string  `json:"ai_model_id" binding:"required"`
+	ExchangeID          string  `json:"exchange_id" binding:"required"`
+	StrategyID          string  `json:"strategy_id"` // Strategy ID (new version)
+	InitialBalance      float64 `json:"initial_balance"`
+	ScanIntervalMinutes int     `json:"scan_interval_minutes"`
+	// The following fields are kept for backward compatibility, new version uses strategy config
+	BTCETHLeverage       int    `json:"btc_eth_leverage"`
+	AltcoinLeverage      int    `json:"altcoin_leverage"`
+	TradingSymbols       string `json:"trading_symbols"`
+	CustomPrompt         string `json:"custom_prompt"`
+	OverrideBasePrompt   bool   `json:"override_base_prompt"`
+	SystemPromptTemplate string `json:"system_prompt_template"` // System prompt template name
+	IsCrossMargin        *bool  `json:"is_cross_margin"`        // Pointer type, nil means use default value true
+	ShowInCompetition    *bool  `json:"show_in_competition"`    // Pointer type, nil means use default value true
+	UseCoinPool          bool   `json:"use_coin_pool"`
+	UseOITop             bool   `json:"use_oi_top"`
+	UseTradingView       bool   `json:"use_tradingview"`
+	FollowedTraderID     string `json:"followed_trader_id"` // Followed trader ID (for follower role)
+	// Indicator configuration
+	EnableRawKlines    bool   `json:"enable_raw_klines"`   // Raw OHLCV klines (always true, required)
+	EnableEMA          bool   `json:"enable_ema"`          // Enable EMA indicator
+	EnableMACD         bool   `json:"enable_macd"`         // Enable MACD indicator
+	EnableRSI          bool   `json:"enable_rsi"`          // Enable RSI indicator
+	EnableATR          bool   `json:"enable_atr"`          // Enable ATR indicator
+	EnableVolume       bool   `json:"enable_volume"`       // Enable volume data
+	EnableOI           bool   `json:"enable_oi"`           // Enable open interest data
+	EnableFunding      bool   `json:"enable_funding"`      // Enable funding rate data
+	IndicatorTimeframe string `json:"indicator_timeframe"` // Timeframe for indicators (e.g., "3m", "15m", "1h", "4h")
+	QuantDataURL       string `json:"quant_data_url"`      // External quant data API URL with {symbol} placeholder
 }
 
 type ModelConfig struct {
@@ -489,6 +511,16 @@ type SafeModelConfig struct {
 	Enabled         bool   `json:"enabled"`
 	CustomAPIURL    string `json:"customApiUrl"`    // Custom API URL (usually not sensitive)
 	CustomModelName string `json:"customModelName"` // Custom model name (not sensitive)
+}
+
+// SupportedModel Supported AI model structure matching frontend AIModel interface
+type SupportedModel struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Provider        string `json:"provider"`
+	Enabled         bool   `json:"enabled"`         // Always false for supported list
+	CustomAPIURL    string `json:"customApiUrl"`    // Empty string for supported list
+	CustomModelName string `json:"customModelName"` // Empty string for supported list
 }
 
 type ExchangeConfig struct {
@@ -731,6 +763,16 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 		}
 	}
 
+	// Validate quant data URL if present (check for {symbol} placeholder)
+	// This validation warns if a quant data API URL is provided but missing {symbol} placeholder
+	validateQuantDataURL := func(url string) {
+		if url != "" && !strings.Contains(url, "{symbol}") {
+			log.Printf("⚠️  WARNING: Quant data API URL missing {symbol} placeholder: %s", url)
+		}
+	}
+	// Note: Call validateQuantDataURL(req.QuantDataURL) when quant_data_url field is added to CreateTraderRequest
+	_ = validateQuantDataURL // Suppress unused variable warning until field is added
+
 	// Generate trader ID
 	traderID := fmt.Sprintf("%s_%s_%d", req.ExchangeID, req.AIModelID, time.Now().Unix())
 
@@ -738,6 +780,11 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 	isCrossMargin := true // Default to cross margin mode
 	if req.IsCrossMargin != nil {
 		isCrossMargin = *req.IsCrossMargin
+	}
+
+	showInCompetition := true // Default to show in competition
+	if req.ShowInCompetition != nil {
+		showInCompetition = *req.ShowInCompetition
 	}
 
 	// Set leverage default values (from system configuration)
@@ -833,28 +880,55 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 			if balanceErr != nil {
 				log.Printf("⚠️ Failed to query exchange balance, using user input initial balance: %v", balanceErr)
 			} else {
-				// Extract available balance - support multiple field name formats
-				if availableBalance, ok := balanceInfo["availableBalance"].(float64); ok && availableBalance > 0 {
-					// Binance format: availableBalance (camelCase)
+				// Extract available balance - prioritize available_balance over total_equity
+				// Use available_balance (funds available for trading) instead of total_equity (includes unrealized PnL)
+				if availableBalance, ok := balanceInfo["available_balance"].(float64); ok && availableBalance > 0 {
+					// Snake case format: available_balance
 					actualBalance = availableBalance
-					log.Printf("✓ Queried exchange actual balance: %.2f USDT (user input: %.2f USDT)", actualBalance, req.InitialBalance)
-				} else if availableBalance, ok := balanceInfo["available_balance"].(float64); ok && availableBalance > 0 {
-					// Other format: available_balance (snake_case)
+					log.Printf("✓ Queried exchange available balance: %.2f USDT (user input: %.2f USDT)", actualBalance, req.InitialBalance)
+				} else if availableBalance, ok := balanceInfo["availableBalance"].(float64); ok && availableBalance > 0 {
+					// Camel case format: availableBalance
 					actualBalance = availableBalance
-					log.Printf("✓ Queried exchange actual balance: %.2f USDT (user input: %.2f USDT)", actualBalance, req.InitialBalance)
-				} else if totalBalance, ok := balanceInfo["totalWalletBalance"].(float64); ok && totalBalance > 0 {
-					// Binance format: totalWalletBalance (camelCase)
-					actualBalance = totalBalance
-					log.Printf("✓ Queried exchange total balance: %.2f USDT (user input: %.2f USDT)", actualBalance, req.InitialBalance)
+					log.Printf("✓ Queried exchange available balance: %.2f USDT (user input: %.2f USDT)", actualBalance, req.InitialBalance)
 				} else if totalBalance, ok := balanceInfo["balance"].(float64); ok && totalBalance > 0 {
-					// Other format: balance
+					// Fallback: generic balance field
 					actualBalance = totalBalance
-					log.Printf("✓ Queried exchange actual balance: %.2f USDT (user input: %.2f USDT)", actualBalance, req.InitialBalance)
+					log.Printf("✓ Queried exchange balance: %.2f USDT (user input: %.2f USDT)", actualBalance, req.InitialBalance)
 				} else {
 					log.Printf("⚠️ Unable to extract available balance from balance info, balanceInfo=%v, using user input initial balance", balanceInfo)
 				}
 			}
 		}
+	}
+
+	// Set indicator configuration defaults
+	enableRawKlines := true // Always true, required
+	enableEMA := req.EnableEMA
+	enableMACD := req.EnableMACD
+	enableRSI := req.EnableRSI
+	enableATR := req.EnableATR
+	enableVolume := req.EnableVolume
+	if !req.EnableVolume && !req.EnableOI && !req.EnableFunding {
+		// If no indicator config provided, use defaults: disable EMA/MACD/RSI/ATR, enable volume/OI/funding
+		enableVolume = true
+	}
+	enableOI := req.EnableOI
+	if !req.EnableVolume && !req.EnableOI && !req.EnableFunding {
+		enableOI = true
+	}
+	enableFunding := req.EnableFunding
+	if !req.EnableVolume && !req.EnableOI && !req.EnableFunding {
+		enableFunding = true
+	}
+	indicatorTimeframe := req.IndicatorTimeframe
+	if indicatorTimeframe == "" {
+		indicatorTimeframe = "3m"
+	}
+	quantDataURL := req.QuantDataURL
+
+	// Validate quant data URL if present (check for {symbol} placeholder)
+	if quantDataURL != "" && !strings.Contains(quantDataURL, "{symbol}") {
+		log.Printf("⚠️  WARNING: Quant data API URL missing {symbol} placeholder: %s", quantDataURL)
 	}
 
 	// Create trader configuration (database entity)
@@ -877,7 +951,18 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 		OverrideBasePrompt:   req.OverrideBasePrompt,
 		SystemPromptTemplate: systemPromptTemplate,
 		IsCrossMargin:        isCrossMargin,
+		ShowInCompetition:    showInCompetition,
 		ScanIntervalMinutes:  scanIntervalMinutes,
+		EnableRawKlines:      enableRawKlines,
+		EnableEMA:            enableEMA,
+		EnableMACD:           enableMACD,
+		EnableRSI:            enableRSI,
+		EnableATR:            enableATR,
+		EnableVolume:         enableVolume,
+		EnableOI:             enableOI,
+		EnableFunding:        enableFunding,
+		IndicatorTimeframe:   indicatorTimeframe,
+		QuantDataURL:         quantDataURL,
 		IsRunning:            false,
 	}
 
@@ -932,6 +1017,18 @@ type UpdateTraderRequest struct {
 	OverrideBasePrompt   bool    `json:"override_base_prompt"`
 	SystemPromptTemplate string  `json:"system_prompt_template"` // System prompt template name
 	IsCrossMargin        *bool   `json:"is_cross_margin"`
+	ShowInCompetition    *bool   `json:"show_in_competition"` // Pointer type, nil means keep existing value
+	// Indicator configuration
+	EnableRawKlines    bool   `json:"enable_raw_klines"`   // Raw OHLCV klines (always true, required)
+	EnableEMA          bool   `json:"enable_ema"`          // Enable EMA indicator
+	EnableMACD         bool   `json:"enable_macd"`         // Enable MACD indicator
+	EnableRSI          bool   `json:"enable_rsi"`          // Enable RSI indicator
+	EnableATR          bool   `json:"enable_atr"`          // Enable ATR indicator
+	EnableVolume       bool   `json:"enable_volume"`       // Enable volume data
+	EnableOI           bool   `json:"enable_oi"`           // Enable open interest data
+	EnableFunding      bool   `json:"enable_funding"`      // Enable funding rate data
+	IndicatorTimeframe string `json:"indicator_timeframe"` // Timeframe for indicators (e.g., "3m", "15m", "1h", "4h")
+	QuantDataURL       string `json:"quant_data_url"`      // External quant data API URL with {symbol} placeholder
 }
 
 // handleUpdateTrader update trader configuration
@@ -983,6 +1080,11 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		isCrossMargin = *req.IsCrossMargin
 	}
 
+	showInCompetition := existingTrader.ShowInCompetition // Keep original value
+	if req.ShowInCompetition != nil {
+		showInCompetition = *req.ShowInCompetition
+	}
+
 	// Set leverage default values
 	btcEthLeverage := req.BTCETHLeverage
 	altcoinLeverage := req.AltcoinLeverage
@@ -1011,6 +1113,64 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		log.Printf("✓ DEBUG [UpdateTrader]: Updating system_prompt_template to: '%s'", systemPromptTemplate)
 	}
 
+	// Validate quant data URL if present (check for {symbol} placeholder)
+	// This validation warns if a quant data API URL is provided but missing {symbol} placeholder
+	validateQuantDataURL := func(url string) {
+		if url != "" && !strings.Contains(url, "{symbol}") {
+			log.Printf("⚠️  WARNING: Quant data API URL missing {symbol} placeholder: %s", url)
+		}
+	}
+	// Note: Call validateQuantDataURL(req.QuantDataURL) when quant_data_url field is added to UpdateTraderRequest
+	_ = validateQuantDataURL // Suppress unused variable warning until field is added
+
+	// Set indicator configuration - use existing values if not provided, but always ensure enable_raw_klines is true
+	enableRawKlines := true // Always true, required
+	enableEMA := req.EnableEMA
+	if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
+		// If no indicator config provided, use existing values
+		enableEMA = existingTrader.EnableEMA
+	}
+	enableMACD := req.EnableMACD
+	if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
+		enableMACD = existingTrader.EnableMACD
+	}
+	enableRSI := req.EnableRSI
+	if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
+		enableRSI = existingTrader.EnableRSI
+	}
+	enableATR := req.EnableATR
+	if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
+		enableATR = existingTrader.EnableATR
+	}
+	enableVolume := req.EnableVolume
+	if !req.EnableVolume && !req.EnableOI && !req.EnableFunding && req.QuantDataURL == "" {
+		enableVolume = existingTrader.EnableVolume
+	}
+	enableOI := req.EnableOI
+	if !req.EnableVolume && !req.EnableOI && !req.EnableFunding && req.QuantDataURL == "" {
+		enableOI = existingTrader.EnableOI
+	}
+	enableFunding := req.EnableFunding
+	if !req.EnableVolume && !req.EnableOI && !req.EnableFunding && req.QuantDataURL == "" {
+		enableFunding = existingTrader.EnableFunding
+	}
+	indicatorTimeframe := req.IndicatorTimeframe
+	if indicatorTimeframe == "" {
+		indicatorTimeframe = existingTrader.IndicatorTimeframe
+		if indicatorTimeframe == "" {
+			indicatorTimeframe = "3m"
+		}
+	}
+	quantDataURL := req.QuantDataURL
+	if quantDataURL == "" {
+		quantDataURL = existingTrader.QuantDataURL
+	}
+
+	// Validate quant data URL if present (check for {symbol} placeholder)
+	if quantDataURL != "" && !strings.Contains(quantDataURL, "{symbol}") {
+		log.Printf("⚠️  WARNING: Quant data API URL missing {symbol} placeholder: %s", quantDataURL)
+	}
+
 	// Update trader configuration
 	trader := &config.TraderRecord{
 		ID:                   traderID,
@@ -1030,8 +1190,19 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		OverrideBasePrompt:   req.OverrideBasePrompt,
 		SystemPromptTemplate: systemPromptTemplate,
 		IsCrossMargin:        isCrossMargin,
+		ShowInCompetition:    showInCompetition,
 		ScanIntervalMinutes:  scanIntervalMinutes,
 		IsRunning:            existingTrader.IsRunning, // Keep original value
+		EnableRawKlines:      enableRawKlines,
+		EnableEMA:            enableEMA,
+		EnableMACD:           enableMACD,
+		EnableRSI:            enableRSI,
+		EnableATR:            enableATR,
+		EnableVolume:         enableVolume,
+		EnableOI:             enableOI,
+		EnableFunding:        enableFunding,
+		IndicatorTimeframe:   indicatorTimeframe,
+		QuantDataURL:         quantDataURL,
 	}
 
 	// Update database
@@ -1407,6 +1578,43 @@ func (s *Server) handleUpdateTraderPrompt(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Custom prompt updated"})
 }
 
+// handleToggleCompetition Toggle trader competition visibility
+func (s *Server) handleToggleCompetition(c *gin.Context) {
+	traderID := c.Param("id")
+	userID := c.GetString("user_id")
+
+	var req struct {
+		ShowInCompetition bool `json:"show_in_competition"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update database
+	err := s.database.UpdateTraderShowInCompetition(userID, traderID, req.ShowInCompetition)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update competition visibility: %v", err)})
+		return
+	}
+
+	// Update in-memory trader if it exists
+	if trader, err := s.traderManager.GetTrader(traderID); err == nil {
+		trader.SetShowInCompetition(req.ShowInCompetition)
+	}
+
+	status := "shown"
+	if !req.ShowInCompetition {
+		status = "hidden"
+	}
+	log.Printf("✓ Trader %s competition visibility updated: %s", traderID, status)
+	c.JSON(http.StatusOK, gin.H{
+		"message":             "Competition visibility updated",
+		"show_in_competition": req.ShowInCompetition,
+	})
+}
+
 // handleSyncBalance sync exchange balance to initial_balance (Option B: manual sync + Option C: smart detection)
 func (s *Server) handleSyncBalance(c *gin.Context) {
 	userID := c.GetString("user_id")
@@ -1469,7 +1677,8 @@ func (s *Server) handleSyncBalance(c *gin.Context) {
 		return
 	}
 
-	// Extract available balance
+	// Extract available balance - prioritize available_balance over total_equity
+	// Use available_balance (funds available for trading) instead of total_equity (includes unrealized PnL)
 	var actualBalance float64
 	if availableBalance, ok := balanceInfo["available_balance"].(float64); ok && availableBalance > 0 {
 		actualBalance = availableBalance
@@ -1532,6 +1741,22 @@ func (s *Server) handleGetModelConfigs(c *gin.Context) {
 	}
 	log.Printf("✅ Found %d AI model configurations", len(models))
 
+	// If database is empty, return default models
+	if len(models) == 0 {
+		log.Printf("📋 Database is empty, returning default models")
+		defaultModels := []SafeModelConfig{
+			{ID: "deepseek", Name: "DeepSeek", Provider: "deepseek", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+			{ID: "qwen", Name: "Qwen", Provider: "qwen", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+			{ID: "openai", Name: "OpenAI (GPT)", Provider: "openai", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+			{ID: "claude", Name: "Claude", Provider: "claude", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+			{ID: "gemini", Name: "Gemini", Provider: "gemini", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+			{ID: "grok", Name: "Grok", Provider: "grok", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+			{ID: "kimi", Name: "Kimi", Provider: "kimi", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+		}
+		c.JSON(http.StatusOK, defaultModels)
+		return
+	}
+
 	// Convert to safe response structure, remove sensitive information
 	safeModels := make([]SafeModelConfig, len(models))
 	for i, model := range models {
@@ -1548,7 +1773,7 @@ func (s *Server) handleGetModelConfigs(c *gin.Context) {
 	c.JSON(http.StatusOK, safeModels)
 }
 
-// handleUpdateModelConfigs update AI model configurations (encrypted data only)
+// handleUpdateModelConfigs update AI model configurations (encrypted data only when TRANSPORT_ENCRYPTION=true)
 func (s *Server) handleUpdateModelConfigs(c *gin.Context) {
 	userID := c.GetString("user_id")
 
@@ -1559,41 +1784,55 @@ func (s *Server) handleUpdateModelConfigs(c *gin.Context) {
 		return
 	}
 
-	// Parse encrypted payload
-	var encryptedPayload crypto.EncryptedPayload
-	if err := json.Unmarshal(bodyBytes, &encryptedPayload); err != nil {
-		log.Printf("❌ Failed to parse encrypted payload: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Request format error, encrypted transmission required"})
-		return
-	}
+	// Check if transport encryption is enabled
+	transportEncryptionEnabled := strings.ToLower(os.Getenv("TRANSPORT_ENCRYPTION")) == "true"
 
-	// Verify if encrypted data
-	if encryptedPayload.WrappedKey == "" {
-		log.Printf("❌ Detected non-encrypted request (UserID: %s)", userID)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "This endpoint only supports encrypted transmission, please use encrypted client",
-			"code":    "ENCRYPTION_REQUIRED",
-			"message": "Encrypted transmission is required for security reasons",
-		})
-		return
-	}
-
-	// Decrypt data
-	decrypted, err := s.cryptoHandler.cryptoService.DecryptSensitiveData(&encryptedPayload)
-	if err != nil {
-		log.Printf("❌ Failed to decrypt model configuration (UserID: %s): %v", userID, err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decrypt data"})
-		return
-	}
-
-	// Parse decrypted data
 	var req UpdateModelConfigRequest
-	if err := json.Unmarshal([]byte(decrypted), &req); err != nil {
-		log.Printf("❌ Failed to parse decrypted data: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse decrypted data"})
-		return
+
+	if transportEncryptionEnabled {
+		// Parse encrypted payload
+		var encryptedPayload crypto.EncryptedPayload
+		if err := json.Unmarshal(bodyBytes, &encryptedPayload); err != nil {
+			log.Printf("❌ Failed to parse encrypted payload: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Request format error, encrypted transmission required"})
+			return
+		}
+
+		// Verify if encrypted data
+		if encryptedPayload.WrappedKey == "" {
+			log.Printf("❌ Detected non-encrypted request (UserID: %s)", userID)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "This endpoint only supports encrypted transmission, please use encrypted client",
+				"code":    "ENCRYPTION_REQUIRED",
+				"message": "Encrypted transmission is required for security reasons",
+			})
+			return
+		}
+
+		// Decrypt data
+		decrypted, err := s.cryptoHandler.cryptoService.DecryptSensitiveData(&encryptedPayload)
+		if err != nil {
+			log.Printf("❌ Failed to decrypt model configuration (UserID: %s): %v", userID, err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decrypt data"})
+			return
+		}
+
+		// Parse decrypted data
+		if err := json.Unmarshal([]byte(decrypted), &req); err != nil {
+			log.Printf("❌ Failed to parse decrypted data: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse decrypted data"})
+			return
+		}
+		log.Printf("🔓 Decrypted model configuration data (UserID: %s)", userID)
+	} else {
+		// Transport encryption disabled, accept plain JSON
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
+			log.Printf("❌ Failed to parse request data: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request data"})
+			return
+		}
+		log.Printf("📝 Received plain model configuration data (UserID: %s, transport encryption disabled)", userID)
 	}
-	log.Printf("🔓 Decrypted model configuration data (UserID: %s)", userID)
 
 	// Update each model's configuration
 	for modelID, modelData := range req.Models {
@@ -1628,6 +1867,21 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 	}
 	log.Printf("✅ Found %d exchange configurations", len(exchanges))
 
+	// If database is empty, return default exchanges
+	if len(exchanges) == 0 {
+		log.Printf("📋 Database is empty, returning default exchanges")
+		defaultExchanges := []SafeExchangeConfig{
+			{ID: "binance", Name: "Binance Futures", Type: "binance", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+			{ID: "bybit", Name: "Bybit Futures", Type: "bybit", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+			{ID: "okx", Name: "OKX Futures", Type: "okx", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+			{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+			{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+			{ID: "lighter", Name: "LIGHTER DEX", Type: "lighter", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+		}
+		c.JSON(http.StatusOK, defaultExchanges)
+		return
+	}
+
 	// Debug: output configuration details (masked)
 	for _, ex := range exchanges {
 		apiKeyMasked := ""
@@ -1640,10 +1894,6 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 		}
 		log.Printf("   └─ Exchange: %s, APIKey: %s, SecretKey: %s", ex.ID, apiKeyMasked, secretKeyMasked)
 	}
-
-	// Print full JSON response for debugging
-	jsonData, _ := json.Marshal(exchanges)
-	log.Printf("📤 Full JSON response: %s", string(jsonData))
 
 	// Convert to safe response structure, remove sensitive information
 	safeExchanges := make([]SafeExchangeConfig, len(exchanges))
@@ -1663,7 +1913,7 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 	c.JSON(http.StatusOK, safeExchanges)
 }
 
-// handleUpdateExchangeConfigs update exchange configurations (encrypted data only)
+// handleUpdateExchangeConfigs update exchange configurations (encrypted data only when TRANSPORT_ENCRYPTION=true)
 func (s *Server) handleUpdateExchangeConfigs(c *gin.Context) {
 	userID := c.GetString("user_id")
 
@@ -1674,47 +1924,67 @@ func (s *Server) handleUpdateExchangeConfigs(c *gin.Context) {
 		return
 	}
 
-	// Parse encrypted payload
-	var encryptedPayload crypto.EncryptedPayload
-	if err := json.Unmarshal(bodyBytes, &encryptedPayload); err != nil {
-		log.Printf("❌ Failed to parse encrypted payload: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Request format error, encrypted transmission required"})
-		return
-	}
+	// Check if transport encryption is enabled
+	transportEncryptionEnabled := strings.ToLower(os.Getenv("TRANSPORT_ENCRYPTION")) == "true"
 
-	// Verify if encrypted data
-	if encryptedPayload.WrappedKey == "" {
-		log.Printf("❌ Detected non-encrypted request (UserID: %s)", userID)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "This endpoint only supports encrypted transmission, please use encrypted client",
-			"code":    "ENCRYPTION_REQUIRED",
-			"message": "Encrypted transmission is required for security reasons",
-		})
-		return
-	}
-
-	// Decrypt data
-	decrypted, err := s.cryptoHandler.cryptoService.DecryptSensitiveData(&encryptedPayload)
-	if err != nil {
-		log.Printf("❌ Failed to decrypt exchange configuration (UserID: %s): %v", userID, err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decrypt data"})
-		return
-	}
-
-	// Parse decrypted data
 	var req UpdateExchangeConfigRequest
-	if err := json.Unmarshal([]byte(decrypted), &req); err != nil {
-		log.Printf("❌ Failed to parse decrypted data: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse decrypted data"})
-		return
+
+	if transportEncryptionEnabled {
+		// Parse encrypted payload
+		var encryptedPayload crypto.EncryptedPayload
+		if err := json.Unmarshal(bodyBytes, &encryptedPayload); err != nil {
+			log.Printf("❌ Failed to parse encrypted payload: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Request format error, encrypted transmission required"})
+			return
+		}
+
+		// Verify if encrypted data
+		if encryptedPayload.WrappedKey == "" {
+			log.Printf("❌ Detected non-encrypted request (UserID: %s)", userID)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "This endpoint only supports encrypted transmission, please use encrypted client",
+				"code":    "ENCRYPTION_REQUIRED",
+				"message": "Encrypted transmission is required for security reasons",
+			})
+			return
+		}
+
+		// Decrypt data
+		decrypted, err := s.cryptoHandler.cryptoService.DecryptSensitiveData(&encryptedPayload)
+		if err != nil {
+			log.Printf("❌ Failed to decrypt exchange configuration (UserID: %s): %v", userID, err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decrypt data"})
+			return
+		}
+
+		// Parse decrypted data
+		if err := json.Unmarshal([]byte(decrypted), &req); err != nil {
+			log.Printf("❌ Failed to parse decrypted data: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse decrypted data"})
+			return
+		}
+		log.Printf("🔓 Decrypted exchange configuration data (UserID: %s)", userID)
+	} else {
+		// Transport encryption disabled, accept plain JSON
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
+			log.Printf("❌ Failed to parse request data: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request data"})
+			return
+		}
+		log.Printf("📝 Received plain exchange configuration data (UserID: %s, transport encryption disabled)", userID)
 	}
-	log.Printf("🔓 Decrypted exchange configuration data (UserID: %s)", userID)
 
 	// Update each exchange's configuration
 	for exchangeID, exchangeData := range req.Exchanges {
 		err := s.database.UpdateExchange(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.LighterWalletAddr, exchangeData.LighterPrivateKey, exchangeData.LighterAPIKeyPrivateKey, exchangeData.OkxPassphrase)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update exchange %s: %v", exchangeID, err)})
+			// Provide more helpful error message
+			errorMsg := err.Error()
+			if strings.Contains(errorMsg, "migration") || strings.Contains(errorMsg, "UNIQUE constraint") {
+				errorMsg = fmt.Sprintf("Database migration required: %v. Please restart the server to complete migration, or contact support if the issue persists.", err)
+			}
+			log.Printf("❌ Failed to update exchange %s for user %s: %v", exchangeID, userID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update exchange %s: %s", exchangeID, errorMsg)})
 			return
 		}
 	}
@@ -1795,12 +2065,13 @@ func (s *Server) handleTraderList(c *gin.Context) {
 		// Return complete AIModelID (e.g., "admin_deepseek"), don't truncate
 		// Frontend needs complete ID to verify if model exists (consistent with handleGetTraderConfig)
 		result = append(result, map[string]interface{}{
-			"trader_id":       trader.ID,
-			"trader_name":     trader.Name,
-			"ai_model":        trader.AIModelID, // Use complete ID
-			"exchange_id":     trader.ExchangeID,
-			"is_running":      isRunning,
-			"initial_balance": trader.InitialBalance,
+			"trader_id":           trader.ID,
+			"trader_name":         trader.Name,
+			"ai_model":            trader.AIModelID, // Use complete ID
+			"exchange_id":         trader.ExchangeID,
+			"is_running":          isRunning,
+			"show_in_competition": trader.ShowInCompetition,
+			"initial_balance":     trader.InitialBalance,
 		})
 	}
 
@@ -2598,6 +2869,43 @@ func (s *Server) handleEquityHistory(c *gin.Context) {
 		})
 	}
 
+	// Add real-time data point from current account balance for chart/leaderboard consistency
+	accountInfo, err := trader.GetAccountInfo()
+	if err == nil {
+		currentTotalEquity, _ := accountInfo["total_equity"].(float64)
+		currentAvailableBalance, _ := accountInfo["available_balance"].(float64)
+		currentTotalPnL, _ := accountInfo["total_pnl"].(float64)
+		currentTotalPnLPct, _ := accountInfo["total_pnl_pct"].(float64)
+		currentPositionCount, _ := accountInfo["position_count"].(int)
+		currentMarginUsedPct, _ := accountInfo["margin_used_pct"].(float64)
+
+		// Use current timestamp for real-time data point
+		currentTimestamp := time.Now().Format("2006-01-02 15:04:05")
+
+		// Calculate PnL percentage if not provided or recalculate using initial balance
+		if currentTotalPnLPct == 0 && initialBalance > 0 && currentTotalEquity > 0 {
+			currentTotalPnL = currentTotalEquity - initialBalance
+			currentTotalPnLPct = (currentTotalPnL / initialBalance) * 100
+		}
+
+		// Get the last cycle number and increment it, or use 0 if no history
+		lastCycleNumber := 0
+		if len(history) > 0 {
+			lastCycleNumber = history[len(history)-1].CycleNumber + 1
+		}
+
+		history = append(history, EquityPoint{
+			Timestamp:        currentTimestamp,
+			TotalEquity:      currentTotalEquity,
+			AvailableBalance: currentAvailableBalance,
+			TotalPnL:         currentTotalPnL,
+			TotalPnLPct:      currentTotalPnLPct,
+			PositionCount:    currentPositionCount,
+			MarginUsedPct:    currentMarginUsedPct,
+			CycleNumber:      lastCycleNumber,
+		})
+	}
+
 	c.JSON(http.StatusOK, history)
 }
 
@@ -2804,6 +3112,8 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 		return
 	}
 
+	log.Printf("🔍 DEBUG [handleGetUserFollowers]: Starting request for user ID: '%s'", userID)
+
 	// Ensure user's traders are loaded into memory
 	err := s.traderManager.LoadUserTraders(s.database, userID)
 	if err != nil {
@@ -2813,33 +3123,49 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 	// Get all user's traders
 	userTraders, err := s.database.GetTraders(userID)
 	if err != nil {
+		log.Printf("❌ DEBUG [handleGetUserFollowers]: Failed to get traders for user '%s': %v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("Failed to get trader list: %v", err),
 		})
 		return
 	}
 
+	log.Printf("📊 DEBUG [handleGetUserFollowers]: Found %d total traders for user '%s'", len(userTraders), userID)
+
 	// Filter out parent traders (traders without followed_trader_id)
 	var parentTraders []*config.TraderRecord
 	for _, trader := range userTraders {
+		log.Printf("🔍 DEBUG [handleGetUserFollowers]: Checking trader ID: '%s', Name: '%s', FollowedTraderID: '%s'", 
+			trader.ID, trader.Name, trader.FollowedTraderID)
 		if trader.FollowedTraderID == "" {
 			parentTraders = append(parentTraders, trader)
+			log.Printf("✅ DEBUG [handleGetUserFollowers]: Trader '%s' is a parent trader (no followed_trader_id)", trader.ID)
+		} else {
+			log.Printf("ℹ️ DEBUG [handleGetUserFollowers]: Trader '%s' is a follower (followed_trader_id: '%s'), skipping", trader.ID, trader.FollowedTraderID)
 		}
 	}
+
+	log.Printf("📊 DEBUG [handleGetUserFollowers]: Found %d parent traders for user '%s'", len(parentTraders), userID)
 
 	// Build response data
 	parentTradersList := make([]gin.H, 0, len(parentTraders))
 
 	for _, parentTrader := range parentTraders {
+		log.Printf("🔍 DEBUG [handleGetUserFollowers]: Querying followers for parent trader ID: '%s', Name: '%s'", 
+			parentTrader.ID, parentTrader.Name)
+		
 		// Get all followers of this parent trader
 		followers, err := s.database.GetFollowerTraders(parentTrader.ID)
 		if err != nil {
-			log.Printf("⚠️ Failed to get trader %s follower list: %v", parentTrader.ID, err)
+			log.Printf("❌ DEBUG [handleGetUserFollowers]: Failed to get trader '%s' follower list: %v", parentTrader.ID, err)
 			continue
 		}
 
+		log.Printf("📊 DEBUG [handleGetUserFollowers]: Parent trader '%s' has %d followers", parentTrader.ID, len(followers))
+
 		// If no followers, skip
 		if len(followers) == 0 {
+			log.Printf("⏭️ DEBUG [handleGetUserFollowers]: Skipping parent trader '%s' - no followers", parentTrader.ID)
 			continue
 		}
 
@@ -2934,8 +3260,13 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 			"followers":   followersList,
 		}
 
+		log.Printf("✅ DEBUG [handleGetUserFollowers]: Added parent trader '%s' with %d followers to response", 
+			parentTrader.ID, len(followersList))
 		parentTradersList = append(parentTradersList, parentInfo)
 	}
+
+	log.Printf("📊 DEBUG [handleGetUserFollowers]: Returning %d parent traders with followers for user '%s'", 
+		len(parentTradersList), userID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"parent_traders": parentTradersList,
@@ -3126,6 +3457,23 @@ func (s *Server) handleRegister(c *gin.Context) {
 		if !isValid {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Beta code is invalid or already used"})
 			return
+		}
+	}
+
+	// Check max users limit
+	maxUsersStr, _ := s.database.GetSystemConfig("max_users")
+	if maxUsersStr != "" {
+		maxUsers, err := strconv.Atoi(maxUsersStr)
+		if err == nil && maxUsers > 0 {
+			userCount, err := s.database.GetUserCount()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user count"})
+				return
+			}
+			if userCount >= maxUsers {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Not on whitelist"})
+				return
+			}
 		}
 	}
 
@@ -3382,43 +3730,60 @@ func (s *Server) initUserDefaultConfigs(userID string) error {
 
 // handleGetSupportedModels get system supported AI model list
 func (s *Server) handleGetSupportedModels(c *gin.Context) {
-	// Return system supported AI models (get from default user)
-	models, err := s.database.GetAIModels("default")
-	if err != nil {
-		log.Printf("❌ Failed to get supported AI models: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get supported AI models"})
-		return
+	// Return static list of supported AI models
+	supportedModels := []SupportedModel{
+		{ID: "deepseek", Name: "DeepSeek", Provider: "deepseek", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+		{ID: "qwen", Name: "Qwen", Provider: "qwen", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+		{ID: "openai", Name: "OpenAI (GPT)", Provider: "openai", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+		{ID: "claude", Name: "Claude", Provider: "claude", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+		{ID: "gemini", Name: "Gemini", Provider: "gemini", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+		{ID: "grok", Name: "Grok", Provider: "grok", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
+		{ID: "kimi", Name: "Kimi", Provider: "kimi", Enabled: false, CustomAPIURL: "", CustomModelName: ""},
 	}
 
-	c.JSON(http.StatusOK, models)
+	c.JSON(http.StatusOK, supportedModels)
 }
 
 // handleGetSupportedExchanges get system supported exchange list
 func (s *Server) handleGetSupportedExchanges(c *gin.Context) {
-	// Return system supported exchanges (get from default user)
-	exchanges, err := s.database.GetExchanges("default")
-	if err != nil {
-		log.Printf("❌ Failed to get supported exchanges: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get supported exchanges"})
-		return
+	// Return static list of supported exchanges
+	supportedExchanges := []SafeExchangeConfig{
+		{ID: "binance", Name: "Binance Futures", Type: "binance", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+		{ID: "bybit", Name: "Bybit Futures", Type: "bybit", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+		{ID: "okx", Name: "OKX Futures", Type: "okx", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+		{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+		{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+		{ID: "lighter", Name: "LIGHTER DEX", Type: "lighter", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
 	}
 
-	// Convert to safe response structure, remove sensitive information
-	safeExchanges := make([]SafeExchangeConfig, len(exchanges))
-	for i, exchange := range exchanges {
-		safeExchanges[i] = SafeExchangeConfig{
-			ID:                    exchange.ID,
-			Name:                  exchange.Name,
-			Type:                  exchange.Type,
-			Enabled:               exchange.Enabled,
-			Testnet:               exchange.Testnet,
-			HyperliquidWalletAddr: "", // Default config does not include wallet address
-			AsterUser:             "", // Default config does not include user information
-			AsterSigner:           "",
-		}
+	c.JSON(http.StatusOK, supportedExchanges)
+}
+
+// handleGetDefaultStrategyConfig get default strategy configuration based on language
+func (s *Server) handleGetDefaultStrategyConfig(c *gin.Context) {
+	// Get language parameter from query string, default to "en"
+	lang := c.DefaultQuery("lang", "en")
+
+	// Validate language parameter
+	if lang != "zh" && lang != "en" {
+		lang = "en" // Default to English if invalid
 	}
 
-	c.JSON(http.StatusOK, safeExchanges)
+	// Get default strategy configuration
+	config := GetDefaultStrategyConfig(lang)
+
+	c.JSON(http.StatusOK, config)
+}
+
+// handleGetDefaultURLs get default URLs for data sources
+func (s *Server) handleGetDefaultURLs(c *gin.Context) {
+	// Return default URLs for Coin Pool, OI Top, and Quant Data APIs
+	defaultURLs := gin.H{
+		"coin_pool_url":  "http://nofxaios.com:30006/api/coinpool",
+		"oi_top_url":     "http://nofxaios.com:30006/api/oi/top",
+		"quant_data_url": "http://nofxaios.com:30006/api/coin/{symbol}?include=netflow,oi,price",
+	}
+	c.JSON(http.StatusOK, defaultURLs)
 }
 
 // Start start server
@@ -3663,11 +4028,11 @@ func (s *Server) handleUpdatePromptTemplate(c *gin.Context) {
 	err := s.database.UpdatePromptTemplate(userID, templateID, req.Name, req.Content)
 	if err != nil {
 		log.Printf("❌ Failed to update prompt template: %v", err)
-		if strings.Contains(err.Error(), "cannot update system template") || strings.Contains(err.Error(), "不能更新系统模板") {
+		if strings.Contains(err.Error(), "cannot update system template") {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Cannot update system template"})
 			return
 		}
-		if strings.Contains(err.Error(), "no permission to update") || strings.Contains(err.Error(), "无权更新") {
+		if strings.Contains(err.Error(), "no permission to update") {
 			c.JSON(http.StatusForbidden, gin.H{"error": "No permission to update this template"})
 			return
 		}
@@ -3709,11 +4074,11 @@ func (s *Server) handleDeletePromptTemplate(c *gin.Context) {
 	err := s.database.DeletePromptTemplate(userID, templateID)
 	if err != nil {
 		log.Printf("❌ Failed to delete prompt template: %v", err)
-		if strings.Contains(err.Error(), "cannot delete system template") || strings.Contains(err.Error(), "不能删除系统模板") {
+		if strings.Contains(err.Error(), "cannot delete system template") {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete system template"})
 			return
 		}
-		if strings.Contains(err.Error(), "no permission to delete") || strings.Contains(err.Error(), "无权删除") {
+		if strings.Contains(err.Error(), "no permission to delete") {
 			c.JSON(http.StatusForbidden, gin.H{"error": "No permission to delete this template"})
 			return
 		}
@@ -3857,6 +4222,9 @@ func (s *Server) getEquityHistoryForTraders(traderIDs []string) map[string]inter
 	histories := make(map[string]interface{})
 	errors := make(map[string]string)
 
+	// Generate consistent timestamp for all real-time data points in batch requests
+	consistentTimestamp := time.Now().Format("2006-01-02 15:04:05")
+
 	for _, traderID := range traderIDs {
 		if traderID == "" {
 			continue
@@ -3875,17 +4243,61 @@ func (s *Server) getEquityHistoryForTraders(traderIDs []string) map[string]inter
 			continue
 		}
 
+		// Get initial balance from database
+		initialBalance := 0.0
+		traderRecord, err := s.database.GetTraderByID(traderID)
+		if err == nil && traderRecord != nil {
+			initialBalance = traderRecord.InitialBalance
+		}
+
+		// Fallback to first snapshot equity if initial_balance not set
+		if initialBalance == 0 && len(records) > 0 {
+			firstRecord := records[0]
+			initialBalance = firstRecord.AccountState.TotalBalance + firstRecord.AccountState.TotalUnrealizedProfit
+		}
+
 		// Build return history data
 		history := make([]map[string]interface{}, 0, len(records))
 		for _, record := range records {
 			// Calculate total equity (balance + unrealized PnL)
 			totalEquity := record.AccountState.TotalBalance + record.AccountState.TotalUnrealizedProfit
 
+			// Calculate total PnL percentage using initial_balance
+			totalPnLPct := 0.0
+			if initialBalance > 0 {
+				totalPnL := totalEquity - initialBalance
+				totalPnLPct = (totalPnL / initialBalance) * 100
+			}
+
 			history = append(history, map[string]interface{}{
-				"timestamp":    record.Timestamp,
-				"total_equity": totalEquity,
-				"total_pnl":    record.AccountState.TotalUnrealizedProfit,
-				"balance":      record.AccountState.TotalBalance,
+				"timestamp":     record.Timestamp.Format("2006-01-02 15:04:05"),
+				"total_equity":  totalEquity,
+				"total_pnl":     totalEquity - initialBalance,
+				"total_pnl_pct": totalPnLPct,
+				"balance":       record.AccountState.TotalBalance,
+			})
+		}
+
+		// Add real-time data point from current account balance for chart/leaderboard consistency
+		accountInfo, err := trader.GetAccountInfo()
+		if err == nil {
+			currentTotalEquity, _ := accountInfo["total_equity"].(float64)
+			currentTotalPnL, _ := accountInfo["total_pnl"].(float64)
+			currentTotalPnLPct, _ := accountInfo["total_pnl_pct"].(float64)
+
+			// Calculate PnL percentage if not provided or recalculate using initial balance
+			if currentTotalPnLPct == 0 && initialBalance > 0 && currentTotalEquity > 0 {
+				currentTotalPnL = currentTotalEquity - initialBalance
+				currentTotalPnLPct = (currentTotalPnL / initialBalance) * 100
+			}
+
+			// Use consistent timestamp for all real-time data points in batch requests
+			history = append(history, map[string]interface{}{
+				"timestamp":     consistentTimestamp,
+				"total_equity":  currentTotalEquity,
+				"total_pnl":     currentTotalPnL,
+				"total_pnl_pct": currentTotalPnLPct,
+				"balance":       currentTotalEquity - currentTotalPnL, // Approximate balance
 			})
 		}
 

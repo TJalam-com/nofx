@@ -43,7 +43,7 @@ export function SignalSourceWarning({
           className="mt-3 px-3 py-1.5 rounded text-sm font-semibold transition-all hover:scale-105"
           style={{
             background: 'var(--green-primary)',
-            color: '#000',
+            color: 'var(--navy-primary)',
           }}
         >
           {t('configureSignalSourceNow', language)}

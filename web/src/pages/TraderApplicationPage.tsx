@@ -134,7 +134,7 @@ export default function TraderApplicationPage() {
     switch (status) {
       case 'pending':
         return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
             <Clock className="w-3 h-3" />
             Pending
           </span>
@@ -185,7 +185,7 @@ export default function TraderApplicationPage() {
         <div
           className="mb-6 p-4 rounded-lg border"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             borderColor: 'var(--panel-border)',
           }}
         >
@@ -196,7 +196,7 @@ export default function TraderApplicationPage() {
             {getStatusBadge(existingApplication.status)}
           </div>
           {existingApplication.admin_notes && (
-            <div className="mt-3 p-3 rounded bg-[#1E2329] border border-[var(--panel-border)]">
+            <div className="mt-3 p-3 rounded" style={{ background: 'var(--navy-dark)', border: '1px solid var(--panel-border)' }}>
             <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
               Admin Notes:
             </p>
@@ -215,7 +215,7 @@ export default function TraderApplicationPage() {
         <div
           className="rounded-lg p-6 space-y-6"
           style={{
-            background: 'var(--panel-bg)',
+            background: 'var(--navy-dark)',
             border: '1px solid var(--panel-border)',
           }}
         >
@@ -443,7 +443,7 @@ export default function TraderApplicationPage() {
                 onClick={() => navigate('/traders')}
                 className="px-6 py-2 rounded-lg border font-semibold transition-colors"
                 style={{
-                  background: 'var(--panel-bg)',
+                  background: 'var(--navy-dark)',
                   borderColor: 'var(--panel-border)',
                   color: 'var(--text-primary)',
                 }}

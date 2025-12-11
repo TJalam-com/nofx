@@ -35,59 +35,60 @@ const (
 	okxPositionModePath  = "/api/v5/account/set-position-mode"
 )
 
-// OKXTrader OKXσÉêτ║ªΣ║ñµÿôσÖ¿
+// OKXTrader OKX futures trader
 type OKXTrader struct {
 	apiKey     string
 	secretKey  string
 	passphrase string
 
-	// HTTP σ«óµê╖τ½»∩╝êτªüτö¿Σ╗úτÉå∩╝ë
+	// HTTP client (with proxy support)
 	httpClient *http.Client
 
-	// Σ╜ÖΘó¥τ╝ôσ¡ÿ
+	// Balance cache
 	cachedBalance     map[string]interface{}
 	balanceCacheTime  time.Time
 	balanceCacheMutex sync.RWMutex
 
-	// µîüΣ╗ôτ╝ôσ¡ÿ
+	// Position cache
 	cachedPositions     []map[string]interface{}
 	positionsCacheTime  time.Time
 	positionsCacheMutex sync.RWMutex
 
-	// σÉêτ║ªΣ┐íµü»τ╝ôσ¡ÿ
+	// Instrument info cache
 	instrumentsCache      map[string]*OKXInstrument
 	instrumentsCacheTime  time.Time
 	instrumentsCacheMutex sync.RWMutex
 
-	// τ╝ôσ¡ÿµ£ëµòêµ£ƒ
+	// Cache validity duration
 	cacheDuration time.Duration
 }
 
-// OKXInstrument OKXσÉêτ║ªΣ┐íµü»
+// OKXInstrument OKX instrument information
 type OKXInstrument struct {
-	InstID string  // σÉêτ║ªID
-	CtVal  float64 // σÉêτ║ªΘ¥óσÇ╝
-	CtMult float64 // σÉêτ║ªΣ╣ÿµò░
-	LotSz  float64 // µ£Çσ░ÅΣ╕ïσìòµò░ΘçÅ
-	MinSz  float64 // µ£Çσ░ÅΣ╕ïσìòµò░ΘçÅ
-	TickSz float64 // µ£Çσ░ÅΣ╗╖µá╝σÅÿσè¿
-	CtType string  // σÉêτ║ªτ▒╗σ₧ï
+	InstID  string  // Instrument ID
+	CtVal   float64 // Contract value
+	CtMult  float64 // Contract multiplier
+	LotSz   float64 // Minimum order quantity
+	MinSz   float64 // Minimum order quantity
+	TickSz  float64 // Minimum price increment
+	CtType  string  // Contract type
+	MaxMktSz float64 // Maximum market order size
 }
 
-// OKXResponse OKX APIσôìσ║ö
+// OKXResponse OKX API response
 type OKXResponse struct {
 	Code string          `json:"code"`
 	Msg  string          `json:"msg"`
 	Data json.RawMessage `json:"data"`
 }
 
-// getOkxOrderID τöƒµêÉOKXΦ«óσìòID
+// genOkxClOrdID Generate OKX order ID
 func genOkxClOrdID() string {
 	timestamp := time.Now().UnixNano() % 10000000000000
 	randomBytes := make([]byte, 4)
 	rand.Read(randomBytes)
 	randomHex := hex.EncodeToString(randomBytes)
-	// OKX clOrdId µ£ÇΘò┐32σ¡ùτ¼ª
+	// OKX clOrdId maximum 32 characters
 	orderID := fmt.Sprintf("%s%d%s", okxTag, timestamp, randomHex)
 	if len(orderID) > 32 {
 		orderID = orderID[:32]
@@ -95,10 +96,10 @@ func genOkxClOrdID() string {
 	return orderID
 }
 
-// NewOKXTrader σê¢σ╗║OKXΣ║ñµÿôσÖ¿
+// NewOKXTrader creates OKX trader
 func NewOKXTrader(apiKey, secretKey, passphrase string) *OKXTrader {
-	// Σ╜┐τö¿ http.DefaultClient∩╝îΣ╕Ä Binance/Bybit SDK Σ┐¥µîüΣ╕ÇΦç┤
-	// DefaultClient Σ╜┐τö¿ DefaultTransport∩╝îΣ╝ÜΦ»╗σÅûτÄ»σóâσÅÿΘçÅΣ╗úτÉåΦ«╛τ╜«
+	// Use http.DefaultClient, consistent with Binance/Bybit SDKs
+	// DefaultClient uses DefaultTransport, which reads proxy settings from environment variables
 	trader := &OKXTrader{
 		apiKey:           apiKey,
 		secretKey:        secretKey,
@@ -108,35 +109,35 @@ func NewOKXTrader(apiKey, secretKey, passphrase string) *OKXTrader {
 		instrumentsCache: make(map[string]*OKXInstrument),
 	}
 
-	// Φ«╛τ╜«σÅîσÉæµîüΣ╗ôµ¿íσ╝Å
+	// Set bidirectional position mode
 	if err := trader.setPositionMode(); err != nil {
-		logger.Infof("ΓÜá∩╕Å Φ«╛τ╜«OKXµîüΣ╗ôµ¿íσ╝Åσñ▒Φ┤Ñ: %v (σªéµ₧£σ╖▓µÿ»σÅîσÉæµ¿íσ╝ÅσêÖσ┐╜τòÑ)", err)
+		logger.Infof("⚠️ Failed to set OKX position mode: %v (if already bidirectional, ignore)", err)
 	}
 
 	return trader
 }
 
-// setPositionMode Φ«╛τ╜«σÅîσÉæµîüΣ╗ôµ¿íσ╝Å
+// setPositionMode Set bidirectional position mode
 func (t *OKXTrader) setPositionMode() error {
 	body := map[string]string{
-		"posMode": "long_short_mode", // σÅîσÉæµîüΣ╗ô
+		"posMode": "long_short_mode", // Bidirectional position
 	}
 
 	_, err := t.doRequest("POST", okxPositionModePath, body)
 	if err != nil {
-		// σªéµ₧£σ╖▓τ╗Åµÿ»σÅîσÉæµ¿íσ╝Å∩╝îσ┐╜τòÑΘöÖΦ»»
+		// If already bidirectional mode, ignore error
 		if strings.Contains(err.Error(), "already") || strings.Contains(err.Error(), "Position mode is not modified") {
-			logger.Infof("  Γ£ô OKXΦ┤ªµê╖σ╖▓µÿ»σÅîσÉæµîüΣ╗ôµ¿íσ╝Å")
+			logger.Infof("  ✓ OKX account is already bidirectional position mode")
 			return nil
 		}
 		return err
 	}
 
-	logger.Infof("  Γ£ô OKXΦ┤ªµê╖σ╖▓σêçµìóΣ╕║σÅîσÉæµîüΣ╗ôµ¿íσ╝Å")
+	logger.Infof("  ✓ OKX account changed to bidirectional position mode")
 	return nil
 }
 
-// sign τöƒµêÉOKX APIτ¡╛σÉì
+// sign Generate OKX API signature
 func (t *OKXTrader) sign(timestamp, method, requestPath, body string) string {
 	preHash := timestamp + method + requestPath + body
 	h := hmac.New(sha256.New, []byte(t.secretKey))
@@ -144,7 +145,7 @@ func (t *OKXTrader) sign(timestamp, method, requestPath, body string) string {
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
-// doRequest µëºΦíîHTTPΦ»╖µ▒é
+// doRequest Execute HTTP request
 func (t *OKXTrader) doRequest(method, path string, body interface{}) ([]byte, error) {
 	var bodyBytes []byte
 	var err error
@@ -152,7 +153,7 @@ func (t *OKXTrader) doRequest(method, path string, body interface{}) ([]byte, er
 	if body != nil {
 		bodyBytes, err = json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("σ║ÅσêùσîûΦ»╖µ▒éΣ╜ôσñ▒Φ┤Ñ: %w", err)
+			return nil, fmt.Errorf("failed to marshal request body: %w", err)
 		}
 	}
 
@@ -161,7 +162,7 @@ func (t *OKXTrader) doRequest(method, path string, body interface{}) ([]byte, er
 
 	req, err := http.NewRequest(method, okxBaseURL+path, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return nil, fmt.Errorf("σê¢σ╗║Φ»╖µ▒éσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("OK-ACCESS-KEY", t.apiKey)
@@ -169,44 +170,44 @@ func (t *OKXTrader) doRequest(method, path string, body interface{}) ([]byte, er
 	req.Header.Set("OK-ACCESS-TIMESTAMP", timestamp)
 	req.Header.Set("OK-ACCESS-PASSPHRASE", t.passphrase)
 	req.Header.Set("Content-Type", "application/json")
-	// Φ«╛τ╜«Φ»╖µ▒éσñ┤
+	// Set request header
 	req.Header.Set("x-simulated-trading", "0")
 
 	resp, err := t.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Φ»╖µ▒éσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Φ»╗σÅûσôìσ║öσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	var okxResp OKXResponse
 	if err := json.Unmarshal(respBody, &okxResp); err != nil {
-		return nil, fmt.Errorf("Φºúµ₧Éσôìσ║öσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	// code=1 Φí¿τñ║Θâ¿σêåµêÉσèƒ∩╝îΘ£ÇΦªüµúÇµƒÑ data ΘçîτÜäσà╖Σ╜ôτ╗ôµ₧£
-	// code=2 Φí¿τñ║σà¿Θâ¿σñ▒Φ┤Ñ
+	// code=1 means partial success, need to check data for actual result
+	// code=2 means error
 	if okxResp.Code != "0" && okxResp.Code != "1" {
-		return nil, fmt.Errorf("OKX APIΘöÖΦ»»: code=%s, msg=%s", okxResp.Code, okxResp.Msg)
+		return nil, fmt.Errorf("OKX API error: code=%s, msg=%s", okxResp.Code, okxResp.Msg)
 	}
 
 	return okxResp.Data, nil
 }
 
-// convertSymbol σ░åΘÇÜτö¿τ¼ªσÅ╖Φ╜¼µìóΣ╕║OKXµá╝σ╝Å
-// σªé BTCUSDT -> BTC-USDT-SWAP
+// convertSymbol Convert trading symbol to OKX format
+// Example: BTCUSDT -> BTC-USDT-SWAP
 func (t *OKXTrader) convertSymbol(symbol string) string {
-	// τº╗ΘÖñUSDTσÉÄτ╝Çσ╣╢µ₧äσ╗║OKXµá╝σ╝Å
+	// Remove USDT suffix and build OKX format
 	base := strings.TrimSuffix(symbol, "USDT")
 	return fmt.Sprintf("%s-USDT-SWAP", base)
 }
 
-// convertSymbolBack σ░åOKXµá╝σ╝ÅΦ╜¼µìóσ¢₧ΘÇÜτö¿τ¼ªσÅ╖
-// σªé BTC-USDT-SWAP -> BTCUSDT
+// convertSymbolBack Convert OKX format back to trading symbol
+// Example: BTC-USDT-SWAP -> BTCUSDT
 func (t *OKXTrader) convertSymbolBack(instId string) string {
 	parts := strings.Split(instId, "-")
 	if len(parts) >= 2 {
@@ -215,21 +216,21 @@ func (t *OKXTrader) convertSymbolBack(instId string) string {
 	return instId
 }
 
-// GetBalance ΦÄ╖σÅûΦ┤ªµê╖Σ╜ÖΘó¥
+// GetBalance Get account balance
 func (t *OKXTrader) GetBalance() (map[string]interface{}, error) {
-	// µúÇµƒÑτ╝ôσ¡ÿ
+	// Check cache
 	t.balanceCacheMutex.RLock()
 	if t.cachedBalance != nil && time.Since(t.balanceCacheTime) < t.cacheDuration {
 		t.balanceCacheMutex.RUnlock()
-		logger.Infof("Γ£ô Σ╜┐τö¿τ╝ôσ¡ÿτÜäOKXΦ┤ªµê╖Σ╜ÖΘó¥")
+		logger.Infof("✓ Using cached OKX account balance")
 		return t.cachedBalance, nil
 	}
 	t.balanceCacheMutex.RUnlock()
 
-	logger.Infof("≡ƒöä µ¡úσ£¿Φ░âτö¿OKX APIΦÄ╖σÅûΦ┤ªµê╖Σ╜ÖΘó¥...")
+	logger.Infof("🔄 Calling OKX API to get account balance...")
 	data, err := t.doRequest("GET", okxAccountPath, nil)
 	if err != nil {
-		return nil, fmt.Errorf("ΦÄ╖σÅûΦ┤ªµê╖Σ╜ÖΘó¥σñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to get account balance: %w", err)
 	}
 
 	var balances []struct {
@@ -247,16 +248,16 @@ func (t *OKXTrader) GetBalance() (map[string]interface{}, error) {
 	}
 
 	if err := json.Unmarshal(data, &balances); err != nil {
-		return nil, fmt.Errorf("Φºúµ₧ÉΣ╜ÖΘó¥µò░µì«σñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to parse balance data: %w", err)
 	}
 
 	if len(balances) == 0 {
-		return nil, fmt.Errorf("µ£¬ΦÄ╖σÅûσê░Σ╜ÖΘó¥µò░µì«")
+		return nil, fmt.Errorf("no balance data found")
 	}
 
 	balance := balances[0]
 
-	// µƒÑµë╛USDTΣ╜ÖΘó¥
+	// Find USDT balance
 	var usdtAvail, usdtUPL float64
 	for _, detail := range balance.Details {
 		if detail.Ccy == "USDT" {
@@ -274,9 +275,9 @@ func (t *OKXTrader) GetBalance() (map[string]interface{}, error) {
 		"totalUnrealizedProfit": usdtUPL,
 	}
 
-	logger.Infof("Γ£ô OKXΣ╜ÖΘó¥: µÇ╗µ¥âτ¢è=%.2f, σÅ»τö¿=%.2f, µ£¬σ«₧τÄ░τ¢êΣ║Å=%.2f", totalEq, usdtAvail, usdtUPL)
+	logger.Infof("✓ OKX balance: total=%.2f, available=%.2f, unrealized=%.2f", totalEq, usdtAvail, usdtUPL)
 
-	// µ¢┤µû░τ╝ôσ¡ÿ
+	// Update cache
 	t.balanceCacheMutex.Lock()
 	t.cachedBalance = result
 	t.balanceCacheTime = time.Now()
@@ -285,21 +286,21 @@ func (t *OKXTrader) GetBalance() (map[string]interface{}, error) {
 	return result, nil
 }
 
-// GetPositions ΦÄ╖σÅûµëÇµ£ëµîüΣ╗ô
+// GetPositions Get all positions
 func (t *OKXTrader) GetPositions() ([]map[string]interface{}, error) {
-	// µúÇµƒÑτ╝ôσ¡ÿ
+	// Check cache
 	t.positionsCacheMutex.RLock()
 	if t.cachedPositions != nil && time.Since(t.positionsCacheTime) < t.cacheDuration {
 		t.positionsCacheMutex.RUnlock()
-		logger.Infof("Γ£ô Σ╜┐τö¿τ╝ôσ¡ÿτÜäOKXµîüΣ╗ôΣ┐íµü»")
+		logger.Infof("✓ Using cached OKX position info")
 		return t.cachedPositions, nil
 	}
 	t.positionsCacheMutex.RUnlock()
 
-	logger.Infof("≡ƒöä µ¡úσ£¿Φ░âτö¿OKX APIΦÄ╖σÅûµîüΣ╗ôΣ┐íµü»...")
+	logger.Infof("🔄 Calling OKX API to get position info...")
 	data, err := t.doRequest("GET", okxPositionPath+"?instType=SWAP", nil)
 	if err != nil {
-		return nil, fmt.Errorf("ΦÄ╖σÅûµîüΣ╗ôσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to get positions: %w", err)
 	}
 
 	var positions []struct {
@@ -315,13 +316,13 @@ func (t *OKXTrader) GetPositions() ([]map[string]interface{}, error) {
 	}
 
 	if err := json.Unmarshal(data, &positions); err != nil {
-		return nil, fmt.Errorf("Φºúµ₧ÉµîüΣ╗ôµò░µì«σñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to parse position data: %w", err)
 	}
 
 	var result []map[string]interface{}
 	for _, pos := range positions {
-		posAmt, _ := strconv.ParseFloat(pos.Pos, 64)
-		if posAmt == 0 {
+		contractCount, _ := strconv.ParseFloat(pos.Pos, 64)
+		if contractCount == 0 {
 			continue
 		}
 
@@ -331,18 +332,30 @@ func (t *OKXTrader) GetPositions() ([]map[string]interface{}, error) {
 		leverage, _ := strconv.ParseFloat(pos.Lever, 64)
 		liqPrice, _ := strconv.ParseFloat(pos.LiqPx, 64)
 
-		// Φ╜¼µìósymbolµá╝σ╝Å
+		// Convert symbol format
 		symbol := t.convertSymbolBack(pos.InstId)
 
-		// τí«σ«Üµû╣σÉæ∩╝îσ╣╢τí«Σ┐¥ posAmt µÿ»µ¡úµò░
+		// Determine direction and ensure contractCount is positive
 		side := "long"
 		if pos.PosSide == "short" {
 			side = "short"
 		}
-		// OKX τ⌐║Σ╗ôτÜä pos µÿ»Φ┤ƒµò░∩╝îΘ£ÇΦªüσÅûτ╗¥σ»╣σÇ╝
-		if posAmt < 0 {
-			posAmt = -posAmt
+		// OKX returns pos as negative, need to convert to absolute value
+		if contractCount < 0 {
+			contractCount = -contractCount
 		}
+
+		// Get instrument info to access ctVal for conversion
+		inst, err := t.getInstrument(symbol)
+		if err != nil {
+			// If we can't get instrument info, skip this position
+			logger.Infof("⚠️ Failed to get instrument info for %s: %v", symbol, err)
+			continue
+		}
+
+		// Convert contract count to base asset quantity
+		// Conversion: base_asset = contracts * ctVal
+		posAmt := contractCount * inst.CtVal
 
 		posMap := map[string]interface{}{
 			"symbol":           symbol,
@@ -357,7 +370,7 @@ func (t *OKXTrader) GetPositions() ([]map[string]interface{}, error) {
 		result = append(result, posMap)
 	}
 
-	// µ¢┤µû░τ╝ôσ¡ÿ
+	// Update cache
 	t.positionsCacheMutex.Lock()
 	t.cachedPositions = result
 	t.positionsCacheTime = time.Now()
@@ -366,11 +379,11 @@ func (t *OKXTrader) GetPositions() ([]map[string]interface{}, error) {
 	return result, nil
 }
 
-// getInstrument ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»
+// getInstrument Get instrument information
 func (t *OKXTrader) getInstrument(symbol string) (*OKXInstrument, error) {
 	instId := t.convertSymbol(symbol)
 
-	// µúÇµƒÑτ╝ôσ¡ÿ
+	// Check cache
 	t.instrumentsCacheMutex.RLock()
 	if inst, ok := t.instrumentsCache[instId]; ok && time.Since(t.instrumentsCacheTime) < 5*time.Minute {
 		t.instrumentsCacheMutex.RUnlock()
@@ -378,7 +391,7 @@ func (t *OKXTrader) getInstrument(symbol string) (*OKXInstrument, error) {
 	}
 	t.instrumentsCacheMutex.RUnlock()
 
-	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»
+	// Get instrument information
 	path := fmt.Sprintf("%s?instType=SWAP&instId=%s", okxInstrumentsPath, instId)
 	data, err := t.doRequest("GET", path, nil)
 	if err != nil {
@@ -386,13 +399,14 @@ func (t *OKXTrader) getInstrument(symbol string) (*OKXInstrument, error) {
 	}
 
 	var instruments []struct {
-		InstId string `json:"instId"`
-		CtVal  string `json:"ctVal"`
-		CtMult string `json:"ctMult"`
-		LotSz  string `json:"lotSz"`
-		MinSz  string `json:"minSz"`
-		TickSz string `json:"tickSz"`
-		CtType string `json:"ctType"`
+		InstId   string `json:"instId"`
+		CtVal    string `json:"ctVal"`
+		CtMult   string `json:"ctMult"`
+		LotSz    string `json:"lotSz"`
+		MinSz    string `json:"minSz"`
+		TickSz   string `json:"tickSz"`
+		CtType   string `json:"ctType"`
+		MaxMktSz string `json:"maxMktSz"`
 	}
 
 	if err := json.Unmarshal(data, &instruments); err != nil {
@@ -400,7 +414,7 @@ func (t *OKXTrader) getInstrument(symbol string) (*OKXInstrument, error) {
 	}
 
 	if len(instruments) == 0 {
-		return nil, fmt.Errorf("µ£¬µë╛σê░σÉêτ║ªΣ┐íµü»: %s", instId)
+		return nil, fmt.Errorf("instrument not found: %s", instId)
 	}
 
 	inst := instruments[0]
@@ -409,18 +423,20 @@ func (t *OKXTrader) getInstrument(symbol string) (*OKXInstrument, error) {
 	lotSz, _ := strconv.ParseFloat(inst.LotSz, 64)
 	minSz, _ := strconv.ParseFloat(inst.MinSz, 64)
 	tickSz, _ := strconv.ParseFloat(inst.TickSz, 64)
+	maxMktSz, _ := strconv.ParseFloat(inst.MaxMktSz, 64)
 
 	instrument := &OKXInstrument{
-		InstID: inst.InstId,
-		CtVal:  ctVal,
-		CtMult: ctMult,
-		LotSz:  lotSz,
-		MinSz:  minSz,
-		TickSz: tickSz,
-		CtType: inst.CtType,
+		InstID:   inst.InstId,
+		CtVal:    ctVal,
+		CtMult:   ctMult,
+		LotSz:    lotSz,
+		MinSz:    minSz,
+		TickSz:   tickSz,
+		CtType:   inst.CtType,
+		MaxMktSz: maxMktSz,
 	}
 
-	// µ¢┤µû░τ╝ôσ¡ÿ
+	// Update cache
 	t.instrumentsCacheMutex.Lock()
 	t.instrumentsCache[instId] = instrument
 	t.instrumentsCacheTime = time.Now()
@@ -429,7 +445,7 @@ func (t *OKXTrader) getInstrument(symbol string) (*OKXInstrument, error) {
 	return instrument, nil
 }
 
-// SetMarginMode Φ«╛τ╜«Σ╗ôΣ╜ìµ¿íσ╝Å
+// SetMarginMode Set margin mode
 func (t *OKXTrader) SetMarginMode(symbol string, isCrossMargin bool) error {
 	instId := t.convertSymbol(symbol)
 
@@ -445,28 +461,28 @@ func (t *OKXTrader) SetMarginMode(symbol string, isCrossMargin bool) error {
 
 	_, err := t.doRequest("POST", "/api/v5/account/set-isolated-mode", body)
 	if err != nil {
-		// σªéµ₧£σ╖▓τ╗Åµÿ»τ¢«µáçµ¿íσ╝Å∩╝îσ┐╜τòÑΘöÖΦ»»
+		// If already in target mode, ignore error
 		if strings.Contains(err.Error(), "already") {
-			logger.Infof("  Γ£ô %s Σ╗ôΣ╜ìµ¿íσ╝Åσ╖▓µÿ» %s", symbol, mgnMode)
+			logger.Infof("  ✓ %s margin mode is already %s", symbol, mgnMode)
 			return nil
 		}
-		// µ£ëµîüΣ╗ôµùáµ│òµ¢┤µö╣
+		// Has positions, cannot change
 		if strings.Contains(err.Error(), "position") {
-			logger.Infof("  ΓÜá∩╕Å %s µ£ëµîüΣ╗ô∩╝îµùáµ│òµ¢┤µö╣Σ╗ôΣ╜ìµ¿íσ╝Å", symbol)
+			logger.Infof("  ⚠️ %s has positions, cannot change margin mode", symbol)
 			return nil
 		}
 		return err
 	}
 
-	logger.Infof("  Γ£ô %s Σ╗ôΣ╜ìµ¿íσ╝Åσ╖▓Φ«╛τ╜«Σ╕║ %s", symbol, mgnMode)
+	logger.Infof("  ✓ %s margin mode set to %s", symbol, mgnMode)
 	return nil
 }
 
-// SetLeverage Φ«╛τ╜«µ¥áµ¥å
+// SetLeverage Set leverage
 func (t *OKXTrader) SetLeverage(symbol string, leverage int) error {
 	instId := t.convertSymbol(symbol)
 
-	// Φ«╛τ╜«σñÜσñ┤σÆîτ⌐║σñ┤τÜäµ¥áµ¥å
+	// Set leverage for both long and short positions
 	for _, posSide := range []string{"long", "short"} {
 		body := map[string]interface{}{
 			"instId":  instId,
@@ -477,44 +493,59 @@ func (t *OKXTrader) SetLeverage(symbol string, leverage int) error {
 
 		_, err := t.doRequest("POST", okxLeveragePath, body)
 		if err != nil {
-			// σªéµ₧£σ╖▓τ╗Åµÿ»τ¢«µáçµ¥áµ¥å∩╝îσ┐╜τòÑ
+			// If already same leverage, ignore
 			if strings.Contains(err.Error(), "same") {
 				continue
 			}
-			logger.Infof("  ΓÜá∩╕Å Φ«╛τ╜« %s %s µ¥áµ¥åσñ▒Φ┤Ñ: %v", symbol, posSide, err)
+			logger.Infof("  ⚠️ Failed to set %s %s leverage: %v", symbol, posSide, err)
 		}
 	}
 
-	logger.Infof("  Γ£ô %s µ¥áµ¥åσ╖▓Φ«╛τ╜«Σ╕║ %dx", symbol, leverage)
+	logger.Infof("  ✓ %s leverage set to %dx", symbol, leverage)
 	return nil
 }
 
-// OpenLong σ╝ÇσñÜΣ╗ô
+// validateMarketOrderSize validates that the calculated order size does not exceed OKX maxMktSz limit
+func (t *OKXTrader) validateMarketOrderSize(sz float64, inst *OKXInstrument) error {
+	// Skip validation if maxMktSz is 0 or missing (backward compatible)
+	if inst.MaxMktSz <= 0 {
+		return nil
+	}
+
+	if sz > inst.MaxMktSz {
+		return fmt.Errorf("order size %.8f exceeds OKX maxMktSz limit %.8f", sz, inst.MaxMktSz)
+	}
+
+	return nil
+}
+
+// OpenLong Open long position
 func (t *OKXTrader) OpenLong(symbol string, quantity float64, leverage int) (map[string]interface{}, error) {
-	// σÅûµ╢êµùºΦ«óσìò
+	// Cancel pending orders
 	t.CancelAllOrders(symbol)
 
-	// Φ«╛τ╜«µ¥áµ¥å
+	// Set leverage
 	if err := t.SetLeverage(symbol, leverage); err != nil {
-		logger.Infof("  ΓÜá∩╕Å Φ«╛τ╜«µ¥áµ¥åσñ▒Φ┤Ñ: %v", err)
+		logger.Infof("  ⚠️ Failed to set leverage: %v", err)
 	}
 
 	instId := t.convertSymbol(symbol)
 
-	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σ╣╢Φ«íτ«ùσÉêτ║ªµò░ΘçÅ
+	// Get instrument info and calculate contract size
 	inst, err := t.getInstrument(symbol)
 	if err != nil {
-		return nil, fmt.Errorf("ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to get instrument info: %w", err)
 	}
 
-	// OKXΣ╜┐τö¿σÉêτ║ªσ╝áµò░∩╝îΘ£ÇΦªüµá╣µì«σÉêτ║ªΘ¥óσÇ╝Φ╜¼µìó
-	price, err := t.GetMarketPrice(symbol)
-	if err != nil {
-		return nil, fmt.Errorf("ΦÄ╖σÅûσ╕éΣ╗╖σñ▒Φ┤Ñ: %w", err)
+	// OKX uses contract count, need to convert base asset quantity to contracts
+	// Conversion: contracts = base_asset / ctVal (quantity is base asset amount)
+	sz := quantity / inst.CtVal
+
+	// Validate market order size against maxMktSz limit
+	if err := t.validateMarketOrderSize(sz, inst); err != nil {
+		return nil, fmt.Errorf("market order validation failed: %w", err)
 	}
 
-	// Φ«íτ«ùσÉêτ║ªσ╝áµò░ = µò░ΘçÅ * Σ╗╖µá╝ / σÉêτ║ªΘ¥óσÇ╝
-	sz := quantity * price / inst.CtVal
 	szStr := t.formatSize(sz, inst)
 
 	body := map[string]interface{}{
@@ -530,7 +561,7 @@ func (t *OKXTrader) OpenLong(symbol string, quantity float64, leverage int) (map
 
 	data, err := t.doRequest("POST", okxOrderPath, body)
 	if err != nil {
-		return nil, fmt.Errorf("σ╝ÇσñÜΣ╗ôσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to open long position: %w", err)
 	}
 
 	var orders []struct {
@@ -541,19 +572,19 @@ func (t *OKXTrader) OpenLong(symbol string, quantity float64, leverage int) (map
 	}
 
 	if err := json.Unmarshal(data, &orders); err != nil {
-		return nil, fmt.Errorf("Φºúµ₧ÉΦ«óσìòσôìσ║öσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to parse order response: %w", err)
 	}
 
 	if len(orders) == 0 || orders[0].SCode != "0" {
-		msg := "µ£¬τƒÑΘöÖΦ»»"
+		msg := "unknown error"
 		if len(orders) > 0 {
 			msg = orders[0].SMsg
 		}
-		return nil, fmt.Errorf("σ╝ÇσñÜΣ╗ôσñ▒Φ┤Ñ: %s", msg)
+		return nil, fmt.Errorf("failed to open long position: %s", msg)
 	}
 
-	logger.Infof("Γ£ô OKXσ╝ÇσñÜΣ╗ôµêÉσèƒ: %s σ╝áµò░: %s", symbol, szStr)
-	logger.Infof("  Φ«óσìòID: %s", orders[0].OrdId)
+	logger.Infof("✓ OKX open long position successful: %s size: %s", symbol, szStr)
+	logger.Infof("  Order ID: %s", orders[0].OrdId)
 
 	return map[string]interface{}{
 		"orderId": orders[0].OrdId,
@@ -562,30 +593,33 @@ func (t *OKXTrader) OpenLong(symbol string, quantity float64, leverage int) (map
 	}, nil
 }
 
-// OpenShort σ╝Çτ⌐║Σ╗ô
+// OpenShort Open short position
 func (t *OKXTrader) OpenShort(symbol string, quantity float64, leverage int) (map[string]interface{}, error) {
-	// σÅûµ╢êµùºΦ«óσìò
+	// Cancel pending orders
 	t.CancelAllOrders(symbol)
 
-	// Φ«╛τ╜«µ¥áµ¥å
+	// Set leverage
 	if err := t.SetLeverage(symbol, leverage); err != nil {
-		logger.Infof("  ΓÜá∩╕Å Φ«╛τ╜«µ¥áµ¥åσñ▒Φ┤Ñ: %v", err)
+		logger.Infof("  ⚠️ Failed to set leverage: %v", err)
 	}
 
 	instId := t.convertSymbol(symbol)
 
-	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σ╣╢Φ«íτ«ùσÉêτ║ªµò░ΘçÅ
+	// Get instrument info and calculate contract size
 	inst, err := t.getInstrument(symbol)
 	if err != nil {
-		return nil, fmt.Errorf("ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to get instrument info: %w", err)
 	}
 
-	price, err := t.GetMarketPrice(symbol)
-	if err != nil {
-		return nil, fmt.Errorf("ΦÄ╖σÅûσ╕éΣ╗╖σñ▒Φ┤Ñ: %w", err)
+	// OKX uses contract count, need to convert base asset quantity to contracts
+	// Conversion: contracts = base_asset / ctVal (quantity is base asset amount)
+	sz := quantity / inst.CtVal
+
+	// Validate market order size against maxMktSz limit
+	if err := t.validateMarketOrderSize(sz, inst); err != nil {
+		return nil, fmt.Errorf("market order validation failed: %w", err)
 	}
 
-	sz := quantity * price / inst.CtVal
 	szStr := t.formatSize(sz, inst)
 
 	body := map[string]interface{}{
@@ -601,7 +635,7 @@ func (t *OKXTrader) OpenShort(symbol string, quantity float64, leverage int) (ma
 
 	data, err := t.doRequest("POST", okxOrderPath, body)
 	if err != nil {
-		return nil, fmt.Errorf("σ╝Çτ⌐║Σ╗ôσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to open short position: %w", err)
 	}
 
 	var orders []struct {
@@ -612,19 +646,19 @@ func (t *OKXTrader) OpenShort(symbol string, quantity float64, leverage int) (ma
 	}
 
 	if err := json.Unmarshal(data, &orders); err != nil {
-		return nil, fmt.Errorf("Φºúµ₧ÉΦ«óσìòσôìσ║öσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to parse order response: %w", err)
 	}
 
 	if len(orders) == 0 || orders[0].SCode != "0" {
-		msg := "µ£¬τƒÑΘöÖΦ»»"
+		msg := "unknown error"
 		if len(orders) > 0 {
 			msg = orders[0].SMsg
 		}
-		return nil, fmt.Errorf("σ╝Çτ⌐║Σ╗ôσñ▒Φ┤Ñ: %s", msg)
+		return nil, fmt.Errorf("failed to open short position: %s", msg)
 	}
 
-	logger.Infof("Γ£ô OKXσ╝Çτ⌐║Σ╗ôµêÉσèƒ: %s σ╝áµò░: %s", symbol, szStr)
-	logger.Infof("  Φ«óσìòID: %s", orders[0].OrdId)
+	logger.Infof("✓ OKX open short position successful: %s size: %s", symbol, szStr)
+	logger.Infof("  Order ID: %s", orders[0].OrdId)
 
 	return map[string]interface{}{
 		"orderId": orders[0].OrdId,
@@ -633,11 +667,11 @@ func (t *OKXTrader) OpenShort(symbol string, quantity float64, leverage int) (ma
 	}, nil
 }
 
-// CloseLong σ╣│σñÜΣ╗ô
+// CloseLong Close long position
 func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]interface{}, error) {
 	instId := t.convertSymbol(symbol)
 
-	// σªéµ₧£µò░ΘçÅΣ╕║0∩╝îΦÄ╖σÅûσ╜ôσëìµîüΣ╗ô∩╝êpositionAmt σ░▒µÿ»σ╝áµò░∩╝ë
+	// If quantity is 0, get current position (positionAmt is base asset quantity)
 	if quantity == 0 {
 		positions, err := t.GetPositions()
 		if err != nil {
@@ -645,26 +679,28 @@ func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]inter
 		}
 		for _, pos := range positions {
 			if pos["symbol"] == symbol && pos["side"] == "long" {
-				quantity = pos["positionAmt"].(float64) // Φ┐Öσ╖▓τ╗Åµÿ»σ╝áµò░
+				quantity = pos["positionAmt"].(float64) // This is base asset quantity
 				break
 			}
 		}
 		if quantity == 0 {
-			return nil, fmt.Errorf("µ▓íµ£ëµë╛σê░ %s τÜäσñÜΣ╗ô", symbol)
+			return nil, fmt.Errorf("no long position found for %s", symbol)
 		}
 	}
 
-	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»τö¿Σ║Äµá╝σ╝Åσîûσ╝áµò░
+	// Get instrument info for contract conversion
 	inst, err := t.getInstrument(symbol)
 	if err != nil {
-		return nil, fmt.Errorf("ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to get instrument info: %w", err)
 	}
 
-	// quantity σ╖▓τ╗Åµÿ»σ╝áµò░∩╝îτ¢┤µÄÑµá╝σ╝Åσîû
-	szStr := t.formatSize(quantity, inst)
+	// Convert base asset quantity to contract count
+	// Conversion: contracts = base_asset / ctVal (quantity is base asset amount)
+	sz := quantity / inst.CtVal
+	szStr := t.formatSize(sz, inst)
 
-	logger.Infof("≡ƒö╗ OKXσ╣│σñÜΣ╗ôσÅéµò░: symbol=%s, instId=%s, quantity(σ╝áµò░)=%f, szStr=%s",
-		symbol, instId, quantity, szStr)
+	logger.Infof("🔍 OKX CloseLong parameters: symbol=%s, instId=%s, quantity(base asset)=%f, contracts=%f, szStr=%s",
+		symbol, instId, quantity, sz, szStr)
 
 	body := map[string]interface{}{
 		"instId":  instId,
@@ -677,9 +713,11 @@ func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]inter
 		"tag":     okxTag,
 	}
 
+	logger.Infof("🔍 OKX CloseLong request body: %+v", body)
+
 	data, err := t.doRequest("POST", okxOrderPath, body)
 	if err != nil {
-		return nil, fmt.Errorf("σ╣│σñÜΣ╗ôσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to close long position: %w", err)
 	}
 
 	var orders []struct {
@@ -693,16 +731,17 @@ func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]inter
 	}
 
 	if len(orders) == 0 || orders[0].SCode != "0" {
-		msg := "µ£¬τƒÑΘöÖΦ»»"
+		msg := "unknown error"
 		if len(orders) > 0 {
-			msg = orders[0].SMsg
+			msg = fmt.Sprintf("sCode=%s, sMsg=%s", orders[0].SCode, orders[0].SMsg)
 		}
-		return nil, fmt.Errorf("σ╣│σñÜΣ╗ôσñ▒Φ┤Ñ: %s", msg)
+		logger.Infof("❌ OKX CloseLong failed: %s, response: %s", msg, string(data))
+		return nil, fmt.Errorf("failed to close long position: %s", msg)
 	}
 
-	logger.Infof("Γ£ô OKXσ╣│σñÜΣ╗ôµêÉσèƒ: %s", symbol)
+	logger.Infof("✓ OKX CloseLong successful: %s, ordId=%s", symbol, orders[0].OrdId)
 
-	// σ╣│Σ╗ôσÉÄσÅûµ╢êµîéσìò
+	// Cancel pending orders after closing
 	t.CancelAllOrders(symbol)
 
 	return map[string]interface{}{
@@ -712,50 +751,52 @@ func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]inter
 	}, nil
 }
 
-// CloseShort σ╣│τ⌐║Σ╗ô
+// CloseShort Close short position
 func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]interface{}, error) {
 	instId := t.convertSymbol(symbol)
 
-	// σªéµ₧£µò░ΘçÅΣ╕║0∩╝îΦÄ╖σÅûσ╜ôσëìµîüΣ╗ô∩╝êpositionAmt σ░▒µÿ»σ╝áµò░∩╝ë
+	// If quantity is 0, get current position (positionAmt is base asset quantity)
 	if quantity == 0 {
 		positions, err := t.GetPositions()
 		if err != nil {
 			return nil, err
 		}
-		logger.Infof("≡ƒöì OKX CloseShort µƒÑµë╛µîüΣ╗ô: symbol=%s, σ╜ôσëìµîüΣ╗ôµò░=%d", symbol, len(positions))
+		logger.Infof("🔍 OKX CloseShort finding positions: symbol=%s, current position count=%d", symbol, len(positions))
 		for _, pos := range positions {
-			logger.Infof("≡ƒöì OKX µîüΣ╗ô: symbol=%v, side=%v, positionAmt=%v",
+			logger.Infof("🔍 OKX position: symbol=%v, side=%v, positionAmt=%v",
 				pos["symbol"], pos["side"], pos["positionAmt"])
 			if pos["symbol"] == symbol && pos["side"] == "short" {
-				quantity = pos["positionAmt"].(float64)
-				logger.Infof("≡ƒöì OKX µë╛σê░τ⌐║Σ╗ô: quantity=%f", quantity)
+				quantity = pos["positionAmt"].(float64) // This is base asset quantity
+				logger.Infof("🔍 OKX found short position: quantity(base asset)=%f", quantity)
 				break
 			}
 		}
 		if quantity == 0 {
-			return nil, fmt.Errorf("µ▓íµ£ëµë╛σê░ %s τÜäτ⌐║Σ╗ô", symbol)
+			return nil, fmt.Errorf("no short position found for %s", symbol)
 		}
 	}
 
-	// τí«Σ┐¥ quantity µÿ»µ¡úµò░∩╝êOKX sz σÅéµò░σ┐àΘí╗Σ╕║µ¡ú∩╝ë
+	// Ensure quantity is positive (OKX sz parameter must be positive)
 	if quantity < 0 {
 		quantity = -quantity
 	}
 
-	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»τö¿Σ║Äµá╝σ╝Åσîûσ╝áµò░
+	// Get instrument info for contract conversion
 	inst, err := t.getInstrument(symbol)
 	if err != nil {
-		return nil, fmt.Errorf("ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to get instrument info: %w", err)
 	}
 
-	logger.Infof("≡ƒöì OKX σÉêτ║ªΣ┐íµü»: instId=%s, lotSz=%f, minSz=%f, ctVal=%f",
+	logger.Infof("🔍 OKX instrument info: instId=%s, lotSz=%f, minSz=%f, ctVal=%f",
 		inst.InstID, inst.LotSz, inst.MinSz, inst.CtVal)
 
-	// quantity σ╖▓τ╗Åµÿ»σ╝áµò░∩╝îτ¢┤µÄÑµá╝σ╝Åσîû
-	szStr := t.formatSize(quantity, inst)
+	// Convert base asset quantity to contract count
+	// Conversion: contracts = base_asset / ctVal (quantity is base asset amount)
+	sz := quantity / inst.CtVal
+	szStr := t.formatSize(sz, inst)
 
-	logger.Infof("≡ƒö╗ OKXσ╣│τ⌐║Σ╗ôσÅéµò░: symbol=%s, instId=%s, quantity(σ╝áµò░)=%f, szStr=%s",
-		symbol, instId, quantity, szStr)
+	logger.Infof("🔍 OKX CloseShort parameters: symbol=%s, instId=%s, quantity(base asset)=%f, contracts=%f, szStr=%s",
+		symbol, instId, quantity, sz, szStr)
 
 	body := map[string]interface{}{
 		"instId":  instId,
@@ -768,11 +809,11 @@ func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]inte
 		"tag":     okxTag,
 	}
 
-	logger.Infof("≡ƒö╗ OKXσ╣│τ⌐║Σ╗ôΦ»╖µ▒éΣ╜ô: %+v", body)
+	logger.Infof("🔍 OKX CloseShort request body: %+v", body)
 
 	data, err := t.doRequest("POST", okxOrderPath, body)
 	if err != nil {
-		return nil, fmt.Errorf("σ╣│τ⌐║Σ╗ôσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to close short position: %w", err)
 	}
 
 	var orders []struct {
@@ -786,17 +827,17 @@ func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]inte
 	}
 
 	if len(orders) == 0 || orders[0].SCode != "0" {
-		msg := "µ£¬τƒÑΘöÖΦ»»"
+		msg := "unknown error"
 		if len(orders) > 0 {
 			msg = fmt.Sprintf("sCode=%s, sMsg=%s", orders[0].SCode, orders[0].SMsg)
 		}
-		logger.Infof("Γ¥î OKXσ╣│τ⌐║Σ╗ôσñ▒Φ┤Ñ: %s, σôìσ║ö: %s", msg, string(data))
-		return nil, fmt.Errorf("σ╣│τ⌐║Σ╗ôσñ▒Φ┤Ñ: %s", msg)
+		logger.Infof("❌ OKX CloseShort failed: %s, response: %s", msg, string(data))
+		return nil, fmt.Errorf("failed to close short position: %s", msg)
 	}
 
-	logger.Infof("Γ£ô OKXσ╣│τ⌐║Σ╗ôµêÉσèƒ: %s, ordId=%s", symbol, orders[0].OrdId)
+	logger.Infof("✓ OKX CloseShort successful: %s, ordId=%s", symbol, orders[0].OrdId)
 
-	// σ╣│Σ╗ôσÉÄσÅûµ╢êµîéσìò
+	// Cancel pending orders after closing
 	t.CancelAllOrders(symbol)
 
 	return map[string]interface{}{
@@ -806,14 +847,14 @@ func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]inte
 	}, nil
 }
 
-// GetMarketPrice ΦÄ╖σÅûσ╕éσ£║Σ╗╖µá╝
+// GetMarketPrice Get market price
 func (t *OKXTrader) GetMarketPrice(symbol string) (float64, error) {
 	instId := t.convertSymbol(symbol)
 	path := fmt.Sprintf("%s?instId=%s", okxTickerPath, instId)
 
 	data, err := t.doRequest("GET", path, nil)
 	if err != nil {
-		return 0, fmt.Errorf("ΦÄ╖σÅûΣ╗╖µá╝σñ▒Φ┤Ñ: %w", err)
+		return 0, fmt.Errorf("failed to get market price: %w", err)
 	}
 
 	var tickers []struct {
@@ -825,7 +866,7 @@ func (t *OKXTrader) GetMarketPrice(symbol string) (float64, error) {
 	}
 
 	if len(tickers) == 0 {
-		return 0, fmt.Errorf("µ£¬ΦÄ╖σÅûσê░Σ╗╖µá╝µò░µì«")
+		return 0, fmt.Errorf("no price data found")
 	}
 
 	price, err := strconv.ParseFloat(tickers[0].Last, 64)
@@ -836,22 +877,22 @@ func (t *OKXTrader) GetMarketPrice(symbol string) (float64, error) {
 	return price, nil
 }
 
-// SetStopLoss Φ«╛τ╜«µ¡óµìƒσìò
+// SetStopLoss Set stop loss order
 func (t *OKXTrader) SetStopLoss(symbol string, positionSide string, quantity, stopPrice float64) error {
 	instId := t.convertSymbol(symbol)
 
-	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»
+	// Get instrument info
 	inst, err := t.getInstrument(symbol)
 	if err != nil {
-		return fmt.Errorf("ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σñ▒Φ┤Ñ: %w", err)
+		return fmt.Errorf("failed to get instrument info: %w", err)
 	}
 
-	// Φ«íτ«ùσ╝áµò░
-	price, _ := t.GetMarketPrice(symbol)
-	sz := quantity * price / inst.CtVal
+	// Convert base asset quantity to contract count
+	// Conversion: contracts = base_asset / ctVal (quantity is base asset amount)
+	sz := quantity / inst.CtVal
 	szStr := t.formatSize(sz, inst)
 
-	// τí«σ«Üµû╣σÉæ
+	// Determine direction
 	side := "sell"
 	posSide := "long"
 	if strings.ToUpper(positionSide) == "SHORT" {
@@ -867,35 +908,35 @@ func (t *OKXTrader) SetStopLoss(symbol string, positionSide string, quantity, st
 		"ordType":     "conditional",
 		"sz":          szStr,
 		"slTriggerPx": fmt.Sprintf("%.8f", stopPrice),
-		"slOrdPx":     "-1", // σ╕éΣ╗╖
+		"slOrdPx":     "-1", // Market price
 		"tag":         okxTag,
 	}
 
 	_, err = t.doRequest("POST", okxAlgoOrderPath, body)
 	if err != nil {
-		return fmt.Errorf("Φ«╛τ╜«µ¡óµìƒσñ▒Φ┤Ñ: %w", err)
+		return fmt.Errorf("failed to set stop loss: %w", err)
 	}
 
-	logger.Infof("  µ¡óµìƒΣ╗╖Φ«╛τ╜«: %.4f", stopPrice)
+	logger.Infof("  Stop loss price set: %.4f", stopPrice)
 	return nil
 }
 
-// SetTakeProfit Φ«╛τ╜«µ¡óτ¢êσìò
+// SetTakeProfit Set take profit order
 func (t *OKXTrader) SetTakeProfit(symbol string, positionSide string, quantity, takeProfitPrice float64) error {
 	instId := t.convertSymbol(symbol)
 
-	// ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»
+	// Get instrument info
 	inst, err := t.getInstrument(symbol)
 	if err != nil {
-		return fmt.Errorf("ΦÄ╖σÅûσÉêτ║ªΣ┐íµü»σñ▒Φ┤Ñ: %w", err)
+		return fmt.Errorf("failed to get instrument info: %w", err)
 	}
 
-	// Φ«íτ«ùσ╝áµò░
-	price, _ := t.GetMarketPrice(symbol)
-	sz := quantity * price / inst.CtVal
+	// Convert base asset quantity to contract count
+	// Conversion: contracts = base_asset / ctVal (quantity is base asset amount)
+	sz := quantity / inst.CtVal
 	szStr := t.formatSize(sz, inst)
 
-	// τí«σ«Üµû╣σÉæ
+	// Determine direction
 	side := "sell"
 	posSide := "long"
 	if strings.ToUpper(positionSide) == "SHORT" {
@@ -911,34 +952,34 @@ func (t *OKXTrader) SetTakeProfit(symbol string, positionSide string, quantity, 
 		"ordType":     "conditional",
 		"sz":          szStr,
 		"tpTriggerPx": fmt.Sprintf("%.8f", takeProfitPrice),
-		"tpOrdPx":     "-1", // σ╕éΣ╗╖
+		"tpOrdPx":     "-1", // Market price
 		"tag":         okxTag,
 	}
 
 	_, err = t.doRequest("POST", okxAlgoOrderPath, body)
 	if err != nil {
-		return fmt.Errorf("Φ«╛τ╜«µ¡óτ¢êσñ▒Φ┤Ñ: %w", err)
+		return fmt.Errorf("failed to set take profit: %w", err)
 	}
 
-	logger.Infof("  µ¡óτ¢êΣ╗╖Φ«╛τ╜«: %.4f", takeProfitPrice)
+	logger.Infof("  Take profit price set: %.4f", takeProfitPrice)
 	return nil
 }
 
-// CancelStopLossOrders σÅûµ╢êµ¡óµìƒσìò
+// CancelStopLossOrders Cancel stop loss orders
 func (t *OKXTrader) CancelStopLossOrders(symbol string) error {
 	return t.cancelAlgoOrders(symbol)
 }
 
-// CancelTakeProfitOrders σÅûµ╢êµ¡óτ¢êσìò
+// CancelTakeProfitOrders Cancel take profit orders
 func (t *OKXTrader) CancelTakeProfitOrders(symbol string) error {
 	return t.cancelAlgoOrders(symbol)
 }
 
-// cancelAlgoOrders σÅûµ╢êτ¡ûτòÑΦ«óσìò
+// cancelAlgoOrders Cancel algo orders
 func (t *OKXTrader) cancelAlgoOrders(symbol string) error {
 	instId := t.convertSymbol(symbol)
 
-	// ΦÄ╖σÅûσ╛àµêÉΣ║ñτÜäτ¡ûτòÑΦ«óσìò
+	// Get pending algo orders
 	path := fmt.Sprintf("%s?instType=SWAP&instId=%s&ordType=conditional", okxAlgoPendingPath, instId)
 	data, err := t.doRequest("GET", path, nil)
 	if err != nil {
@@ -965,24 +1006,24 @@ func (t *OKXTrader) cancelAlgoOrders(symbol string) error {
 
 		_, err := t.doRequest("POST", okxCancelAlgoPath, body)
 		if err != nil {
-			logger.Infof("  ΓÜá∩╕Å σÅûµ╢êτ¡ûτòÑΦ«óσìòσñ▒Φ┤Ñ: %v", err)
+			logger.Infof("  ⚠️ Failed to cancel algo order: %v", err)
 			continue
 		}
 		canceledCount++
 	}
 
 	if canceledCount > 0 {
-		logger.Infof("  Γ£ô σ╖▓σÅûµ╢ê %s τÜä %d Σ╕¬τ¡ûτòÑΦ«óσìò", symbol, canceledCount)
+		logger.Infof("  ✓ Canceled %d algo orders for %s", canceledCount, symbol)
 	}
 
 	return nil
 }
 
-// CancelAllOrders σÅûµ╢êµëÇµ£ëµîéσìò
+// CancelAllOrders Cancel all pending orders
 func (t *OKXTrader) CancelAllOrders(symbol string) error {
 	instId := t.convertSymbol(symbol)
 
-	// ΦÄ╖σÅûσ╛àµêÉΣ║ñΦ«óσìò
+	// Get pending orders
 	path := fmt.Sprintf("%s?instType=SWAP&instId=%s", okxPendingOrdersPath, instId)
 	data, err := t.doRequest("GET", path, nil)
 	if err != nil {
@@ -998,7 +1039,7 @@ func (t *OKXTrader) CancelAllOrders(symbol string) error {
 		return err
 	}
 
-	// µë╣ΘçÅσÅûµ╢ê
+	// Cancel one by one
 	for _, order := range orders {
 		body := map[string]interface{}{
 			"instId": order.InstId,
@@ -1007,53 +1048,49 @@ func (t *OKXTrader) CancelAllOrders(symbol string) error {
 		t.doRequest("POST", okxCancelOrderPath, body)
 	}
 
-	// σÉîµù╢σÅûµ╢êτ¡ûτòÑΦ«óσìò
+	// Also cancel algo orders
 	t.cancelAlgoOrders(symbol)
 
 	if len(orders) > 0 {
-		logger.Infof("  Γ£ô σ╖▓σÅûµ╢ê %s τÜäµëÇµ£ëµîéσìò", symbol)
+		logger.Infof("  ✓ Canceled all pending orders for %s", symbol)
 	}
 
 	return nil
 }
 
-// CancelStopOrders σÅûµ╢êµ¡óτ¢êµ¡óµìƒσìò
+// CancelStopOrders Cancel stop profit and stop loss orders
 func (t *OKXTrader) CancelStopOrders(symbol string) error {
 	return t.cancelAlgoOrders(symbol)
 }
 
-// FormatQuantity µá╝σ╝Åσîûµò░ΘçÅ
+// FormatQuantity Format quantity
 func (t *OKXTrader) FormatQuantity(symbol string, quantity float64) (string, error) {
 	inst, err := t.getInstrument(symbol)
 	if err != nil {
 		return fmt.Sprintf("%.3f", quantity), nil
 	}
 
-	// OKXΣ╜┐τö¿σ╝áµò░
-	price, _ := t.GetMarketPrice(symbol)
-	if price == 0 {
-		return fmt.Sprintf("%.0f", quantity), nil
-	}
-
-	sz := quantity * price / inst.CtVal
+	// OKX uses contract count, convert base asset quantity to contracts
+	// Conversion: contracts = base_asset / ctVal (quantity is base asset amount)
+	sz := quantity / inst.CtVal
 	return t.formatSize(sz, inst), nil
 }
 
-// formatSize µá╝σ╝Åσîûσ╝áµò░
+// formatSize Format contract size
 func (t *OKXTrader) formatSize(sz float64, inst *OKXInstrument) string {
-	// µá╣µì«lotSzτí«σ«Üτ▓╛σ║ª
+	// Based on lotSz to determine precision
 	if inst.LotSz >= 1 {
 		return fmt.Sprintf("%.0f", sz)
 	}
 
-	// Φ«íτ«ùσ░Åµò░Σ╜ìµò░
+	// Calculate decimal places
 	lotSzStr := fmt.Sprintf("%f", inst.LotSz)
 	dotIndex := strings.Index(lotSzStr, ".")
 	if dotIndex == -1 {
 		return fmt.Sprintf("%.0f", sz)
 	}
 
-	// σÄ╗ΘÖñσ░╛Θâ¿0
+	// Remove trailing zeros
 	lotSzStr = strings.TrimRight(lotSzStr, "0")
 	precision := len(lotSzStr) - dotIndex - 1
 
@@ -1061,14 +1098,14 @@ func (t *OKXTrader) formatSize(sz float64, inst *OKXInstrument) string {
 	return fmt.Sprintf(format, sz)
 }
 
-// GetOrderStatus ΦÄ╖σÅûΦ«óσìòτè╢µÇü
+// GetOrderStatus Get order status from OKX API
 func (t *OKXTrader) GetOrderStatus(symbol string, orderID string) (map[string]interface{}, error) {
 	instId := t.convertSymbol(symbol)
 	path := fmt.Sprintf("/api/v5/trade/order?instId=%s&ordId=%s", instId, orderID)
 
 	data, err := t.doRequest("GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("ΦÄ╖σÅûΦ«óσìòτè╢µÇüσñ▒Φ┤Ñ: %w", err)
+		return nil, fmt.Errorf("failed to get order status: %w", err)
 	}
 
 	var orders []struct {
@@ -1088,7 +1125,7 @@ func (t *OKXTrader) GetOrderStatus(symbol string, orderID string) (map[string]in
 	}
 
 	if len(orders) == 0 {
-		return nil, fmt.Errorf("µ£¬µë╛σê░Φ«óσìò")
+		return nil, fmt.Errorf("order not found")
 	}
 
 	order := orders[0]
@@ -1098,7 +1135,17 @@ func (t *OKXTrader) GetOrderStatus(symbol string, orderID string) (map[string]in
 	cTime, _ := strconv.ParseInt(order.CTime, 10, 64)
 	uTime, _ := strconv.ParseInt(order.UTime, 10, 64)
 
-	// τè╢µÇüµÿáσ░ä
+	// Get instrument info to access ctVal for conversion
+	inst, err := t.getInstrument(symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get instrument info: %w", err)
+	}
+
+	// Convert contract count to base asset quantity
+	// Conversion: base_asset = contracts * ctVal (AccFillSz is contract count)
+	executedQty := fillSz * inst.CtVal
+
+	// Map status
 	statusMap := map[string]string{
 		"filled":           "FILLED",
 		"live":             "NEW",
@@ -1116,17 +1163,18 @@ func (t *OKXTrader) GetOrderStatus(symbol string, orderID string) (map[string]in
 		"symbol":      symbol,
 		"status":      status,
 		"avgPrice":    avgPrice,
-		"executedQty": fillSz,
+		"executedQty": executedQty,
 		"side":        order.Side,
 		"type":        order.OrdType,
 		"time":        cTime,
 		"updateTime":  uTime,
-		"commission":  -fee, // OKXΦ┐öσ¢₧τÜäµÿ»Φ┤ƒµò░
+		"commission":  -fee, // OKX returns negative fee
 	}, nil
 }
 
-// OKX Φ«óσìòµáçτ¡╛
+// OKX order tag
 var okxTag = func() string {
 	b, _ := base64.StdEncoding.DecodeString("NGMzNjNjODFlZGM1QkNERQ==")
 	return string(b)
 }()
+

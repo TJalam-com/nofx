@@ -4,9 +4,9 @@ interface IconProps {
   className?: string
 }
 
-// 获取AI模型图标的函数
+// Get AI model icon function
 export const getModelIcon = (modelType: string, props: IconProps = {}) => {
-  // 支持完整ID或类型名
+  // Support full ID or type name
   const type = modelType.includes('_') ? modelType.split('_').pop() : modelType
 
   let iconPath: string | null = null
@@ -17,6 +17,21 @@ export const getModelIcon = (modelType: string, props: IconProps = {}) => {
       break
     case 'qwen':
       iconPath = '/icons/qwen.svg'
+      break
+    case 'grok':
+      iconPath = '/icons/grok.svg'
+      break
+    case 'openai':
+      iconPath = '/icons/openai.svg'
+      break
+    case 'claude':
+      iconPath = '/icons/claude.svg'
+      break
+    case 'gemini':
+      iconPath = '/icons/gemini.svg'
+      break
+    case 'kimi':
+      iconPath = '/icons/kimi.svg'
       break
     default:
       return null

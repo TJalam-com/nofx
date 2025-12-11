@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import useSWR from 'swr'
+import useSWR, { mutate } from 'swr'
 import { api } from '../lib/api'
 import { EquityChart } from '../components/EquityChart'
 import AILearning from '../components/AILearning'
@@ -22,6 +22,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { stripLeadingIcons } from '../lib/text'
+import { confirmToast, notify } from '../lib/notify'
 import type {
   SystemStatus,
   AccountInfo,
@@ -79,14 +80,23 @@ export default function TraderDashboard() {
     }
   )
 
-  // 当获取到traders后，设置默认选中第一个
+  // Sync query parameter changes to selectedTraderId (handles navigation from other pages)
   useEffect(() => {
-    if (traders && traders.length > 0 && !selectedTraderId) {
+    const traderFromUrl = searchParams.get('trader')
+    if (traderFromUrl && traderFromUrl !== selectedTraderId) {
+      setSelectedTraderId(traderFromUrl)
+    }
+  }, [searchParams, selectedTraderId])
+
+  // 当获取到traders后，设置默认选中第一个（仅在URL中没有trader参数时）
+  useEffect(() => {
+    const traderFromUrl = searchParams.get('trader')
+    if (traders && traders.length > 0 && !traderFromUrl && !selectedTraderId) {
       const firstTraderId = traders[0].trader_id
       setSelectedTraderId(firstTraderId)
       setSearchParams({ trader: firstTraderId })
     }
-  }, [traders, selectedTraderId, setSearchParams])
+  }, [traders, selectedTraderId, searchParams, setSearchParams])
 
   // 更新URL参数
   const handleTraderSelect = (traderId: string) => {
@@ -162,7 +172,7 @@ export default function TraderDashboard() {
   // Handle close position
   const handleClosePosition = async (symbol: string, side: 'long' | 'short') => {
     if (!selectedTraderId) {
-      toast.error(t('selectTraderFirst', language) || 'Please select a trader first')
+      notify.error(t('selectTraderFirst', language) || 'Please select a trader first')
       return
     }
 
@@ -173,10 +183,14 @@ export default function TraderDashboard() {
 
     // Confirmation dialog
     const sideText = side === 'long' ? t('long', language) : t('short', language)
-    const confirmed = window.confirm(
+    const confirmMsg =
       t('confirmClosePosition', language, { symbol, side: sideText }) ||
-        `Are you sure you want to close ${side} position for ${symbol}?`
-    )
+      `Are you sure you want to close ${side} position for ${symbol}?`
+    const confirmed = await confirmToast(confirmMsg, {
+      title: language === 'zh' ? '确认平仓' : 'Confirm Close',
+      okText: language === 'zh' ? '确认' : 'Confirm',
+      cancelText: language === 'zh' ? '取消' : 'Cancel',
+    })
 
     if (!confirmed) {
       return
@@ -186,18 +200,19 @@ export default function TraderDashboard() {
 
     try {
       await api.closePosition(selectedTraderId, symbol, side, 0) // 0 = close all
-      toast.success(
-        t('positionClosed', language, { symbol, side: sideText }) ||
-          `Successfully closed ${side} position for ${symbol}`
+      notify.success(
+        language === 'zh' ? '平仓成功' : 'Position closed successfully'
       )
-      // Refresh positions
-      setTimeout(() => {
-        mutatePositions()
-      }, 1000)
+      // 使用 SWR mutate 刷新数据而非重新加载页面
+      await Promise.all([
+        mutate(`positions-${selectedTraderId}`),
+        mutate(`account-${selectedTraderId}`),
+      ])
     } catch (error: any) {
-      toast.error(
-        error.message || t('closePositionFailed', language) || 'Failed to close position'
-      )
+      const errorMsg =
+        error.message ||
+        (language === 'zh' ? '平仓失败' : 'Failed to close position')
+      notify.error(errorMsg)
     } finally {
       setClosingPositions((prev) => {
         const next = new Set(prev)
@@ -374,8 +389,8 @@ export default function TraderDashboard() {
                 onChange={(e) => handleTraderSelect(e.target.value)}
                 className="rounded px-3 py-2 text-sm font-medium cursor-pointer transition-colors"
                 style={{
-                  background: '#1E2329',
-                  border: '1px solid #2B3139',
+                  background: 'var(--navy-dark)',
+                  border: '1px solid var(--navy-light)',
                   color: '#EAECEF',
                 }}
               >
@@ -427,7 +442,7 @@ export default function TraderDashboard() {
       {account && (
         <div
           className="mb-4 p-3 rounded text-xs font-mono"
-          style={{ background: '#1E2329', border: '1px solid #2B3139' }}
+          style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}
         >
           <div style={{ color: '#848E9C' }}>
             <RefreshCw className="inline w-4 h-4 mr-1 align-text-bottom" />
@@ -473,7 +488,7 @@ export default function TraderDashboard() {
           {/* Chart Tabs */}
           <div className="binance-card-enhanced animate-slide-in" style={{ animationDelay: '0.1s' }}>
             {/* Tab Headers */}
-            <div className="flex border-b border-[#2B3139]">
+            <div className="flex border-b" style={{ borderColor: 'var(--navy-light)' }}>
               <button
                 onClick={() => setActiveChartTab('equity')}
                 className={`px-6 py-3 text-sm font-semibold transition-all duration-200 relative ${
@@ -737,7 +752,7 @@ export default function TraderDashboard() {
         >
           <div
             className="flex items-center justify-between mb-5 pb-4 border-b"
-            style={{ borderColor: '#2B3139' }}
+            style={{ borderColor: 'var(--navy-light)' }}
           >
             <div className="flex items-center gap-3">
               <div
@@ -771,8 +786,8 @@ export default function TraderDashboard() {
                 onChange={(e) => handleLimitChange(parseInt(e.target.value, 10))}
                 className="rounded px-2 py-1 text-xs font-medium cursor-pointer transition-colors"
                 style={{
-                  background: '#1E2329',
-                  border: '1px solid #2B3139',
+                  background: 'var(--navy-dark)',
+                  border: '1px solid var(--navy-light)',
                   color: '#EAECEF',
                 }}
               >
@@ -952,8 +967,8 @@ function DecisionCard({
     <div
       className="rounded p-5 transition-all duration-300 hover:translate-y-[-2px]"
       style={{
-        border: '1px solid #2B3139',
-        background: '#1E2329',
+        border: '1px solid var(--navy-light)',
+        background: 'var(--navy-dark)',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
       }}
     >
@@ -1000,8 +1015,8 @@ function DecisionCard({
             <div
               className="mt-2 rounded p-4 text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto"
               style={{
-                background: '#0B0E11',
-                border: '1px solid #2B3139',
+                background: 'var(--navy-primary)',
+                border: '1px solid var(--navy-light)',
                 color: '#EAECEF',
               }}
             >
@@ -1031,8 +1046,8 @@ function DecisionCard({
             <div
               className="mt-2 rounded p-4 text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto"
               style={{
-                background: '#0B0E11',
-                border: '1px solid #2B3139',
+                background: 'var(--navy-primary)',
+                border: '1px solid var(--navy-light)',
                 color: '#EAECEF',
               }}
             >
@@ -1049,7 +1064,7 @@ function DecisionCard({
             <div
               key={j}
               className="flex items-center gap-2 text-sm rounded px-3 py-2"
-              style={{ background: '#0B0E11' }}
+              style={{ background: 'var(--navy-primary)' }}
             >
               <span
                 className="font-mono font-bold"
@@ -1105,18 +1120,18 @@ function DecisionCard({
       {decision.account_state && (
         <div
           className="flex gap-4 text-xs mb-3 rounded px-3 py-2"
-          style={{ background: '#0B0E11', color: '#848E9C' }}
+          style={{ background: 'var(--navy-primary)', color: '#848E9C' }}
         >
           <span>
-            净值: {decision.account_state.total_balance.toFixed(2)} USDT
+            {t('totalEquity', language)}: {decision.account_state.total_balance.toFixed(2)} USDT
           </span>
           <span>
-            可用: {decision.account_state.available_balance.toFixed(2)} USDT
+            {t('availableBalance', language)}: {decision.account_state.available_balance.toFixed(2)} USDT
           </span>
           <span>
-            保证金率: {decision.account_state.margin_used_pct.toFixed(1)}%
+            {t('margin', language)}: {decision.account_state.margin_used_pct.toFixed(1)}%
           </span>
-          <span>持仓: {decision.account_state.position_count}</span>
+          <span>{t('positions', language)}: {decision.account_state.position_count}</span>
           <span
             style={{
               color:

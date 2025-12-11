@@ -32,13 +32,35 @@ export default function FollowersPage() {
     }
   }, [user, navigate])
 
+  const shouldFetch = user && token && !isFollower(user)
+  console.log('🔍 DEBUG [FollowersPage]: Fetch check:', {
+    hasUser: !!user,
+    hasToken: !!token,
+    isFollower: user ? isFollower(user) : null,
+    shouldFetch,
+    userId: user?.id,
+    userRole: user?.role
+  })
+
   const { data: followersData, error, isLoading } = useSWR<UserFollowersResponse>(
-    user && token && !isFollower(user) ? 'user-followers' : null,
-    () => api.getUserFollowers(),
+    shouldFetch ? 'user-followers' : null,
+    () => {
+      console.log('🔍 DEBUG [FollowersPage]: Calling api.getUserFollowers()')
+      return api.getUserFollowers()
+    },
     {
       refreshInterval: 30000, // Refresh every 30 seconds
       revalidateOnFocus: false,
       dedupingInterval: 20000,
+      onSuccess: (data) => {
+        console.log('✅ DEBUG [FollowersPage]: API call successful:', {
+          parentTradersCount: data?.parent_traders?.length || 0,
+          totalFollowers: data?.parent_traders?.reduce((sum, p) => sum + p.followers.length, 0) || 0
+        })
+      },
+      onError: (err) => {
+        console.error('❌ DEBUG [FollowersPage]: API call failed:', err)
+      }
     }
   )
 
@@ -315,6 +337,7 @@ export default function FollowersPage() {
                       key={follower.trader_id}
                       follower={follower}
                       language={language}
+                      parentTraderId={parent.trader_id}
                     />
                   ))}
                 </div>
@@ -330,23 +353,25 @@ export default function FollowersPage() {
 interface FollowerCardProps {
   follower: FollowerWithActivities
   language: Language
+  parentTraderId: string
 }
 
-function FollowerCard({ follower, language }: FollowerCardProps) {
+function FollowerCard({ follower, language, parentTraderId }: FollowerCardProps) {
   const account = follower.account as any
   const hasError = 'error' in follower.account
 
   const handleViewDashboard = () => {
     // Use window.location.href for reliable navigation (works with both routing systems)
-    window.location.href = `/dashboard?trader=${follower.trader_id}`
+    // Navigate to parent trader's dashboard (the original trader being copied)
+    window.location.href = `/dashboard?trader=${parentTraderId}`
   }
 
   return (
     <div
       className="p-5 rounded-lg border"
       style={{
-        background: '#1E2329',
-        borderColor: '#2B3139',
+        background: 'var(--navy-dark)',
+        borderColor: 'var(--navy-light)',
       }}
     >
       {/* Follower Header */}
@@ -468,7 +493,7 @@ function FollowerCard({ follower, language }: FollowerCardProps) {
               <div
                 key={idx}
                 className="p-3 rounded text-sm"
-                style={{ background: '#181A20', border: '1px solid #2B3139' }}
+                style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -523,7 +548,7 @@ function FollowerCard({ follower, language }: FollowerCardProps) {
               <div
                 key={idx}
                 className="p-3 rounded text-sm"
-                style={{ background: '#181A20', border: '1px solid #2B3139' }}
+                style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">

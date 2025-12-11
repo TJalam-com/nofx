@@ -158,6 +158,40 @@ const AsterIcon: React.FC<IconProps> = ({
   </svg>
 )
 
+// OKX SVG 图标组件
+const OKXIcon: React.FC<IconProps> = ({
+  width = 24,
+  height = 24,
+  className,
+}) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 200 200"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <rect width="200" height="200" rx="40" fill="#001F3F" />
+    <path
+      d="M100 50L130 80H150L100 30L50 80H70L100 50Z"
+      fill="#00D1FF"
+    />
+    <path
+      d="M100 150L70 120H50L100 170L150 120H130L100 150Z"
+      fill="#00D1FF"
+    />
+    <path
+      d="M50 100L80 130V150L30 100L80 50V70L50 100Z"
+      fill="#00D1FF"
+    />
+    <path
+      d="M150 100L120 70V50L170 100L120 150V130L150 100Z"
+      fill="#00D1FF"
+    />
+  </svg>
+)
+
 // 获取交易所图标的函数
 export const getExchangeIcon = (
   exchangeType: string,
@@ -168,11 +202,13 @@ export const getExchangeIcon = (
     ? 'binance'
     : exchangeType.toLowerCase().includes('bybit')
       ? 'bybit'
-      : exchangeType.toLowerCase().includes('hyperliquid')
-        ? 'hyperliquid'
-        : exchangeType.toLowerCase().includes('aster')
-          ? 'aster'
-          : exchangeType.toLowerCase()
+      : exchangeType.toLowerCase().includes('okx')
+        ? 'okx'
+        : exchangeType.toLowerCase().includes('hyperliquid')
+          ? 'hyperliquid'
+          : exchangeType.toLowerCase().includes('aster')
+            ? 'aster'
+            : exchangeType.toLowerCase()
 
   const iconProps = {
     width: props.width || 24,
@@ -185,6 +221,8 @@ export const getExchangeIcon = (
       return <BinanceIcon {...iconProps} />
     case 'bybit':
       return <BybitIcon {...iconProps} />
+    case 'okx':
+      return <OKXIcon {...iconProps} />
     case 'hyperliquid':
     case 'dex':
       return <HyperliquidIcon {...iconProps} />
@@ -199,7 +237,7 @@ export const getExchangeIcon = (
             width: props.width || 24,
             height: props.height || 24,
             borderRadius: '50%',
-            background: '#2B3139',
+            background: 'var(--panel-border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

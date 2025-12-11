@@ -11,6 +11,7 @@ import (
 	"nofx/market"
 	"nofx/mcp"
 	"nofx/pool"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +86,9 @@ type AutoTraderConfig struct {
 	// Position mode
 	IsCrossMargin bool // true=cross margin mode, false=isolated margin mode
 
+	// Competition visibility
+	ShowInCompetition bool // Whether to show in competition page
+
 	// Currency configuration
 	DefaultCoins []string // Default currency list (from database)
 	TradingCoins []string // Actual trading currency list
@@ -113,6 +117,7 @@ type AutoTrader struct {
 	name                     string // Trader display name
 	aiModel                  string // AI model name
 	exchange                 string // Exchange platform name
+	showInCompetition        bool   // Whether to show in competition page
 	config                   AutoTraderConfig
 	trader                   Trader // Use Trader interface (supports multiple platforms)
 	mcpClient                mcp.AIClient
@@ -165,24 +170,83 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 
 	mcpClient := mcp.New()
 
-	// Initialize AI
-	if config.AIModel == "custom" {
+	// Initialize AI based on provider
+	provider := strings.ToLower(strings.TrimSpace(config.AIModel))
+	if provider == "" && config.UseQwen {
+		provider = "qwen"
+	}
+
+	switch provider {
+	case "custom":
 		// Use custom API
 		mcpClient.SetAPIKey(config.CustomAPIKey, config.CustomAPIURL, config.CustomModelName)
 		log.Printf("🤖 [%s] Using custom AI API: %s (model: %s)", config.Name, config.CustomAPIURL, config.CustomModelName)
-	} else if config.UseQwen || config.AIModel == "qwen" {
+	case "qwen":
 		// Use Qwen (supports custom URL and Model)
 		mcpClient = mcp.NewQwenClient()
-		mcpClient.SetAPIKey(config.QwenKey, config.CustomAPIURL, config.CustomModelName)
+		apiKey := config.QwenKey
+		if apiKey == "" {
+			apiKey = config.CustomAPIKey
+		}
+		mcpClient.SetAPIKey(apiKey, config.CustomAPIURL, config.CustomModelName)
 		if config.CustomAPIURL != "" || config.CustomModelName != "" {
 			log.Printf("🤖 [%s] Using Alibaba Cloud Qwen AI (custom URL: %s, model: %s)", config.Name, config.CustomAPIURL, config.CustomModelName)
 		} else {
 			log.Printf("🤖 [%s] Using Alibaba Cloud Qwen AI", config.Name)
 		}
-	} else {
+	case "grok":
+		// Use Grok (supports custom URL and Model)
+		mcpClient = mcp.NewGrokClient()
+		mcpClient.SetAPIKey(config.CustomAPIKey, config.CustomAPIURL, config.CustomModelName)
+		if config.CustomAPIURL != "" || config.CustomModelName != "" {
+			log.Printf("🤖 [%s] Using Grok AI (custom URL: %s, model: %s)", config.Name, config.CustomAPIURL, config.CustomModelName)
+		} else {
+			log.Printf("🤖 [%s] Using Grok AI", config.Name)
+		}
+	case "openai":
+		// Use OpenAI (supports custom URL and Model)
+		mcpClient = mcp.NewOpenAIClient()
+		mcpClient.SetAPIKey(config.CustomAPIKey, config.CustomAPIURL, config.CustomModelName)
+		if config.CustomAPIURL != "" || config.CustomModelName != "" {
+			log.Printf("🤖 [%s] Using OpenAI (custom URL: %s, model: %s)", config.Name, config.CustomAPIURL, config.CustomModelName)
+		} else {
+			log.Printf("🤖 [%s] Using OpenAI", config.Name)
+		}
+	case "claude":
+		// Use Claude (supports custom URL and Model)
+		mcpClient = mcp.NewClaudeClient()
+		mcpClient.SetAPIKey(config.CustomAPIKey, config.CustomAPIURL, config.CustomModelName)
+		if config.CustomAPIURL != "" || config.CustomModelName != "" {
+			log.Printf("🤖 [%s] Using Claude AI (custom URL: %s, model: %s)", config.Name, config.CustomAPIURL, config.CustomModelName)
+		} else {
+			log.Printf("🤖 [%s] Using Claude AI", config.Name)
+		}
+	case "gemini":
+		// Use Gemini (supports custom URL and Model)
+		mcpClient = mcp.NewGeminiClient()
+		mcpClient.SetAPIKey(config.CustomAPIKey, config.CustomAPIURL, config.CustomModelName)
+		if config.CustomAPIURL != "" || config.CustomModelName != "" {
+			log.Printf("🤖 [%s] Using Gemini AI (custom URL: %s, model: %s)", config.Name, config.CustomAPIURL, config.CustomModelName)
+		} else {
+			log.Printf("🤖 [%s] Using Gemini AI", config.Name)
+		}
+	case "kimi":
+		// Use Kimi (supports custom URL and Model)
+		mcpClient = mcp.NewKimiClient()
+		mcpClient.SetAPIKey(config.CustomAPIKey, config.CustomAPIURL, config.CustomModelName)
+		if config.CustomAPIURL != "" || config.CustomModelName != "" {
+			log.Printf("🤖 [%s] Using Kimi AI (custom URL: %s, model: %s)", config.Name, config.CustomAPIURL, config.CustomModelName)
+		} else {
+			log.Printf("🤖 [%s] Using Kimi AI", config.Name)
+		}
+	default:
 		// Default to DeepSeek (supports custom URL and Model)
 		mcpClient = mcp.NewDeepSeekClient()
-		mcpClient.SetAPIKey(config.DeepSeekKey, config.CustomAPIURL, config.CustomModelName)
+		apiKey := config.DeepSeekKey
+		if apiKey == "" {
+			apiKey = config.CustomAPIKey
+		}
+		mcpClient.SetAPIKey(apiKey, config.CustomAPIURL, config.CustomModelName)
 		if config.CustomAPIURL != "" || config.CustomModelName != "" {
 			log.Printf("🤖 [%s] Using DeepSeek AI (custom URL: %s, model: %s)", config.Name, config.CustomAPIURL, config.CustomModelName)
 		} else {
@@ -260,6 +324,30 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		return nil, fmt.Errorf("unsupported exchange: %s", config.Exchange)
 	}
 
+	// Validate initial balance configuration, if not set, try to auto-fetch from exchange
+	if config.InitialBalance <= 0 {
+		log.Printf("📊 [%s] Initial balance not set, attempting to fetch from exchange...", config.Name)
+		account, err := trader.GetBalance()
+		if err != nil {
+			return nil, fmt.Errorf("initial balance not set and unable to fetch balance from exchange: %w", err)
+		}
+		// Try multiple balance field names (different exchanges return different formats)
+		balanceKeys := []string{"total_equity", "totalWalletBalance", "wallet_balance", "totalEq", "balance"}
+		var foundBalance float64
+		for _, key := range balanceKeys {
+			if balance, ok := account[key].(float64); ok && balance > 0 {
+				foundBalance = balance
+				break
+			}
+		}
+		if foundBalance > 0 {
+			config.InitialBalance = foundBalance
+			log.Printf("✓ [%s] Auto-fetched initial balance: %.2f USDT", config.Name, foundBalance)
+		} else {
+			return nil, fmt.Errorf("initial balance must be greater than 0, please set InitialBalance in configuration or ensure exchange account has balance")
+		}
+	}
+
 	// Initialize decision logger (create separate directory using trader ID)
 	logDir := fmt.Sprintf("decision_logs/%s", config.ID)
 	decisionLogger := logger.NewDecisionLogger(logDir)
@@ -288,6 +376,7 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		name:                  config.Name,
 		aiModel:               config.AIModel,
 		exchange:              config.Exchange,
+		showInCompetition:     config.ShowInCompetition,
 		config:                config,
 		trader:                trader,
 		mcpClient:             mcpClient,
@@ -595,6 +684,7 @@ func (at *AutoTrader) runCycle() error {
 		record.SystemPrompt = decision.SystemPrompt // Save system prompt
 		record.InputPrompt = decision.UserPrompt
 		record.CoTTrace = decision.CoTTrace
+		record.RawResponse = decision.RawResponse // Save raw AI response for debugging parse failures
 		if len(decision.Decisions) > 0 {
 			decisionJSON, _ := json.MarshalIndent(decision.Decisions, "", "  ")
 			record.DecisionJSON = string(decisionJSON)
@@ -736,11 +826,27 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 	currentPositionKeys := make(map[string]bool)
 
 	for _, pos := range positions {
-		symbol := pos["symbol"].(string)
-		side := pos["side"].(string)
-		entryPrice := pos["entryPrice"].(float64)
-		markPrice := pos["markPrice"].(float64)
-		quantity := pos["positionAmt"].(float64)
+		// Safe type assertions to prevent nil interface conversion panic
+		symbol, ok := pos["symbol"].(string)
+		if !ok || symbol == "" {
+			continue // Skip invalid position
+		}
+		side, ok := pos["side"].(string)
+		if !ok || side == "" {
+			continue // Skip invalid position
+		}
+		entryPrice, ok := pos["entryPrice"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
+		markPrice, ok := pos["markPrice"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
+		quantity, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
 		if quantity < 0 {
 			quantity = -quantity // Short position quantity is negative, convert to positive
 		}
@@ -750,8 +856,14 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 			continue
 		}
 
-		unrealizedPnl := pos["unRealizedProfit"].(float64)
-		liquidationPrice := pos["liquidationPrice"].(float64)
+		unrealizedPnl, ok := pos["unRealizedProfit"].(float64)
+		if !ok {
+			unrealizedPnl = 0 // Default to 0 if missing
+		}
+		liquidationPrice, ok := pos["liquidationPrice"].(float64)
+		if !ok {
+			liquidationPrice = 0 // Default to 0 if missing
+		}
 
 		// Calculate used margin (estimate)
 		leverage := 10 // Default value, should actually get from position information
@@ -767,11 +879,25 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 		// Track position first seen time
 		posKey := symbol + "_" + side
 		currentPositionKeys[posKey] = true
-		if _, exists := at.positionFirstSeenTime[posKey]; !exists {
-			// New position, record current time
-			at.positionFirstSeenTime[posKey] = time.Now().UnixMilli()
+
+		// Handle zero/invalid entry_time from exchange position sync
+		var updateTime int64
+		if entryTimeRaw, ok := pos["entry_time"].(float64); ok && entryTimeRaw > 0 {
+			// Use entry_time from exchange (convert to milliseconds if needed)
+			updateTime = int64(entryTimeRaw)
+			at.positionFirstSeenTime[posKey] = updateTime
+		} else if entryTimeRaw, ok := pos["entry_time"].(int64); ok && entryTimeRaw > 0 {
+			// Handle int64 format
+			updateTime = entryTimeRaw
+			at.positionFirstSeenTime[posKey] = updateTime
+		} else if existingTime, exists := at.positionFirstSeenTime[posKey]; exists && existingTime > 0 {
+			// Use existing time if position was seen before
+			updateTime = existingTime
+		} else {
+			// New position, record current time as fallback
+			updateTime = time.Now().UnixMilli()
+			at.positionFirstSeenTime[posKey] = updateTime
 		}
-		updateTime := at.positionFirstSeenTime[posKey]
 
 		// Get historical peak return rate for this position
 		at.peakPnLCacheMutex.RLock()
@@ -828,7 +954,32 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 		performance = nil
 	}
 
-	// 6. Build context
+	// 6. Get recent completed trades from database
+	var completedTrades []decision.CompletedTrade
+	if db, ok := at.database.(*cfg.Database); ok && db != nil {
+		positionHistory, err := db.GetPositionHistory(at.id, 10, 0)
+		if err == nil {
+			for _, pos := range positionHistory {
+				// Only include closed positions
+				if pos.ClosedAt != nil {
+					completedTrades = append(completedTrades, decision.CompletedTrade{
+						Symbol:      pos.Symbol,
+						Side:        pos.Side,
+						EntryPrice:  pos.EntryPrice,
+						ExitPrice:   pos.ExitPrice,
+						Quantity:    pos.Quantity,
+						RealizedPnL: pos.RealizedPnL,
+						ClosedAt:    *pos.ClosedAt,
+					})
+				}
+			}
+		} else {
+			// If database query fails, skip completed trades (don't break prompt)
+			log.Printf("⚠️  Failed to get completed trades: %v", err)
+		}
+	}
+
+	// 7. Build context
 	ctx := &decision.Context{
 		CurrentTime:     time.Now().Format("2006-01-02 15:04:05"),
 		RuntimeMinutes:  int(time.Since(at.startTime).Minutes()),
@@ -845,9 +996,10 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 			MarginUsedPct:    marginUsedPct,
 			PositionCount:    len(positionInfos),
 		},
-		Positions:      positionInfos,
-		CandidateCoins: candidateCoins,
-		Performance:    performance, // Add historical performance analysis
+		Positions:       positionInfos,
+		CompletedTrades: completedTrades,
+		CandidateCoins:  candidateCoins,
+		Performance:     performance, // Add historical performance analysis
 	}
 
 	return ctx, nil
@@ -890,7 +1042,8 @@ func (at *AutoTrader) executeDecisionWithRecord(decision *decision.Decision, act
 	}
 
 	// If trade executed successfully, replicate to followers
-	if err == nil && actionRecord.Success && at.tradeReplicationCallback != nil {
+	// Note: We check err == nil only, as actionRecord.Success is set by the caller after this function returns
+	if err == nil && at.tradeReplicationCallback != nil {
 		// Only replicate position-changing actions
 		if decision.Action == "open_long" || decision.Action == "open_short" ||
 			decision.Action == "close_long" || decision.Action == "close_short" ||
@@ -923,14 +1076,6 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 		return err
 	}
 
-	// Calculate quantity
-	quantity := decision.PositionSizeUSD / marketData.CurrentPrice
-	actionRecord.Quantity = quantity
-	actionRecord.Price = marketData.CurrentPrice
-
-	// ⚠️ Margin verification: prevent insufficient margin error (code=-2019)
-	requiredMargin := decision.PositionSizeUSD / float64(decision.Leverage)
-
 	balance, err := at.trader.GetBalance()
 	if err != nil {
 		return fmt.Errorf("failed to get account balance: %w", err)
@@ -940,14 +1085,25 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 		availableBalance = avail
 	}
 
-	// Fee estimation (Taker fee 0.04%)
-	estimatedFee := decision.PositionSizeUSD * 0.0004
-	totalRequired := requiredMargin + estimatedFee
+	// Auto-adjust position size if insufficient margin
+	// Formula: totalRequired = positionSize/leverage + positionSize*0.001 + positionSize/leverage*0.01
+	//        = positionSize * (1.01/leverage + 0.001)
+	marginFactor := 1.01/float64(decision.Leverage) + 0.001
+	maxAffordablePositionSize := availableBalance / marginFactor
 
-	if totalRequired > availableBalance {
-		return fmt.Errorf("❌ Insufficient margin: need %.2f USDT (margin %.2f + fee %.2f), available %.2f USDT",
-			totalRequired, requiredMargin, estimatedFee, availableBalance)
+	actualPositionSize := decision.PositionSizeUSD
+	if actualPositionSize > maxAffordablePositionSize {
+		// Use 98% of max to leave buffer for price fluctuation
+		adjustedSize := maxAffordablePositionSize * 0.98
+		log.Printf("  ⚠️ Position size %.2f exceeds max affordable %.2f, auto-reducing to %.2f", actualPositionSize, maxAffordablePositionSize, adjustedSize)
+		actualPositionSize = adjustedSize
+		decision.PositionSizeUSD = actualPositionSize
 	}
+
+	// Calculate quantity with adjusted position size
+	quantity := actualPositionSize / marketData.CurrentPrice
+	actionRecord.Quantity = quantity
+	actionRecord.Price = marketData.CurrentPrice
 
 	// Set margin mode
 	if err := at.trader.SetMarginMode(decision.Symbol, at.config.IsCrossMargin); err != nil {
@@ -961,22 +1117,87 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 		return err
 	}
 
-	// Record order ID
+	// Extract order ID
+	var orderIDStr string
 	if orderID, ok := order["orderId"].(int64); ok {
 		actionRecord.OrderID = orderID
+		orderIDStr = fmt.Sprintf("%d", orderID)
+	} else if orderID, ok := order["orderId"].(string); ok {
+		orderIDStr = orderID
+		// Try to parse string order ID to int64
+		if parsedID, err := strconv.ParseInt(orderID, 10, 64); err == nil {
+			actionRecord.OrderID = parsedID
+		} else {
+			actionRecord.OrderID = 0
+		}
+	} else {
+		log.Printf("  ⚠ Warning: Could not extract order ID from order response")
+		orderIDStr = ""
+		actionRecord.OrderID = 0
 	}
 
 	log.Printf("  ✓ Position opened successfully, order ID: %v, quantity: %.4f", order["orderId"], quantity)
+
+	// Poll GetOrderStatus to get actual fill price
+	var actualFillPrice float64
+	var actualExecutedQty float64
+	var entryFee float64
+	if orderIDStr != "" {
+		// Wait 500ms before first poll
+		time.Sleep(500 * time.Millisecond)
+
+		// Poll up to 3 times with 1 second delay
+		for attempt := 0; attempt < 3; attempt++ {
+			orderStatus, err := at.trader.GetOrderStatus(decision.Symbol, orderIDStr)
+			if err == nil {
+				if avgPrice, ok := orderStatus["avgPrice"].(float64); ok && avgPrice > 0 {
+					actualFillPrice = avgPrice
+					actionRecord.Price = avgPrice
+				}
+				if execQty, ok := orderStatus["executedQty"].(float64); ok && execQty > 0 {
+					actualExecutedQty = execQty
+					actionRecord.Quantity = execQty
+				}
+				if commission, ok := orderStatus["commission"].(float64); ok {
+					entryFee = commission
+				}
+				status, _ := orderStatus["status"].(string)
+				if status == "FILLED" || status == "PARTIALLY_FILLED" {
+					log.Printf("  ✓ Order filled: avgPrice=%.4f, executedQty=%.4f, fee=%.4f", actualFillPrice, actualExecutedQty, entryFee)
+					break
+				}
+			}
+			if attempt < 2 {
+				time.Sleep(1 * time.Second)
+			}
+		}
+		if actualFillPrice == 0 {
+			log.Printf("  ⚠ Warning: Could not get actual fill price, using market price")
+			actualFillPrice = marketData.CurrentPrice
+		}
+	} else {
+		actualFillPrice = marketData.CurrentPrice
+		actualExecutedQty = quantity
+	}
+
+	// Save position record to database
+	if db, ok := at.database.(*cfg.Database); ok && db != nil {
+		openedAt := time.Now()
+		err := db.SavePosition(at.id, decision.Symbol, "long", actualFillPrice, 0, actualExecutedQty, entryFee, 0, 0, decision.Leverage, orderIDStr, "", openedAt, nil)
+		if err != nil {
+			log.Printf("  ⚠ Warning: Failed to save position record: %v", err)
+		}
+	}
 
 	// Record open position time
 	posKey := decision.Symbol + "_long"
 	at.positionFirstSeenTime[posKey] = time.Now().UnixMilli()
 
 	// Set stop loss and take profit
-	if err := at.trader.SetStopLoss(decision.Symbol, "LONG", quantity, decision.StopLoss); err != nil {
+	if err := at.trader.SetStopLoss(decision.Symbol, "LONG", actualExecutedQty, decision.StopLoss); err != nil {
 		log.Printf("  ⚠ Failed to set stop loss: %v", err)
 	}
-	if err := at.trader.SetTakeProfit(decision.Symbol, "LONG", quantity, decision.TakeProfit); err != nil {
+	if err := at.trader.SetTakeProfit(decision.Symbol, "LONG", actualExecutedQty, decision.TakeProfit); err != nil {
 		log.Printf("  ⚠ Failed to set take profit: %v", err)
 	}
 
@@ -1003,14 +1224,6 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 		return err
 	}
 
-	// Calculate quantity
-	quantity := decision.PositionSizeUSD / marketData.CurrentPrice
-	actionRecord.Quantity = quantity
-	actionRecord.Price = marketData.CurrentPrice
-
-	// ⚠️ Margin verification: prevent insufficient margin error (code=-2019)
-	requiredMargin := decision.PositionSizeUSD / float64(decision.Leverage)
-
 	balance, err := at.trader.GetBalance()
 	if err != nil {
 		return fmt.Errorf("failed to get account balance: %w", err)
@@ -1020,14 +1233,25 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 		availableBalance = avail
 	}
 
-	// Fee estimation (Taker fee 0.04%)
-	estimatedFee := decision.PositionSizeUSD * 0.0004
-	totalRequired := requiredMargin + estimatedFee
+	// Auto-adjust position size if insufficient margin
+	// Formula: totalRequired = positionSize/leverage + positionSize*0.001 + positionSize/leverage*0.01
+	//        = positionSize * (1.01/leverage + 0.001)
+	marginFactor := 1.01/float64(decision.Leverage) + 0.001
+	maxAffordablePositionSize := availableBalance / marginFactor
 
-	if totalRequired > availableBalance {
-		return fmt.Errorf("❌ Insufficient margin: need %.2f USDT (margin %.2f + fee %.2f), available %.2f USDT",
-			totalRequired, requiredMargin, estimatedFee, availableBalance)
+	actualPositionSize := decision.PositionSizeUSD
+	if actualPositionSize > maxAffordablePositionSize {
+		// Use 98% of max to leave buffer for price fluctuation
+		adjustedSize := maxAffordablePositionSize * 0.98
+		log.Printf("  ⚠️ Position size %.2f exceeds max affordable %.2f, auto-reducing to %.2f", actualPositionSize, maxAffordablePositionSize, adjustedSize)
+		actualPositionSize = adjustedSize
+		decision.PositionSizeUSD = actualPositionSize
 	}
+
+	// Calculate quantity with adjusted position size
+	quantity := actualPositionSize / marketData.CurrentPrice
+	actionRecord.Quantity = quantity
+	actionRecord.Price = marketData.CurrentPrice
 
 	// Set margin mode
 	if err := at.trader.SetMarginMode(decision.Symbol, at.config.IsCrossMargin); err != nil {
@@ -1041,22 +1265,87 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 		return err
 	}
 
-	// Record order ID
+	// Extract order ID
+	var orderIDStr string
 	if orderID, ok := order["orderId"].(int64); ok {
 		actionRecord.OrderID = orderID
+		orderIDStr = fmt.Sprintf("%d", orderID)
+	} else if orderID, ok := order["orderId"].(string); ok {
+		orderIDStr = orderID
+		// Try to parse string order ID to int64
+		if parsedID, err := strconv.ParseInt(orderID, 10, 64); err == nil {
+			actionRecord.OrderID = parsedID
+		} else {
+			actionRecord.OrderID = 0
+		}
+	} else {
+		log.Printf("  ⚠ Warning: Could not extract order ID from order response")
+		orderIDStr = ""
+		actionRecord.OrderID = 0
 	}
 
 	log.Printf("  ✓ Position opened successfully, order ID: %v, quantity: %.4f", order["orderId"], quantity)
+
+	// Poll GetOrderStatus to get actual fill price
+	var actualFillPrice float64
+	var actualExecutedQty float64
+	var entryFee float64
+	if orderIDStr != "" {
+		// Wait 500ms before first poll
+		time.Sleep(500 * time.Millisecond)
+
+		// Poll up to 3 times with 1 second delay
+		for attempt := 0; attempt < 3; attempt++ {
+			orderStatus, err := at.trader.GetOrderStatus(decision.Symbol, orderIDStr)
+			if err == nil {
+				if avgPrice, ok := orderStatus["avgPrice"].(float64); ok && avgPrice > 0 {
+					actualFillPrice = avgPrice
+					actionRecord.Price = avgPrice
+				}
+				if execQty, ok := orderStatus["executedQty"].(float64); ok && execQty > 0 {
+					actualExecutedQty = execQty
+					actionRecord.Quantity = execQty
+				}
+				if commission, ok := orderStatus["commission"].(float64); ok {
+					entryFee = commission
+				}
+				status, _ := orderStatus["status"].(string)
+				if status == "FILLED" || status == "PARTIALLY_FILLED" {
+					log.Printf("  ✓ Order filled: avgPrice=%.4f, executedQty=%.4f, fee=%.4f", actualFillPrice, actualExecutedQty, entryFee)
+					break
+				}
+			}
+			if attempt < 2 {
+				time.Sleep(1 * time.Second)
+			}
+		}
+		if actualFillPrice == 0 {
+			log.Printf("  ⚠ Warning: Could not get actual fill price, using market price")
+			actualFillPrice = marketData.CurrentPrice
+		}
+	} else {
+		actualFillPrice = marketData.CurrentPrice
+		actualExecutedQty = quantity
+	}
+
+	// Save position record to database
+	if db, ok := at.database.(*cfg.Database); ok && db != nil {
+		openedAt := time.Now()
+		err := db.SavePosition(at.id, decision.Symbol, "short", actualFillPrice, 0, actualExecutedQty, entryFee, 0, 0, decision.Leverage, orderIDStr, "", openedAt, nil)
+		if err != nil {
+			log.Printf("  ⚠ Warning: Failed to save position record: %v", err)
+		}
+	}
 
 	// Record open position time
 	posKey := decision.Symbol + "_short"
 	at.positionFirstSeenTime[posKey] = time.Now().UnixMilli()
 
 	// Set stop loss and take profit
-	if err := at.trader.SetStopLoss(decision.Symbol, "SHORT", quantity, decision.StopLoss); err != nil {
+	if err := at.trader.SetStopLoss(decision.Symbol, "SHORT", actualExecutedQty, decision.StopLoss); err != nil {
 		log.Printf("  ⚠ Failed to set stop loss: %v", err)
 	}
-	if err := at.trader.SetTakeProfit(decision.Symbol, "SHORT", quantity, decision.TakeProfit); err != nil {
+	if err := at.trader.SetTakeProfit(decision.Symbol, "SHORT", actualExecutedQty, decision.TakeProfit); err != nil {
 		log.Printf("  ⚠ Failed to set take profit: %v", err)
 	}
 
@@ -1067,12 +1356,35 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 func (at *AutoTrader) executeCloseLongWithRecord(decision *decision.Decision, actionRecord *logger.DecisionAction) error {
 	log.Printf("  🔄 Close long position: %s", decision.Symbol)
 
-	// Get current price
-	marketData, err := market.Get(decision.Symbol)
-	if err != nil {
-		return err
+	// Get entry price from GetPositions API before closing
+	var entryPrice float64
+	var positionQuantity float64
+	var leverage int
+	positions, err := at.trader.GetPositions()
+	if err == nil {
+		for _, pos := range positions {
+			if pos["symbol"] == decision.Symbol && pos["side"] == "long" {
+				if ep, ok := pos["entryPrice"].(float64); ok {
+					entryPrice = ep
+				}
+				if qty, ok := pos["positionAmt"].(float64); ok {
+					positionQuantity = qty
+				}
+				if lev, ok := pos["leverage"].(float64); ok {
+					leverage = int(lev)
+				}
+				break
+			}
+		}
 	}
-	actionRecord.Price = marketData.CurrentPrice
+	if entryPrice == 0 {
+		log.Printf("  ⚠ Warning: Could not get entry price from positions, using market price")
+		marketData, err := market.Get(decision.Symbol)
+		if err != nil {
+			return err
+		}
+		entryPrice = marketData.CurrentPrice
+	}
 
 	// Close position
 	order, err := at.trader.CloseLong(decision.Symbol, 0) // 0 = close all
@@ -1080,12 +1392,109 @@ func (at *AutoTrader) executeCloseLongWithRecord(decision *decision.Decision, ac
 		return err
 	}
 
-	// Record order ID
+	// Extract order ID
+	var orderIDStr string
 	if orderID, ok := order["orderId"].(int64); ok {
 		actionRecord.OrderID = orderID
+		orderIDStr = fmt.Sprintf("%d", orderID)
+	} else if orderID, ok := order["orderId"].(string); ok {
+		orderIDStr = orderID
+		// Try to parse string order ID to int64
+		if parsedID, err := strconv.ParseInt(orderID, 10, 64); err == nil {
+			actionRecord.OrderID = parsedID
+		} else {
+			actionRecord.OrderID = 0
+		}
+	} else {
+		log.Printf("  ⚠ Warning: Could not extract order ID from order response")
+		orderIDStr = ""
+		actionRecord.OrderID = 0
 	}
 
-	log.Printf("  ✓ Position closed successfully")
+	// Poll GetOrderStatus to get actual fill price
+	var actualFillPrice float64
+	var actualExecutedQty float64
+	var exitFee float64
+	if orderIDStr != "" {
+		// Wait 500ms before first poll
+		time.Sleep(500 * time.Millisecond)
+
+		// Poll up to 3 times with 1 second delay
+		for attempt := 0; attempt < 3; attempt++ {
+			orderStatus, err := at.trader.GetOrderStatus(decision.Symbol, orderIDStr)
+			if err == nil {
+				if avgPrice, ok := orderStatus["avgPrice"].(float64); ok && avgPrice > 0 {
+					actualFillPrice = avgPrice
+					actionRecord.Price = avgPrice
+				}
+				if execQty, ok := orderStatus["executedQty"].(float64); ok && execQty > 0 {
+					actualExecutedQty = execQty
+					actionRecord.Quantity = execQty
+				}
+				if commission, ok := orderStatus["commission"].(float64); ok {
+					exitFee = commission
+				}
+				status, _ := orderStatus["status"].(string)
+				if status == "FILLED" || status == "PARTIALLY_FILLED" {
+					log.Printf("  ✓ Order filled: avgPrice=%.4f, executedQty=%.4f, fee=%.4f", actualFillPrice, actualExecutedQty, exitFee)
+					break
+				}
+			}
+			if attempt < 2 {
+				time.Sleep(1 * time.Second)
+			}
+		}
+		if actualFillPrice == 0 {
+			log.Printf("  ⚠ Warning: Could not get actual fill price, using market price")
+			marketData, err := market.Get(decision.Symbol)
+			if err == nil {
+				actualFillPrice = marketData.CurrentPrice
+			} else {
+				actualFillPrice = entryPrice
+			}
+		}
+	} else {
+		marketData, err := market.Get(decision.Symbol)
+		if err == nil {
+			actualFillPrice = marketData.CurrentPrice
+		} else {
+			actualFillPrice = entryPrice
+		}
+		actualExecutedQty = positionQuantity
+	}
+
+	// Calculate realized P&L: (exitPrice - entryPrice) * quantity - entryFee - exitFee (for long)
+	realizedPnL := (actualFillPrice-entryPrice)*actualExecutedQty - exitFee
+	// Note: entryFee is not available here, would need to retrieve from position record
+
+	// Save position record to database
+	if db, ok := at.database.(*cfg.Database); ok && db != nil {
+		closedAt := time.Now()
+		// Try to find existing open position record to update
+		openPositions, err := db.GetOpenPositions(at.id)
+		if err == nil {
+			for _, pos := range openPositions {
+				if pos.Symbol == decision.Symbol && pos.Side == "long" {
+					// Update existing position
+					err := db.SavePosition(at.id, decision.Symbol, "long", pos.EntryPrice, actualFillPrice, actualExecutedQty, pos.EntryFee, exitFee, realizedPnL, leverage, pos.OrderIDOpen, orderIDStr, pos.OpenedAt, &closedAt)
+					if err != nil {
+						log.Printf("  ⚠ Warning: Failed to update position record: %v", err)
+					}
+					break
+				}
+			}
+		}
+		// If no existing position found, create new record
+		if err != nil {
+			openedAt := time.Now().Add(-24 * time.Hour) // Estimate opened 24h ago if not found
+			err := db.SavePosition(at.id, decision.Symbol, "long", entryPrice, actualFillPrice, actualExecutedQty, 0, exitFee, realizedPnL, leverage, "", orderIDStr, openedAt, &closedAt)
+			if err != nil {
+				log.Printf("  ⚠ Warning: Failed to save position record: %v", err)
+			}
+		}
+	}
+
+	log.Printf("  ✓ Position closed successfully: entry=%.4f, exit=%.4f, pnl=%.4f", entryPrice, actualFillPrice, realizedPnL)
 	return nil
 }
 
@@ -1103,12 +1512,35 @@ func (at *AutoTrader) CloseShort(symbol string, quantity float64) (map[string]in
 func (at *AutoTrader) executeCloseShortWithRecord(decision *decision.Decision, actionRecord *logger.DecisionAction) error {
 	log.Printf("  🔄 Close short position: %s", decision.Symbol)
 
-	// Get current price
-	marketData, err := market.Get(decision.Symbol)
-	if err != nil {
-		return err
+	// Get entry price from GetPositions API before closing
+	var entryPrice float64
+	var positionQuantity float64
+	var leverage int
+	positions, err := at.trader.GetPositions()
+	if err == nil {
+		for _, pos := range positions {
+			if pos["symbol"] == decision.Symbol && pos["side"] == "short" {
+				if ep, ok := pos["entryPrice"].(float64); ok {
+					entryPrice = ep
+				}
+				if qty, ok := pos["positionAmt"].(float64); ok {
+					positionQuantity = qty
+				}
+				if lev, ok := pos["leverage"].(float64); ok {
+					leverage = int(lev)
+				}
+				break
+			}
+		}
 	}
-	actionRecord.Price = marketData.CurrentPrice
+	if entryPrice == 0 {
+		log.Printf("  ⚠ Warning: Could not get entry price from positions, using market price")
+		marketData, err := market.Get(decision.Symbol)
+		if err != nil {
+			return err
+		}
+		entryPrice = marketData.CurrentPrice
+	}
 
 	// Close position
 	order, err := at.trader.CloseShort(decision.Symbol, 0) // 0 = close all
@@ -1116,12 +1548,109 @@ func (at *AutoTrader) executeCloseShortWithRecord(decision *decision.Decision, a
 		return err
 	}
 
-	// Record order ID
+	// Extract order ID
+	var orderIDStr string
 	if orderID, ok := order["orderId"].(int64); ok {
 		actionRecord.OrderID = orderID
+		orderIDStr = fmt.Sprintf("%d", orderID)
+	} else if orderID, ok := order["orderId"].(string); ok {
+		orderIDStr = orderID
+		// Try to parse string order ID to int64
+		if parsedID, err := strconv.ParseInt(orderID, 10, 64); err == nil {
+			actionRecord.OrderID = parsedID
+		} else {
+			actionRecord.OrderID = 0
+		}
+	} else {
+		log.Printf("  ⚠ Warning: Could not extract order ID from order response")
+		orderIDStr = ""
+		actionRecord.OrderID = 0
 	}
 
-	log.Printf("  ✓ Position closed successfully")
+	// Poll GetOrderStatus to get actual fill price
+	var actualFillPrice float64
+	var actualExecutedQty float64
+	var exitFee float64
+	if orderIDStr != "" {
+		// Wait 500ms before first poll
+		time.Sleep(500 * time.Millisecond)
+
+		// Poll up to 3 times with 1 second delay
+		for attempt := 0; attempt < 3; attempt++ {
+			orderStatus, err := at.trader.GetOrderStatus(decision.Symbol, orderIDStr)
+			if err == nil {
+				if avgPrice, ok := orderStatus["avgPrice"].(float64); ok && avgPrice > 0 {
+					actualFillPrice = avgPrice
+					actionRecord.Price = avgPrice
+				}
+				if execQty, ok := orderStatus["executedQty"].(float64); ok && execQty > 0 {
+					actualExecutedQty = execQty
+					actionRecord.Quantity = execQty
+				}
+				if commission, ok := orderStatus["commission"].(float64); ok {
+					exitFee = commission
+				}
+				status, _ := orderStatus["status"].(string)
+				if status == "FILLED" || status == "PARTIALLY_FILLED" {
+					log.Printf("  ✓ Order filled: avgPrice=%.4f, executedQty=%.4f, fee=%.4f", actualFillPrice, actualExecutedQty, exitFee)
+					break
+				}
+			}
+			if attempt < 2 {
+				time.Sleep(1 * time.Second)
+			}
+		}
+		if actualFillPrice == 0 {
+			log.Printf("  ⚠ Warning: Could not get actual fill price, using market price")
+			marketData, err := market.Get(decision.Symbol)
+			if err == nil {
+				actualFillPrice = marketData.CurrentPrice
+			} else {
+				actualFillPrice = entryPrice
+			}
+		}
+	} else {
+		marketData, err := market.Get(decision.Symbol)
+		if err == nil {
+			actualFillPrice = marketData.CurrentPrice
+		} else {
+			actualFillPrice = entryPrice
+		}
+		actualExecutedQty = positionQuantity
+	}
+
+	// Calculate realized P&L: (entryPrice - exitPrice) * quantity - entryFee - exitFee (for short)
+	realizedPnL := (entryPrice-actualFillPrice)*actualExecutedQty - exitFee
+	// Note: entryFee is not available here, would need to retrieve from position record
+
+	// Save position record to database
+	if db, ok := at.database.(*cfg.Database); ok && db != nil {
+		closedAt := time.Now()
+		// Try to find existing open position record to update
+		openPositions, err := db.GetOpenPositions(at.id)
+		if err == nil {
+			for _, pos := range openPositions {
+				if pos.Symbol == decision.Symbol && pos.Side == "short" {
+					// Update existing position
+					err := db.SavePosition(at.id, decision.Symbol, "short", pos.EntryPrice, actualFillPrice, actualExecutedQty, pos.EntryFee, exitFee, realizedPnL, leverage, pos.OrderIDOpen, orderIDStr, pos.OpenedAt, &closedAt)
+					if err != nil {
+						log.Printf("  ⚠ Warning: Failed to update position record: %v", err)
+					}
+					break
+				}
+			}
+		}
+		// If no existing position found, create new record
+		if err != nil {
+			openedAt := time.Now().Add(-24 * time.Hour) // Estimate opened 24h ago if not found
+			err := db.SavePosition(at.id, decision.Symbol, "short", entryPrice, actualFillPrice, actualExecutedQty, 0, exitFee, realizedPnL, leverage, "", orderIDStr, openedAt, &closedAt)
+			if err != nil {
+				log.Printf("  ⚠ Warning: Failed to save position record: %v", err)
+			}
+		}
+	}
+
+	log.Printf("  ✓ Position closed successfully: entry=%.4f, exit=%.4f, pnl=%.4f", entryPrice, actualFillPrice, realizedPnL)
 	return nil
 }
 
@@ -1145,8 +1674,14 @@ func (at *AutoTrader) executeUpdateStopLossWithRecord(decision *decision.Decisio
 	// Find target position
 	var targetPosition map[string]interface{}
 	for _, pos := range positions {
-		symbol, _ := pos["symbol"].(string)
-		posAmt, _ := pos["positionAmt"].(float64)
+		symbol, ok := pos["symbol"].(string)
+		if !ok {
+			continue
+		}
+		posAmt, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue
+		}
 		if symbol == decision.Symbol && posAmt != 0 {
 			targetPosition = pos
 			break
@@ -1174,9 +1709,18 @@ func (at *AutoTrader) executeUpdateStopLossWithRecord(decision *decision.Decisio
 	var hasOppositePosition bool
 	oppositeSide := ""
 	for _, pos := range positions {
-		symbol, _ := pos["symbol"].(string)
-		posSide, _ := pos["side"].(string)
-		posAmt, _ := pos["positionAmt"].(float64)
+		symbol, ok := pos["symbol"].(string)
+		if !ok {
+			continue
+		}
+		posSide, ok := pos["side"].(string)
+		if !ok {
+			continue
+		}
+		posAmt, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue
+		}
 		if symbol == decision.Symbol && posAmt != 0 && strings.ToUpper(posSide) != positionSide {
 			hasOppositePosition = true
 			oppositeSide = strings.ToUpper(posSide)
@@ -1229,8 +1773,14 @@ func (at *AutoTrader) executeUpdateTakeProfitWithRecord(decision *decision.Decis
 	// Find target position
 	var targetPosition map[string]interface{}
 	for _, pos := range positions {
-		symbol, _ := pos["symbol"].(string)
-		posAmt, _ := pos["positionAmt"].(float64)
+		symbol, ok := pos["symbol"].(string)
+		if !ok {
+			continue
+		}
+		posAmt, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue
+		}
 		if symbol == decision.Symbol && posAmt != 0 {
 			targetPosition = pos
 			break
@@ -1258,9 +1808,18 @@ func (at *AutoTrader) executeUpdateTakeProfitWithRecord(decision *decision.Decis
 	var hasOppositePosition bool
 	oppositeSide := ""
 	for _, pos := range positions {
-		symbol, _ := pos["symbol"].(string)
-		posSide, _ := pos["side"].(string)
-		posAmt, _ := pos["positionAmt"].(float64)
+		symbol, ok := pos["symbol"].(string)
+		if !ok {
+			continue
+		}
+		posSide, ok := pos["side"].(string)
+		if !ok {
+			continue
+		}
+		posAmt, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue
+		}
 		if symbol == decision.Symbol && posAmt != 0 && strings.ToUpper(posSide) != positionSide {
 			hasOppositePosition = true
 			oppositeSide = strings.ToUpper(posSide)
@@ -1318,8 +1877,14 @@ func (at *AutoTrader) executePartialCloseWithRecord(decision *decision.Decision,
 	// Find target position
 	var targetPosition map[string]interface{}
 	for _, pos := range positions {
-		symbol, _ := pos["symbol"].(string)
-		posAmt, _ := pos["positionAmt"].(float64)
+		symbol, ok := pos["symbol"].(string)
+		if !ok {
+			continue
+		}
+		posAmt, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue
+		}
 		if symbol == decision.Symbol && posAmt != 0 {
 			targetPosition = pos
 			break
@@ -1371,6 +1936,12 @@ func (at *AutoTrader) executePartialCloseWithRecord(decision *decision.Decision,
 		}
 	}
 
+	// Get entry price from position before closing
+	entryPrice, _ := targetPosition["entryPrice"].(float64)
+	if entryPrice == 0 {
+		entryPrice = marketData.CurrentPrice
+	}
+
 	// Execute close
 	var order map[string]interface{}
 	if positionSide == "LONG" {
@@ -1383,13 +1954,69 @@ func (at *AutoTrader) executePartialCloseWithRecord(decision *decision.Decision,
 		return fmt.Errorf("partial close failed: %w", err)
 	}
 
-	// Record order ID
+	// Extract order ID
+	var orderIDStr string
 	if orderID, ok := order["orderId"].(int64); ok {
 		actionRecord.OrderID = orderID
+		orderIDStr = fmt.Sprintf("%d", orderID)
+	} else if orderID, ok := order["orderId"].(string); ok {
+		orderIDStr = orderID
+		// Try to parse string order ID to int64
+		if parsedID, err := strconv.ParseInt(orderID, 10, 64); err == nil {
+			actionRecord.OrderID = parsedID
+		} else {
+			actionRecord.OrderID = 0
+		}
+	} else {
+		log.Printf("  ⚠ Warning: Could not extract order ID from order response")
+		orderIDStr = ""
+		actionRecord.OrderID = 0
 	}
 
-	log.Printf("  ✓ Partial close succeeded: closed %.4f (%.1f%%), remaining %.4f",
-		closeQuantity, decision.ClosePercentage, remainingQuantity)
+	// Poll GetOrderStatus to get actual fill price
+	var actualFillPrice float64
+	var actualExecutedQty float64
+	var exitFee float64
+	if orderIDStr != "" {
+		// Wait 500ms before first poll
+		time.Sleep(500 * time.Millisecond)
+
+		// Poll up to 3 times with 1 second delay
+		for attempt := 0; attempt < 3; attempt++ {
+			orderStatus, err := at.trader.GetOrderStatus(decision.Symbol, orderIDStr)
+			if err == nil {
+				if avgPrice, ok := orderStatus["avgPrice"].(float64); ok && avgPrice > 0 {
+					actualFillPrice = avgPrice
+					actionRecord.Price = avgPrice
+				}
+				if execQty, ok := orderStatus["executedQty"].(float64); ok && execQty > 0 {
+					actualExecutedQty = execQty
+					actionRecord.Quantity = execQty
+				}
+				if commission, ok := orderStatus["commission"].(float64); ok {
+					exitFee = commission
+				}
+				status, _ := orderStatus["status"].(string)
+				if status == "FILLED" || status == "PARTIALLY_FILLED" {
+					log.Printf("  ✓ Order filled: avgPrice=%.4f, executedQty=%.4f, fee=%.4f", actualFillPrice, actualExecutedQty, exitFee)
+					break
+				}
+			}
+			if attempt < 2 {
+				time.Sleep(1 * time.Second)
+			}
+		}
+		if actualFillPrice == 0 {
+			log.Printf("  ⚠ Warning: Could not get actual fill price, using market price")
+			actualFillPrice = marketData.CurrentPrice
+		}
+	} else {
+		actualFillPrice = marketData.CurrentPrice
+		actualExecutedQty = closeQuantity
+	}
+
+	log.Printf("  ✓ Partial close succeeded: closed %.4f (%.1f%%), remaining %.4f, fillPrice=%.4f",
+		actualExecutedQty, decision.ClosePercentage, remainingQuantity, actualFillPrice)
 
 	// ✅ Step 4: Restore stop loss and take profit (prevent remaining position from being unprotected)
 	// Important: Exchanges like Binance automatically cancel original TP/SL orders after partial close (due to quantity mismatch)
@@ -1438,6 +2065,16 @@ func (at *AutoTrader) GetAIModel() string {
 // GetExchange get exchange
 func (at *AutoTrader) GetExchange() string {
 	return at.exchange
+}
+
+// GetShowInCompetition returns whether trader should be shown in competition
+func (at *AutoTrader) GetShowInCompetition() bool {
+	return at.showInCompetition
+}
+
+// SetShowInCompetition sets whether trader should be shown in competition
+func (at *AutoTrader) SetShowInCompetition(show bool) {
+	at.showInCompetition = show
 }
 
 // SetCustomPrompt set custom trading strategy prompt
@@ -1524,12 +2161,22 @@ func (at *AutoTrader) GetAccountInfo() (map[string]interface{}, error) {
 	totalMarginUsed := 0.0
 	totalUnrealizedPnLCalculated := 0.0
 	for _, pos := range positions {
-		markPrice := pos["markPrice"].(float64)
-		quantity := pos["positionAmt"].(float64)
+		// Safe type assertions to prevent nil interface conversion panic
+		markPrice, ok := pos["markPrice"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
+		quantity, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
 		if quantity < 0 {
 			quantity = -quantity
 		}
-		unrealizedPnl := pos["unRealizedProfit"].(float64)
+		unrealizedPnl, ok := pos["unRealizedProfit"].(float64)
+		if !ok {
+			unrealizedPnl = 0 // Default to 0 if missing
+		}
 		totalUnrealizedPnLCalculated += unrealizedPnl
 
 		leverage := 10
@@ -1589,16 +2236,38 @@ func (at *AutoTrader) GetPositions() ([]map[string]interface{}, error) {
 
 	var result []map[string]interface{}
 	for _, pos := range positions {
-		symbol := pos["symbol"].(string)
-		side := pos["side"].(string)
-		entryPrice := pos["entryPrice"].(float64)
-		markPrice := pos["markPrice"].(float64)
-		quantity := pos["positionAmt"].(float64)
+		// Safe type assertions to prevent nil interface conversion panic
+		symbol, ok := pos["symbol"].(string)
+		if !ok || symbol == "" {
+			continue // Skip invalid position
+		}
+		side, ok := pos["side"].(string)
+		if !ok || side == "" {
+			continue // Skip invalid position
+		}
+		entryPrice, ok := pos["entryPrice"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
+		markPrice, ok := pos["markPrice"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
+		quantity, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
 		if quantity < 0 {
 			quantity = -quantity
 		}
-		unrealizedPnl := pos["unRealizedProfit"].(float64)
-		liquidationPrice := pos["liquidationPrice"].(float64)
+		unrealizedPnl, ok := pos["unRealizedProfit"].(float64)
+		if !ok {
+			unrealizedPnl = 0 // Default to 0 if missing
+		}
+		liquidationPrice, ok := pos["liquidationPrice"].(float64)
+		if !ok {
+			liquidationPrice = 0 // Default to 0 if missing
+		}
 
 		leverage := 10
 		if lev, ok := pos["leverage"].(float64); ok {
@@ -1780,11 +2449,27 @@ func (at *AutoTrader) checkPositionDrawdown() {
 	}
 
 	for _, pos := range positions {
-		symbol := pos["symbol"].(string)
-		side := pos["side"].(string)
-		entryPrice := pos["entryPrice"].(float64)
-		markPrice := pos["markPrice"].(float64)
-		quantity := pos["positionAmt"].(float64)
+		// Safe type assertions to prevent nil interface conversion panic
+		symbol, ok := pos["symbol"].(string)
+		if !ok || symbol == "" {
+			continue // Skip invalid position
+		}
+		side, ok := pos["side"].(string)
+		if !ok || side == "" {
+			continue // Skip invalid position
+		}
+		entryPrice, ok := pos["entryPrice"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
+		markPrice, ok := pos["markPrice"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
+		quantity, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
 		if quantity < 0 {
 			quantity = -quantity // Short position quantity is negative, convert to positive
 		}
@@ -2159,15 +2844,27 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 
 	log.Printf("✅ [%s] AI call succeeded, duration: %v", at.name, aiCallDuration)
 	record.AIRequestDurationMs = aiCallDuration.Milliseconds()
+	record.RawResponse = aiResponse // Save raw AI response for debugging parse failures
 
 	// Parse AI response
 	fullDecision, err := decision.ParseFullDecisionResponse(tradingCtx, aiResponse)
 	if err != nil {
 		log.Printf("❌ [%s] failed to parse AI response: %v", at.name, err)
 		record.ErrorMessage = fmt.Sprintf("failed to parse AI response: %v", err)
+		record.SystemPrompt = systemPrompt
+		record.InputPrompt = userPrompt
 		_ = db.UpdateAlertStatus(alertID, "error")
 		at.decisionLogger.LogDecision(record)
 		return
+	}
+
+	// Populate record fields from fullDecision
+	record.SystemPrompt = systemPrompt
+	record.InputPrompt = userPrompt
+	record.CoTTrace = fullDecision.CoTTrace
+	if len(fullDecision.Decisions) > 0 {
+		decisionJSON, _ := json.MarshalIndent(fullDecision.Decisions, "", "  ")
+		record.DecisionJSON = string(decisionJSON)
 	}
 
 	// Check if there are any decisions
@@ -2310,14 +3007,26 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 	}
 
 	record.AIRequestDurationMs = aiCallDuration.Milliseconds()
+	record.RawResponse = aiResponse // Save raw AI response for debugging parse failures
 
 	// Parse AI response
 	fullDecision, err := decision.ParseFullDecisionResponse(tradingCtx, aiResponse)
 	if err != nil {
 		log.Printf("❌ [%s] Failed to parse AI response: %v", at.name, err)
 		record.ErrorMessage = fmt.Sprintf("Failed to parse: %v", err)
+		record.SystemPrompt = systemPrompt
+		record.InputPrompt = userPrompt
 		at.decisionLogger.LogDecision(record)
 		return
+	}
+
+	// Populate record fields from fullDecision
+	record.SystemPrompt = systemPrompt
+	record.InputPrompt = userPrompt
+	record.CoTTrace = fullDecision.CoTTrace
+	if len(fullDecision.Decisions) > 0 {
+		decisionJSON, _ := json.MarshalIndent(fullDecision.Decisions, "", "  ")
+		record.DecisionJSON = string(decisionJSON)
 	}
 
 	// Process decision
@@ -2404,11 +3113,27 @@ func (at *AutoTrader) buildTradingContextForSymbol(symbol string, _ *cfg.Trading
 
 	var positionInfos []decision.PositionInfo
 	for _, pos := range positions {
-		symbolPos := pos["symbol"].(string)
-		side := pos["side"].(string)
-		entryPrice := pos["entryPrice"].(float64)
-		markPrice := pos["markPrice"].(float64)
-		quantity := pos["positionAmt"].(float64)
+		// Safe type assertions to prevent nil interface conversion panic
+		symbolPos, ok := pos["symbol"].(string)
+		if !ok || symbolPos == "" {
+			continue // Skip invalid position
+		}
+		side, ok := pos["side"].(string)
+		if !ok || side == "" {
+			continue // Skip invalid position
+		}
+		entryPrice, ok := pos["entryPrice"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
+		markPrice, ok := pos["markPrice"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
+		quantity, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue // Skip invalid position
+		}
 		if quantity < 0 {
 			quantity = -quantity
 		}
@@ -2416,8 +3141,14 @@ func (at *AutoTrader) buildTradingContextForSymbol(symbol string, _ *cfg.Trading
 			continue
 		}
 
-		unrealizedPnl := pos["unRealizedProfit"].(float64)
-		liquidationPrice := pos["liquidationPrice"].(float64)
+		unrealizedPnl, ok := pos["unRealizedProfit"].(float64)
+		if !ok {
+			unrealizedPnl = 0 // Default to 0 if missing
+		}
+		liquidationPrice, ok := pos["liquidationPrice"].(float64)
+		if !ok {
+			liquidationPrice = 0 // Default to 0 if missing
+		}
 
 		leverage := 10
 		if lev, ok := pos["leverage"].(float64); ok {
@@ -2427,9 +3158,24 @@ func (at *AutoTrader) buildTradingContextForSymbol(symbol string, _ *cfg.Trading
 		pnlPct := calculatePnLPercentage(unrealizedPnl, marginUsed)
 
 		posKey := symbolPos + "_" + side
-		updateTime := at.positionFirstSeenTime[posKey]
-		if updateTime == 0 {
+
+		// Handle zero/invalid entry_time from exchange position sync
+		var updateTime int64
+		if entryTimeRaw, ok := pos["entry_time"].(float64); ok && entryTimeRaw > 0 {
+			// Use entry_time from exchange (convert to milliseconds if needed)
+			updateTime = int64(entryTimeRaw)
+			at.positionFirstSeenTime[posKey] = updateTime
+		} else if entryTimeRaw, ok := pos["entry_time"].(int64); ok && entryTimeRaw > 0 {
+			// Handle int64 format
+			updateTime = entryTimeRaw
+			at.positionFirstSeenTime[posKey] = updateTime
+		} else if existingTime, exists := at.positionFirstSeenTime[posKey]; exists && existingTime > 0 {
+			// Use existing time if position was seen before
+			updateTime = existingTime
+		} else {
+			// Fallback: use current time if no entry_time and not previously seen
 			updateTime = time.Now().UnixMilli()
+			at.positionFirstSeenTime[posKey] = updateTime
 		}
 
 		at.peakPnLCacheMutex.RLock()

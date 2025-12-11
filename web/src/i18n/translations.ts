@@ -105,6 +105,11 @@ export const translations = {
 
     // Equity Chart
     accountEquityCurve: 'Account Equity Curve',
+    marketChart: 'Market Chart',
+    enterSymbol: 'Enter Symbol',
+    popularSymbols: 'Popular',
+    fullscreen: 'Fullscreen',
+    exitFullscreen: 'Exit Fullscreen',
     noHistoricalData: 'No Historical Data',
     dataWillAppear: 'Equity curve will appear after running a few cycles',
     initialBalance: 'Initial Balance',
@@ -650,6 +655,14 @@ export const translations = {
     modelConfigInfo2: '• Base URL is used for custom API server address',
     modelConfigInfo3:
       '• After deleting configuration, traders using this model will not work properly',
+    getAPIKey: 'Get API Key',
+    providerHintGrok: 'Get your API key from xAI Console',
+    providerHintOpenAI: 'Get your API key from OpenAI Platform',
+    providerHintClaude: 'Get your API key from Anthropic Console',
+    providerHintGemini: 'Get your API key from Google AI Studio',
+    providerHintKimi: 'Get your API key from Moonshot Platform',
+    providerHintDeepSeek: 'Get your API key from DeepSeek Platform',
+    providerHintQwen: 'Get your API key from Alibaba Cloud DashScope',
     saveConfig: 'Save Configuration',
     editExchange: 'Edit Exchange',
     addExchange: 'Add Exchange',
@@ -1203,6 +1216,9 @@ export const translations = {
       unsupportedTitle: 'Browser does not expose Web Crypto',
       unsupportedDesc:
         'Open AI Trading over HTTPS (or http://localhost during development) and avoid insecure iframes/reverse proxies so the browser can enable Web Crypto.',
+      disabledTitle: 'Transport encryption disabled',
+      disabledDesc:
+        'Transport encryption is disabled on the server. You can enter sensitive keys without encryption. This mode is suitable for local development or trusted networks.',
       summary: 'Current origin: {origin} • Protocol: {protocol}',
     },
 
@@ -1230,6 +1246,8 @@ export const translations = {
       obfuscationInstruction:
         'Paste something else to clear clipboard, then continue',
       obfuscationManual: 'Manual obfuscation required',
+      copyFailed: 'Copy failed, please manually copy the obfuscation string',
+      clipboardNotSupported: 'Current browser does not support auto-copy, please copy manually',
     },
 
     // Error Messages
@@ -1338,6 +1356,11 @@ export const translations = {
 
     // Equity Chart
     accountEquityCurve: '账户净值曲线',
+    marketChart: '市场图表',
+    enterSymbol: '输入交易对',
+    popularSymbols: '热门',
+    fullscreen: '全屏',
+    exitFullscreen: '退出全屏',
     noHistoricalData: '暂无历史数据',
     dataWillAppear: '运行几个周期后将显示收益率曲线',
     initialBalance: '初始余额',
@@ -1859,6 +1882,14 @@ export const translations = {
     modelConfigInfo1: '• API Key将被加密存储，请确保密钥有效',
     modelConfigInfo2: '• Base URL用于自定义API服务器地址',
     modelConfigInfo3: '• 删除配置后，使用此模型的交易员将无法正常工作',
+    getAPIKey: '获取 API 密钥',
+    providerHintGrok: '从 xAI 控制台获取您的 API 密钥',
+    providerHintOpenAI: '从 OpenAI 平台获取您的 API 密钥',
+    providerHintClaude: '从 Anthropic 控制台获取您的 API 密钥',
+    providerHintGemini: '从 Google AI Studio 获取您的 API 密钥',
+    providerHintKimi: '从 Moonshot 平台获取您的 API 密钥',
+    providerHintDeepSeek: '从 DeepSeek 平台获取您的 API 密钥',
+    providerHintQwen: '从阿里云 DashScope 获取您的 API 密钥',
     saveConfig: '保存配置',
     editExchange: '编辑交易所',
     addExchange: '添加交易所',
@@ -2384,6 +2415,9 @@ export const translations = {
       unsupportedTitle: '浏览器未提供 Web Crypto',
       unsupportedDesc:
         '请通过 HTTPS 或本机 localhost 访问 AI Trading，并避免嵌入不安全 iframe/反向代理，以符合浏览器的 Web Crypto 规则。',
+      disabledTitle: '传输加密已禁用',
+      disabledDesc:
+        '服务器已禁用传输加密。您可以无需加密输入敏感密钥。此模式适用于本地开发或受信任的网络。',
       summary: '当前来源：{origin} · 协议：{protocol}',
     },
 
@@ -2408,6 +2442,8 @@ export const translations = {
       obfuscationCopied: '混淆数据已复制到剪贴板',
       obfuscationInstruction: '请粘贴其他内容清空剪贴板，然后继续',
       obfuscationManual: '需要手动混淆',
+      copyFailed: '复制失败，请手动复制混淆字符串',
+      clipboardNotSupported: '当前浏览器不支持自动复制，请手动复制',
     },
 
     // Error Messages

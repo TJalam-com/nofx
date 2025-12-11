@@ -223,10 +223,10 @@ func (t *LighterTrader) GetActiveOrders(symbol string) ([]OrderResponse, error) 
 	return orders, nil
 }
 
-// GetOrderStatus 获取订单状态
-func (t *LighterTrader) GetOrderStatus(orderID string) (*OrderResponse, error) {
+// GetOrderStatus Get order status (implements Trader interface)
+func (t *LighterTrader) GetOrderStatus(symbol string, orderID string) (map[string]interface{}, error) {
 	if err := t.ensureAuthToken(); err != nil {
-		return nil, fmt.Errorf("认证令牌无效: %w", err)
+		return nil, fmt.Errorf("authentication token invalid: %w", err)
 	}
 
 	endpoint := fmt.Sprintf("%s/api/v1/order/%s", t.baseURL, orderID)
@@ -236,7 +236,7 @@ func (t *LighterTrader) GetOrderStatus(orderID string) (*OrderResponse, error) {
 		return nil, err
 	}
 
-	// 添加认证头
+	// Add authentication header
 	t.accountMutex.RLock()
 	req.Header.Set("Authorization", t.authToken)
 	t.accountMutex.RUnlock()
@@ -253,15 +253,47 @@ func (t *LighterTrader) GetOrderStatus(orderID string) (*OrderResponse, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("获取订单状态失败 (status %d): %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("failed to get order status (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	var order OrderResponse
 	if err := json.Unmarshal(body, &order); err != nil {
-		return nil, fmt.Errorf("解析订单响应失败: %w", err)
+		return nil, fmt.Errorf("failed to parse order response: %w", err)
 	}
 
-	return &order, nil
+	// Map Lighter status to standard status
+	status := order.Status
+	if status == "filled" || status == "FILLED" {
+		status = "FILLED"
+	} else if status == "partially_filled" || status == "PARTIALLY_FILLED" {
+		status = "PARTIALLY_FILLED"
+	} else if status == "open" || status == "OPEN" || status == "pending" {
+		status = "NEW"
+	} else if status == "cancelled" || status == "CANCELLED" {
+		status = "CANCELED"
+	}
+
+	// Calculate average price (use order price as fallback)
+	avgPrice := order.Price
+	if order.FilledQty > 0 && order.Quantity > 0 {
+		// If we have filled quantity, use order price as avg price
+		// Note: Lighter API might not provide avgPrice, so we use order price
+		avgPrice = order.Price
+	}
+
+	// Commission is not available in OrderResponse, set to 0
+	commission := 0.0
+
+	return map[string]interface{}{
+		"orderId":     order.OrderID,
+		"symbol":      symbol,
+		"status":      status,
+		"avgPrice":    avgPrice,
+		"executedQty": order.FilledQty,
+		"commission":  commission,
+		"side":        order.Side,
+		"type":        order.OrderType,
+	}, nil
 }
 
 // CancelStopLossOrders 仅取消止损单（LIGHTER 暂无法区分，取消所有止盈止损单）

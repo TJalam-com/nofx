@@ -197,25 +197,28 @@ read_env_vars() {
 }
 
 # ------------------------------------------------------------------------
-# Validation: Database File (config.db)
+# Validation: Database File (data/data.db)
 # ------------------------------------------------------------------------
 check_database() {
-    if [ -d "config.db" ]; then
-        # 如果存在的是目录，删除它
-        print_warning "config.db 是目录而非文件，正在删除目录..."
-        rm -rf config.db
-        print_info "✓ 已删除目录，现在创建文件..."
-        install -m 600 /dev/null config.db
-        print_success "✓ 已创建空数据库文件（权限: 600），系统将在启动时初始化"
-    elif [ ! -f "config.db" ]; then
-        # 如果不存在文件，创建它
-        print_warning "数据库文件不存在，创建空数据库文件..."
-        # 创建空文件以避免Docker创建目录（使用安全权限600）
-        install -m 600 /dev/null config.db
-        print_info "✓ 已创建空数据库文件（权限: 600），系统将在启动时初始化"
+    # Ensure data directory exists
+    mkdir -p data
+    
+    if [ -d "data/data.db" ]; then
+        # If it's a directory, remove it
+        print_warning "data/data.db is a directory, removing it..."
+        rm -rf data/data.db
+        print_info "✓ Directory removed, creating file..."
+        install -m 600 /dev/null data/data.db
+        print_success "✓ Empty database file created (permissions: 600), system will initialize on startup"
+    elif [ ! -f "data/data.db" ]; then
+        # If file doesn't exist, create it
+        print_warning "Database file does not exist, creating empty database file..."
+        # Create empty file to avoid Docker creating directory (using secure permissions 600)
+        install -m 600 /dev/null data/data.db
+        print_info "✓ Empty database file created (permissions: 600), system will initialize on startup"
     else
-        # 文件存在
-        print_success "数据库文件存在"
+        # File exists
+        print_success "Database file exists"
     fi
 }
 
@@ -257,10 +260,11 @@ start() {
     # 读取环境变量
     read_env_vars
 
-    # 确保必要的文件和目录存在（修复 Docker volume 挂载问题）
-    if [ ! -f "config.db" ]; then
-        print_info "创建数据库文件..."
-        install -m 600 /dev/null config.db
+    # Ensure necessary files and directories exist (fix Docker volume mount issues)
+    mkdir -p data
+    if [ ! -f "data/data.db" ]; then
+        print_info "Creating database file..."
+        install -m 600 /dev/null data/data.db
     fi
     if [ ! -d "decision_logs" ]; then
         print_info "创建日志目录..."

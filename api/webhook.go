@@ -9,153 +9,153 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// handleTradingViewWebhook 处理TradingView webhook请求
+// handleTradingViewWebhook handles TradingView webhook requests
 func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 	var payload map[string]interface{}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的JSON格式", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format", "details": err.Error()})
 		return
 	}
 
-	// 提取apikey
+	// Extract apikey
 	apikey, ok := payload["apikey"].(string)
 	if !ok || apikey == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少或无效的apikey字段"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid apikey field"})
 		return
 	}
 
-	// 验证API key并获取用户
+	// Validate API key and get user
 	user, err := s.database.GetUserByWebhookAPIKey(apikey)
 	if err != nil {
-		log.Printf("⚠️ 无效的webhook API key: %s", apikey)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的API key"})
+		log.Printf("⚠️ Invalid webhook API key: %s", apikey)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
 		return
 	}
 
-	// 提取trader_id（可选）
+	// Extract trader_id (optional)
 	var traderID string
 	if tid, ok := payload["trader_id"].(string); ok && tid != "" {
 		traderID = tid
-		// 验证trader是否属于该用户
+		// Verify trader belongs to this user
 		_, _, _, err := s.database.GetTraderConfig(user.ID, traderID)
 		if err != nil {
-			log.Printf("⚠️ 交易员 %s 不属于用户 %s", traderID, user.ID)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "无效的trader_id"})
+			log.Printf("⚠️ Trader %s does not belong to user %s", traderID, user.ID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid trader_id"})
 			return
 		}
 	} else {
-		// 如果没有提供trader_id，查找用户第一个启用TradingView的交易员
+		// If trader_id not provided, find user's first trader with TradingView enabled
 		traders, err := s.database.GetTradersWithTradingViewEnabled(user.ID)
 		if err != nil || len(traders) == 0 {
-			log.Printf("⚠️ 用户 %s 没有启用TradingView的交易员", user.ID)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "未找到启用TradingView的交易员，请在webhook中指定trader_id或在交易员配置中启用TradingView信号"})
+			log.Printf("⚠️ User %s has no traders with TradingView enabled", user.ID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No trader with TradingView enabled found, please specify trader_id in webhook or enable TradingView signal in trader config"})
 			return
 		}
 		traderID = traders[0].ID
-		log.Printf("📌 自动分配交易员: %s", traderID)
+		log.Printf("📌 Auto-assigned trader: %s", traderID)
 	}
 
-	// 验证必需字段
+	// Validate required fields
 	symbol, ok := payload["symbol"].(string)
 	if !ok || symbol == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少或无效的symbol字段"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid symbol field"})
 		return
 	}
 
 	action, ok := payload["action"].(string)
 	if !ok || (action != "buy" && action != "sell") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少或无效的action字段（必须是buy或sell）"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid action field (must be buy or sell)"})
 		return
 	}
 
-	// 创建警报记录
+	// Create alert record
 	alertID, err := s.database.CreateTradingViewAlert(user.ID, traderID, payload)
 	if err != nil {
-		log.Printf("❌ 创建TradingView警报失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存警报失败", "details": err.Error()})
+		log.Printf("❌ Failed to create TradingView alert: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save alert", "details": err.Error()})
 		return
 	}
 
-	log.Printf("✅ TradingView警报已接收: 用户=%s, 交易员=%s, 币种=%s, 操作=%s, alertID=%s", user.ID, traderID, symbol, action, alertID)
+	log.Printf("✅ TradingView alert received: user=%s, trader=%s, symbol=%s, action=%s, alertID=%s", user.ID, traderID, symbol, action, alertID)
 	log.Printf("INFO: Webhook received (trader=%s, symbol=%s, action=%s, alertID=%s)", traderID, symbol, action, alertID)
 
-	// 构建响应对象
+	// Build response object
 	response := gin.H{
 		"success":   true,
-		"message":   "警报已接收",
+		"message":   "Alert received",
 		"trader_id": traderID,
 		"symbol":    symbol,
 		"action":    action,
 		"alert_id":  alertID,
 	}
 
-	// 如果交易员启用了TradingView，触发立即决策周期
+	// If trader has TradingView enabled, trigger immediate decision cycle
 	at, err := s.traderManager.GetTrader(traderID)
 	if err == nil && at != nil {
-		// 从数据库确认是否开启TradingView
+		// Confirm from database if TradingView is enabled
 		traderConfig, _, _, cfgErr := s.database.GetTraderConfig(user.ID, traderID)
 		if cfgErr != nil {
-			log.Printf("⚠️ 无法获取交易员配置 %s: %v", traderID, cfgErr)
+			log.Printf("⚠️ Failed to get trader config %s: %v", traderID, cfgErr)
 			log.Printf("WARN: Skip trigger because trader config load failed (trader=%s, alertID=%s, err=%v)", traderID, alertID, cfgErr)
-			response["warning"] = "无法获取交易员配置，未触发决策"
+			response["warning"] = "Failed to get trader config, decision not triggered"
 			c.JSON(http.StatusOK, response)
 			return
 		}
 
 		if !traderConfig.UseTradingView {
-			log.Printf("⚠️ [%s] 未开启TradingView信号，跳过触发", traderID)
+			log.Printf("⚠️ [%s] TradingView signal not enabled, skipping trigger", traderID)
 			log.Printf("WARN: Skip trigger because UseTradingView=false at DB (trader=%s, alertID=%s)", traderID, alertID)
-			response["warning"] = "交易员未开启TradingView信号，未触发决策"
+			response["warning"] = "Trader has not enabled TradingView signal, decision not triggered"
 			c.JSON(http.StatusOK, response)
 			return
 		}
 
-		// 检查交易员是否正在运行
+		// Check if trader is running
 		status := at.GetStatus()
 		isRunning, _ := status["is_running"].(bool)
 		memUseTV, _ := status["use_tradingview"].(bool)
-		dbIsRunning := traderConfig.IsRunning // 数据库中的运行状态
+		dbIsRunning := traderConfig.IsRunning // Running status in database
 		response["trader_running"] = isRunning
-		log.Printf("ℹ️ [%s] TradingView触发检查: is_running(mem)=%v, is_running(DB)=%v, UseTradingView(DB)=%v, UseTradingView(mem)=%v", traderID, isRunning, dbIsRunning, traderConfig.UseTradingView, memUseTV)
+		log.Printf("ℹ️ [%s] TradingView trigger check: is_running(mem)=%v, is_running(DB)=%v, UseTradingView(DB)=%v, UseTradingView(mem)=%v", traderID, isRunning, dbIsRunning, traderConfig.UseTradingView, memUseTV)
 		if memUseTV != traderConfig.UseTradingView {
 			log.Printf("WARN: TradingView flag mismatch between DB and memory (trader=%s, db=%v, mem=%v)", traderID, traderConfig.UseTradingView, memUseTV)
 		}
 		log.Printf("INFO: Trigger check (trader=%s, is_running(mem)=%v, is_running(DB)=%v, UseTradingView=%v, alertID=%s)", traderID, isRunning, dbIsRunning, traderConfig.UseTradingView, alertID)
 
 		if !isRunning {
-			// 如果数据库状态显示交易员已停止（用户明确停止），则不应自动启动
+			// If DB status shows trader is stopped (user explicitly stopped), should not auto-start
 			if !dbIsRunning {
-				log.Printf("⏹️ [%s] 交易员已停止（数据库状态），不自动启动以处理webhook", traderID)
+				log.Printf("⏹️ [%s] Trader is stopped (DB status), not auto-starting to handle webhook", traderID)
 				log.Printf("INFO: Trader is stopped in DB, respecting stop status (trader=%s, alertID=%s)", traderID, alertID)
-				response["warning"] = "交易员已停止，请手动启动交易员以处理webhook"
+				response["warning"] = "Trader is stopped, please manually start trader to handle webhook"
 				c.JSON(http.StatusOK, response)
 				return
 			}
 
-			// 如果数据库状态显示运行中但内存中未运行，说明交易员可能崩溃了，可以自动启动
+			// If DB status shows running but not in memory, trader may have crashed, can auto-start
 			if traderConfig != nil && traderConfig.UseTradingView {
 				// Reload config first to ensure latest settings
 				if reloadErr := s.traderManager.ReloadTraderFromDB(s.database, user.ID, traderID); reloadErr != nil {
 					log.Printf("⚠️ Failed to reload trader config before auto-start: %v", reloadErr)
-					response["warning"] = "无法重新加载交易员配置"
+					response["warning"] = "Failed to reload trader config"
 					c.JSON(http.StatusOK, response)
 					return
 				}
 
-				// 重新检查数据库状态（防止在reload期间状态发生变化）
+				// Re-check database status (prevent state changes during reload)
 				freshConfig, _, _, freshCfgErr := s.database.GetTraderConfig(user.ID, traderID)
 				if freshCfgErr != nil {
 					log.Printf("⚠️ Failed to get fresh trader config after reload: %v", freshCfgErr)
-					response["warning"] = "无法获取最新交易员配置"
+					response["warning"] = "Failed to get latest trader config"
 					c.JSON(http.StatusOK, response)
 					return
 				}
 
-				// 如果重新加载后发现数据库状态已变为停止，则不自动启动
+				// If reload shows DB status changed to stopped, do not auto-start
 				if !freshConfig.IsRunning {
-					log.Printf("⏹️ [%s] 重新加载后发现交易员已停止（数据库状态），不自动启动以处理webhook", traderID)
+					log.Printf("⏹️ [%s] Trader is stopped (DB status) after reload, not auto-starting to handle webhook", traderID)
 					log.Printf("INFO: Trader is stopped in DB after reload, respecting stop status (trader=%s, alertID=%s)", traderID, alertID)
-					response["warning"] = "交易员已停止，请手动启动交易员以处理webhook"
+					response["warning"] = "Trader is stopped, please manually start trader to handle webhook"
 					c.JSON(http.StatusOK, response)
 					return
 				}
@@ -164,79 +164,79 @@ func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 				at, err = s.traderManager.GetTrader(traderID)
 				if err != nil {
 					log.Printf("❌ Failed to get trader after reload: %v", err)
-					response["error"] = "无法获取交易员实例"
+					response["error"] = "Failed to get trader instance"
 					c.JSON(http.StatusOK, response)
 					return
 				}
-				// 自动启动交易员（TradingView模式，仅在交易员崩溃时）
-				log.Printf("🔄 [%s] TradingView模式：检测到交易员崩溃，自动重启以处理webhook", traderConfig.Name)
+				// Auto-start trader (TradingView mode, only when trader crashed)
+				log.Printf("🔄 [%s] TradingView mode: detected trader crash, auto-restarting to handle webhook", traderConfig.Name)
 				log.Printf("INFO: Auto-start trader for TradingView webhook (trader crashed, trader=%s, alertID=%s)", traderID, alertID)
 				go func() {
 					if err := at.Run(); err != nil {
-						log.Printf("❌ [%s] 自动启动失败: %v", traderConfig.Name, err)
-						// 更新数据库状态为停止
+						log.Printf("❌ [%s] Auto-start failed: %v", traderConfig.Name, err)
+						// Update database status to stopped
 						_ = s.database.UpdateTraderStatus(user.ID, traderID, false)
 					}
 				}()
-				// 更新数据库状态
-				_ = s.database.UpdateTraderStatus(user.ID, traderID, true)
-				// 等待交易员启动
+				// Update database status
+		_ = s.database.UpdateTraderStatus(user.ID, traderID, true)
+		// Wait for trader to start
 				time.Sleep(500 * time.Millisecond)
-				// 再次检查运行状态
+				// Check running status again
 				status = at.GetStatus()
 				isRunning, _ = status["is_running"].(bool)
 				response["trader_running"] = isRunning
 
 				if !isRunning {
-					log.Printf("⚠️ [%s] 交易员自动启动后仍未运行，跳过触发决策周期", traderConfig.Name)
+					log.Printf("⚠️ [%s] Trader still not running after auto-start, skipping decision cycle trigger", traderConfig.Name)
 					log.Printf("WARN: Auto-start failed, trader still not running (trader=%s, alertID=%s)", traderID, alertID)
-					response["warning"] = "交易员自动启动失败，请检查日志并手动启动"
+					response["warning"] = "Trader auto-start failed, please check logs and manually start"
 					response["trigger_error"] = "trader failed to start"
 					c.JSON(http.StatusOK, response)
 					return
 				}
 
-				response["warning"] = "交易员未运行，已自动启动（TradingView模式）"
-				log.Printf("✓ [%s] 交易员已自动启动，准备处理webhook", traderConfig.Name)
+				response["warning"] = "Trader not running, auto-started (TradingView mode)"
+				log.Printf("✓ [%s] Trader auto-started, ready to handle webhook", traderConfig.Name)
 			} else {
-				log.Printf("⚠️ [%s] 交易员未运行且未启用TradingView，无法自动启动", traderID)
+				log.Printf("⚠️ [%s] Trader not running and TradingView not enabled, cannot auto-start", traderID)
 				log.Printf("WARN: Trader not running and UseTradingView=false, cannot auto-start (trader=%s, alertID=%s)", traderID, alertID)
-				response["warning"] = "交易员未运行，请手动启动交易员以处理webhook"
+				response["warning"] = "Trader not running, please manually start trader to handle webhook"
 				c.JSON(http.StatusOK, response)
 				return
 			}
 		}
 
-		// 触发决策周期
+		// Trigger decision cycle
 		if err := at.TriggerTradingViewDecisionCycle(alertID); err != nil {
-			log.Printf("⚠️ [%s] 触发决策周期失败: %v", traderID, err)
+			log.Printf("⚠️ [%s] Failed to trigger decision cycle: %v", traderID, err)
 			log.Printf("ERROR: Failed to trigger TradingView decision (trader=%s, alertID=%s, err=%v)", traderID, alertID, err)
 			response["trigger_error"] = err.Error()
 		} else {
-			log.Printf("✓ [%s] 已成功触发TradingView决策周期: alertID=%s", traderID, alertID)
+			log.Printf("✓ [%s] Successfully triggered TradingView decision cycle: alertID=%s", traderID, alertID)
 			log.Printf("INFO: Triggered TradingView decision successfully (trader=%s, alertID=%s)", traderID, alertID)
 		}
 	} else {
-		log.Printf("⚠️ 无法获取交易员实例 %s: %v", traderID, err)
+		log.Printf("⚠️ Failed to get trader instance %s: %v", traderID, err)
 		log.Printf("ERROR: Trader instance not found (trader=%s, alertID=%s, err=%v)", traderID, alertID, err)
-		response["error"] = fmt.Sprintf("无法获取交易员实例: %v", err)
+		response["error"] = fmt.Sprintf("Failed to get trader instance: %v", err)
 	}
 
 	c.JSON(http.StatusOK, response)
 }
 
-// handleGetWebhookInfo 获取用户的webhook信息
+// handleGetWebhookInfo gets user's webhook information
 func (s *Server) handleGetWebhookInfo(c *gin.Context) {
 	userID := c.GetString("user_id")
 
-	// 生成或获取API key
+	// Generate or get API key
 	apiKey, err := s.database.GenerateWebhookAPIKey(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成API key失败", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate API key", "details": err.Error()})
 		return
 	}
 
-	// 构建webhook URL（从请求中获取host）
+	// Build webhook URL (get host from request)
 	host := c.Request.Host
 	scheme := "https"
 	if c.Request.TLS == nil {
@@ -250,15 +250,15 @@ func (s *Server) handleGetWebhookInfo(c *gin.Context) {
 	})
 }
 
-// handleGetRecentAlerts 获取最近的警报
+// handleGetRecentAlerts gets recent alerts
 func (s *Server) handleGetRecentAlerts(c *gin.Context) {
 	userID := c.GetString("user_id")
 	traderID := c.Query("trader_id")
 
-	// 使用database方法获取最近的警报
+	// Use database method to get recent alerts
 	alerts, err := s.database.GetRecentTradingViewAlerts(userID, traderID, 10)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Query failed", "details": err.Error()})
 		return
 	}
 

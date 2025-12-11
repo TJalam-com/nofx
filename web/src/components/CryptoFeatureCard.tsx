@@ -35,7 +35,7 @@ export const CryptoFeatureCard = React.forwardRef<
           className
         )}
         style={{
-          background: 'var(--panel-bg)',
+          background: 'var(--navy-dark)',
           borderColor: isHovered ? 'var(--green-primary)' : 'var(--panel-border)',
           boxShadow: isHovered ? '0 0 20px var(--green-glow)' : 'none',
         }}

@@ -11,8 +11,11 @@ import {
 } from 'recharts'
 import { api } from '../lib/api'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth, isFollower } from '../contexts/AuthContext'
 import { t } from '../i18n/translations'
+import { confirmToast } from '../lib/notify'
 import { DecisionCard } from './DecisionCard'
+import { AlertCircle } from 'lucide-react'
 import type {
   BacktestStatusPayload,
   BacktestEquityPoint,
@@ -32,11 +35,13 @@ const toLocalInput = (date: Date) => {
 
 export function BacktestPage() {
   const { language } = useLanguage()
+  const { user, token } = useAuth()
   const tr = (key: string, params?: Record<string, string | number>) =>
     t(`backtestPage.${key}`, language, params)
   const titleText = tr('title')
   const subtitleText = tr('subtitle')
   const now = new Date()
+  const userIsFollower = user && token ? isFollower(user) : false
   const [formState, setFormState] = useState({
     runId: '',
     symbols: 'BTCUSDT,ETHUSDT,SOLUSDT',
@@ -105,7 +110,8 @@ export function BacktestPage() {
   )
 
   const { data: runsResp, mutate: refreshRuns } = useSWR(
-    ['backtest-runs', stateFilter, search],
+    // Only fetch if user is not a follower
+    userIsFollower ? null : ['backtest-runs', stateFilter, search],
     () =>
       api.getBacktestRuns({
         state: stateFilter || undefined,
@@ -131,40 +137,41 @@ export function BacktestPage() {
   const selectedRun = runs.find((run) => run.run_id === selectedRunId)
 
   const { data: status } = useSWR<BacktestStatusPayload>(
-    selectedRunId ? ['bt-status', selectedRunId] : null,
+    // Only fetch if user is not a follower and runId is selected
+    userIsFollower || !selectedRunId ? null : ['bt-status', selectedRunId],
     () => api.getBacktestStatus(selectedRunId!),
     { refreshInterval: 4000 }
   )
 
   const { data: equity } = useSWR<BacktestEquityPoint[]>(
-    selectedRunId ? ['bt-equity', selectedRunId, equityTf] : null,
+    userIsFollower || !selectedRunId ? null : ['bt-equity', selectedRunId, equityTf],
     () => api.getBacktestEquity(selectedRunId!, equityTf, 1000),
     { refreshInterval: 6000 }
   )
 
   const { data: trades } = useSWR<BacktestTradeEvent[]>(
-    selectedRunId ? ['bt-trades', selectedRunId] : null,
+    userIsFollower || !selectedRunId ? null : ['bt-trades', selectedRunId],
     () => api.getBacktestTrades(selectedRunId!, 200),
     { refreshInterval: 8000 }
   )
 
   const { data: metrics } = useSWR<BacktestMetrics>(
-    selectedRunId ? ['bt-metrics', selectedRunId] : null,
+    userIsFollower || !selectedRunId ? null : ['bt-metrics', selectedRunId],
     () => api.getBacktestMetrics(selectedRunId!),
     { refreshInterval: 12000 }
   )
   const { data: decisions } = useSWR<DecisionRecord[]>(
-    selectedRunId ? ['bt-decisions', selectedRunId] : null,
+    userIsFollower || !selectedRunId ? null : ['bt-decisions', selectedRunId],
     () => api.getBacktestDecisions(selectedRunId!, 50),
     { refreshInterval: 8000 }
   )
 
   const { data: promptTemplates } = useSWR<string[]>(
-    'prompt-templates',
+    userIsFollower ? null : 'prompt-templates',
     api.getPromptTemplates
   )
   const { data: aiModels } = useSWR<AIModel[]>(
-    'ai-models',
+    userIsFollower ? null : 'ai-models',
     api.getModelConfigs,
     { refreshInterval: 30000 }
   )
@@ -308,12 +315,12 @@ export function BacktestPage() {
 
   const handleDeleteRun = async () => {
     if (!selectedRunId) return
-    if (
-      typeof window !== 'undefined' &&
-      !window.confirm(tr('toasts.confirmDelete', { id: selectedRunId }))
-    ) {
-      return
-    }
+    const confirmed = await confirmToast(tr('toasts.confirmDelete', { id: selectedRunId }), {
+      title: language === 'zh' ? '确认删除' : 'Confirm Delete',
+      okText: language === 'zh' ? '删除' : 'Delete',
+      cancelText: language === 'zh' ? '取消' : 'Cancel',
+    })
+    if (!confirmed) return
     try {
       await api.deleteBacktestRun(selectedRunId)
       setToast({ text: tr('toasts.deleteSuccess'), tone: 'success' })
@@ -400,6 +407,23 @@ export function BacktestPage() {
     [trades]
   )
 
+  // Show access denied message for followers
+  if (userIsFollower) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <AlertCircle className="mx-auto mb-4 opacity-50" size={48} style={{ color: 'var(--text-secondary)' }} />
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {tr('accessDenied') || 'Access Restricted'}
+          </h2>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            {tr('followerRestriction') || 'This feature is only available to traders. Please upgrade your account to access backtesting.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {toast && (
@@ -444,7 +468,7 @@ export function BacktestPage() {
               type="submit"
               disabled={isStarting || !selectedModel || !selectedModel.enabled}
               className="px-4 py-2 rounded text-xs font-bold transition-opacity disabled:opacity-50"
-              style={{ background: 'var(--green-primary)', color: '#000' }}
+              style={{ background: 'var(--green-primary)', color: 'var(--navy-primary)' }}
             >
               {isStarting ? tr('starting') : tr('start')}
             </button>
@@ -545,7 +569,8 @@ export function BacktestPage() {
                     key={range.label}
                     className="px-2 py-1 rounded border text-[11px]"
                     style={{
-                      borderColor: '#2B3139',
+                      background: 'var(--navy-dark)',
+                      borderColor: 'var(--panel-border)',
                       color: '#EAECEF',
                     }}
                     onClick={() => applyQuickRange(range.hours)}
@@ -592,8 +617,8 @@ export function BacktestPage() {
                     style={{
                       background: active
                         ? 'rgba(0,255,127,0.12)'
-                        : 'transparent',
-                      borderColor: active ? 'var(--green-primary)' : '#2B3139',
+                        : 'var(--navy-dark)',
+                      borderColor: active ? 'var(--green-primary)' : 'var(--panel-border)',
                       color: active ? 'var(--green-primary)' : '#848E9C',
                     }}
                   >
@@ -823,13 +848,14 @@ export function BacktestPage() {
                 {runs.map((run) => (
                   <tr
                     key={run.run_id}
-                    className="cursor-pointer hover:bg-[#1E2329]"
+                    className="cursor-pointer"
                     style={{
+                      '--hover-bg': 'var(--navy-dark)',
                       background:
                         run.run_id === selectedRunId
                           ? 'rgba(0,255,127,0.08)'
                           : 'transparent',
-                    }}
+                    } as React.CSSProperties}
                     onClick={() => setSelectedRunId(run.run_id)}
                   >
                     <td className="py-2 font-mono">{run.run_id}</td>
@@ -895,16 +921,17 @@ export function BacktestPage() {
                     />
                     <button
                       type="button"
-                      className="px-3 py-1 text-xs rounded border border-[#2B3139]"
+                      className="px-3 py-1 text-xs rounded border"
+                      style={{ borderColor: 'var(--panel-border)' }}
                       onClick={handleSaveLabel}
                     >
                       {tr('detail.saveLabel')}
                     </button>
                     <button
                       type="button"
-                      className="px-3 py-1 text-xs rounded border border-[#2B3139]"
-                      onClick={handleDeleteRun}
+                      className="px-3 py-1 text-xs rounded border"
                       style={{ color: '#F6465D', borderColor: '#F6465D' }}
+                      onClick={handleDeleteRun}
                     >
                       {tr('detail.deleteLabel')}
                     </button>
@@ -937,7 +964,8 @@ export function BacktestPage() {
                       key={action}
                       onClick={() => handleControl(action)}
                       disabled={actionLoading === action}
-                      className="px-3 py-1.5 rounded border border-[#2B3139]"
+                      className="px-3 py-1.5 rounded border"
+                      style={{ borderColor: 'var(--panel-border)' }}
                     >
                       {actionLoading === action ? '...' : actionLabels[action]}
                     </button>
@@ -947,7 +975,7 @@ export function BacktestPage() {
               {status?.note && (
                 <div
                   className="p-2 text-xs rounded"
-                  style={{ background: '#1E2329', color: '#F6465D' }}
+                  style={{ background: 'var(--navy-dark)', color: '#F6465D' }}
                 >
                   {status.note}
                 </div>
@@ -988,7 +1016,8 @@ export function BacktestPage() {
                   onChange={(e) => setTraceCycle(e.target.value)}
                 />
                 <button
-                  className="px-3 py-1.5 text-xs rounded bg-[#2B3139]"
+                  className="px-3 py-1.5 text-xs rounded"
+                  style={{ background: 'var(--panel-border)' }}
                   onClick={handleTrace}
                 >
                   {tr('aiTrace.fetch')}
@@ -1091,7 +1120,7 @@ export function BacktestPage() {
                 <div className="h-72">
                   <ResponsiveContainer>
                     <LineChart data={equitySeries}>
-                      <CartesianGrid stroke="#2B3139" strokeDasharray="3 3" />
+                      <CartesianGrid stroke="var(--panel-border)" strokeDasharray="3 3" />
                       <XAxis dataKey="time" hide />
                       <YAxis width={60} />
                       <Tooltip />

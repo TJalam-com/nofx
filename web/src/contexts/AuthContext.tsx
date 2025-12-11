@@ -11,11 +11,7 @@ interface User {
 
 // Helper function to check if user is a follower
 export function isFollower(user: User | null): boolean {
-  const result = user?.role === 'follower'
-  if (user) {
-    console.log('🔍 isFollower check:', { userId: user.id, role: user.role, isFollower: result })
-  }
-  return result
+  return user?.role === 'follower'
 }
 
 // Helper function to check if user is an admin
@@ -106,11 +102,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('🔐 Full restored user:', parsedUser)
           setToken(savedToken)
           setUser(parsedUser)
-          // Verify role detection
-          console.log('✅ isFollower check on restored user:', parsedUser.role === 'follower')
+          
+          // Immediately refresh user from backend to get latest role
+          // This ensures we have the most up-to-date role if it was changed in the database
+          console.log('🔄 Refreshing user from backend to get latest role...')
+          refreshUser()
+            .then(() => {
+              console.log('✅ User refreshed from backend successfully')
+              setIsLoading(false)
+            })
+            .catch((err) => {
+              console.warn('⚠️ Failed to refresh user from backend, using cached data:', err)
+              // Fall back to cached data if refresh fails (e.g., backend unavailable)
+              setIsLoading(false)
+            })
+        } else {
+          // No saved auth data, set loading to false
+          setIsLoading(false)
         }
-
-        setIsLoading(false)
       })
       .catch((err) => {
         console.error('Failed to fetch system config:', err)
@@ -119,12 +128,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const savedUser = localStorage.getItem('auth_user')
 
         if (savedToken && savedUser) {
+          const parsedUser = JSON.parse(savedUser)
           setToken(savedToken)
-          setUser(JSON.parse(savedUser))
+          setUser(parsedUser)
+          
+          // Try to refresh user from backend even if system config failed
+          console.log('🔄 Attempting to refresh user from backend after system config error...')
+          refreshUser()
+            .then(() => {
+              console.log('✅ User refreshed from backend successfully')
+              setIsLoading(false)
+            })
+            .catch((refreshErr) => {
+              console.warn('⚠️ Failed to refresh user from backend, using cached data:', refreshErr)
+              setIsLoading(false)
+            })
+        } else {
+          setIsLoading(false)
         }
-        setIsLoading(false)
       })
-  }, [])
+  }, [refreshUser])
 
   // Listen for unauthorized events from httpClient (401 responses)
   useEffect(() => {
@@ -217,10 +240,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: data.error }
       }
     } catch (error) {
-      return { success: false, message: '登录失败，请重试' }
+      return { success: false, message: 'Login failed, please try again' }
     }
 
-    return { success: false, message: '未知错误' }
+    return { success: false, message: 'Unknown error' }
   }
 
   const loginAdmin = async (password: string) => {
@@ -258,10 +281,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return { success: true }
       } else {
-        return { success: false, message: data.error || '登录失败' }
+        return { success: false, message: data.error || 'Login failed' }
       }
     } catch (e) {
-      return { success: false, message: '登录失败，请重试' }
+      return { success: false, message: 'Login failed, please try again' }
     }
   }
 
@@ -332,7 +355,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedUser) {
           const parsed = JSON.parse(storedUser)
           console.log('✅ Role stored in localStorage:', parsed.role)
-          console.log('✅ isFollower check:', parsed.role === 'follower')
         }
         
         // Debug: Log role detection
@@ -359,7 +381,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: data.error }
       }
     } catch (error) {
-      return { success: false, message: 'OTP验证失败，请重试' }
+      return { success: false, message: 'OTP verification failed, please try again' }
     }
   }
 
@@ -392,7 +414,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedUser) {
           const parsed = JSON.parse(storedUser)
           console.log('✅ Role stored in localStorage:', parsed.role)
-          console.log('✅ isFollower check:', parsed.role === 'follower')
         }
 
         // Check and redirect to returnUrl if exists
@@ -412,7 +433,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: data.error }
       }
     } catch (error) {
-      return { success: false, message: '注册完成失败，请重试' }
+      return { success: false, message: 'Registration completion failed, please try again' }
     }
   }
 

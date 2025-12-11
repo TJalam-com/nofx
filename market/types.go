@@ -15,6 +15,7 @@ type Data struct {
 	FundingRate       float64
 	IntradaySeries    *IntradayData
 	LongerTermContext *LongerTermData
+	QuantData         *QuantData // Optional quant data with multi-timeframe OI/Netflow
 }
 
 // OIData Open Interest data
@@ -23,15 +24,48 @@ type OIData struct {
 	Average float64
 }
 
+// QuantData quant data structure with multi-timeframe OI delta and netflow
+type QuantData struct {
+	OIDelta  map[string]OIDeltaData // Key: timeframe (e.g., "1m", "5m", "1h", "4h", "24h")
+	Netflow  map[string]NetflowData // Key: timeframe (e.g., "1m", "5m", "1h", "4h", "24h")
+}
+
+// OIDeltaData OI delta data for a specific timeframe
+type OIDeltaData struct {
+	OIDelta       float64 // OI delta in coins
+	OIDeltaValue  float64 // OI delta value in USDT
+	OIDeltaPercent float64 // OI delta percentage
+}
+
+// NetflowData netflow data for a specific timeframe
+type NetflowData struct {
+	InstitutionFuture float64 // Institution future netflow
+	InstitutionSpot   float64 // Institution spot netflow
+	PersonalFuture   float64 // Personal future netflow
+	PersonalSpot     float64 // Personal spot netflow
+	Total            float64 // Total netflow (sum of all)
+}
+
+// KlineBar represents a single kline bar with full OHLCV data and timestamp
+type KlineBar struct {
+	Time   time.Time // Timestamp of the bar
+	Open   float64   // Opening price
+	High   float64   // Highest price
+	Low    float64   // Lowest price
+	Close  float64   // Closing price
+	Volume float64   // Trading volume
+}
+
 // IntradayData intraday data (3-minute interval)
 type IntradayData struct {
-	MidPrices   []float64
+	MidPrices   []float64   // Backward compatibility: mid prices (Close prices)
 	EMA20Values []float64
 	MACDValues  []float64
 	RSI7Values  []float64
 	RSI14Values []float64
-	Volume      []float64
+	Volume      []float64   // Backward compatibility: volume array
 	ATR14       float64
+	Klines      []KlineBar  // Complete OHLCV kline data
 }
 
 // LongerTermData longer-term data (4-hour timeframe)
@@ -44,6 +78,7 @@ type LongerTermData struct {
 	AverageVolume float64
 	MACDValues    []float64
 	RSI14Values   []float64
+	Klines        []KlineBar // Complete OHLCV kline data
 }
 
 // Binance API response structure

@@ -162,7 +162,7 @@ export function ReplicationStatusPanel({
               className="px-3 py-1.5 rounded text-sm font-medium flex items-center gap-2 transition-colors"
               style={{
                 background: 'var(--brand-yellow)',
-                color: '#000',
+                color: 'var(--navy-primary)',
               }}
             >
               <Send size={14} />
@@ -247,7 +247,8 @@ export function ReplicationStatusPanel({
           {/* Test Signal Modal */}
           {showTestModal && (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+              className="fixed inset-0 flex items-center justify-center z-50"
+              style={{ background: 'rgba(0, 31, 63, 0.5)' }}
               onClick={() => setShowTestModal(false)}
             >
               <div
@@ -416,7 +417,7 @@ export function ReplicationStatusPanel({
                     className="flex-1 px-4 py-2 rounded font-medium transition-colors flex items-center justify-center gap-2"
                     style={{
                       background: 'var(--brand-yellow)',
-                      color: '#000',
+                      color: 'var(--navy-primary)',
                     }}
                   >
                     {sendingSignal ? (

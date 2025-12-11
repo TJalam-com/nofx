@@ -76,6 +76,7 @@ export interface DecisionRecord {
   execution_log: string[]
   success: boolean
   error_message?: string
+  raw_response?: string // Raw AI response for debugging parse failures
 }
 
 export interface Statistics {
@@ -93,6 +94,7 @@ export interface TraderInfo {
   ai_model: string
   exchange_id?: string
   is_running?: boolean
+  show_in_competition?: boolean
   custom_prompt?: string
   use_coin_pool?: boolean
   use_oi_top?: boolean
@@ -145,7 +147,7 @@ export interface CreateTraderRequest {
   name: string
   ai_model_id: string
   exchange_id: string
-  initial_balance?: number // 可选：创建时由后端自动获取，编辑时可手动更新
+  initial_balance?: number // Optional: auto-fetched on create, manually updatable on edit
   scan_interval_minutes?: number
   btc_eth_leverage?: number
   altcoin_leverage?: number
@@ -157,7 +159,18 @@ export interface CreateTraderRequest {
   use_coin_pool?: boolean
   use_oi_top?: boolean
   use_tradingview?: boolean
-  followed_trader_id?: string // 跟随的交易员ID（用于follower角色）
+  followed_trader_id?: string // Followed trader ID (for follower role)
+  // Indicator configuration
+  enable_raw_klines?: boolean // Raw OHLCV klines (always true, required)
+  enable_ema?: boolean // Enable EMA indicator
+  enable_macd?: boolean // Enable MACD indicator
+  enable_rsi?: boolean // Enable RSI indicator
+  enable_atr?: boolean // Enable ATR indicator
+  enable_volume?: boolean // Enable volume data
+  enable_oi?: boolean // Enable open interest data
+  enable_funding?: boolean // Enable funding rate data
+  indicator_timeframe?: string // Timeframe for indicators (e.g., "3m", "15m", "1h", "4h")
+  quant_data_url?: string // External quant data API URL with {symbol} placeholder
 }
 
 export interface UpdateModelConfigRequest {
@@ -228,10 +241,21 @@ export interface TraderConfigData {
   use_coin_pool: boolean
   use_oi_top: boolean
   use_tradingview: boolean
-  followed_trader_id?: string // 跟随的交易员ID（用于follower角色）
+  followed_trader_id?: string // Followed trader ID (for follower role)
   initial_balance: number
   scan_interval_minutes: number
   is_running: boolean
+  // Indicator configuration
+  enable_raw_klines?: boolean // Raw OHLCV klines (always true, required)
+  enable_ema?: boolean // Enable EMA indicator
+  enable_macd?: boolean // Enable MACD indicator
+  enable_rsi?: boolean // Enable RSI indicator
+  enable_atr?: boolean // Enable ATR indicator
+  enable_volume?: boolean // Enable volume data
+  enable_oi?: boolean // Enable open interest data
+  enable_funding?: boolean // Enable funding rate data
+  indicator_timeframe?: string // Timeframe for indicators (e.g., "3m", "15m", "1h", "4h")
+  quant_data_url?: string // External quant data API URL with {symbol} placeholder
 }
 
 // Backtest types

@@ -1086,6 +1086,17 @@ func (m *MockTrader) FormatQuantity(symbol string, quantity float64) (string, er
 	return fmt.Sprintf("%.4f", quantity), nil
 }
 
+func (m *MockTrader) GetOrderStatus(symbol string, orderID string) (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"orderId":     orderID,
+		"symbol":      symbol,
+		"status":      "FILLED",
+		"avgPrice":    50000.0,
+		"executedQty": 1.0,
+		"commission":  0.0,
+	}, nil
+}
+
 // ============================================================
 // Test suite entry point
 // ============================================================

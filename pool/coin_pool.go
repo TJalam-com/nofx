@@ -392,12 +392,15 @@ type OIPosition struct {
 
 // OITopAPIResponse data structure returned by OI Top API
 type OITopAPIResponse struct {
-	Success bool `json:"success"`
-	Data    struct {
-		Positions []OIPosition `json:"positions"`
-		Count     int          `json:"count"`
-		Exchange  string       `json:"exchange"`
-		TimeRange string       `json:"time_range"`
+	Code int `json:"code"` // 0 = success
+	Data struct {
+		Positions      []OIPosition `json:"positions"`
+		Count          int          `json:"count"`
+		Exchange       string       `json:"exchange"`
+		TimeRange      string       `json:"time_range"`
+		TimeRangeParam string       `json:"time_range_param"` // Time range parameter value (e.g., "4h", "1h")
+		RankType       string       `json:"rank_type"`       // Rank type: "top" (increase) or "low" (decrease)
+		Limit          int          `json:"limit"`           // Requested limit
 	} `json:"data"`
 }
 
@@ -494,8 +497,8 @@ func fetchOITop() ([]OIPosition, error) {
 		return nil, fmt.Errorf("failed to parse OI Top JSON: %w", err)
 	}
 
-	if !response.Success {
-		return nil, fmt.Errorf("OI Top API returned failure status")
+	if response.Code != 0 {
+		return nil, fmt.Errorf("OI Top API returned error code: %d", response.Code)
 	}
 
 	if len(response.Data.Positions) == 0 {
@@ -642,4 +645,41 @@ func GetMergedCoinPool(ai500Limit int) (*MergedCoinPool, error) {
 		len(ai500TopSymbols), len(oiTopSymbols), len(allSymbols))
 
 	return merged, nil
+}
+
+// FetchQuantData fetches quant data from API URL with {symbol} placeholder
+// Validates that the URL contains {symbol} placeholder and replaces it with actual symbol
+func FetchQuantData(apiURL string, symbol string) ([]byte, error) {
+	if strings.TrimSpace(apiURL) == "" {
+		return nil, fmt.Errorf("quant data API URL is empty")
+	}
+
+	// Validate {symbol} placeholder exists in URL
+	if !strings.Contains(apiURL, "{symbol}") {
+		log.Printf("⚠️  WARNING: Quant data API URL missing {symbol} placeholder: %s", apiURL)
+	}
+
+	// Replace {symbol} placeholder with actual symbol
+	url := strings.ReplaceAll(apiURL, "{symbol}", symbol)
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request quant data API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read quant data response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("quant data API returned error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	return body, nil
 }

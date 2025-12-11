@@ -106,9 +106,9 @@ export function useTraderActions({
       }
 
       await toast.promise(api.createTrader(data), {
-        loading: '正在创建…',
-        success: '创建成功',
-        error: '创建失败',
+        loading: t('creatingTrader', language),
+        success: t('traderCreated', language),
+        error: t('createTraderFailed', language),
       })
       setShowCreateModal(false)
       // Immediately refresh traders list for better UX
@@ -191,9 +191,9 @@ export function useTraderActions({
       }
 
       await toast.promise(api.updateTrader(editingTrader.trader_id, request), {
-        loading: '正在保存…',
-        success: '保存成功',
-        error: '保存失败',
+        loading: t('savingTrader', language),
+        success: t('traderSaved', language),
+        error: t('traderSaveFailed', language),
       })
       setShowEditModal(false)
       setEditingTrader(null)
@@ -213,9 +213,9 @@ export function useTraderActions({
 
     try {
       await toast.promise(api.deleteTrader(traderId), {
-        loading: '正在删除…',
-        success: '删除成功',
-        error: '删除失败',
+        loading: t('deletingTrader', language),
+        success: t('traderDeleted', language),
+        error: t('deleteTraderFailed', language),
       })
 
       // Immediately refresh traders list for better UX
@@ -234,15 +234,15 @@ export function useTraderActions({
     try {
       if (running) {
         await toast.promise(api.stopTrader(traderId), {
-          loading: '正在停止…',
-          success: '已停止',
-          error: '停止失败',
+          loading: t('stoppingTrader', language),
+          success: t('traderStopped', language),
+          error: t('traderStopFailed', language),
         })
       } else {
         await toast.promise(api.startTrader(traderId), {
-          loading: '正在启动…',
-          success: '已启动',
-          error: '启动失败',
+          loading: t('startingTrader', language),
+          success: t('traderStarted', language),
+          error: t('traderStartFailed', language),
         })
       }
 
@@ -312,9 +312,9 @@ export function useTraderActions({
 
       const request = config.buildRequest(updatedItems)
       await toast.promise(config.updateApi(request), {
-        loading: '正在更新配置…',
-        success: '配置已更新',
-        error: '更新配置失败',
+        loading: t('updatingConfig', language),
+        success: t('configUpdated', language),
+        error: t('configUpdateFailed', language),
       })
 
       // 重新获取用户配置以确保数据同步
@@ -431,9 +431,9 @@ export function useTraderActions({
       }
 
       await toast.promise(api.updateModelConfigs(request), {
-        loading: '正在更新模型配置…',
-        success: '模型配置已更新',
-        error: '更新模型配置失败',
+        loading: t('updatingModel', language),
+        success: t('modelUpdated', language),
+        error: t('modelUpdateFailed', language),
       })
 
       // 重新获取用户配置以确保数据同步
@@ -591,9 +591,9 @@ export function useTraderActions({
       }
 
       await toast.promise(api.updateExchangeConfigsEncrypted(request), {
-        loading: '正在更新交易所配置…',
-        success: '交易所配置已更新',
-        error: '更新交易所配置失败',
+        loading: t('updatingExchange', language),
+        success: t('exchangeUpdated', language),
+        error: t('exchangeUpdateFailed', language),
       })
 
       // 重新获取用户配置以确保数据同步
@@ -624,9 +624,9 @@ export function useTraderActions({
   ) => {
     try {
       await toast.promise(api.saveUserSignalSource(coinPoolUrl, oiTopUrl), {
-        loading: '正在保存…',
-        success: '保存成功',
-        error: '保存失败',
+        loading: t('savingTrader', language),
+        success: t('traderSaved', language),
+        error: t('saveSignalSourceFailed', language),
       })
       setUserSignalSource({ coinPoolUrl, oiTopUrl })
       setShowSignalSourceModal(false)

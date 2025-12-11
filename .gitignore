@@ -32,7 +32,14 @@ Thumbs.db
 config.json
 config.db*
 nofx.db
+# Database files (all .db files)
+*.db
+*.db-shm
+*.db-wal
 configbak.json
+
+# Data directory
+data/
 
 # 决策日志
 decision_logs/

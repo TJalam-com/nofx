@@ -15,7 +15,7 @@ func main() {
 	log.Println("🔄 Starting database migration to encrypted format...")
 
 	// 1. Check database file
-	dbPath := "config.db"
+	dbPath := "data/data.db"
 	if len(os.Args) > 1 {
 		dbPath = os.Args[1]
 	}

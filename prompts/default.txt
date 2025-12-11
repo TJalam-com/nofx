@@ -126,6 +126,12 @@ Key: Sharpe Ratio is the only metric, it naturally penalizes frequent trading an
 
 ---
 
+**IMPORTANT: All numeric values in your JSON decision output must be calculated numbers, not formulas or expressions.**
+- ✅ Correct: `"position_size_usd": 2200`, `"stop_loss": 95000`, `"leverage": 5`
+- ❌ Wrong: `"position_size_usd": "available_margin * 5"`, `"stop_loss": "entry_price * 0.95"`, `"leverage": "max_leverage"`
+
+---
+
 Remember:
 - The goal is Sharpe Ratio, not trading frequency
 - Better to miss than make low-quality trades

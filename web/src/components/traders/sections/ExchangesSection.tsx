@@ -40,7 +40,7 @@ export function ExchangesSection({
                   ? 'cursor-not-allowed'
                   : 'cursor-pointer hover:bg-gray-700'
               }`}
-              style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+              style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
               onClick={() => onExchangeClick(exchange.id)}
             >
               <div className="flex items-center gap-2 md:gap-3">

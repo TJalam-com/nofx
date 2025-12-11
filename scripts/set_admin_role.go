@@ -11,7 +11,7 @@ import (
 
 func main() {
 	email := flag.String("email", "", "User email to set as admin")
-	dbPath := flag.String("db", "config.db", "Database path")
+	dbPath := flag.String("db", "data/data.db", "Database path")
 	flag.Parse()
 
 	if *email == "" {

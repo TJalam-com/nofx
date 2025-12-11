@@ -160,3 +160,68 @@ func WithQwenConfig(apiKey string) ClientOption {
 		c.Model = DefaultQwenModel
 	}
 }
+
+// WithGrokConfig sets Grok configuration
+//
+// Usage example:
+//   client := mcp.NewClient(mcp.WithGrokConfig("xai-xxx"))
+func WithGrokConfig(apiKey string) ClientOption {
+	return func(c *Config) {
+		c.Provider = ProviderGrok
+		c.APIKey = apiKey
+		c.BaseURL = DefaultGrokBaseURL
+		c.Model = DefaultGrokModel
+	}
+}
+
+// WithOpenAIConfig sets OpenAI configuration
+//
+// Usage example:
+//   client := mcp.NewClient(mcp.WithOpenAIConfig("sk-xxx"))
+func WithOpenAIConfig(apiKey string) ClientOption {
+	return func(c *Config) {
+		c.Provider = ProviderOpenAI
+		c.APIKey = apiKey
+		c.BaseURL = DefaultOpenAIBaseURL
+		c.Model = DefaultOpenAIModel
+	}
+}
+
+// WithClaudeConfig sets Claude configuration
+//
+// Usage example:
+//   client := mcp.NewClient(mcp.WithClaudeConfig("sk-ant-xxx"))
+func WithClaudeConfig(apiKey string) ClientOption {
+	return func(c *Config) {
+		c.Provider = ProviderClaude
+		c.APIKey = apiKey
+		c.BaseURL = DefaultClaudeBaseURL
+		c.Model = DefaultClaudeModel
+	}
+}
+
+// WithGeminiConfig sets Gemini configuration
+//
+// Usage example:
+//   client := mcp.NewClient(mcp.WithGeminiConfig("AIza..."))
+func WithGeminiConfig(apiKey string) ClientOption {
+	return func(c *Config) {
+		c.Provider = ProviderGemini
+		c.APIKey = apiKey
+		c.BaseURL = DefaultGeminiBaseURL
+		c.Model = DefaultGeminiModel
+	}
+}
+
+// WithKimiConfig sets Kimi configuration
+//
+// Usage example:
+//   client := mcp.NewClient(mcp.WithKimiConfig("sk-xxx"))
+func WithKimiConfig(apiKey string) ClientOption {
+	return func(c *Config) {
+		c.Provider = ProviderKimi
+		c.APIKey = apiKey
+		c.BaseURL = DefaultKimiBaseURL
+		c.Model = DefaultKimiModel
+	}
+}

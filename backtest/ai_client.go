@@ -36,6 +36,41 @@ func configureMCPClient(cfg BacktestConfig, base mcp.AIClient) (mcp.AIClient, er
 		qc := mcp.NewQwenClientWithOptions()
 		qc.(*mcp.QwenClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
 		return qc, nil
+	case "grok":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("grok provider requires api key")
+		}
+		gc := mcp.NewGrokClientWithOptions()
+		gc.(*mcp.GrokClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return gc, nil
+	case "openai":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("openai provider requires api key")
+		}
+		oc := mcp.NewOpenAIClientWithOptions()
+		oc.(*mcp.OpenAIClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return oc, nil
+	case "claude":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("claude provider requires api key")
+		}
+		cc := mcp.NewClaudeClientWithOptions()
+		cc.(*mcp.ClaudeClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return cc, nil
+	case "gemini":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("gemini provider requires api key")
+		}
+		gmc := mcp.NewGeminiClientWithOptions()
+		gmc.(*mcp.GeminiClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return gmc, nil
+	case "kimi":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("kimi provider requires api key")
+		}
+		kc := mcp.NewKimiClientWithOptions()
+		kc.(*mcp.KimiClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return kc, nil
 	case "custom":
 		if cfg.AICfg.BaseURL == "" || cfg.AICfg.APIKey == "" || cfg.AICfg.Model == "" {
 			return nil, fmt.Errorf("custom provider requires base_url, api key and model")
@@ -61,6 +96,31 @@ func cloneBaseClient(base mcp.AIClient) *mcp.Client {
 				return &cp
 			}
 		case *mcp.QwenClient:
+			if c != nil && c.Client != nil {
+				cp := *c.Client
+				return &cp
+			}
+		case *mcp.GrokClient:
+			if c != nil && c.Client != nil {
+				cp := *c.Client
+				return &cp
+			}
+		case *mcp.OpenAIClient:
+			if c != nil && c.Client != nil {
+				cp := *c.Client
+				return &cp
+			}
+		case *mcp.ClaudeClient:
+			if c != nil && c.Client != nil {
+				cp := *c.Client
+				return &cp
+			}
+		case *mcp.GeminiClient:
+			if c != nil && c.Client != nil {
+				cp := *c.Client
+				return &cp
+			}
+		case *mcp.KimiClient:
 			if c != nil && c.Client != nil {
 				cp := *c.Client
 				return &cp

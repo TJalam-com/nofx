@@ -92,7 +92,7 @@ export function LandingPage() {
 
         {/* Become a Trader CTA for Followers */}
         {isLoggedIn && userIsFollower && (
-          <AnimatedSection backgroundColor="var(--panel-bg)">
+          <AnimatedSection backgroundColor="var(--navy-dark)">
             <div className="max-w-4xl mx-auto text-center">
               <motion.h2
                 className="text-4xl font-bold mb-4"
@@ -142,7 +142,7 @@ export function LandingPage() {
         )}
 
         {/* CTA */}
-        <AnimatedSection backgroundColor="var(--panel-bg)">
+        <AnimatedSection backgroundColor="var(--navy-dark)">
           <div className="max-w-4xl mx-auto text-center">
             <motion.h2
               className="text-5xl font-bold mb-6"
@@ -169,7 +169,7 @@ export function LandingPage() {
                 className="flex items-center gap-2 px-10 py-4 rounded-lg font-semibold text-lg"
                 style={{
                   background: 'var(--brand-yellow)',
-                  color: 'var(--brand-black)',
+                  color: 'var(--navy-primary)',
                 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}

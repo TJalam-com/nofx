@@ -62,34 +62,35 @@ export function ExchangeConfigModal({
   const [copiedIP, setCopiedIP] = useState(false)
   const [webCryptoStatus, setWebCryptoStatus] =
     useState<WebCryptoCheckStatus>('idle')
+  const [isLoading, setIsLoading] = useState(false)
 
-  // 币安配置指南展开状态
+  // Binance configuration guide expanded state
   const [showBinanceGuide, setShowBinanceGuide] = useState(false)
 
-  // Aster 特定字段
+  // Aster specific fields
   const [asterUser, setAsterUser] = useState('')
   const [asterSigner, setAsterSigner] = useState('')
   const [asterPrivateKey, setAsterPrivateKey] = useState('')
 
-  // Hyperliquid 特定字段
+  // Hyperliquid specific fields
   const [hyperliquidWalletAddr, setHyperliquidWalletAddr] = useState('')
 
-  // LIGHTER 特定字段
+  // LIGHTER specific fields
   const [lighterWalletAddr, setLighterWalletAddr] = useState('')
   const [lighterPrivateKey, setLighterPrivateKey] = useState('')
   const [lighterApiKeyPrivateKey, setLighterApiKeyPrivateKey] = useState('')
 
-  // 安全输入状态
+  // Secure input state
   const [secureInputTarget, setSecureInputTarget] = useState<
     null | 'hyperliquid' | 'aster' | 'lighter'
   >(null)
 
-  // 获取当前编辑的交易所信息
+  // Get current editing exchange information
   const selectedExchange = allExchanges?.find(
     (e) => e.id === selectedExchangeId
   )
 
-  // 如果是编辑现有交易所，初始化表单数据
+  // If editing existing exchange, initialize form data
   useEffect(() => {
     if (editingExchangeId && selectedExchange) {
       setApiKey(selectedExchange.apiKey || '')
@@ -97,22 +98,22 @@ export function ExchangeConfigModal({
       setPassphrase('') // Don't load existing passphrase for security
       setTestnet(selectedExchange.testnet || false)
 
-      // Aster 字段
+      // Aster fields
       setAsterUser(selectedExchange.asterUser || '')
       setAsterSigner(selectedExchange.asterSigner || '')
       setAsterPrivateKey('') // Don't load existing private key for security
 
-      // Hyperliquid 字段
+      // Hyperliquid fields
       setHyperliquidWalletAddr(selectedExchange.hyperliquidWalletAddr || '')
 
-      // LIGHTER 字段
+      // LIGHTER fields
       setLighterWalletAddr(selectedExchange.lighterWalletAddr || '')
       setLighterPrivateKey('') // Don't load existing private key for security
       setLighterApiKeyPrivateKey('') // Don't load existing API key for security
     }
   }, [editingExchangeId, selectedExchange])
 
-  // 加载服务器IP（当选择binance时）
+  // Load server IP (when binance is selected)
   useEffect(() => {
     if (selectedExchangeId === 'binance' && !serverIP) {
       setLoadingIP(true)
@@ -132,14 +133,14 @@ export function ExchangeConfigModal({
 
   const handleCopyIP = async (ip: string) => {
     try {
-      // 优先使用现代 Clipboard API
+      // Prefer modern Clipboard API
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(ip)
         setCopiedIP(true)
         setTimeout(() => setCopiedIP(false), 2000)
         toast.success(t('ipCopied', language))
       } else {
-        // 降级方案: 使用传统的 execCommand 方法
+        // Fallback: use traditional execCommand method
         const textArea = document.createElement('textarea')
         textArea.value = ip
         textArea.style.position = 'fixed'
@@ -156,22 +157,22 @@ export function ExchangeConfigModal({
             setTimeout(() => setCopiedIP(false), 2000)
             toast.success(t('ipCopied', language))
           } else {
-            throw new Error('复制命令执行失败')
+            throw new Error('Copy command execution failed')
           }
         } finally {
           document.body.removeChild(textArea)
         }
       }
     } catch (err) {
-      console.error('复制失败:', err)
-      // 显示错误提示
+      console.error('Failed to copy:', err)
+      // Show error message
       toast.error(
-        t('copyIPFailed', language) || `复制失败: ${ip}\n请手动复制此IP地址`
+        t('copyIPFailed', language) || `Failed to copy: ${ip}\nPlease manually copy this IP address`
       )
     }
   }
 
-  // 安全输入处理函数
+  // Secure input handler function
   const secureInputContextLabel =
     secureInputTarget === 'aster'
       ? t('asterExchangeName', language)
@@ -198,14 +199,14 @@ export function ExchangeConfigModal({
       setLighterPrivateKey(trimmed)
       toast.success(t('lighterPrivateKeyImported', language))
     }
-    // 仅在开发环境输出调试信息
+    // Only output debug information in development environment
     if (import.meta.env.DEV) {
       console.log('Secure input obfuscation log:', obfuscationLog)
     }
     setSecureInputTarget(null)
   }
 
-  // 掩盖敏感数据显示
+  // Mask sensitive data display
   const maskSecret = (secret: string) => {
     if (!secret || secret.length === 0) return ''
     if (secret.length <= 8) return '*'.repeat(secret.length)
@@ -218,74 +219,98 @@ export function ExchangeConfigModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedExchangeId) return
+    if (!selectedExchangeId || isLoading) return
 
-    // 根据交易所类型验证不同字段
-    if (selectedExchange?.id === 'binance') {
-      if (!apiKey.trim() || !secretKey.trim()) return
-      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
-    } else if (selectedExchange?.id === 'hyperliquid') {
-      if (!apiKey.trim() || !hyperliquidWalletAddr.trim()) return // 验证私钥和钱包地址
-      await onSave(
-        selectedExchangeId,
-        apiKey.trim(),
-        '',
-        testnet,
-        hyperliquidWalletAddr.trim()
-      )
-    } else if (selectedExchange?.id === 'aster') {
-      if (!asterUser.trim() || !asterSigner.trim() || !asterPrivateKey.trim())
-        return
-      await onSave(
-        selectedExchangeId,
-        '',
-        '',
-        testnet,
-        undefined,
-        asterUser.trim(),
-        asterSigner.trim(),
-        asterPrivateKey.trim()
-      )
-    } else if (selectedExchange?.id === 'lighter') {
-      if (!lighterWalletAddr.trim() || !lighterPrivateKey.trim()) return
-      await onSave(
-        selectedExchangeId,
-        lighterPrivateKey.trim(),
-        '',
-        testnet,
-        lighterWalletAddr.trim(),
-        undefined,
-        undefined,
-        undefined,
-        lighterWalletAddr.trim(),
-        lighterPrivateKey.trim(),
-        lighterApiKeyPrivateKey.trim()
-      )
-    } else if (selectedExchange?.id === 'okx') {
-      if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) return
-      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, passphrase.trim())
-    } else {
-      // 默认情况（其他CEX交易所）
-      if (!apiKey.trim() || !secretKey.trim()) return
-      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
+    setIsLoading(true)
+    try {
+      // Validate different fields based on exchange type
+      if (selectedExchange?.id === 'binance') {
+        if (!apiKey.trim() || !secretKey.trim()) {
+          setIsLoading(false)
+          return
+        }
+        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
+      } else if (selectedExchange?.id === 'hyperliquid') {
+        if (!apiKey.trim() || !hyperliquidWalletAddr.trim()) {
+          setIsLoading(false)
+          return
+        }
+        await onSave(
+          selectedExchangeId,
+          apiKey.trim(),
+          '',
+          testnet,
+          hyperliquidWalletAddr.trim()
+        )
+      } else if (selectedExchange?.id === 'aster') {
+        if (!asterUser.trim() || !asterSigner.trim() || !asterPrivateKey.trim()) {
+          setIsLoading(false)
+          return
+        }
+        await onSave(
+          selectedExchangeId,
+          '',
+          '',
+          testnet,
+          undefined,
+          asterUser.trim(),
+          asterSigner.trim(),
+          asterPrivateKey.trim()
+        )
+      } else if (selectedExchange?.id === 'lighter') {
+        if (!lighterWalletAddr.trim() || !lighterPrivateKey.trim()) {
+          setIsLoading(false)
+          return
+        }
+        await onSave(
+          selectedExchangeId,
+          lighterPrivateKey.trim(),
+          '',
+          testnet,
+          lighterWalletAddr.trim(),
+          undefined,
+          undefined,
+          undefined,
+          lighterWalletAddr.trim(),
+          lighterPrivateKey.trim(),
+          lighterApiKeyPrivateKey.trim()
+        )
+      } else if (selectedExchange?.id === 'okx') {
+        if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) {
+          setIsLoading(false)
+          return
+        }
+        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, passphrase.trim())
+      } else {
+        // Default case (other CEX exchanges)
+        if (!apiKey.trim() || !secretKey.trim()) {
+          setIsLoading(false)
+          return
+        }
+        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
+      }
+    } catch (error) {
+      // Error handling is done in parent component
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // 可选择的交易所列表（所有支持的交易所）
+  // Available exchange list (all supported exchanges)
   const availableExchanges = allExchanges || []
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
       <div
         className="bg-gray-800 rounded-lg w-full max-w-lg relative my-8"
         style={{
-          background: '#1E2329',
+          background: 'var(--navy-dark)',
           maxHeight: 'calc(100vh - 4rem)',
         }}
       >
         <div
           className="flex items-center justify-between p-6 pb-4 sticky top-0 z-10"
-          style={{ background: '#1E2329' }}
+          style={{ background: 'var(--navy-dark)' }}
         >
           <h3 className="text-xl font-bold" style={{ color: '#EAECEF' }}>
             {editingExchangeId
@@ -356,12 +381,12 @@ export function ExchangeConfigModal({
                     onChange={(e) => setSelectedExchangeId(e.target.value)}
                     className="w-full px-3 py-2 rounded"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       color: '#EAECEF',
                     }}
                     aria-label={t('selectExchange', language)}
-                    disabled={webCryptoStatus !== 'secure'}
+                    disabled={webCryptoStatus !== 'secure' && webCryptoStatus !== 'disabled'}
                     required
                   >
                     <option value="">
@@ -381,7 +406,7 @@ export function ExchangeConfigModal({
             {selectedExchange && (
               <div
                 className="p-4 rounded"
-                style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+                style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 flex items-center justify-center">
@@ -405,14 +430,12 @@ export function ExchangeConfigModal({
 
             {selectedExchange && (
               <>
-                {/* Binance/Bybit 和其他 CEX 交易所的字段 */}
+                {/* Common fields for Binance/Bybit/OKX */}
                 {(selectedExchange.id === 'binance' ||
                   selectedExchange.id === 'bybit' ||
-                  selectedExchange.type === 'cex') &&
-                  selectedExchange.id !== 'hyperliquid' &&
-                  selectedExchange.id !== 'aster' && (
+                  selectedExchange.id === 'okx') && (
                     <>
-                      {/* 币安用户配置提示 (D1 方案) */}
+                      {/* Binance user configuration guide (D1 solution) */}
                       {selectedExchange.id === 'binance' && (
                         <div
                           className="mb-4 p-3 rounded cursor-pointer transition-colors"
@@ -429,9 +452,9 @@ export function ExchangeConfigModal({
                                 className="text-sm font-medium"
                                 style={{ color: '#EAECEF' }}
                               >
-                                <strong>币安用户必读：</strong>
-                                使用「现货与合约交易」API，不要用「统一账户
-                                API」
+                                <strong>Binance Users Must Read:</strong>
+                                Use the 'Spot and Futures Trading' API, do not use the 'Unified Account
+                                API'
                               </span>
                             </div>
                             <span style={{ color: '#8b949e' }}>
@@ -439,7 +462,7 @@ export function ExchangeConfigModal({
                             </span>
                           </div>
 
-                          {/* 展开的详细说明 */}
+                          {/* Expanded detailed instructions */}
                           {showBinanceGuide && (
                             <div
                               className="mt-3 pt-3"
@@ -451,38 +474,38 @@ export function ExchangeConfigModal({
                               onClick={(e) => e.stopPropagation()}
                             >
                               <p className="mb-2" style={{ color: '#8b949e' }}>
-                                <strong>原因：</strong>统一账户 API
-                                权限结构不同，会导致订单提交失败
+                                <strong>Reason:</strong> The Unified Account API
+                                has a different permission structure, which will cause order submission to fail
                               </p>
 
                               <p
                                 className="font-semibold mb-1"
                                 style={{ color: '#EAECEF' }}
                               >
-                                正确配置步骤：
+                                Correct Configuration Steps:
                               </p>
                               <ol
                                 className="list-decimal list-inside space-y-1 mb-3"
                                 style={{ paddingLeft: '0.5rem' }}
                               >
                                 <li>
-                                  登录币安 → 个人中心 →{' '}
-                                  <strong>API 管理</strong>
+                                  Log in to Binance → Personal Center →{' '}
+                                  <strong>API Management</strong>
                                 </li>
                                 <li>
-                                  创建 API → 选择「
-                                  <strong>系统生成的 API 密钥</strong>」
+                                  Create API → Select '
+                                  <strong>System-generated API Key</strong>'
                                 </li>
                                 <li>
-                                  勾选「<strong>现货与合约交易</strong>」（
+                                  Check '<strong>Spot and Futures Trading</strong>' (
                                   <span style={{ color: '#f85149' }}>
-                                    不选统一账户
+                                    do not select Unified Account
                                   </span>
-                                  ）
+                                  )
                                 </li>
                                 <li>
-                                  IP 限制选「<strong>无限制</strong>
-                                  」或添加服务器 IP
+                                  IP Restriction: Select '<strong>Unrestricted</strong>
+                                  ' or add server IP
                                 </li>
                               </ol>
 
@@ -493,18 +516,18 @@ export function ExchangeConfigModal({
                                   border: '1px solid #9e6a03',
                                 }}
                               >
-                                💡 <strong>多资产模式用户注意：</strong>
-                                如果您开启了多资产模式，将强制使用全仓模式。建议关闭多资产模式以支持逐仓交易。
+                                💡 <strong>Multi-Asset Mode Users Note:</strong>
+                                If you have enabled Multi-Asset Mode, it will force the use of Cross Margin mode. It is recommended to disable Multi-Asset Mode to support Isolated Margin trading.
                               </p>
 
                               <a
-                                href="https://www.binance.com/zh-CN/support/faq/how-to-create-api-keys-on-binance-360002502072"
+                                href="https://www.binance.com/en/support/faq/how-to-create-api-keys-on-binance-360002502072"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-block text-sm hover:underline"
                                 style={{ color: '#58a6ff' }}
                               >
-                                📖 查看币安官方教程 ↗
+                                📖 View Binance Official Tutorial ↗
                               </a>
                             </div>
                           )}
@@ -525,8 +548,8 @@ export function ExchangeConfigModal({
                           placeholder={t('enterAPIKey', language)}
                           className="w-full px-3 py-2 rounded"
                           style={{
-                            background: '#0B0E11',
-                            border: '1px solid #2B3139',
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--panel-border)',
                             color: '#EAECEF',
                           }}
                           required
@@ -547,8 +570,8 @@ export function ExchangeConfigModal({
                           placeholder={t('enterSecretKey', language)}
                           className="w-full px-3 py-2 rounded"
                           style={{
-                            background: '#0B0E11',
-                            border: '1px solid #2B3139',
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--panel-border)',
                             color: '#EAECEF',
                           }}
                           required
@@ -570,8 +593,8 @@ export function ExchangeConfigModal({
                             placeholder={t('enterPassphrase', language)}
                             className="w-full px-3 py-2 rounded"
                             style={{
-                              background: '#0B0E11',
-                              border: '1px solid #2B3139',
+                              background: 'var(--navy-primary)',
+                              border: '1px solid var(--panel-border)',
                               color: '#EAECEF',
                             }}
                             required
@@ -579,7 +602,7 @@ export function ExchangeConfigModal({
                         </div>
                       )}
 
-                      {/* Binance 白名单IP提示 */}
+                      {/* Binance whitelist IP prompt */}
                       {selectedExchange.id === 'binance' && (
                         <div
                           className="p-4 rounded"
@@ -611,7 +634,7 @@ export function ExchangeConfigModal({
                           ) : serverIP && serverIP.public_ip ? (
                             <div
                               className="flex items-center gap-2 p-2 rounded"
-                              style={{ background: '#0B0E11' }}
+                              style={{ background: 'var(--navy-primary)' }}
                             >
                               <code
                                 className="flex-1 text-sm font-mono"
@@ -639,7 +662,7 @@ export function ExchangeConfigModal({
                     </>
                   )}
 
-                {/* Aster 交易所的字段 */}
+                {/* Aster exchange fields */}
                 {selectedExchange.id === 'aster' && (
                   <>
                     <div>
@@ -662,8 +685,8 @@ export function ExchangeConfigModal({
                         placeholder={t('enterUser', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -690,8 +713,8 @@ export function ExchangeConfigModal({
                         placeholder={t('enterSigner', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -718,8 +741,8 @@ export function ExchangeConfigModal({
                         placeholder={t('enterPrivateKey', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -728,10 +751,10 @@ export function ExchangeConfigModal({
                   </>
                 )}
 
-                {/* Hyperliquid 交易所的字段 */}
+                {/* Hyperliquid exchange fields */}
                 {selectedExchange.id === 'hyperliquid' && (
                   <>
-                    {/* 安全提示 banner */}
+                    {/* Security warning banner */}
                     <div
                       className="p-3 rounded mb-4"
                       style={{
@@ -760,7 +783,7 @@ export function ExchangeConfigModal({
                       </div>
                     </div>
 
-                    {/* Agent Private Key 字段 */}
+                    {/* Agent Private Key field */}
                     <div>
                       <label
                         className="block text-sm font-semibold mb-2"
@@ -780,8 +803,8 @@ export function ExchangeConfigModal({
                             )}
                             className="w-full px-3 py-2 rounded"
                             style={{
-                              background: '#0B0E11',
-                              border: '1px solid #2B3139',
+                              background: 'var(--navy-primary)',
+                              border: '1px solid var(--panel-border)',
                               color: '#EAECEF',
                             }}
                           />
@@ -791,7 +814,7 @@ export function ExchangeConfigModal({
                             className="px-3 py-2 rounded text-xs font-semibold transition-all hover:scale-105"
                             style={{
                               background: 'var(--green-primary)',
-                              color: '#000',
+                              color: 'var(--navy-primary)',
                               whiteSpace: 'nowrap',
                             }}
                           >
@@ -828,7 +851,7 @@ export function ExchangeConfigModal({
                       </div>
                     </div>
 
-                    {/* Main Wallet Address 字段 */}
+                    {/* Main Wallet Address field */}
                     <div>
                       <label
                         className="block text-sm font-semibold mb-2"
@@ -848,8 +871,8 @@ export function ExchangeConfigModal({
                         )}
                         className="w-full px-3 py-2 rounded"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -864,7 +887,7 @@ export function ExchangeConfigModal({
                   </>
                 )}
 
-                {/* LIGHTER 特定配置 */}
+                {/* LIGHTER specific configuration */}
                 {selectedExchange?.id === 'lighter' && (
                   <>
                     {/* L1 Wallet Address */}
@@ -882,8 +905,8 @@ export function ExchangeConfigModal({
                         placeholder={t('enterLighterWalletAddress', language)}
                         className="w-full px-3 py-2 rounded"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -916,8 +939,8 @@ export function ExchangeConfigModal({
                         placeholder={t('enterLighterPrivateKey', language)}
                         className="w-full px-3 py-2 rounded font-mono text-sm"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                         required
@@ -942,8 +965,8 @@ export function ExchangeConfigModal({
                         placeholder={t('enterLighterApiKeyPrivateKey', language)}
                         className="w-full px-3 py-2 rounded font-mono text-sm"
                         style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
                       />
@@ -951,8 +974,8 @@ export function ExchangeConfigModal({
                         {t('lighterApiKeyPrivateKeyDesc', language)}
                       </div>
                       <div className="text-xs mt-2 p-2 rounded" style={{
-                        background: '#1E2329',
-                        border: '1px solid #2B3139',
+                        background: 'var(--navy-dark)',
+                        border: '1px solid var(--panel-border)',
                         color: 'var(--green-primary)'
                       }}>
                         💡 {t('lighterApiKeyOptionalNote', language)}
@@ -986,19 +1009,20 @@ export function ExchangeConfigModal({
 
           <div
             className="flex gap-3 mt-6 pt-4 sticky bottom-0"
-            style={{ background: '#1E2329' }}
+            style={{ background: 'var(--navy-dark)' }}
           >
             <button
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2 rounded text-sm font-semibold"
-              style={{ background: '#2B3139', color: '#848E9C' }}
+              style={{ background: 'var(--navy-light)', color: '#848E9C' }}
             >
               {t('cancel', language)}
             </button>
             <button
               type="submit"
               disabled={
+                isLoading ||
                 !selectedExchange ||
                 (selectedExchange.id === 'binance' &&
                   (!apiKey.trim() || !secretKey.trim())) ||
@@ -1007,7 +1031,7 @@ export function ExchangeConfigModal({
                     !secretKey.trim() ||
                     !passphrase.trim())) ||
                 (selectedExchange.id === 'hyperliquid' &&
-                  (!apiKey.trim() || !hyperliquidWalletAddr.trim())) || // 验证私钥和钱包地址
+                  (!apiKey.trim() || !hyperliquidWalletAddr.trim())) || // Validate private key and wallet address
                 (selectedExchange.id === 'aster' &&
                   (!asterUser.trim() ||
                     !asterSigner.trim() ||
@@ -1026,9 +1050,9 @@ export function ExchangeConfigModal({
                   (!apiKey.trim() || !secretKey.trim()))
               }
               className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
-              style={{ background: 'var(--green-primary)', color: '#000' }}
+              style={{ background: 'var(--green-primary)', color: 'var(--navy-primary)' }}
             >
-              {t('saveConfig', language)}
+              {isLoading ? t('saving', language) || 'Saving...' : t('saveConfig', language)}
             </button>
           </div>
         </form>
@@ -1037,12 +1061,13 @@ export function ExchangeConfigModal({
       {/* Binance Setup Guide Modal */}
       {showGuide && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          style={{ background: 'rgba(0, 31, 63, 0.75)' }}
           onClick={() => setShowGuide(false)}
         >
           <div
             className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl relative"
-            style={{ background: '#1E2329' }}
+            style={{ background: 'var(--navy-dark)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -1056,7 +1081,7 @@ export function ExchangeConfigModal({
               <button
                 onClick={() => setShowGuide(false)}
                 className="px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
-                style={{ background: '#2B3139', color: '#848E9C' }}
+                style={{ background: 'var(--navy-light)', color: '#848E9C' }}
               >
                 {t('closeGuide', language)}
               </button>

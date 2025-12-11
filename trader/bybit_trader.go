@@ -692,6 +692,75 @@ func (t *BybitTrader) FormatQuantity(symbol string, quantity float64) (string, e
 	return formatted, nil
 }
 
+// GetOrderStatus Get order status from Bybit API
+func (t *BybitTrader) GetOrderStatus(symbol string, orderID string) (map[string]interface{}, error) {
+	params := map[string]interface{}{
+		"category": "linear",
+		"symbol":   symbol,
+		"orderId":  orderID,
+	}
+
+	result, err := t.client.NewUtaBybitServiceWithParams(params).GetOpenOrders(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order status: %w", err)
+	}
+
+	if result.RetCode != 0 {
+		return nil, fmt.Errorf("failed to get order status: %s", result.RetMsg)
+	}
+
+	resultData, ok := result.Result.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("response format error")
+	}
+
+	list, _ := resultData["list"].([]interface{})
+	if len(list) == 0 {
+		// Order might be filled, try to get from order history
+		// For filled orders, we need to query order history
+		// For now, return error if not found in open orders
+		return nil, fmt.Errorf("order not found")
+	}
+
+	order, ok := list[0].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("order data format error")
+	}
+
+	// Extract order details
+	orderId, _ := order["orderId"].(string)
+	orderStatus, _ := order["orderStatus"].(string)
+	avgPriceStr, _ := order["avgPrice"].(string)
+	avgPrice, _ := strconv.ParseFloat(avgPriceStr, 64)
+	cumExecQtyStr, _ := order["cumExecQty"].(string)
+	executedQty, _ := strconv.ParseFloat(cumExecQtyStr, 64)
+	cumExecFeeStr, _ := order["cumExecFee"].(string)
+	commission, _ := strconv.ParseFloat(cumExecFeeStr, 64)
+
+	// Map Bybit status to standard status
+	status := orderStatus
+	if status == "Filled" {
+		status = "FILLED"
+	} else if status == "PartiallyFilled" {
+		status = "PARTIALLY_FILLED"
+	} else if status == "New" {
+		status = "NEW"
+	} else if status == "Cancelled" {
+		status = "CANCELED"
+	}
+
+	return map[string]interface{}{
+		"orderId":     orderId,
+		"symbol":      symbol,
+		"status":      status,
+		"avgPrice":    avgPrice,
+		"executedQty": executedQty,
+		"commission":  commission,
+		"side":        order["side"],
+		"type":        order["orderType"],
+	}, nil
+}
+
 // Helper methods
 
 func (t *BybitTrader) clearCache() {

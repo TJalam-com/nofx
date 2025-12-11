@@ -72,21 +72,33 @@ type OITopData struct {
 	NetShort          float64 // Net short position
 }
 
+// CompletedTrade Completed trade information
+type CompletedTrade struct {
+	Symbol      string    // Trading symbol
+	Side        string    // Position side (long/short)
+	EntryPrice  float64   // Entry price
+	ExitPrice   float64   // Exit price
+	Quantity    float64   // Trade quantity
+	RealizedPnL float64   // Realized profit/loss
+	ClosedAt    time.Time // Close time
+}
+
 // Context Trading context (complete information passed to AI)
 type Context struct {
-	CurrentTime     string                             `json:"current_time"`
-	RuntimeMinutes  int                                `json:"runtime_minutes"`
-	CallCount       int                                `json:"call_count"`
-	Account         AccountInfo                        `json:"account"`
-	Positions       []PositionInfo                     `json:"positions"`
-	CandidateCoins  []CandidateCoin                    `json:"candidate_coins"`
-	PromptVariant   string                             `json:"prompt_variant,omitempty"`
-	MarketDataMap   map[string]*market.Data            `json:"-"` // Not serialized, but used internally
-	MultiTFMarket   map[string]map[string]*market.Data `json:"-"`
-	OITopDataMap    map[string]*OITopData              `json:"-"` // OI Top data mapping
-	Performance     interface{}                        `json:"-"` // Historical performance analysis (logger.PerformanceAnalysis)
-	BTCETHLeverage  int                                `json:"-"` // BTC/ETH leverage multiplier (read from config)
-	AltcoinLeverage int                                `json:"-"` // Altcoin leverage multiplier (read from config)
+	CurrentTime      string                             `json:"current_time"`
+	RuntimeMinutes   int                                `json:"runtime_minutes"`
+	CallCount        int                                `json:"call_count"`
+	Account          AccountInfo                        `json:"account"`
+	Positions        []PositionInfo                     `json:"positions"`
+	CompletedTrades  []CompletedTrade                   `json:"completed_trades"`
+	CandidateCoins   []CandidateCoin                    `json:"candidate_coins"`
+	PromptVariant    string                             `json:"prompt_variant,omitempty"`
+	MarketDataMap    map[string]*market.Data            `json:"-"` // Not serialized, but used internally
+	MultiTFMarket    map[string]map[string]*market.Data `json:"-"`
+	OITopDataMap     map[string]*OITopData              `json:"-"` // OI Top data mapping
+	Performance      interface{}                        `json:"-"` // Historical performance analysis (logger.PerformanceAnalysis)
+	BTCETHLeverage   int                                `json:"-"` // BTC/ETH leverage multiplier (read from config)
+	AltcoinLeverage  int                                `json:"-"` // Altcoin leverage multiplier (read from config)
 }
 
 // Decision AI trading decision
@@ -126,7 +138,8 @@ type FullDecision struct {
 	Decisions    []Decision `json:"decisions"`     // Specific decision list
 	Timestamp    time.Time  `json:"timestamp"`
 	// AIRequestDurationMs Records AI API call duration (milliseconds) for troubleshooting latency issues
-	AIRequestDurationMs int64 `json:"ai_request_duration_ms,omitempty"`
+	AIRequestDurationMs int64  `json:"ai_request_duration_ms,omitempty"`
+	RawResponse         string `json:"raw_response,omitempty"` // Raw AI response for debugging parse failures
 }
 
 // GetFullDecision Gets AI's complete trading decision (batch analysis of all coins and positions)
@@ -179,6 +192,7 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 		decision.SystemPrompt = systemPrompt // Save system prompt
 		decision.UserPrompt = userPrompt     // Save input prompt
 		decision.AIRequestDurationMs = aiCallDuration.Milliseconds()
+		decision.RawResponse = aiResponse // Save raw AI response for debugging parse failures
 	}
 
 	if err != nil {
@@ -188,6 +202,7 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 	decision.Timestamp = time.Now()
 	decision.SystemPrompt = systemPrompt // Save system prompt
 	decision.UserPrompt = userPrompt     // Save input prompt
+	decision.RawResponse = aiResponse    // Save raw AI response for debugging parse failures
 	return decision, nil
 }
 
@@ -508,6 +523,9 @@ func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage in
 	sb.WriteString("- Required for update_stop_loss: new_stop_loss (note: it's new_stop_loss, not stop_loss)\n")
 	sb.WriteString("- Required for update_take_profit: new_take_profit (note: it's new_take_profit, not take_profit)\n")
 	sb.WriteString("- Required for partial_close: close_percentage (0-100)\n\n")
+	sb.WriteString("**IMPORTANT: All numeric values in your JSON decision output must be calculated numbers, not formulas or expressions.**\n")
+	sb.WriteString("- ✅ Correct: `\"position_size_usd\": 2200`, `\"stop_loss\": 95000`, `\"leverage\": 5`\n")
+	sb.WriteString("- ❌ Wrong: `\"position_size_usd\": \"available_margin * 5\"`, `\"stop_loss\": \"entry_price * 0.95\"`, `\"leverage\": \"max_leverage\"`\n\n")
 
 	return sb.String()
 }
@@ -535,6 +553,34 @@ func buildUserPrompt(ctx *Context) string {
 		ctx.Account.TotalPnLPct,
 		ctx.Account.MarginUsedPct,
 		ctx.Account.PositionCount))
+
+	// Recent Completed Trades (before Current Positions)
+	if len(ctx.CompletedTrades) > 0 {
+		sb.WriteString("## Recent Completed Trades\n")
+		// Display last 5-10 completed trades
+		displayCount := len(ctx.CompletedTrades)
+		if displayCount > 10 {
+			displayCount = 10
+		}
+		for i := 0; i < displayCount; i++ {
+			trade := ctx.CompletedTrades[i]
+			// Calculate time since close
+			timeSinceClose := time.Since(trade.ClosedAt)
+			timeAgo := ""
+			if timeSinceClose.Hours() < 1 {
+				timeAgo = fmt.Sprintf("%.0f minutes ago", timeSinceClose.Minutes())
+			} else if timeSinceClose.Hours() < 24 {
+				timeAgo = fmt.Sprintf("%.1f hours ago", timeSinceClose.Hours())
+			} else {
+				timeAgo = fmt.Sprintf("%.1f days ago", timeSinceClose.Hours()/24)
+			}
+
+			sb.WriteString(fmt.Sprintf("%d. %s %s | Entry %.4f Exit %.4f | Quantity %.4f | P&L %+.2f USDT | Closed %s\n\n",
+				i+1, trade.Symbol, strings.ToUpper(trade.Side),
+				trade.EntryPrice, trade.ExitPrice, trade.Quantity, trade.RealizedPnL, timeAgo))
+		}
+		sb.WriteString("\n")
+	}
 
 	// Positions (complete market data)
 	if len(ctx.Positions) > 0 {
@@ -820,9 +866,37 @@ func validateJSONFormat(jsonStr string) error {
 		return fmt.Errorf("JSON must start with [{ (whitespace allowed), actual: %s", trimmed[:min(20, len(trimmed))])
 	}
 
-	// Check if contains range symbol ~ (common LLM error)
-	if strings.Contains(jsonStr, "~") {
-		return fmt.Errorf("JSON cannot contain range symbol ~, all numbers must be exact single values")
+	// Check if contains range symbol ~ in numeric contexts (not in string values)
+	// Allow ~ in string values (e.g., "~58% discrepancy" in reasoning field)
+	// Only flag ~ when it appears outside quoted strings and adjacent to digits
+	insideQuotes := false
+	escapeNext := false
+	for i := 0; i < len(jsonStr); i++ {
+		char := jsonStr[i]
+		
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+		
+		if char == '\\' {
+			escapeNext = true
+			continue
+		}
+		
+		if char == '"' {
+			insideQuotes = !insideQuotes
+			continue
+		}
+		
+		// Only check for ~ when outside quotes
+		if !insideQuotes && char == '~' {
+			// Check if ~ is adjacent to a digit (numeric range pattern)
+			if (i > 0 && jsonStr[i-1] >= '0' && jsonStr[i-1] <= '9') ||
+				(i < len(jsonStr)-1 && jsonStr[i+1] >= '0' && jsonStr[i+1] <= '9') {
+				return fmt.Errorf("JSON cannot contain range symbol ~ in numeric values, all numbers must be exact single values")
+			}
+		}
 	}
 
 	// Check if contains thousands separators (e.g., 98,000)

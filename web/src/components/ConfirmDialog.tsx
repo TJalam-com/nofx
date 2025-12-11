@@ -58,8 +58,8 @@ export function ConfirmDialogProvider({
   const [state, setState] = useState<ConfirmState>({
     isOpen: false,
     message: '',
-    okText: '确认',
-    cancelText: '取消',
+    okText: 'Confirm',
+    cancelText: 'Cancel',
   })
 
   const confirm = useCallback((options: ConfirmOptions): Promise<boolean> => {
@@ -68,8 +68,8 @@ export function ConfirmDialogProvider({
         isOpen: true,
         title: options.title,
         message: options.message,
-        okText: options.okText || '确认',
-        cancelText: options.cancelText || '取消',
+        okText: options.okText || 'Confirm',
+        cancelText: options.cancelText || 'Cancel',
         resolve,
       })
     })
@@ -99,11 +99,9 @@ export function ConfirmDialogProvider({
       >
         <AlertDialogContent>
           <div className="flex flex-col gap-5 text-center">
-            {state.title && (
-              <AlertDialogTitle className="text-xl">
-                {state.title}
-              </AlertDialogTitle>
-            )}
+            <AlertDialogTitle className={state.title ? "text-xl" : "sr-only"}>
+              {state.title || 'Confirm'}
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-[var(--text-primary)] text-base font-medium">
               {state.message}
             </AlertDialogDescription>

@@ -119,14 +119,14 @@ export function TwoStageKeyModal({
             ...obfuscationLog,
             `Stage 1: ${new Date().toISOString()} - Auto copied obfuscation`,
           ])
-          toast.success('已复制混淆字符串到剪贴板')
+          toast.success(t('twoStageKey.obfuscationCopied', language))
         } catch {
           setClipboardStatus('failed')
           setObfuscationLog([
             ...obfuscationLog,
             `Stage 1: ${new Date().toISOString()} - Auto copy failed, manual required`,
           ])
-          toast.error('复制失败，请手动复制混淆字符串')
+          toast.error(t('twoStageKey.copyFailed', language) || 'Copy failed, please manually copy the obfuscation string')
         }
       } else {
         setClipboardStatus('failed')
@@ -134,7 +134,7 @@ export function TwoStageKeyModal({
           ...obfuscationLog,
           `Stage 1: ${new Date().toISOString()} - Clipboard API not available`,
         ])
-        toast('当前浏览器不支持自动复制，请手动复制')
+        toast(t('twoStageKey.clipboardNotSupported', language) || 'Current browser does not support auto-copy, please copy manually')
       }
 
       setTimeout(() => {
@@ -192,7 +192,7 @@ export function TwoStageKeyModal({
     if (!isOpen) return null
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0, 31, 63, 0.8)' }}>
         <div className="bg-gray-900 p-8 rounded-xl max-w-lg w-full mx-4 border border-gray-700">
           <div className="text-center mb-6">
             <h2 className="text-xl font-bold text-white mb-2">
@@ -278,7 +278,7 @@ export function TwoStageKeyModal({
                 </div>
               )}
               {clipboardStatus === 'failed' && manualObfuscationValue && (
-                <div className="text-yellow-300">
+                <div className="text-green-300">
                   <div className="font-medium">
                     {t('twoStageKey.obfuscationManual', language)}
                   </div>

@@ -16,7 +16,7 @@ function StepCard({ number, title, description, delay }: any) {
         className="flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl"
         style={{
           background: 'var(--binance-yellow)',
-          color: 'var(--brand-black)',
+          color: 'var(--navy-primary)',
         }}
         whileHover={{ scale: 1.2, rotate: 360 }}
         transition={{ type: 'spring', stiffness: 260, damping: 20 }}
@@ -49,7 +49,7 @@ export default function HowItWorksSection({
   language,
 }: HowItWorksSectionProps) {
   return (
-    <AnimatedSection id="how-it-works" backgroundColor="var(--brand-dark-gray)">
+    <AnimatedSection id="how-it-works" backgroundColor="var(--navy-dark)">
       <div className="max-w-7xl mx-auto">
         <motion.div
           className="text-center mb-16"

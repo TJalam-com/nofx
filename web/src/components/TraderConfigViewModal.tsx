@@ -5,11 +5,28 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isFollower } from '../contexts/AuthContext'
 import { t } from '../i18n/translations'
 
-// 提取下划线后面的名称部分
+// Extract name part after underscore
 function getShortName(fullName: string | undefined | null): string {
   if (!fullName) return ''
   const parts = fullName.split('_')
   return parts.length > 1 ? parts[parts.length - 1] : fullName
+}
+
+// Format strategy template name for display
+function formatStrategyName(templateName: string | undefined | null): string {
+  if (!templateName) return 'Default'
+  const nameMap: Record<string, string> = {
+    default: 'Default',
+    adaptive: 'Adaptive',
+    adaptive_relaxed: 'Adaptive Relaxed',
+    Hansen: 'Hansen',
+    nof1: 'Nof1',
+    taro_long_prompts: 'Taro Long',
+    risk_management: 'Risk Management',
+    'risk-management': 'Risk Management',
+  }
+  const lowerName = templateName.toLowerCase()
+  return nameMap[lowerName] || templateName.charAt(0).toUpperCase() + templateName.slice(1)
 }
 
 interface TraderConfigViewModalProps {
@@ -78,7 +95,7 @@ export function TraderConfigViewModal({
     copyable?: boolean
     fieldName?: string
   }) => (
-    <div className="flex justify-between items-start py-2 border-b border-[#2B3139] last:border-b-0">
+    <div className="flex justify-between items-start py-2 border-b last:border-b-0" style={{ borderColor: 'var(--panel-border)' }}>
       <span className="text-sm text-[#848E9C] font-medium">{label}</span>
       <div className="flex items-center text-right">
         <span className="text-sm text-[#EAECEF] font-mono">
@@ -92,13 +109,14 @@ export function TraderConfigViewModal({
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
       <div
-        className="bg-[#1E2329] border border-[#2B3139] rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        className="rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        style={{ background: 'var(--navy-dark)', border: '1px solid var(--panel-border)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#2B3139] bg-gradient-to-r from-[#1E2329] to-[#252B35]">
+        <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: 'var(--panel-border)', background: 'var(--navy-dark)' }}>
           <div className="flex items-center gap-3">
             <div 
               className="w-10 h-10 rounded-lg flex items-center justify-center"
@@ -130,7 +148,8 @@ export function TraderConfigViewModal({
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-lg text-[#848E9C] hover:text-[#EAECEF] hover:bg-[#2B3139] transition-colors flex items-center justify-center"
+              className="w-8 h-8 rounded-lg text-[#848E9C] hover:text-[#EAECEF] transition-colors flex items-center justify-center"
+              style={{ '--hover-bg': 'var(--panel-border)' } as React.CSSProperties}
             >
               ✕
             </button>
@@ -140,7 +159,7 @@ export function TraderConfigViewModal({
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Basic Info */}
-          <div className="bg-[#0B0E11] border border-[#2B3139] rounded-lg p-5">
+          <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-4 flex items-center gap-2">
               🤖 {t('basicInfo', language)}
             </h3>
@@ -157,6 +176,12 @@ export function TraderConfigViewModal({
                 copyable
                 fieldName="trader_name"
               />
+              {traderData.system_prompt_template && (
+              <InfoRow
+                label={language === 'zh' ? '策略模板' : 'Strategy Template'}
+                value={formatStrategyName(traderData.system_prompt_template)}
+              />
+              )}
               {traderData.ai_model && (
               <InfoRow
                 label={t('aiModelLabel', language)}
@@ -183,7 +208,7 @@ export function TraderConfigViewModal({
             traderData.btc_eth_leverage !== undefined || 
             traderData.altcoin_leverage !== undefined || 
             traderData.trading_symbols !== undefined) && (
-          <div className="bg-[#0B0E11] border border-[#2B3139] rounded-lg p-5">
+          <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-4 flex items-center gap-2">
               ⚖️ {t('tradingConfig', language)}
             </h3>
@@ -222,7 +247,7 @@ export function TraderConfigViewModal({
           {(traderData.use_coin_pool !== undefined || 
             traderData.use_oi_top !== undefined || 
             traderData.use_tradingview !== undefined) && (
-          <div className="bg-[#0B0E11] border border-[#2B3139] rounded-lg p-5">
+          <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-4 flex items-center gap-2">
               📡 {t('signalSourceConfigSection', language)}
             </h3>
@@ -248,7 +273,7 @@ export function TraderConfigViewModal({
 
           {/* Custom Prompt - Only show if detailed config is available */}
           {(traderData.custom_prompt !== undefined || traderData.override_base_prompt !== undefined) && (
-          <div className="bg-[#0B0E11] border border-[#2B3139] rounded-lg p-5">
+          <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-[#EAECEF] flex items-center gap-2">
                 💬 {t('tradingPromptSection', language)}
@@ -273,13 +298,13 @@ export function TraderConfigViewModal({
                     {traderData.override_base_prompt
                       ? t('customPromptLabel', language)
                       : t('appendPromptLabel', language)}
-                    ：
+                    :
                   </div>
                   <div
                     className="p-3 rounded border text-sm text-[#EAECEF] font-mono leading-relaxed max-h-48 overflow-y-auto"
                     style={{
-                      background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
                       whiteSpace: 'pre-wrap',
                     }}
                   >
@@ -289,7 +314,7 @@ export function TraderConfigViewModal({
               ) : (
                 <div
                   className="text-sm text-[#848E9C] italic p-3 rounded border"
-                  style={{ border: '1px solid #2B3139' }}
+                  style={{ border: '1px solid var(--panel-border)' }}
                 >
                   {t('noCustomPromptSet', language)}
                 </div>
@@ -300,10 +325,11 @@ export function TraderConfigViewModal({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-[#2B3139] bg-gradient-to-r from-[#1E2329] to-[#252B35]">
+        <div className="flex justify-end gap-3 p-6 border-t" style={{ borderColor: 'var(--panel-border)', background: 'var(--navy-dark)' }}>
           <button
             onClick={onClose}
-            className="px-6 py-3 bg-[#2B3139] text-[#EAECEF] rounded-lg hover:bg-[#404750] transition-all duration-200 border border-[#404750]"
+            className="px-6 py-3 text-[#EAECEF] rounded-lg transition-all duration-200"
+            style={{ background: 'var(--navy-dark)', border: '1px solid var(--panel-border)' }}
           >
             {t('close', language)}
           </button>
@@ -335,7 +361,8 @@ export function TraderConfigViewModal({
               ) : (
                 <button
                   disabled
-                  className="px-6 py-3 bg-[#2B3139] text-[#848E9C] rounded-lg cursor-not-allowed transition-all duration-200 font-medium border border-[#404750] opacity-60"
+                  className="px-6 py-3 text-[#848E9C] rounded-lg cursor-not-allowed transition-all duration-200 font-medium opacity-60"
+                  style={{ background: 'var(--panel-border)', border: '1px solid var(--panel-border)' }}
                   title="Cannot copy stopped traders. Only running traders can be copied."
                 >
                   📋 Copy This Trader

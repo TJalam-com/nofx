@@ -86,13 +86,22 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
         continue-on-error: true
 
+      - name: Prepare Docker Hub image name
+        id: dockerhub
+        run: |
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+            echo "image=${{ secrets.DOCKERHUB_USERNAME }}/nofx-${{ matrix.image_suffix }}" >> $GITHUB_OUTPUT
+          else
+            echo "image=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
             ${{ env.REGISTRY_GHCR }}/${{ needs.prepare.outputs.image_base }}/nofx-${{ matrix.image_suffix }}
-            ${{ secrets.DOCKERHUB_USERNAME && format('{0}/nofx-{1}', secrets.DOCKERHUB_USERNAME, matrix.image_suffix) || '' }}
+            ${{ steps.dockerhub.outputs.image }}
           tags: |
             type=ref,event=branch,suffix=-${{ matrix.arch_tag }}
             type=semver,pattern={{version}},suffix=-${{ matrix.arch_tag }}

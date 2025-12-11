@@ -10,6 +10,7 @@ import (
 	"nofx/config"
 	"nofx/crypto"
 	"nofx/decision"
+	"nofx/logger"
 	"nofx/manager"
 	"nofx/market"
 	"nofx/mcp"
@@ -19,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -164,7 +166,8 @@ func main() {
 	_ = godotenv.Load()
 
 	// Initialize database configuration
-	dbPath := "config.db"
+	// Default path is data/data.db to ensure database persistence in Docker volume
+	dbPath := "data/data.db"
 	if len(os.Args) > 1 {
 		dbPath = os.Args[1]
 	}
@@ -173,6 +176,11 @@ func main() {
 	configFile, err := loadConfigFile()
 	if err != nil {
 		log.Fatalf("❌ Failed to read config.json: %v", err)
+	}
+
+	// Initialize logger early
+	if err := logger.InitFromLogConfig(configFile.Log); err != nil {
+		log.Printf("⚠️  Failed to initialize logger: %v, using default logger", err)
 	}
 
 	log.Printf("📋 Initializing configuration database: %s", dbPath)
@@ -272,6 +280,14 @@ func main() {
 		log.Printf("⚠️  Failed to load config.json for AI client: %v", cfgErr)
 	}
 
+	// Initialize kline count from config (default: 10)
+	if cfgForAI != nil && cfgForAI.KlineCount > 0 {
+		market.SetKlineCount(cfgForAI.KlineCount)
+		log.Printf("✓ Kline count configured: %d", cfgForAI.KlineCount)
+	} else {
+		log.Printf("✓ Using default kline count: 10")
+	}
+
 	traderManager := manager.NewTraderManager()
 	mcpClient := newSharedMCPClient(cfgForAI)
 	backtestManager := backtest.NewManager(mcpClient)
@@ -281,6 +297,13 @@ func main() {
 
 	// Initialize prompt manager to allow loading templates from database
 	decision.GetGlobalPromptManager().SetDatabase(database)
+
+	// Start market data stream BEFORE loading traders to prevent WSMonitor nil pointer
+	// Market monitor must be initialized before traders try to access it
+	log.Printf("📡 Starting market data monitor...")
+	go market.NewWSMonitor(150).Start(database.GetCustomCoins())
+	// Give market monitor a moment to initialize
+	time.Sleep(500 * time.Millisecond)
 
 	// Load all traders from database to memory
 	err = traderManager.LoadTradersFromDatabase(database)
@@ -362,10 +385,8 @@ func main() {
 		}
 	}()
 
-	// Start market data stream - default uses coins set by all traders, if no coins set, prioritize system default
-	go market.NewWSMonitor(150).Start(database.GetCustomCoins())
-	//go market.NewWSMonitor(150).Start([]string{}) // This is a usage example, if empty is passed, use all coins in market
 	// Setup graceful shutdown
+	defer logger.Shutdown()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
