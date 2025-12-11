@@ -9,6 +9,17 @@
 ARG GO_VERSION=1.25-alpine
 ARG ALPINE_VERSION=latest
 ARG TA_LIB_VERSION=0.4.0
+ARG NODE_VERSION=20-alpine
+
+# ──────────────────────────────────────────────────────────────
+# Frontend Build Stage
+# ──────────────────────────────────────────────────────────────
+FROM node:${NODE_VERSION} AS frontend-builder
+WORKDIR /build
+COPY web/package*.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
 
 # ──────────────────────────────────────────────────────────────
 # TA-Lib Build Stage (shared across builds)
@@ -62,6 +73,7 @@ COPY --from=ta-lib-builder /usr/local /usr/local
 WORKDIR /app
 COPY --from=backend-builder /app/nofx .
 COPY --from=backend-builder /app/prompts ./prompts
+COPY --from=frontend-builder /build/dist ./web/dist
 
 EXPOSE 8080
 
