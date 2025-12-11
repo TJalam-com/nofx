@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, isFollower } from '../contexts/AuthContext'
-import { useLanguage } from '../contexts/LanguageContext'
 import { api } from '../lib/api'
 import { toast } from 'sonner'
 import type { TraderApplication, CreateTraderApplicationRequest, SocialLinks } from '../types'

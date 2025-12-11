@@ -1535,8 +1535,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           onSave={handleSaveSignalSource}
           onClose={() => setShowSignalSourceModal(false)}
           language={language}
-          configuredModels={configuredModels}
-          configuredExchanges={configuredExchanges}
         />
       )}
     </div>
