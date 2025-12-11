@@ -23,6 +23,7 @@ interface TradingViewAlert {
   status: string
   created_at: string
   trader_id?: string
+  trader_name?: string
 }
 
 export default function WebhookPage() {
@@ -47,7 +48,7 @@ export default function WebhookPage() {
   const [testResult, setTestResult] = useState<string>('')
   const [isTesting, setIsTesting] = useState(false)
   const [recentAlerts, setRecentAlerts] = useState<TradingViewAlert[]>([])
-  const [selectedTraderId, setSelectedTraderId] = useState<string>('')
+  const [selectedTraderIds, setSelectedTraderIds] = useState<string[]>([])
   const [traders, setTraders] = useState<TraderInfo[]>([])
 
   useEffect(() => {
@@ -91,9 +92,6 @@ export default function WebhookPage() {
     try {
       const traderList = await traderApi.getTraders()
       setTraders(traderList)
-      if (traderList.length > 0 && !selectedTraderId) {
-        setSelectedTraderId(traderList[0].trader_id)
-      }
     } catch (error) {
       console.error('Failed to load traders:', error)
     }
@@ -105,9 +103,10 @@ export default function WebhookPage() {
       return
     }
     try {
-      const alerts = await api.getRecentAlerts(
-        selectedTraderId || undefined
-      )
+      // If single trader selected, load alerts for that trader
+      // If multiple traders selected or none selected, load all alerts
+      const traderId = selectedTraderIds.length === 1 ? selectedTraderIds[0] : undefined
+      const alerts = await api.getRecentAlerts(traderId)
       setRecentAlerts(alerts)
     } catch (error) {
       // Silently handle 403 errors for followers
@@ -120,20 +119,33 @@ export default function WebhookPage() {
 
   useEffect(() => {
     // Only load alerts if user is not a follower
-    if (selectedTraderId && !isFollower(user)) {
+    if (!isFollower(user)) {
       loadRecentAlerts()
-      // 更新测试payload中的trader_id
+      // Update test payload with trader_ids or trader_id
       setTestPayload((prevPayload) => {
         try {
           const payloadObj = JSON.parse(prevPayload)
-          payloadObj.trader_id = selectedTraderId
+          // Remove old trader_id/trader_ids fields
+          delete payloadObj.trader_id
+          delete payloadObj.trader_ids
+          
+          // Add appropriate field based on selection
+          if (selectedTraderIds.length === 0) {
+            // No selection - omit trader field (auto-assign)
+          } else if (selectedTraderIds.length === 1) {
+            // Single trader - use trader_id for backward compatibility
+            payloadObj.trader_id = selectedTraderIds[0]
+          } else {
+            // Multiple traders - use trader_ids array
+            payloadObj.trader_ids = selectedTraderIds
+          }
           return JSON.stringify(payloadObj, null, 2)
         } catch {
           return prevPayload
         }
       })
     }
-  }, [selectedTraderId, user])
+  }, [selectedTraderIds, user])
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -148,8 +160,10 @@ export default function WebhookPage() {
       const payload = JSON.parse(testPayload)
       const result = await api.testWebhook(payload)
       setTestResult(JSON.stringify(result, null, 2))
-      // 刷新警报列表
-      setTimeout(() => loadRecentAlerts(), 1000)
+      // Refresh alerts list after successful webhook test to show new alerts
+      setTimeout(() => {
+        loadRecentAlerts()
+      }, 1500) // Slightly longer delay to ensure backend has processed
     } catch (error: any) {
       setTestResult(t('webhookPage.error', language, { message: error.message }))
     } finally {
@@ -285,33 +299,37 @@ export default function WebhookPage() {
         <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{t('webhookPage.testWebhook', language)}</h2>
         <div className="space-y-4">
           <div>
-            <label className="text-sm block mb-2" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.selectTrader', language)}</label>
+            <label className="text-sm block mb-2" style={{ color: 'var(--text-secondary)' }}>
+              {t('webhookPage.selectTrader', language)}
+              {selectedTraderIds.length > 0 && (
+                <span className="ml-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  ({selectedTraderIds.length} {selectedTraderIds.length === 1 ? 'trader' : 'traders'} selected)
+                </span>
+              )}
+            </label>
             <select
-              value={selectedTraderId}
+              multiple
+              value={selectedTraderIds}
               onChange={(e) => {
-                setSelectedTraderId(e.target.value)
-                try {
-                  const payloadObj = JSON.parse(testPayload)
-                  payloadObj.trader_id = e.target.value || ''
-                  setTestPayload(JSON.stringify(payloadObj, null, 2))
-                } catch {
-                  // ignore
-                }
+                const selected = Array.from(e.target.selectedOptions, option => option.value)
+                setSelectedTraderIds(selected)
               }}
-              className="w-full rounded px-3 py-2"
+              className="w-full rounded px-3 py-2 min-h-[100px]"
               style={{
                 background: 'var(--navy-dark)',
                 border: '1px solid var(--panel-border)',
                 color: 'var(--text-primary)'
               }}
             >
-              <option value="">{t('webhookPage.autoAssign', language)}</option>
               {traders.map((trader) => (
                 <option key={trader.trader_id} value={trader.trader_id}>
                   {trader.trader_name}
                 </option>
               ))}
             </select>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+              Hold Ctrl/Cmd to select multiple traders. Leave empty for auto-assign.
+            </p>
           </div>
           <div>
             <label className="text-sm block mb-2" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.jsonPayload', language)}</label>
@@ -340,6 +358,9 @@ export default function WebhookPage() {
               background: 'var(--navy-dark)',
               border: '1px solid var(--panel-border)'
             }}>
+              <div className="mb-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Response:
+              </div>
               <pre className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>{testResult}</pre>
             </div>
           )}
@@ -351,8 +372,11 @@ export default function WebhookPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{t('webhookPage.recentAlerts', language)}</h2>
           <select
-            value={selectedTraderId}
-            onChange={(e) => setSelectedTraderId(e.target.value)}
+            value={selectedTraderIds.length === 1 ? selectedTraderIds[0] : ''}
+            onChange={(e) => {
+              const value = e.target.value
+              setSelectedTraderIds(value ? [value] : [])
+            }}
             className="rounded px-3 py-1 text-sm"
             style={{
               background: 'var(--navy-dark)',
@@ -379,6 +403,7 @@ export default function WebhookPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--panel-border)' }}>
                   <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.time', language)}</th>
+                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>Trader</th>
                   <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.symbol', language)}</th>
                   <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.action', language)}</th>
                   <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.entryPrice', language)}</th>
@@ -393,6 +418,9 @@ export default function WebhookPage() {
                   <tr key={alert.id} style={{ borderBottom: '1px solid var(--panel-border)' }}>
                     <td className="py-2 px-4 text-sm" style={{ color: 'var(--text-primary)' }}>
                       {formatDate(alert.created_at)}
+                    </td>
+                    <td className="py-2 px-4 text-sm" style={{ color: 'var(--text-primary)' }}>
+                      {alert.trader_name || '-'}
                     </td>
                     <td className="py-2 px-4 text-sm font-mono" style={{ color: 'var(--text-primary)' }}>
                       {alert.symbol}

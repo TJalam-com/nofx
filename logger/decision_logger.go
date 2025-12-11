@@ -135,6 +135,11 @@ func (l *DecisionLogger) LogDecision(record *DecisionRecord) error {
 
 	filepath := filepath.Join(l.logDir, filename)
 
+	// Debug: Log AccountState before serialization
+	fmt.Printf("🔍 LogDecision - AccountState before serialization: TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d, MarginUsedPct=%.2f%%, InitialBalance=%.2f\n",
+		record.AccountState.TotalBalance, record.AccountState.AvailableBalance,
+		record.AccountState.PositionCount, record.AccountState.MarginUsedPct, record.AccountState.InitialBalance)
+
 	// Serialize to JSON (with indentation for readability)
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {

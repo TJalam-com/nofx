@@ -1199,6 +1199,7 @@ type TradingViewAlert struct {
 	ID           string     `json:"id"`
 	UserID       string     `json:"user_id"`
 	TraderID     string     `json:"trader_id"`
+	TraderName   string     `json:"trader_name"`
 	RawPayload   string     `json:"raw_payload"`
 	Symbol       string     `json:"symbol"`
 	Action       string     `json:"action"`
@@ -2967,8 +2968,14 @@ func (d *Database) GetUserByWebhookAPIKey(apiKey string) (*User, error) {
 
 // CreateTradingViewAlert create TradingView alert, return alert ID
 func (d *Database) CreateTradingViewAlert(userID, traderID string, payload map[string]interface{}) (string, error) {
-	// Generate UUID
-	id := fmt.Sprintf("%d", time.Now().UnixNano())
+	// Generate unique ID: trader_id + timestamp + random component to prevent collisions
+	// This ensures uniqueness even when multiple traders process webhooks simultaneously
+	randomBytes := make([]byte, 4)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", fmt.Errorf("failed to generate random component: %w", err)
+	}
+	randomInt := uint32(randomBytes[0])<<24 | uint32(randomBytes[1])<<16 | uint32(randomBytes[2])<<8 | uint32(randomBytes[3])
+	id := fmt.Sprintf("%s_%d_%d", traderID, time.Now().UnixNano(), randomInt)
 
 	// Parse payload field
 	rawPayloadBytes, _ := json.Marshal(payload)
@@ -3025,12 +3032,13 @@ func parseFloat(v interface{}) float64 {
 // GetPendingTradingViewAlerts get pending alerts for specified trader
 func (d *Database) GetPendingTradingViewAlerts(traderID string) ([]TradingViewAlert, error) {
 	rows, err := d.db.Query(`
-		SELECT id, user_id, trader_id, raw_payload, symbol, action, exchange,
-			entry, sl, tp, quantity, position_size, pricetype, status,
-			created_at, processed_at
-		FROM tradingview_alerts
-		WHERE trader_id = ? AND status = 'pending'
-		ORDER BY created_at ASC
+		SELECT a.id, a.user_id, a.trader_id, COALESCE(t.name, '') as trader_name, a.raw_payload, a.symbol, a.action, a.exchange,
+			a.entry, a.sl, a.tp, a.quantity, a.position_size, a.pricetype, a.status,
+			a.created_at, a.processed_at
+		FROM tradingview_alerts a
+		LEFT JOIN traders t ON a.trader_id = t.id
+		WHERE a.trader_id = ? AND a.status = 'pending'
+		ORDER BY a.created_at ASC
 	`, traderID)
 	if err != nil {
 		return nil, err
@@ -3044,7 +3052,7 @@ func (d *Database) GetPendingTradingViewAlerts(traderID string) ([]TradingViewAl
 		var processedAt sql.NullString
 
 		err := rows.Scan(
-			&alert.ID, &alert.UserID, &alert.TraderID, &alert.RawPayload,
+			&alert.ID, &alert.UserID, &alert.TraderID, &alert.TraderName, &alert.RawPayload,
 			&alert.Symbol, &alert.Action, &alert.Exchange,
 			&alert.Entry, &alert.SL, &alert.TP, &alert.Quantity,
 			&alert.PositionSize, &alert.PriceType, &alert.Status,
@@ -3084,13 +3092,14 @@ func (d *Database) GetTradingViewAlertByID(alertID string) (*TradingViewAlert, e
 	var processedAt sql.NullString
 
 	err := d.db.QueryRow(`
-		SELECT id, user_id, trader_id, raw_payload, symbol, action, exchange,
-			entry, sl, tp, quantity, position_size, pricetype, status,
-			created_at, processed_at
-		FROM tradingview_alerts
-		WHERE id = ?
+		SELECT a.id, a.user_id, a.trader_id, COALESCE(t.name, '') as trader_name, a.raw_payload, a.symbol, a.action, a.exchange,
+			a.entry, a.sl, a.tp, a.quantity, a.position_size, a.pricetype, a.status,
+			a.created_at, a.processed_at
+		FROM tradingview_alerts a
+		LEFT JOIN traders t ON a.trader_id = t.id
+		WHERE a.id = ?
 	`, alertID).Scan(
-		&alert.ID, &alert.UserID, &alert.TraderID, &alert.RawPayload,
+		&alert.ID, &alert.UserID, &alert.TraderID, &alert.TraderName, &alert.RawPayload,
 		&alert.Symbol, &alert.Action, &alert.Exchange,
 		&alert.Entry, &alert.SL, &alert.TP, &alert.Quantity,
 		&alert.PositionSize, &alert.PriceType, &alert.Status,
@@ -3109,23 +3118,24 @@ func (d *Database) GetTradingViewAlertByID(alertID string) (*TradingViewAlert, e
 	return &alert, nil
 }
 
-// GetRecentTradingViewAlerts get recent TradingView alerts
+// GetRecentTradingViewAlerts get recent TradingView alerts with trader names
 func (d *Database) GetRecentTradingViewAlerts(userID string, traderID string, limit int) ([]TradingViewAlert, error) {
 	query := `
-		SELECT id, user_id, trader_id, raw_payload, symbol, action, exchange,
-			entry, sl, tp, quantity, position_size, pricetype, status,
-			created_at, processed_at
-		FROM tradingview_alerts
-		WHERE user_id = ?
+		SELECT a.id, a.user_id, a.trader_id, COALESCE(t.name, '') as trader_name, a.raw_payload, a.symbol, a.action, a.exchange,
+			a.entry, a.sl, a.tp, a.quantity, a.position_size, a.pricetype, a.status,
+			a.created_at, a.processed_at
+		FROM tradingview_alerts a
+		LEFT JOIN traders t ON a.trader_id = t.id
+		WHERE a.user_id = ?
 	`
 	args := []interface{}{userID}
 
 	if traderID != "" {
-		query += " AND trader_id = ?"
+		query += " AND a.trader_id = ?"
 		args = append(args, traderID)
 	}
 
-	query += " ORDER BY created_at DESC LIMIT ?"
+	query += " ORDER BY a.created_at DESC LIMIT ?"
 	args = append(args, limit)
 
 	rows, err := d.db.Query(query, args...)
@@ -3141,7 +3151,7 @@ func (d *Database) GetRecentTradingViewAlerts(userID string, traderID string, li
 		var processedAt sql.NullString
 
 		err := rows.Scan(
-			&alert.ID, &alert.UserID, &alert.TraderID, &alert.RawPayload,
+			&alert.ID, &alert.UserID, &alert.TraderID, &alert.TraderName, &alert.RawPayload,
 			&alert.Symbol, &alert.Action, &alert.Exchange,
 			&alert.Entry, &alert.SL, &alert.TP, &alert.Quantity,
 			&alert.PositionSize, &alert.PriceType, &alert.Status,

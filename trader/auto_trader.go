@@ -2816,6 +2816,45 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		return
 	}
 
+	// Debug: Log tradingCtx.Account values before populating AccountState
+	log.Printf("🔍 [%s] TradingView Signal - tradingCtx.Account values: TotalEquity=%.2f, AvailableBalance=%.2f, UnrealizedPnL=%.2f, PositionCount=%d, MarginUsedPct=%.2f%%",
+		at.name, tradingCtx.Account.TotalEquity, tradingCtx.Account.AvailableBalance,
+		tradingCtx.Account.UnrealizedPnL, tradingCtx.Account.PositionCount, tradingCtx.Account.MarginUsedPct)
+
+	// Save account state snapshot
+	record.AccountState = logger.AccountSnapshot{
+		TotalBalance:          tradingCtx.Account.TotalEquity - tradingCtx.Account.UnrealizedPnL,
+		AvailableBalance:      tradingCtx.Account.AvailableBalance,
+		TotalUnrealizedProfit: tradingCtx.Account.UnrealizedPnL,
+		PositionCount:         tradingCtx.Account.PositionCount,
+		MarginUsedPct:         tradingCtx.Account.MarginUsedPct,
+		InitialBalance:        at.initialBalance,
+	}
+
+	// Debug: Log record.AccountState values after assignment
+	log.Printf("🔍 [%s] TradingView Signal - record.AccountState populated: TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d, MarginUsedPct=%.2f%%, InitialBalance=%.2f",
+		at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance,
+		record.AccountState.PositionCount, record.AccountState.MarginUsedPct, record.AccountState.InitialBalance)
+
+	// Save position snapshot
+	for _, pos := range tradingCtx.Positions {
+		record.Positions = append(record.Positions, logger.PositionSnapshot{
+			Symbol:           pos.Symbol,
+			Side:             pos.Side,
+			PositionAmt:      pos.Quantity,
+			EntryPrice:       pos.EntryPrice,
+			MarkPrice:        pos.MarkPrice,
+			UnrealizedProfit: pos.UnrealizedPnL,
+			Leverage:         float64(pos.Leverage),
+			LiquidationPrice: pos.LiquidationPrice,
+		})
+	}
+
+	// Save candidate coins
+	for _, coin := range tradingCtx.CandidateCoins {
+		record.CandidateCoins = append(record.CandidateCoins, coin.Symbol)
+	}
+
 	// Build user prompt (contains TradingView signal data)
 	userPrompt := at.buildTradingViewUserPrompt(tradingCtx, alert)
 
@@ -2872,6 +2911,9 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		log.Printf("⚠️ [%s] AI returned no decisions", at.name)
 		record.ErrorMessage = "AI returned no decisions"
 		_ = db.UpdateAlertStatus(alertID, "rejected")
+		// Debug: Log AccountState before saving (no decisions case)
+		log.Printf("🔍 [%s] TradingView Signal - Before LogDecision (no decisions): AccountState TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d",
+			at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance, record.AccountState.PositionCount)
 		at.decisionLogger.LogDecision(record)
 		return
 	}
@@ -2884,6 +2926,9 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		log.Printf("❌ [%s] AI rejected TradingView signal: %s", at.name, aiDecision.Reasoning)
 		record.ErrorMessage = fmt.Sprintf("AI rejected: %s", aiDecision.Reasoning)
 		_ = db.UpdateAlertStatus(alertID, "rejected")
+		// Debug: Log AccountState before saving (reject case)
+		log.Printf("🔍 [%s] TradingView Signal - Before LogDecision (reject): AccountState TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d",
+			at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance, record.AccountState.PositionCount)
 		at.decisionLogger.LogDecision(record)
 		return
 	}
@@ -2920,6 +2965,10 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 	}
 
 	// Save decision record
+	// Debug: Log AccountState before saving (final save)
+	log.Printf("🔍 [%s] TradingView Signal - Before LogDecision (final): AccountState TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d, MarginUsedPct=%.2f%%",
+		at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance,
+		record.AccountState.PositionCount, record.AccountState.MarginUsedPct)
 	if err := at.decisionLogger.LogDecision(record); err != nil {
 		log.Printf("⚠️ [%s] Failed to save decision record: %v", at.name, err)
 	}
@@ -2978,6 +3027,45 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 		if err == nil {
 			tradingCtx.MarketDataMap["BTCUSDT"] = btcData
 		}
+	}
+
+	// Debug: Log tradingCtx.Account values before populating AccountState
+	log.Printf("🔍 [%s] Parent Signal - tradingCtx.Account values: TotalEquity=%.2f, AvailableBalance=%.2f, UnrealizedPnL=%.2f, PositionCount=%d, MarginUsedPct=%.2f%%",
+		at.name, tradingCtx.Account.TotalEquity, tradingCtx.Account.AvailableBalance,
+		tradingCtx.Account.UnrealizedPnL, tradingCtx.Account.PositionCount, tradingCtx.Account.MarginUsedPct)
+
+	// Save account state snapshot
+	record.AccountState = logger.AccountSnapshot{
+		TotalBalance:          tradingCtx.Account.TotalEquity - tradingCtx.Account.UnrealizedPnL,
+		AvailableBalance:      tradingCtx.Account.AvailableBalance,
+		TotalUnrealizedProfit: tradingCtx.Account.UnrealizedPnL,
+		PositionCount:         tradingCtx.Account.PositionCount,
+		MarginUsedPct:         tradingCtx.Account.MarginUsedPct,
+		InitialBalance:        at.initialBalance,
+	}
+
+	// Debug: Log record.AccountState values after assignment
+	log.Printf("🔍 [%s] Parent Signal - record.AccountState populated: TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d, MarginUsedPct=%.2f%%, InitialBalance=%.2f",
+		at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance,
+		record.AccountState.PositionCount, record.AccountState.MarginUsedPct, record.AccountState.InitialBalance)
+
+	// Save position snapshot
+	for _, pos := range tradingCtx.Positions {
+		record.Positions = append(record.Positions, logger.PositionSnapshot{
+			Symbol:           pos.Symbol,
+			Side:             pos.Side,
+			PositionAmt:      pos.Quantity,
+			EntryPrice:       pos.EntryPrice,
+			MarkPrice:        pos.MarkPrice,
+			UnrealizedProfit: pos.UnrealizedPnL,
+			Leverage:         float64(pos.Leverage),
+			LiquidationPrice: pos.LiquidationPrice,
+		})
+	}
+
+	// Save candidate coins
+	for _, coin := range tradingCtx.CandidateCoins {
+		record.CandidateCoins = append(record.CandidateCoins, coin.Symbol)
 	}
 
 	// Build user prompt with parent signal info
