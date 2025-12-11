@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { t, type Language } from '../../i18n/translations'
+import type { Language } from '../../i18n/translations'
 
 interface IndicatorConfig {
   enable_raw_klines: boolean

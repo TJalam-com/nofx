@@ -42,6 +42,7 @@ type Page =
   | 'webhook'
   | 'faq'
   | 'stats'
+  | 'applications'
   | 'login'
   | 'register'
 

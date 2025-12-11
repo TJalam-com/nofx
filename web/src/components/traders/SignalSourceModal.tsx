@@ -7,7 +7,7 @@ import type { RunningTrader, AIModel, Exchange } from '../../types'
 interface SignalSourceModalProps {
   coinPoolUrl: string
   oiTopUrl: string
-  onSave: (coinPoolUrl: string, oiTopUrl: string) => void
+  onSave: (coinPoolUrl: string, oiTopUrl: string) => void | Promise<void>
   onClose: () => void
   language: Language
   configuredModels?: AIModel[]

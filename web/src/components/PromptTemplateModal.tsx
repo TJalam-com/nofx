@@ -132,7 +132,7 @@ export function PromptTemplateModal({
           name: name.trim(),
           content: content.trim(),
         }
-        const updatedTemplate = await toast.promise(api.updatePromptTemplate(template!.id, updateRequest), {
+        const updatedTemplate: PromptTemplate = await toast.promise(api.updatePromptTemplate(template!.id, updateRequest), {
           loading: t('savingTemplate', language) || 'Saving template...',
           success: t('templateSaved', language) || 'Template saved',
           error: t('templateSaveFailed', language) || 'Failed to save template',
@@ -146,7 +146,7 @@ export function PromptTemplateModal({
           name: name.trim(),
           content: content.trim(),
         }
-        const newTemplate = await toast.promise(api.createPromptTemplate(createRequest), {
+        const newTemplate: PromptTemplate = await toast.promise(api.createPromptTemplate(createRequest), {
           loading: t('creatingTemplate', language) || 'Creating template...',
           success: t('templateCreated', language) || 'Template created',
           error: t('templateCreateFailed', language) || 'Failed to create template',

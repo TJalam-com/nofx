@@ -11,7 +11,6 @@ import {
   XCircle,
   Clock,
   RefreshCw,
-  Eye,
   ChevronDown,
   ChevronUp,
   Search,
@@ -20,7 +19,6 @@ import {
 } from 'lucide-react'
 
 export default function AdminTraderApplicationsPage() {
-  const { language } = useLanguage()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>(

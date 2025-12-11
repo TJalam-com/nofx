@@ -7,7 +7,6 @@ import AILearning from '../components/AILearning'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { t, type Language } from '../i18n/translations'
-import { toast } from 'sonner'
 import {
   AlertTriangle,
   Bot,
@@ -125,7 +124,7 @@ export default function TraderDashboard() {
     }
   )
 
-  const { data: positions, mutate: mutatePositions } = useSWR<Position[]>(
+  const { data: positions } = useSWR<Position[]>(
     user && token && selectedTraderId ? `positions-${selectedTraderId}` : null,
     () => api.getPositions(selectedTraderId),
     {

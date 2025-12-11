@@ -8,7 +8,6 @@ import type { TraderApplication, CreateTraderApplicationRequest, SocialLinks } f
 import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 
 export default function TraderApplicationPage() {
-  const { language } = useLanguage()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [formData, setFormData] = useState<CreateTraderApplicationRequest>({
@@ -25,7 +24,7 @@ export default function TraderApplicationPage() {
     discord: '',
     website: '',
   })
-  const [loading, setLoading] = useState(false)
+  const [loading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [existingApplication, setExistingApplication] = useState<TraderApplication | null>(null)
   const [loadingApplication, setLoadingApplication] = useState(true)

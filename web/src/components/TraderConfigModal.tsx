@@ -35,6 +35,17 @@ interface TraderConfigData {
   followed_trader_id?: string // 跟随的交易员ID（用于follower角色）
   initial_balance?: number // 可选：创建时不需要，编辑时使用
   scan_interval_minutes: number
+  // Indicator configuration
+  enable_raw_klines?: boolean
+  enable_ema?: boolean
+  enable_macd?: boolean
+  enable_rsi?: boolean
+  enable_atr?: boolean
+  enable_volume?: boolean
+  enable_oi?: boolean
+  enable_funding?: boolean
+  indicator_timeframe?: string
+  quant_data_url?: string
 }
 
 interface TraderConfigModalProps {
