@@ -95,10 +95,43 @@ const App = (
 )
 
 // Only enable StrictMode in development to avoid double-rendering issues
-const root = ReactDOM.createRoot(document.getElementById('root')!)
+console.log('🚀 Starting React app initialization...')
+console.log('Environment:', import.meta.env.MODE)
 
-if (import.meta.env.DEV) {
-  root.render(<React.StrictMode>{App}</React.StrictMode>)
+const rootElement = document.getElementById('root')
+
+if (!rootElement) {
+  console.error('❌ Root element not found! Make sure index.html has <div id="root"></div>')
+  document.body.innerHTML = '<div style="color: red; padding: 20px; font-family: monospace;">Error: Root element not found. Please check the console for details.</div>'
 } else {
-  root.render(App)
+  console.log('✅ Root element found')
+  try {
+    console.log('📦 Creating React root...')
+    const root = ReactDOM.createRoot(rootElement)
+    console.log('✅ React root created')
+    
+    console.log('🎨 Rendering app...')
+    if (import.meta.env.DEV) {
+      root.render(<React.StrictMode>{App}</React.StrictMode>)
+    } else {
+      root.render(App)
+    }
+    console.log('✅ App rendered successfully')
+  } catch (error) {
+    console.error('❌ Failed to render React app:', error)
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack)
+    }
+    rootElement.innerHTML = `
+      <div style="color: #F6465D; padding: 20px; font-family: monospace; background: #0B0E11; min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+        <div style="max-width: 600px;">
+          <h1 style="color: #F6465D; margin-bottom: 10px;">Failed to load application</h1>
+          <p style="color: #848E9C; margin-bottom: 20px;">${error instanceof Error ? error.message : 'Unknown error'}</p>
+          <button onclick="window.location.reload()" style="padding: 10px 20px; background: #F0B90B; color: #0B0E11; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            Reload Page
+          </button>
+        </div>
+      </div>
+    `
+  }
 }
