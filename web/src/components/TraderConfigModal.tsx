@@ -1541,10 +1541,10 @@ export function TraderConfigModal({
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <label className="text-sm text-[#EAECEF]">
-                    {formData.override_base_prompt
-                      ? t('customPromptLabel', language)
-                      : t('appendPromptLabel', language)}
-                  </label>
+                  {formData.override_base_prompt
+                    ? t('customPromptLabel', language)
+                    : t('appendPromptLabel', language)}
+                </label>
                   {formData.override_base_prompt && (
                     <Tooltip content={getTooltipContent()}>
                       <Info className="w-4 h-4 cursor-help" style={{ color: 'var(--navy-light)' }} />

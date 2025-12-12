@@ -492,8 +492,8 @@ export function StrategyEditorModal({
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm text-[#EAECEF]">
-                      {language === 'zh' ? '自定义提示词' : 'Custom Prompt'}
-                    </label>
+                    {language === 'zh' ? '自定义提示词' : 'Custom Prompt'}
+                  </label>
                     <Tooltip content={getTooltipContent()}>
                       <Info className="w-4 h-4 cursor-help" style={{ color: 'var(--navy-light)' }} />
                     </Tooltip>
