@@ -1,3 +1,18 @@
+// Page type for navigation
+export type Page =
+  | 'competition'
+  | 'traders'
+  | 'trader'
+  | 'followers'
+  | 'backtest'
+  | 'webhook'
+  | 'faq'
+  | 'stats'
+  | 'applications'
+  | 'strategy-studio'
+  | 'login'
+  | 'register'
+
 export interface SystemStatus {
   trader_id: string
   trader_name: string

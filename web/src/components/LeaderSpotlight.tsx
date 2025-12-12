@@ -9,7 +9,7 @@ interface LeaderSpotlightProps {
   onViewDetails?: () => void
 }
 
-export function LeaderSpotlight({ leader, allTraders }: LeaderSpotlightProps) {
+export function LeaderSpotlight({ leader }: LeaderSpotlightProps) {
   const { language } = useLanguage()
   const isPositive = (leader.total_pnl ?? 0) >= 0
   const pnlPct = leader.total_pnl_pct?.toFixed(2) || '0.00'
