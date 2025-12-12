@@ -1,14 +1,16 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#5BC0DE;stop-opacity:1" />
+    <linearGradient id="infinityGradient" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" style="stop-color:#00CED1;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#40E0D0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#87CEEB;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <!-- Squircle background -->
-  <rect width="32" height="32" rx="10" ry="10" fill="url(#logoGradient)"/>
-  <!-- Letter J -->
-  <path d="M 9 8 L 9 18 C 9 20 11 20 11 20" stroke="#2C5F7C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <!-- Letter S -->
-  <path d="M 16 10 C 14 10 14 12 16 12 C 18 12 18 14 16 14" stroke="#2C5F7C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Infinity symbol - continuous path forming two symmetrical loops -->
+  <path d="M 8 16 C 8 12.5 10.5 10 13.5 10 C 15.5 10 17 12.5 17 16 C 17 19.5 19.5 22 22.5 22 C 25.5 22 28 19.5 28 16 M 24 16 C 24 19.5 21.5 22 18.5 22 C 15.5 22 13 19.5 13 16 C 13 12.5 10.5 10 7.5 10 C 4.5 10 2 12.5 2 16" 
+        stroke="url(#infinityGradient)" 
+        stroke-width="2.5" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"
+        fill="none"/>
 </svg>
