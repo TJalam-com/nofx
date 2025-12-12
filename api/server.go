@@ -3813,7 +3813,7 @@ func (s *Server) handleRegister(c *gin.Context) {
 				return
 			}
 			if userCount >= maxUsers {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Not on whitelist"})
+				c.JSON(http.StatusForbidden, gin.H{"error": fmt.Sprintf("Registration limit reached. Maximum %d user(s) allowed.", maxUsers)})
 				return
 			}
 		}
