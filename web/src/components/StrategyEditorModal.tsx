@@ -586,7 +586,7 @@ export function StrategyEditorModal({
                 api.getPromptTemplates(),
                 api.getUserPromptTemplates(),
               ])
-              setPromptTemplates(systemTemplates.map((t) => ({ name: t.name })))
+              setPromptTemplates(systemTemplates.map((t) => ({ name: t })))
               setUserPromptTemplates(userTemplates)
             } catch (error) {
               console.error('Failed to reload templates:', error)

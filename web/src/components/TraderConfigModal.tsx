@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { AIModel, Exchange, CreateTraderRequest, RunningTrader, Strategy, CreateStrategyRequest } from '../types'
+import type { AIModel, Exchange, CreateTraderRequest, RunningTrader, CreateStrategyRequest } from '../types'
 import type { PromptTemplate } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isFollower } from '../contexts/AuthContext'
@@ -766,18 +766,6 @@ export function TraderConfigModal({
     } finally {
       setIsSaving(false)
     }
-  }
-
-  // Helper function to get placeholder text based on prompt type
-  const getCustomPromptPlaceholder = () => {
-    if (formData.use_tradingview) {
-      return language === 'zh' 
-        ? '输入自定义提示词（可选）。如果启用"覆盖基础提示词"，系统会自动添加 TradingView JSON 格式要求...'
-        : 'Enter custom prompt (optional). If "Override Base Prompt" is enabled, TradingView JSON format requirements will be auto-added...'
-    }
-    return language === 'zh'
-      ? '输入自定义提示词（可选）。如果启用"覆盖基础提示词"，系统会自动添加标准 JSON 格式要求...'
-      : 'Enter custom prompt (optional). If "Override Base Prompt" is enabled, standard JSON format requirements will be auto-added...'
   }
 
   // Helper function to get tooltip content

@@ -1,3 +1,18 @@
+// Page type for navigation
+export type Page =
+  | 'competition'
+  | 'traders'
+  | 'trader'
+  | 'followers'
+  | 'backtest'
+  | 'webhook'
+  | 'faq'
+  | 'stats'
+  | 'applications'
+  | 'strategy-studio'
+  | 'login'
+  | 'register'
+
 // 系统状态
 export interface SystemStatus {
   is_running: boolean

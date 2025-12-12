@@ -21,7 +21,7 @@ export function CustomSelect({
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const selectRef = useRef<HTMLDivElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -18,8 +18,6 @@ import { OrganizationSchema, BreadcrumbListSchema } from '../components/Structur
 export function AboutPage() {
   const { language } = useLanguage()
   const { SEOComponent } = useSEO()
-
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
   
   return (
     <>

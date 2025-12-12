@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Edit, Trash2, Download, Upload, Copy } from 'lucide-react'
 import useSWR from 'swr'
 import { api } from '../lib/api'
 import { useLanguage } from '../contexts/LanguageContext'
-import type { Strategy, CreateStrategyRequest, UpdateStrategyRequest } from '../types'
+import type { Strategy, CreateStrategyRequest } from '../types'
 import { StrategyEditorModal } from '../components/StrategyEditorModal'
 
 export function StrategyStudioPage() {

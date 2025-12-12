@@ -344,21 +344,6 @@ export const seoConfig: Record<string, (lang: Language) => SEOConfig> = {
     ogType: 'website',
     canonical: `${BASE_URL}/contact`,
   }),
-
-  '/faq': (lang: Language) => ({
-    title: lang === 'en'
-      ? 'FAQ - Frequently Asked Questions - AI Trading 24x7'
-      : '常见问题 - AI Trading 24x7',
-    description: lang === 'en'
-      ? 'Find answers to common questions about AI Trading 24x7 platform, features, trading strategies, setup, and more.'
-      : '查找关于AI Trading 24x7平台、功能、交易策略、设置等的常见问题解答。',
-    keywords: lang === 'en'
-      ? 'FAQ, frequently asked questions, help, trading questions, platform guide'
-      : '常见问题, 帮助, 交易问题, 平台指南',
-    ogImage: DEFAULT_OG_IMAGE,
-    ogType: 'website',
-    canonical: `${BASE_URL}/faq`,
-  }),
 }
 
 export function getSEOConfig(pathname: string, lang: Language): SEOConfig {

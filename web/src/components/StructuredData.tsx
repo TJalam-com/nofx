@@ -73,7 +73,7 @@ export function FAQPageSchema({ faqs }: { faqs: Array<{ question: string; answer
 }
 
 // BreadcrumbList Schema
-export function BreadcrumbListSchema(items: Array<{ name: string; url: string }>) {
+export function BreadcrumbListSchema({ items }: { items: Array<{ name: string; url: string }> }) {
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
   
   const schema = {

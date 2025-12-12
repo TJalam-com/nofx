@@ -38,8 +38,6 @@ export function ContactPage() {
       descKey: 'contactSecurityDesc',
     },
   ]
-
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
   
   return (
     <>

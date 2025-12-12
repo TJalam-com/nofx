@@ -125,7 +125,7 @@ export function FeaturesPage() {
 
           {/* Feature Categories */}
           <div className="space-y-8">
-            {featureCategories.map((category, index) => {
+            {featureCategories.map((category) => {
               const Icon = category.icon
               return (
                 <div

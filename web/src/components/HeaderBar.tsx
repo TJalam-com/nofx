@@ -6,20 +6,7 @@ import { t, type Language } from '../i18n/translations'
 import { Container } from './Container'
 import { useSystemConfig } from '../hooks/useSystemConfig'
 import { useAuth, isFollower, isAdmin } from '../contexts/AuthContext'
-
-type Page =
-  | 'competition'
-  | 'traders'
-  | 'trader'
-  | 'followers'
-  | 'backtest'
-  | 'webhook'
-  | 'faq'
-  | 'stats'
-  | 'applications'
-  | 'strategy-studio'
-  | 'login'
-  | 'register'
+import type { Page } from '../types'
 
 interface HeaderBarProps {
   onLoginClick?: () => void

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Trophy, Medal, Clock, Users, UserCheck } from 'lucide-react'
+import { Trophy, Medal, Clock, Users } from 'lucide-react'
 import useSWR from 'swr'
 import { api } from '../lib/api'
 import type { CompetitionData } from '../types'
@@ -387,10 +387,6 @@ export function CompetitionPage() {
               const isLeader = index === 0
               const isSilver = index === 1
               const isBronze = index === 2
-              const traderColor = getTraderColor(
-                sortedTraders,
-                trader.trader_id
-              )
               const isFollowerTrader = !!(trader.followed_trader_id && trader.followed_trader_id !== '')
 
               // Determine rank badge class

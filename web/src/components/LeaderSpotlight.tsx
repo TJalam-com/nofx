@@ -1,6 +1,5 @@
 import { Trophy, TrendingUp, TrendingDown, Users } from 'lucide-react'
 import type { CompetitionTraderData } from '../types'
-import { getTraderColor } from '../utils/traderColors'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 
@@ -10,12 +9,10 @@ interface LeaderSpotlightProps {
   onViewDetails?: () => void
 }
 
-export function LeaderSpotlight({ leader, allTraders, onViewDetails }: LeaderSpotlightProps) {
+export function LeaderSpotlight({ leader, allTraders }: LeaderSpotlightProps) {
   const { language } = useLanguage()
-  const leaderColor = getTraderColor(allTraders, leader.trader_id)
   const isPositive = (leader.total_pnl ?? 0) >= 0
   const pnlPct = leader.total_pnl_pct?.toFixed(2) || '0.00'
-  const pnlValue = leader.total_pnl?.toFixed(2) || '0.00'
   const isFollowerTrader = !!(leader.followed_trader_id && leader.followed_trader_id !== '')
 
   return (

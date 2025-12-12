@@ -24,6 +24,7 @@ import { BacktestPage } from './components/BacktestPage'
 import WebhookPage from './pages/WebhookPage'
 import FollowersPage from './pages/FollowersPage'
 import StatsPage from './pages/StatsPage'
+import { StrategyStudioPage } from './pages/StrategyStudioPage'
 import type {
   SystemStatus,
   AccountInfo,
@@ -31,20 +32,8 @@ import type {
   DecisionRecord,
   Statistics,
   TraderInfo,
+  Page,
 } from './types'
-
-type Page =
-  | 'competition'
-  | 'traders'
-  | 'trader'
-  | 'followers'
-  | 'backtest'
-  | 'webhook'
-  | 'faq'
-  | 'stats'
-  | 'applications'
-  | 'login'
-  | 'register'
 
 // 获取友好的AI模型名称
 function getModelDisplayName(modelId: string): string {
@@ -533,6 +522,8 @@ function App() {
           <WebhookPage />
         ) : currentPage === 'stats' ? (
           <StatsPage />
+        ) : currentPage === 'strategy-studio' ? (
+          <StrategyStudioPage />
         ) : (
           <TraderDetailsPage
             selectedTrader={selectedTrader}
