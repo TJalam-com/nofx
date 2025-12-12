@@ -274,6 +274,37 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
+		// Strategy table
+		`CREATE TABLE IF NOT EXISTS strategies (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL DEFAULT 'default',
+			name TEXT NOT NULL,
+			description TEXT DEFAULT '',
+			system_prompt_template TEXT DEFAULT '',
+			custom_prompt TEXT DEFAULT '',
+			override_base_prompt BOOLEAN DEFAULT 0,
+			btc_eth_leverage INTEGER DEFAULT 5,
+			altcoin_leverage INTEGER DEFAULT 5,
+			trading_symbols TEXT DEFAULT '',
+			is_cross_margin BOOLEAN DEFAULT 1,
+			use_coin_pool BOOLEAN DEFAULT 0,
+			use_oi_top BOOLEAN DEFAULT 0,
+			use_tradingview BOOLEAN DEFAULT 0,
+			enable_raw_klines BOOLEAN DEFAULT 1,
+			enable_ema BOOLEAN DEFAULT 0,
+			enable_macd BOOLEAN DEFAULT 0,
+			enable_rsi BOOLEAN DEFAULT 0,
+			enable_atr BOOLEAN DEFAULT 0,
+			enable_volume BOOLEAN DEFAULT 1,
+			enable_oi BOOLEAN DEFAULT 1,
+			enable_funding BOOLEAN DEFAULT 1,
+			indicator_timeframe TEXT DEFAULT '3m',
+			quant_data_url TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+
 		// Backtest run main table
 		`CREATE TABLE IF NOT EXISTS backtest_runs (
 			run_id TEXT PRIMARY KEY,
@@ -547,6 +578,7 @@ func (d *Database) createTables() error {
 		{"traders", "indicator_timeframe", `ALTER TABLE traders ADD COLUMN indicator_timeframe TEXT DEFAULT '3m'`},
 		{"traders", "quant_data_url", `ALTER TABLE traders ADD COLUMN quant_data_url TEXT DEFAULT ''`},
 		{"traders", "show_in_competition", `ALTER TABLE traders ADD COLUMN show_in_competition BOOLEAN DEFAULT 1`},
+		{"traders", "strategy_id", `ALTER TABLE traders ADD COLUMN strategy_id TEXT`},
 	}
 
 	for _, alterQuery := range alterQueries {
@@ -1158,6 +1190,7 @@ type TraderRecord struct {
 	SystemPromptTemplate string  `json:"system_prompt_template"` // System prompt template name
 	IsCrossMargin        bool    `json:"is_cross_margin"`        // Whether cross margin mode (true=cross, false=isolated)
 	ShowInCompetition    bool    `json:"show_in_competition"`     // Whether to show in competition page
+	StrategyID           string  `json:"strategy_id"`            // Strategy ID (nullable, references strategies table)
 	// Indicator configuration
 	EnableRawKlines    bool      `json:"enable_raw_klines"`   // Raw OHLCV klines (always true, required)
 	EnableEMA          bool      `json:"enable_ema"`          // Enable EMA indicator
@@ -1171,6 +1204,36 @@ type TraderRecord struct {
 	QuantDataURL       string    `json:"quant_data_url"`      // External quant data API URL with {symbol} placeholder
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+// StrategyRecord strategy configuration (database entity)
+type StrategyRecord struct {
+	ID                   string    `json:"id"`
+	UserID               string    `json:"user_id"`
+	Name                 string    `json:"name"`
+	Description          string    `json:"description"`
+	SystemPromptTemplate string    `json:"system_prompt_template"`
+	CustomPrompt         string    `json:"custom_prompt"`
+	OverrideBasePrompt   bool      `json:"override_base_prompt"`
+	BTCETHLeverage       int       `json:"btc_eth_leverage"`
+	AltcoinLeverage      int       `json:"altcoin_leverage"`
+	TradingSymbols       string    `json:"trading_symbols"`
+	IsCrossMargin        bool      `json:"is_cross_margin"`
+	UseCoinPool          bool      `json:"use_coin_pool"`
+	UseOITop             bool      `json:"use_oi_top"`
+	UseTradingView       bool      `json:"use_tradingview"`
+	EnableRawKlines      bool      `json:"enable_raw_klines"`
+	EnableEMA            bool      `json:"enable_ema"`
+	EnableMACD           bool      `json:"enable_macd"`
+	EnableRSI            bool      `json:"enable_rsi"`
+	EnableATR            bool      `json:"enable_atr"`
+	EnableVolume         bool      `json:"enable_volume"`
+	EnableOI             bool      `json:"enable_oi"`
+	EnableFunding        bool      `json:"enable_funding"`
+	IndicatorTimeframe   string    `json:"indicator_timeframe"`
+	QuantDataURL         string    `json:"quant_data_url"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 // PromptTemplateConfig prompt template configuration
@@ -1562,6 +1625,7 @@ func (d *Database) GetAllTraders() ([]*TraderRecord, error) {
 		       COALESCE(enable_funding, 1) as enable_funding,
 		       COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
 		       COALESCE(quant_data_url, '') as quant_data_url,
+		       COALESCE(strategy_id, '') as strategy_id,
 		       created_at, updated_at
 		FROM traders ORDER BY created_at DESC
 	`)
@@ -1586,6 +1650,7 @@ func (d *Database) GetAllTraders() ([]*TraderRecord, error) {
 			&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
 			&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
 			&trader.QuantDataURL,
+			&trader.StrategyID,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
@@ -2482,6 +2547,291 @@ func (d *Database) DeletePromptTemplate(userID, id string) error {
 	return err
 }
 
+// CreateStrategy create strategy
+func (d *Database) CreateStrategy(strategy *StrategyRecord) error {
+	// Ensure enable_raw_klines is always true
+	strategy.EnableRawKlines = true
+	// Set defaults if not provided
+	if strategy.IndicatorTimeframe == "" {
+		strategy.IndicatorTimeframe = "3m"
+	}
+	_, err := d.db.Exec(`
+		INSERT INTO strategies (id, user_id, name, description, system_prompt_template, custom_prompt, override_base_prompt,
+			btc_eth_leverage, altcoin_leverage, trading_symbols, is_cross_margin,
+			use_coin_pool, use_oi_top, use_tradingview,
+			enable_raw_klines, enable_ema, enable_macd, enable_rsi, enable_atr,
+			enable_volume, enable_oi, enable_funding,
+			indicator_timeframe, quant_data_url)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, strategy.ID, strategy.UserID, strategy.Name, strategy.Description,
+		strategy.SystemPromptTemplate, strategy.CustomPrompt, strategy.OverrideBasePrompt,
+		strategy.BTCETHLeverage, strategy.AltcoinLeverage, strategy.TradingSymbols, strategy.IsCrossMargin,
+		strategy.UseCoinPool, strategy.UseOITop, strategy.UseTradingView,
+		strategy.EnableRawKlines, strategy.EnableEMA, strategy.EnableMACD, strategy.EnableRSI, strategy.EnableATR,
+		strategy.EnableVolume, strategy.EnableOI, strategy.EnableFunding,
+		strategy.IndicatorTimeframe, strategy.QuantDataURL)
+	return err
+}
+
+// GetStrategy get strategy by ID (user-scoped)
+func (d *Database) GetStrategy(strategyID, userID string) (*StrategyRecord, error) {
+	var strategy StrategyRecord
+	var createdAt, updatedAt string
+	err := d.db.QueryRow(`
+		SELECT id, user_id, name, description, system_prompt_template, custom_prompt, override_base_prompt,
+			COALESCE(btc_eth_leverage, 5) as btc_eth_leverage,
+			COALESCE(altcoin_leverage, 5) as altcoin_leverage,
+			COALESCE(trading_symbols, '') as trading_symbols,
+			COALESCE(is_cross_margin, 1) as is_cross_margin,
+			COALESCE(use_coin_pool, 0) as use_coin_pool,
+			COALESCE(use_oi_top, 0) as use_oi_top,
+			COALESCE(use_tradingview, 0) as use_tradingview,
+			COALESCE(enable_raw_klines, 1) as enable_raw_klines,
+			COALESCE(enable_ema, 0) as enable_ema,
+			COALESCE(enable_macd, 0) as enable_macd,
+			COALESCE(enable_rsi, 0) as enable_rsi,
+			COALESCE(enable_atr, 0) as enable_atr,
+			COALESCE(enable_volume, 1) as enable_volume,
+			COALESCE(enable_oi, 1) as enable_oi,
+			COALESCE(enable_funding, 1) as enable_funding,
+			COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
+			COALESCE(quant_data_url, '') as quant_data_url,
+			created_at, updated_at
+		FROM strategies
+		WHERE id = ? AND user_id = ?
+	`, strategyID, userID).Scan(
+		&strategy.ID, &strategy.UserID, &strategy.Name, &strategy.Description,
+		&strategy.SystemPromptTemplate, &strategy.CustomPrompt, &strategy.OverrideBasePrompt,
+		&strategy.BTCETHLeverage, &strategy.AltcoinLeverage, &strategy.TradingSymbols, &strategy.IsCrossMargin,
+		&strategy.UseCoinPool, &strategy.UseOITop, &strategy.UseTradingView,
+		&strategy.EnableRawKlines, &strategy.EnableEMA, &strategy.EnableMACD,
+		&strategy.EnableRSI, &strategy.EnableATR, &strategy.EnableVolume,
+		&strategy.EnableOI, &strategy.EnableFunding, &strategy.IndicatorTimeframe,
+		&strategy.QuantDataURL,
+		&createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	// Ensure enable_raw_klines is always true
+	strategy.EnableRawKlines = true
+	// Parse time string with error handling
+	if createdAt != "" {
+		if parsed, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+			strategy.CreatedAt = parsed
+		} else {
+			// Fallback: try RFC3339 format or set to current time
+			if parsed, err := time.Parse(time.RFC3339, createdAt); err == nil {
+				strategy.CreatedAt = parsed
+			} else {
+				strategy.CreatedAt = time.Now()
+			}
+		}
+	} else {
+		strategy.CreatedAt = time.Now()
+	}
+	if updatedAt != "" {
+		if parsed, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
+			strategy.UpdatedAt = parsed
+		} else {
+			// Fallback: try RFC3339 format or set to current time
+			if parsed, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+				strategy.UpdatedAt = parsed
+			} else {
+				strategy.UpdatedAt = time.Now()
+			}
+		}
+	} else {
+		strategy.UpdatedAt = time.Now()
+	}
+	return &strategy, nil
+}
+
+// GetStrategies get all strategies for a user
+func (d *Database) GetStrategies(userID string) ([]*StrategyRecord, error) {
+	rows, err := d.db.Query(`
+		SELECT id, user_id, name, description, system_prompt_template, custom_prompt, override_base_prompt,
+			COALESCE(btc_eth_leverage, 5) as btc_eth_leverage,
+			COALESCE(altcoin_leverage, 5) as altcoin_leverage,
+			COALESCE(trading_symbols, '') as trading_symbols,
+			COALESCE(is_cross_margin, 1) as is_cross_margin,
+			COALESCE(use_coin_pool, 0) as use_coin_pool,
+			COALESCE(use_oi_top, 0) as use_oi_top,
+			COALESCE(use_tradingview, 0) as use_tradingview,
+			COALESCE(enable_raw_klines, 1) as enable_raw_klines,
+			COALESCE(enable_ema, 0) as enable_ema,
+			COALESCE(enable_macd, 0) as enable_macd,
+			COALESCE(enable_rsi, 0) as enable_rsi,
+			COALESCE(enable_atr, 0) as enable_atr,
+			COALESCE(enable_volume, 1) as enable_volume,
+			COALESCE(enable_oi, 1) as enable_oi,
+			COALESCE(enable_funding, 1) as enable_funding,
+			COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
+			COALESCE(quant_data_url, '') as quant_data_url,
+			created_at, updated_at
+		FROM strategies
+		WHERE user_id = ?
+		ORDER BY updated_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var strategies []*StrategyRecord
+	for rows.Next() {
+		var strategy StrategyRecord
+		var createdAt, updatedAt string
+		err := rows.Scan(
+			&strategy.ID, &strategy.UserID, &strategy.Name, &strategy.Description,
+			&strategy.SystemPromptTemplate, &strategy.CustomPrompt, &strategy.OverrideBasePrompt,
+			&strategy.BTCETHLeverage, &strategy.AltcoinLeverage, &strategy.TradingSymbols, &strategy.IsCrossMargin,
+			&strategy.UseCoinPool, &strategy.UseOITop, &strategy.UseTradingView,
+			&strategy.EnableRawKlines, &strategy.EnableEMA, &strategy.EnableMACD,
+			&strategy.EnableRSI, &strategy.EnableATR, &strategy.EnableVolume,
+			&strategy.EnableOI, &strategy.EnableFunding, &strategy.IndicatorTimeframe,
+			&strategy.QuantDataURL,
+			&createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		// Ensure enable_raw_klines is always true
+		strategy.EnableRawKlines = true
+		// Parse time string with error handling
+		if createdAt != "" {
+			if parsed, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+				strategy.CreatedAt = parsed
+			} else {
+				// Fallback: try RFC3339 format or set to current time
+				if parsed, err := time.Parse(time.RFC3339, createdAt); err == nil {
+					strategy.CreatedAt = parsed
+				} else {
+					strategy.CreatedAt = time.Now()
+				}
+			}
+		} else {
+			strategy.CreatedAt = time.Now()
+		}
+		if updatedAt != "" {
+			if parsed, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
+				strategy.UpdatedAt = parsed
+			} else {
+				// Fallback: try RFC3339 format or set to current time
+				if parsed, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+					strategy.UpdatedAt = parsed
+				} else {
+					strategy.UpdatedAt = time.Now()
+				}
+			}
+		} else {
+			strategy.UpdatedAt = time.Now()
+		}
+		strategies = append(strategies, &strategy)
+	}
+	return strategies, nil
+}
+
+// UpdateStrategy update strategy
+func (d *Database) UpdateStrategy(strategy *StrategyRecord) error {
+	// Ensure enable_raw_klines is always true
+	strategy.EnableRawKlines = true
+	_, err := d.db.Exec(`
+		UPDATE strategies SET
+			name = ?, description = ?, system_prompt_template = ?, custom_prompt = ?, override_base_prompt = ?,
+			btc_eth_leverage = ?, altcoin_leverage = ?, trading_symbols = ?, is_cross_margin = ?,
+			use_coin_pool = ?, use_oi_top = ?, use_tradingview = ?,
+			enable_raw_klines = ?, enable_ema = ?, enable_macd = ?, enable_rsi = ?, enable_atr = ?,
+			enable_volume = ?, enable_oi = ?, enable_funding = ?,
+			indicator_timeframe = ?, quant_data_url = ?,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = ? AND user_id = ?
+	`, strategy.Name, strategy.Description,
+		strategy.SystemPromptTemplate, strategy.CustomPrompt, strategy.OverrideBasePrompt,
+		strategy.BTCETHLeverage, strategy.AltcoinLeverage, strategy.TradingSymbols, strategy.IsCrossMargin,
+		strategy.UseCoinPool, strategy.UseOITop, strategy.UseTradingView,
+		strategy.EnableRawKlines, strategy.EnableEMA, strategy.EnableMACD, strategy.EnableRSI, strategy.EnableATR,
+		strategy.EnableVolume, strategy.EnableOI, strategy.EnableFunding,
+		strategy.IndicatorTimeframe, strategy.QuantDataURL,
+		strategy.ID, strategy.UserID)
+	return err
+}
+
+// DeleteStrategy delete strategy (only if not used by any traders)
+func (d *Database) DeleteStrategy(strategyID, userID string) error {
+	// Check if strategy is used by any traders
+	traders, err := d.GetTradersUsingStrategy(strategyID)
+	if err != nil {
+		return fmt.Errorf("failed to check strategy usage: %w", err)
+	}
+	if len(traders) > 0 {
+		return fmt.Errorf("cannot delete strategy: %d trader(s) are using it", len(traders))
+	}
+	_, err = d.db.Exec(`DELETE FROM strategies WHERE id = ? AND user_id = ?`, strategyID, userID)
+	return err
+}
+
+// GetTradersUsingStrategy get all traders using a specific strategy
+func (d *Database) GetTradersUsingStrategy(strategyID string) ([]*TraderRecord, error) {
+	rows, err := d.db.Query(`
+		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running,
+		       COALESCE(btc_eth_leverage, 5) as btc_eth_leverage, COALESCE(altcoin_leverage, 5) as altcoin_leverage,
+		       COALESCE(trading_symbols, '') as trading_symbols,
+		       COALESCE(use_coin_pool, 0) as use_coin_pool, COALESCE(use_oi_top, 0) as use_oi_top,
+		       COALESCE(use_tradingview, 0) as use_tradingview,
+		       COALESCE(followed_trader_id, '') as followed_trader_id,
+		       COALESCE(custom_prompt, '') as custom_prompt, COALESCE(override_base_prompt, 0) as override_base_prompt,
+		       COALESCE(system_prompt_template, 'default') as system_prompt_template,
+		       COALESCE(is_cross_margin, 1) as is_cross_margin,
+		       COALESCE(show_in_competition, 1) as show_in_competition,
+		       COALESCE(enable_raw_klines, 1) as enable_raw_klines,
+		       COALESCE(enable_ema, 0) as enable_ema, COALESCE(enable_macd, 0) as enable_macd,
+		       COALESCE(enable_rsi, 0) as enable_rsi, COALESCE(enable_atr, 0) as enable_atr,
+		       COALESCE(enable_volume, 1) as enable_volume, COALESCE(enable_oi, 1) as enable_oi,
+		       COALESCE(enable_funding, 1) as enable_funding,
+		       COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
+		       COALESCE(quant_data_url, '') as quant_data_url,
+		       COALESCE(strategy_id, '') as strategy_id,
+		       created_at, updated_at
+		FROM traders
+		WHERE COALESCE(strategy_id, '') = ?
+	`, strategyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var traders []*TraderRecord
+	for rows.Next() {
+		var trader TraderRecord
+		var createdAt, updatedAt string
+		err := rows.Scan(
+			&trader.ID, &trader.UserID, &trader.Name, &trader.AIModelID, &trader.ExchangeID,
+			&trader.InitialBalance, &trader.ScanIntervalMinutes, &trader.IsRunning,
+			&trader.BTCETHLeverage, &trader.AltcoinLeverage, &trader.TradingSymbols,
+			&trader.UseCoinPool, &trader.UseOITop, &trader.UseTradingView,
+			&trader.FollowedTraderID,
+			&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
+			&trader.IsCrossMargin, &trader.ShowInCompetition,
+			&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
+			&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
+			&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
+			&trader.QuantDataURL, &trader.StrategyID,
+			&createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		// Ensure enable_raw_klines is always true
+		trader.EnableRawKlines = true
+		// Parse time string
+		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+		traders = append(traders, &trader)
+	}
+	return traders, nil
+}
+
 // CreateTrader create trader
 func (d *Database) CreateTrader(trader *TraderRecord) error {
 	// Ensure enable_raw_klines is always true
@@ -2518,6 +2868,7 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 		       COALESCE(enable_funding, 1) as enable_funding,
 		       COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
 		       COALESCE(quant_data_url, '') as quant_data_url,
+		       COALESCE(strategy_id, '') as strategy_id,
 		       created_at, updated_at
 		FROM traders WHERE user_id = ? ORDER BY created_at DESC
 	`, userID)
@@ -2542,6 +2893,7 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 			&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
 			&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
 			&trader.QuantDataURL,
+			&trader.StrategyID,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
@@ -2582,6 +2934,7 @@ func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord,
 		       COALESCE(enable_funding, 1) as enable_funding,
 		       COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
 		       COALESCE(quant_data_url, '') as quant_data_url,
+		       COALESCE(strategy_id, '') as strategy_id,
 		       created_at, updated_at
 		FROM traders 
 		WHERE COALESCE(followed_trader_id, '') = ?
@@ -2610,7 +2963,7 @@ func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord,
 			&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
 			&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
 			&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
-			&trader.QuantDataURL,
+			&trader.QuantDataURL, &trader.StrategyID,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
@@ -2674,7 +3027,7 @@ func (d *Database) UpdateTrader(trader *TraderRecord) error {
 			system_prompt_template = ?, is_cross_margin = ?, show_in_competition = ?,
 			enable_raw_klines = ?, enable_ema = ?, enable_macd = ?, enable_rsi = ?, enable_atr = ?,
 			enable_volume = ?, enable_oi = ?, enable_funding = ?,
-			indicator_timeframe = ?, quant_data_url = ?,
+			indicator_timeframe = ?, quant_data_url = ?, strategy_id = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND user_id = ?
 	`, trader.Name, trader.AIModelID, trader.ExchangeID,
@@ -2685,7 +3038,7 @@ func (d *Database) UpdateTrader(trader *TraderRecord) error {
 		trader.SystemPromptTemplate, trader.IsCrossMargin, trader.ShowInCompetition,
 		trader.EnableRawKlines, trader.EnableEMA, trader.EnableMACD, trader.EnableRSI, trader.EnableATR,
 		trader.EnableVolume, trader.EnableOI, trader.EnableFunding,
-		trader.IndicatorTimeframe, trader.QuantDataURL,
+		trader.IndicatorTimeframe, trader.QuantDataURL, trader.StrategyID,
 		trader.ID, trader.UserID)
 	if err != nil {
 		log.Printf("❌ DEBUG [UpdateTrader DB]: Update failed for trader %s: %v", trader.ID, err)
@@ -2751,6 +3104,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 			COALESCE(t.enable_funding, 1) as enable_funding,
 			COALESCE(t.indicator_timeframe, '3m') as indicator_timeframe,
 			COALESCE(t.quant_data_url, '') as quant_data_url,
+			COALESCE(t.strategy_id, '') as strategy_id,
 			t.created_at, t.updated_at,
 			a.id, a.user_id, a.name, a.provider, a.enabled, a.api_key,
 			COALESCE(a.custom_api_url, '') as custom_api_url,
@@ -2781,7 +3135,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 		&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
 		&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
 		&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
-		&trader.QuantDataURL,
+		&trader.QuantDataURL, &trader.StrategyID,
 		&traderCreatedAt, &traderUpdatedAt,
 		&aiModel.ID, &aiModel.UserID, &aiModel.Name, &aiModel.Provider, &aiModel.Enabled, &aiModel.APIKey,
 		&aiModel.CustomAPIURL, &aiModel.CustomModelName,

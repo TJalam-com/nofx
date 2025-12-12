@@ -24,6 +24,7 @@ const BacktestPage = lazy(() => import('../components/BacktestPage').then(m => (
 const WebhookPage = lazy(() => import('../pages/WebhookPage'))
 const TraderApplicationPage = lazy(() => import('../pages/TraderApplicationPage'))
 const AdminTraderApplicationsPage = lazy(() => import('../pages/AdminTraderApplicationsPage'))
+const StrategyStudioPage = lazy(() => import('../pages/StrategyStudioPage').then(m => ({ default: m.StrategyStudioPage })))
 
 // Loading fallback component
 function RouteLoadingFallback() {
@@ -105,6 +106,14 @@ export const router = createBrowserRouter([
           {
             path: '/traders',
             element: <AITradersPage />,
+          },
+          {
+            path: '/strategy-studio',
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <StrategyStudioPage />
+              </Suspense>
+            ),
           },
           {
             path: '/dashboard',

@@ -597,6 +597,19 @@ textarea:focus {
   box-shadow: 0 0 0 3px var(--green-glow);
 }
 
+/* Select option styling for dark theme */
+select option {
+  background: var(--navy-background);
+  color: var(--text-primary);
+  padding: 0.5rem;
+}
+
+select option:checked,
+select option:hover {
+  background: var(--navy-primary);
+  color: var(--text-primary);
+}
+
 .input::placeholder,
 input[type="text"]::placeholder,
 input[type="number"]::placeholder,

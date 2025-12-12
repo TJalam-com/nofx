@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -218,6 +220,15 @@ func (s *Server) setupRoutes() {
 			protected.POST("/user/prompt-templates", s.handleCreatePromptTemplate)
 			protected.PUT("/user/prompt-templates/:id", s.handleUpdatePromptTemplate)
 			protected.DELETE("/user/prompt-templates/:id", s.handleDeletePromptTemplate)
+
+			// Strategy management (requires authentication)
+			protected.GET("/strategies", s.handleGetStrategies)
+			protected.GET("/strategies/:id", s.handleGetStrategy)
+			protected.POST("/strategies", s.handleCreateStrategy)
+			protected.PUT("/strategies/:id", s.handleUpdateStrategy)
+			protected.DELETE("/strategies/:id", s.handleDeleteStrategy)
+			protected.POST("/strategies/import", s.handleImportStrategy)
+			protected.GET("/strategies/:id/export", s.handleExportStrategy)
 
 			// Backtest routes (non-follower users only)
 			backtestGroup := protected.Group("/backtest", s.nonFollowerMiddleware())
@@ -494,6 +505,61 @@ type CreateTraderRequest struct {
 	QuantDataURL       string `json:"quant_data_url"`      // External quant data API URL with {symbol} placeholder
 }
 
+// Strategy management related structures
+type CreateStrategyRequest struct {
+	Name                string `json:"name" binding:"required"`
+	Description         string `json:"description"`
+	SystemPromptTemplate string `json:"system_prompt_template"`
+	CustomPrompt        string `json:"custom_prompt"`
+	OverrideBasePrompt  bool   `json:"override_base_prompt"`
+	BTCETHLeverage      int    `json:"btc_eth_leverage"`
+	AltcoinLeverage     int    `json:"altcoin_leverage"`
+	TradingSymbols       string `json:"trading_symbols"`
+	IsCrossMargin       bool   `json:"is_cross_margin"`
+	UseCoinPool         bool   `json:"use_coin_pool"`
+	UseOITop            bool   `json:"use_oi_top"`
+	UseTradingView      bool   `json:"use_tradingview"`
+	EnableRawKlines     bool   `json:"enable_raw_klines"`
+	EnableEMA           bool   `json:"enable_ema"`
+	EnableMACD          bool   `json:"enable_macd"`
+	EnableRSI           bool   `json:"enable_rsi"`
+	EnableATR           bool   `json:"enable_atr"`
+	EnableVolume        bool   `json:"enable_volume"`
+	EnableOI            bool   `json:"enable_oi"`
+	EnableFunding       bool   `json:"enable_funding"`
+	IndicatorTimeframe  string `json:"indicator_timeframe"`
+	QuantDataURL        string `json:"quant_data_url"`
+}
+
+type UpdateStrategyRequest struct {
+	Name                string `json:"name" binding:"required"`
+	Description         string `json:"description"`
+	SystemPromptTemplate string `json:"system_prompt_template"`
+	CustomPrompt        string `json:"custom_prompt"`
+	OverrideBasePrompt  bool   `json:"override_base_prompt"`
+	BTCETHLeverage      int    `json:"btc_eth_leverage"`
+	AltcoinLeverage     int    `json:"altcoin_leverage"`
+	TradingSymbols       string `json:"trading_symbols"`
+	IsCrossMargin       bool   `json:"is_cross_margin"`
+	UseCoinPool         bool   `json:"use_coin_pool"`
+	UseOITop            bool   `json:"use_oi_top"`
+	UseTradingView      bool   `json:"use_tradingview"`
+	EnableRawKlines     bool   `json:"enable_raw_klines"`
+	EnableEMA           bool   `json:"enable_ema"`
+	EnableMACD          bool   `json:"enable_macd"`
+	EnableRSI           bool   `json:"enable_rsi"`
+	EnableATR           bool   `json:"enable_atr"`
+	EnableVolume        bool   `json:"enable_volume"`
+	EnableOI            bool   `json:"enable_oi"`
+	EnableFunding       bool   `json:"enable_funding"`
+	IndicatorTimeframe  string `json:"indicator_timeframe"`
+	QuantDataURL        string `json:"quant_data_url"`
+}
+
+type ImportStrategyRequest struct {
+	StrategyData map[string]interface{} `json:"strategy_data" binding:"required"`
+}
+
 type ModelConfig struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
@@ -717,6 +783,98 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 						req.UseCoinPool = trader.UseCoinPool
 						req.UseOITop = trader.UseOITop
 						req.UseTradingView = trader.UseTradingView
+
+						// Handle strategy copying
+						if trader.StrategyID != "" {
+							// Parent trader has a strategy_id, copy the strategy to follower's account
+							parentStrategy, err := s.database.GetStrategy(trader.StrategyID, trader.UserID)
+							if err == nil {
+								// Create a copy of the strategy for the follower
+								newStrategyID := fmt.Sprintf("strategy_%s_%d", userID, time.Now().UnixNano())
+								copiedStrategy := &config.StrategyRecord{
+									ID:                   newStrategyID,
+									UserID:               userID,
+									Name:                 parentStrategy.Name + " (Copy)",
+									Description:          parentStrategy.Description,
+									SystemPromptTemplate: parentStrategy.SystemPromptTemplate,
+									CustomPrompt:         parentStrategy.CustomPrompt,
+									OverrideBasePrompt:   parentStrategy.OverrideBasePrompt,
+									BTCETHLeverage:       parentStrategy.BTCETHLeverage,
+									AltcoinLeverage:      parentStrategy.AltcoinLeverage,
+									TradingSymbols:        parentStrategy.TradingSymbols,
+									IsCrossMargin:        parentStrategy.IsCrossMargin,
+									UseCoinPool:          parentStrategy.UseCoinPool,
+									UseOITop:             parentStrategy.UseOITop,
+									UseTradingView:        parentStrategy.UseTradingView,
+									EnableRawKlines:      parentStrategy.EnableRawKlines,
+									EnableEMA:            parentStrategy.EnableEMA,
+									EnableMACD:           parentStrategy.EnableMACD,
+									EnableRSI:            parentStrategy.EnableRSI,
+									EnableATR:            parentStrategy.EnableATR,
+									EnableVolume:         parentStrategy.EnableVolume,
+									EnableOI:             parentStrategy.EnableOI,
+									EnableFunding:        parentStrategy.EnableFunding,
+									IndicatorTimeframe:   parentStrategy.IndicatorTimeframe,
+									QuantDataURL:         parentStrategy.QuantDataURL,
+								}
+								if err := s.database.CreateStrategy(copiedStrategy); err == nil {
+									req.StrategyID = newStrategyID
+									log.Printf("✓ Copied strategy %s to follower account as %s", trader.StrategyID, newStrategyID)
+								} else {
+									log.Printf("⚠️ Failed to copy strategy: %v", err)
+								}
+							} else {
+								log.Printf("⚠️ Failed to get parent strategy %s: %v", trader.StrategyID, err)
+							}
+						} else {
+							// Parent trader has no strategy_id (embedded config), create strategy from parent's config
+							newStrategyID := fmt.Sprintf("strategy_%s_%d", userID, time.Now().UnixNano())
+							extractedStrategy := &config.StrategyRecord{
+								ID:                   newStrategyID,
+								UserID:               userID,
+								Name:                 trader.Name + " Strategy",
+								Description:          "Strategy extracted from trader configuration",
+								SystemPromptTemplate: trader.SystemPromptTemplate,
+								CustomPrompt:         trader.CustomPrompt,
+								OverrideBasePrompt:   trader.OverrideBasePrompt,
+								BTCETHLeverage:       trader.BTCETHLeverage,
+								AltcoinLeverage:      trader.AltcoinLeverage,
+								TradingSymbols:        trader.TradingSymbols,
+								IsCrossMargin:        trader.IsCrossMargin,
+								UseCoinPool:          trader.UseCoinPool,
+								UseOITop:             trader.UseOITop,
+								UseTradingView:        trader.UseTradingView,
+								EnableRawKlines:      trader.EnableRawKlines,
+								EnableEMA:            trader.EnableEMA,
+								EnableMACD:           trader.EnableMACD,
+								EnableRSI:            trader.EnableRSI,
+								EnableATR:            trader.EnableATR,
+								EnableVolume:         trader.EnableVolume,
+								EnableOI:             trader.EnableOI,
+								EnableFunding:        trader.EnableFunding,
+								IndicatorTimeframe:   trader.IndicatorTimeframe,
+								QuantDataURL:         trader.QuantDataURL,
+							}
+							if err := s.database.CreateStrategy(extractedStrategy); err == nil {
+								req.StrategyID = newStrategyID
+								log.Printf("✓ Created strategy from parent trader config: %s", newStrategyID)
+							} else {
+								log.Printf("⚠️ Failed to create strategy from parent config: %v", err)
+							}
+						}
+
+						// Also copy embedded fields for backward compatibility
+						req.EnableRawKlines = trader.EnableRawKlines
+						req.EnableEMA = trader.EnableEMA
+						req.EnableMACD = trader.EnableMACD
+						req.EnableRSI = trader.EnableRSI
+						req.EnableATR = trader.EnableATR
+						req.EnableVolume = trader.EnableVolume
+						req.EnableOI = trader.EnableOI
+						req.EnableFunding = trader.EnableFunding
+						req.IndicatorTimeframe = trader.IndicatorTimeframe
+						req.QuantDataURL = trader.QuantDataURL
+
 						break
 					}
 				}
@@ -931,8 +1089,57 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 		log.Printf("⚠️  WARNING: Quant data API URL missing {symbol} placeholder: %s", quantDataURL)
 	}
 
+	// Handle strategy resolution: if strategy_id is provided, load strategy and merge with request
+	if req.StrategyID != "" {
+		strategy, err := s.database.GetStrategy(req.StrategyID, userID)
+		if err == nil {
+			// Merge strategy config into request (request values take precedence)
+			if req.SystemPromptTemplate == "" {
+				req.SystemPromptTemplate = strategy.SystemPromptTemplate
+			}
+			if req.CustomPrompt == "" {
+				req.CustomPrompt = strategy.CustomPrompt
+			}
+			req.OverrideBasePrompt = strategy.OverrideBasePrompt
+			if req.BTCETHLeverage == 0 {
+				req.BTCETHLeverage = strategy.BTCETHLeverage
+			}
+			if req.AltcoinLeverage == 0 {
+				req.AltcoinLeverage = strategy.AltcoinLeverage
+			}
+			if req.TradingSymbols == "" {
+				req.TradingSymbols = strategy.TradingSymbols
+			}
+			if req.IsCrossMargin == nil {
+				isCross := strategy.IsCrossMargin
+				req.IsCrossMargin = &isCross
+			}
+			req.UseCoinPool = strategy.UseCoinPool
+			req.UseOITop = strategy.UseOITop
+			req.UseTradingView = strategy.UseTradingView
+			req.EnableRawKlines = strategy.EnableRawKlines
+			req.EnableEMA = strategy.EnableEMA
+			req.EnableMACD = strategy.EnableMACD
+			req.EnableRSI = strategy.EnableRSI
+			req.EnableATR = strategy.EnableATR
+			req.EnableVolume = strategy.EnableVolume
+			req.EnableOI = strategy.EnableOI
+			req.EnableFunding = strategy.EnableFunding
+			if req.IndicatorTimeframe == "" {
+				req.IndicatorTimeframe = strategy.IndicatorTimeframe
+			}
+			if req.QuantDataURL == "" {
+				req.QuantDataURL = strategy.QuantDataURL
+			}
+			log.Printf("✓ Merged strategy %s config into trader request", req.StrategyID)
+		} else {
+			log.Printf("⚠️ Failed to load strategy %s: %v, proceeding without strategy", req.StrategyID, err)
+			req.StrategyID = "" // Clear invalid strategy_id
+		}
+	}
+
 	// Create trader configuration (database entity)
-	log.Printf("🔧 DEBUG [CreateTrader]: Starting to create trader configuration, ID=%s, Name=%s, AIModel=%s, Exchange=%s, FollowedTraderID='%s', SystemPromptTemplate='%s'", traderID, req.Name, req.AIModelID, req.ExchangeID, req.FollowedTraderID, systemPromptTemplate)
+	log.Printf("🔧 DEBUG [CreateTrader]: Starting to create trader configuration, ID=%s, Name=%s, AIModel=%s, Exchange=%s, FollowedTraderID='%s', StrategyID='%s', SystemPromptTemplate='%s'", traderID, req.Name, req.AIModelID, req.ExchangeID, req.FollowedTraderID, req.StrategyID, systemPromptTemplate)
 	trader := &config.TraderRecord{
 		ID:                   traderID,
 		UserID:               userID,
@@ -945,13 +1152,14 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 		TradingSymbols:       req.TradingSymbols,
 		UseCoinPool:          req.UseCoinPool,
 		UseOITop:             req.UseOITop,
-		UseTradingView:       req.UseTradingView,
+		UseTradingView:        req.UseTradingView,
 		FollowedTraderID:     req.FollowedTraderID,
 		CustomPrompt:         req.CustomPrompt,
 		OverrideBasePrompt:   req.OverrideBasePrompt,
 		SystemPromptTemplate: systemPromptTemplate,
 		IsCrossMargin:        isCrossMargin,
 		ShowInCompetition:    showInCompetition,
+		StrategyID:           req.StrategyID,
 		ScanIntervalMinutes:  scanIntervalMinutes,
 		EnableRawKlines:      enableRawKlines,
 		EnableEMA:            enableEMA,
@@ -1004,6 +1212,7 @@ type UpdateTraderRequest struct {
 	Name                 string  `json:"name" binding:"required"`
 	AIModelID            string  `json:"ai_model_id" binding:"required"`
 	ExchangeID           string  `json:"exchange_id" binding:"required"`
+	StrategyID           string  `json:"strategy_id"` // Strategy ID (new version)
 	InitialBalance       float64 `json:"initial_balance"`
 	ScanIntervalMinutes  int     `json:"scan_interval_minutes"`
 	BTCETHLeverage       int     `json:"btc_eth_leverage"`
@@ -1103,6 +1312,59 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		scanIntervalMinutes = 3
 	}
 
+	// Handle strategy resolution: if strategy_id is provided, load strategy and merge with request
+	strategyID := req.StrategyID
+	if strategyID == "" {
+		strategyID = existingTrader.StrategyID // Keep existing strategy_id if not provided
+	}
+	if strategyID != "" {
+		strategy, err := s.database.GetStrategy(strategyID, userID)
+		if err == nil {
+			// Merge strategy config into request (request values take precedence)
+			if req.SystemPromptTemplate == "" {
+				req.SystemPromptTemplate = strategy.SystemPromptTemplate
+			}
+			if req.CustomPrompt == "" {
+				req.CustomPrompt = strategy.CustomPrompt
+			}
+			req.OverrideBasePrompt = strategy.OverrideBasePrompt
+			if req.BTCETHLeverage == 0 {
+				req.BTCETHLeverage = strategy.BTCETHLeverage
+			}
+			if req.AltcoinLeverage == 0 {
+				req.AltcoinLeverage = strategy.AltcoinLeverage
+			}
+			if req.TradingSymbols == "" {
+				req.TradingSymbols = strategy.TradingSymbols
+			}
+			if req.IsCrossMargin == nil {
+				isCross := strategy.IsCrossMargin
+				req.IsCrossMargin = &isCross
+			}
+			req.UseCoinPool = strategy.UseCoinPool
+			req.UseOITop = strategy.UseOITop
+			req.UseTradingView = strategy.UseTradingView
+			req.EnableRawKlines = strategy.EnableRawKlines
+			req.EnableEMA = strategy.EnableEMA
+			req.EnableMACD = strategy.EnableMACD
+			req.EnableRSI = strategy.EnableRSI
+			req.EnableATR = strategy.EnableATR
+			req.EnableVolume = strategy.EnableVolume
+			req.EnableOI = strategy.EnableOI
+			req.EnableFunding = strategy.EnableFunding
+			if req.IndicatorTimeframe == "" {
+				req.IndicatorTimeframe = strategy.IndicatorTimeframe
+			}
+			if req.QuantDataURL == "" {
+				req.QuantDataURL = strategy.QuantDataURL
+			}
+			log.Printf("✓ Merged strategy %s config into trader update request", strategyID)
+		} else {
+			log.Printf("⚠️ Failed to load strategy %s: %v, proceeding without strategy", strategyID, err)
+			strategyID = existingTrader.StrategyID // Fallback to existing strategy_id
+		}
+	}
+
 	// Set system prompt template, keep original value if empty
 	log.Printf("🔍 DEBUG [UpdateTrader]: Received system_prompt_template: '%s' (existing: '%s')", req.SystemPromptTemplate, existingTrader.SystemPromptTemplate)
 	systemPromptTemplate := req.SystemPromptTemplate
@@ -1191,6 +1453,7 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		SystemPromptTemplate: systemPromptTemplate,
 		IsCrossMargin:        isCrossMargin,
 		ShowInCompetition:    showInCompetition,
+		StrategyID:           strategyID,
 		ScanIntervalMinutes:  scanIntervalMinutes,
 		IsRunning:            existingTrader.IsRunning, // Keep original value
 		EnableRawKlines:      enableRawKlines,
@@ -2501,6 +2764,52 @@ func (s *Server) handleGetTraderConfig(c *gin.Context) {
 		return
 	}
 
+	// Resolve strategy if strategy_id exists
+	if traderConfig.StrategyID != "" {
+		strategy, err := s.database.GetStrategy(traderConfig.StrategyID, userID)
+		if err == nil {
+			// Merge strategy config into trader config (trader config takes precedence for fields that are set)
+			if traderConfig.SystemPromptTemplate == "" || traderConfig.SystemPromptTemplate == "default" {
+				traderConfig.SystemPromptTemplate = strategy.SystemPromptTemplate
+			}
+			if traderConfig.CustomPrompt == "" {
+				traderConfig.CustomPrompt = strategy.CustomPrompt
+			}
+			if !traderConfig.OverrideBasePrompt {
+				traderConfig.OverrideBasePrompt = strategy.OverrideBasePrompt
+			}
+			if traderConfig.BTCETHLeverage == 0 || traderConfig.BTCETHLeverage == 5 {
+				traderConfig.BTCETHLeverage = strategy.BTCETHLeverage
+			}
+			if traderConfig.AltcoinLeverage == 0 || traderConfig.AltcoinLeverage == 5 {
+				traderConfig.AltcoinLeverage = strategy.AltcoinLeverage
+			}
+			if traderConfig.TradingSymbols == "" {
+				traderConfig.TradingSymbols = strategy.TradingSymbols
+			}
+			traderConfig.UseCoinPool = strategy.UseCoinPool
+			traderConfig.UseOITop = strategy.UseOITop
+			traderConfig.UseTradingView = strategy.UseTradingView
+			traderConfig.EnableRawKlines = strategy.EnableRawKlines
+			traderConfig.EnableEMA = strategy.EnableEMA
+			traderConfig.EnableMACD = strategy.EnableMACD
+			traderConfig.EnableRSI = strategy.EnableRSI
+			traderConfig.EnableATR = strategy.EnableATR
+			traderConfig.EnableVolume = strategy.EnableVolume
+			traderConfig.EnableOI = strategy.EnableOI
+			traderConfig.EnableFunding = strategy.EnableFunding
+			if traderConfig.IndicatorTimeframe == "" || traderConfig.IndicatorTimeframe == "3m" {
+				traderConfig.IndicatorTimeframe = strategy.IndicatorTimeframe
+			}
+			if traderConfig.QuantDataURL == "" {
+				traderConfig.QuantDataURL = strategy.QuantDataURL
+			}
+			log.Printf("✓ Resolved strategy %s config for trader %s", traderConfig.StrategyID, traderID)
+		} else {
+			log.Printf("⚠️ Failed to resolve strategy %s for trader %s: %v", traderConfig.StrategyID, traderID, err)
+		}
+	}
+
 	// Get real-time running status
 	isRunning := traderConfig.IsRunning
 	if at, err := s.traderManager.GetTrader(traderID); err == nil {
@@ -2537,10 +2846,22 @@ func (s *Server) handleGetTraderConfig(c *gin.Context) {
 		"use_oi_top":             traderConfig.UseOITop,
 		"use_tradingview":        traderConfig.UseTradingView,
 		"followed_trader_id":     traderConfig.FollowedTraderID,
+		"strategy_id":            traderConfig.StrategyID,
 		"is_running":             isRunning,
+		// Indicator configuration
+		"enable_raw_klines":  traderConfig.EnableRawKlines,
+		"enable_ema":        traderConfig.EnableEMA,
+		"enable_macd":       traderConfig.EnableMACD,
+		"enable_rsi":        traderConfig.EnableRSI,
+		"enable_atr":        traderConfig.EnableATR,
+		"enable_volume":     traderConfig.EnableVolume,
+		"enable_oi":          traderConfig.EnableOI,
+		"enable_funding":     traderConfig.EnableFunding,
+		"indicator_timeframe": traderConfig.IndicatorTimeframe,
+		"quant_data_url":     traderConfig.QuantDataURL,
 	}
 
-	log.Printf("🔍 DEBUG [handleGetTraderConfig]: Returning trader config - trader_id: %s, system_prompt_template: '%s' (original: '%s')", traderConfig.ID, systemPromptTemplate, traderConfig.SystemPromptTemplate)
+	log.Printf("🔍 DEBUG [handleGetTraderConfig]: Returning trader config - trader_id: %s, strategy_id: '%s', system_prompt_template: '%s' (original: '%s')", traderConfig.ID, traderConfig.StrategyID, systemPromptTemplate, traderConfig.SystemPromptTemplate)
 
 	c.JSON(http.StatusOK, result)
 }
@@ -3784,6 +4105,289 @@ func (s *Server) handleGetDefaultURLs(c *gin.Context) {
 		"quant_data_url": "http://nofxaios.com:30006/api/coin/{symbol}?include=netflow,oi,price",
 	}
 	c.JSON(http.StatusOK, defaultURLs)
+}
+
+// handleGetStrategies get all strategies for the current user
+func (s *Server) handleGetStrategies(c *gin.Context) {
+	userID := c.GetString("user_id")
+	strategies, err := s.database.GetStrategies(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get strategies: %v", err)})
+		return
+	}
+	c.JSON(http.StatusOK, strategies)
+}
+
+// handleGetStrategy get strategy by ID
+func (s *Server) handleGetStrategy(c *gin.Context) {
+	userID := c.GetString("user_id")
+	strategyID := c.Param("id")
+	strategy, err := s.database.GetStrategy(strategyID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Strategy not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get strategy: %v", err)})
+		return
+	}
+	c.JSON(http.StatusOK, strategy)
+}
+
+// handleCreateStrategy create new strategy
+func (s *Server) handleCreateStrategy(c *gin.Context) {
+	userID := c.GetString("user_id")
+	var req CreateStrategyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Generate strategy ID
+	strategyID := fmt.Sprintf("strategy_%s_%d", userID, time.Now().UnixNano())
+
+	// Set defaults
+	if req.IndicatorTimeframe == "" {
+		req.IndicatorTimeframe = "3m"
+	}
+	if req.BTCETHLeverage == 0 {
+		req.BTCETHLeverage = 5
+	}
+	if req.AltcoinLeverage == 0 {
+		req.AltcoinLeverage = 3
+	}
+
+	strategy := &config.StrategyRecord{
+		ID:                   strategyID,
+		UserID:               userID,
+		Name:                 req.Name,
+		Description:          req.Description,
+		SystemPromptTemplate: req.SystemPromptTemplate,
+		CustomPrompt:         req.CustomPrompt,
+		OverrideBasePrompt:   req.OverrideBasePrompt,
+		BTCETHLeverage:       req.BTCETHLeverage,
+		AltcoinLeverage:      req.AltcoinLeverage,
+		TradingSymbols:        req.TradingSymbols,
+		IsCrossMargin:        req.IsCrossMargin,
+		UseCoinPool:          req.UseCoinPool,
+		UseOITop:             req.UseOITop,
+		UseTradingView:       req.UseTradingView,
+		EnableRawKlines:      req.EnableRawKlines,
+		EnableEMA:            req.EnableEMA,
+		EnableMACD:           req.EnableMACD,
+		EnableRSI:            req.EnableRSI,
+		EnableATR:            req.EnableATR,
+		EnableVolume:         req.EnableVolume,
+		EnableOI:             req.EnableOI,
+		EnableFunding:        req.EnableFunding,
+		IndicatorTimeframe:   req.IndicatorTimeframe,
+		QuantDataURL:         req.QuantDataURL,
+	}
+
+	err := s.database.CreateStrategy(strategy)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create strategy: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusCreated, strategy)
+}
+
+// handleUpdateStrategy update strategy
+func (s *Server) handleUpdateStrategy(c *gin.Context) {
+	userID := c.GetString("user_id")
+	strategyID := c.Param("id")
+	var req UpdateStrategyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get existing strategy to ensure it exists and belongs to user
+	existingStrategy, err := s.database.GetStrategy(strategyID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Strategy not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get strategy: %v", err)})
+		return
+	}
+
+	// Update fields
+	existingStrategy.Name = req.Name
+	existingStrategy.Description = req.Description
+	existingStrategy.SystemPromptTemplate = req.SystemPromptTemplate
+	existingStrategy.CustomPrompt = req.CustomPrompt
+	existingStrategy.OverrideBasePrompt = req.OverrideBasePrompt
+	existingStrategy.BTCETHLeverage = req.BTCETHLeverage
+	existingStrategy.AltcoinLeverage = req.AltcoinLeverage
+	existingStrategy.TradingSymbols = req.TradingSymbols
+	existingStrategy.IsCrossMargin = req.IsCrossMargin
+	existingStrategy.UseCoinPool = req.UseCoinPool
+	existingStrategy.UseOITop = req.UseOITop
+	existingStrategy.UseTradingView = req.UseTradingView
+	existingStrategy.EnableRawKlines = req.EnableRawKlines
+	existingStrategy.EnableEMA = req.EnableEMA
+	existingStrategy.EnableMACD = req.EnableMACD
+	existingStrategy.EnableRSI = req.EnableRSI
+	existingStrategy.EnableATR = req.EnableATR
+	existingStrategy.EnableVolume = req.EnableVolume
+	existingStrategy.EnableOI = req.EnableOI
+	existingStrategy.EnableFunding = req.EnableFunding
+	existingStrategy.IndicatorTimeframe = req.IndicatorTimeframe
+	existingStrategy.QuantDataURL = req.QuantDataURL
+
+	err = s.database.UpdateStrategy(existingStrategy)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update strategy: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, existingStrategy)
+}
+
+// handleDeleteStrategy delete strategy
+func (s *Server) handleDeleteStrategy(c *gin.Context) {
+	userID := c.GetString("user_id")
+	strategyID := c.Param("id")
+	err := s.database.DeleteStrategy(strategyID, userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "cannot delete strategy") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete strategy: %v", err)})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Strategy deleted successfully"})
+}
+
+// handleImportStrategy import strategy from JSON
+func (s *Server) handleImportStrategy(c *gin.Context) {
+	userID := c.GetString("user_id")
+	var req ImportStrategyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Extract strategy data from JSON
+	strategyData := req.StrategyData
+	name, ok := strategyData["name"].(string)
+	if !ok || name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Strategy name is required"})
+		return
+	}
+
+	// Generate new strategy ID
+	strategyID := fmt.Sprintf("strategy_%s_%d", userID, time.Now().UnixNano())
+
+	// Create strategy from imported data
+	strategy := &config.StrategyRecord{
+		ID:                   strategyID,
+		UserID:               userID,
+		Name:                 name,
+		Description:          getStringFromMap(strategyData, "description"),
+		SystemPromptTemplate: getStringFromMap(strategyData, "system_prompt_template"),
+		CustomPrompt:         getStringFromMap(strategyData, "custom_prompt"),
+		OverrideBasePrompt:   getBoolFromMap(strategyData, "override_base_prompt"),
+		BTCETHLeverage:       getIntFromMap(strategyData, "btc_eth_leverage", 5),
+		AltcoinLeverage:      getIntFromMap(strategyData, "altcoin_leverage", 3),
+		TradingSymbols:        getStringFromMap(strategyData, "trading_symbols"),
+		IsCrossMargin:        getBoolFromMap(strategyData, "is_cross_margin"),
+		UseCoinPool:          getBoolFromMap(strategyData, "use_coin_pool"),
+		UseOITop:             getBoolFromMap(strategyData, "use_oi_top"),
+		UseTradingView:       getBoolFromMap(strategyData, "use_tradingview"),
+		EnableRawKlines:      getBoolFromMap(strategyData, "enable_raw_klines"),
+		EnableEMA:            getBoolFromMap(strategyData, "enable_ema"),
+		EnableMACD:           getBoolFromMap(strategyData, "enable_macd"),
+		EnableRSI:            getBoolFromMap(strategyData, "enable_rsi"),
+		EnableATR:            getBoolFromMap(strategyData, "enable_atr"),
+		EnableVolume:         getBoolFromMap(strategyData, "enable_volume"),
+		EnableOI:             getBoolFromMap(strategyData, "enable_oi"),
+		EnableFunding:        getBoolFromMap(strategyData, "enable_funding"),
+		IndicatorTimeframe:   getStringFromMap(strategyData, "indicator_timeframe"),
+		QuantDataURL:         getStringFromMap(strategyData, "quant_data_url"),
+	}
+
+	// Set defaults
+	if strategy.IndicatorTimeframe == "" {
+		strategy.IndicatorTimeframe = "3m"
+	}
+
+	err := s.database.CreateStrategy(strategy)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to import strategy: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusCreated, strategy)
+}
+
+// handleExportStrategy export strategy as JSON
+func (s *Server) handleExportStrategy(c *gin.Context) {
+	userID := c.GetString("user_id")
+	strategyID := c.Param("id")
+	strategy, err := s.database.GetStrategy(strategyID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Strategy not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get strategy: %v", err)})
+		return
+	}
+
+	// Convert to map for JSON export (exclude user_id and timestamps for cleaner export)
+	exportData := map[string]interface{}{
+		"name":                  strategy.Name,
+		"description":           strategy.Description,
+		"system_prompt_template": strategy.SystemPromptTemplate,
+		"custom_prompt":         strategy.CustomPrompt,
+		"override_base_prompt":  strategy.OverrideBasePrompt,
+		"btc_eth_leverage":      strategy.BTCETHLeverage,
+		"altcoin_leverage":      strategy.AltcoinLeverage,
+		"trading_symbols":       strategy.TradingSymbols,
+		"is_cross_margin":       strategy.IsCrossMargin,
+		"use_coin_pool":         strategy.UseCoinPool,
+		"use_oi_top":            strategy.UseOITop,
+		"use_tradingview":       strategy.UseTradingView,
+		"enable_raw_klines":      strategy.EnableRawKlines,
+		"enable_ema":            strategy.EnableEMA,
+		"enable_macd":           strategy.EnableMACD,
+		"enable_rsi":            strategy.EnableRSI,
+		"enable_atr":            strategy.EnableATR,
+		"enable_volume":         strategy.EnableVolume,
+		"enable_oi":             strategy.EnableOI,
+		"enable_funding":        strategy.EnableFunding,
+		"indicator_timeframe":   strategy.IndicatorTimeframe,
+		"quant_data_url":        strategy.QuantDataURL,
+	}
+
+	c.JSON(http.StatusOK, exportData)
+}
+
+// Helper functions for import
+func getStringFromMap(m map[string]interface{}, key string) string {
+	if val, ok := m[key].(string); ok {
+		return val
+	}
+	return ""
+}
+
+func getBoolFromMap(m map[string]interface{}, key string) bool {
+	if val, ok := m[key].(bool); ok {
+		return val
+	}
+	return false
+}
+
+func getIntFromMap(m map[string]interface{}, key string, defaultValue int) int {
+	if val, ok := m[key].(float64); ok {
+		return int(val)
+	}
+	return defaultValue
 }
 
 // Start start server

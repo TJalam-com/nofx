@@ -18,17 +18,38 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { SEOComponent } = useSEO()
 
   // 根据路径自动判断当前页面
-  const getCurrentPage = (): 'competition' | 'traders' | 'trader' | 'followers' | 'faq' | 'stats' | 'webhook' | 'applications' => {
-    if (location.pathname === '/faq') return 'faq'
-    if (location.pathname === '/traders') return 'traders'
-    if (location.pathname === '/dashboard') return 'trader'
-    if (location.pathname === '/followers') return 'followers'
-    if (location.pathname === '/stats') return 'stats'
-    if (location.pathname === '/webhook') return 'webhook'
-    if (location.pathname === '/admin/trader-applications') return 'applications'
-    if (location.pathname === '/competition') return 'competition'
+  const getCurrentPage = (): 'competition' | 'traders' | 'trader' | 'followers' | 'faq' | 'stats' | 'webhook' | 'applications' | 'strategy-studio' => {
+    if (location.pathname === '/faq') {
+      return 'faq'
+    }
+    if (location.pathname === '/traders') {
+      return 'traders'
+    }
+    if (location.pathname === '/dashboard') {
+      return 'trader'
+    }
+    if (location.pathname === '/followers') {
+      return 'followers'
+    }
+    if (location.pathname === '/stats') {
+      return 'stats'
+    }
+    if (location.pathname === '/webhook') {
+      return 'webhook'
+    }
+    if (location.pathname === '/admin/trader-applications') {
+      return 'applications'
+    }
+    if (location.pathname === '/strategy-studio') {
+      return 'strategy-studio'
+    }
+    if (location.pathname === '/competition') {
+      return 'competition'
+    }
     return 'competition' // 默认
   }
+
+  const currentPage = getCurrentPage()
 
   return (
     <>
@@ -39,7 +60,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       >
       <HeaderBar
         isLoggedIn={!!user}
-        currentPage={getCurrentPage()}
+        currentPage={currentPage}
         language={language}
         user={user}
         onLogout={logout}

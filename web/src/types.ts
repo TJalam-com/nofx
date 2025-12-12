@@ -147,6 +147,7 @@ export interface CreateTraderRequest {
   name: string
   ai_model_id: string
   exchange_id: string
+  strategy_id?: string // Strategy ID (new version)
   initial_balance?: number // Optional: auto-fetched on create, manually updatable on edit
   scan_interval_minutes?: number
   btc_eth_leverage?: number
@@ -231,6 +232,7 @@ export interface TraderConfigData {
   trader_name: string
   ai_model: string
   exchange_id: string
+  strategy_id?: string // Strategy ID (new version)
   btc_eth_leverage: number
   altcoin_leverage: number
   trading_symbols: string
@@ -516,4 +518,84 @@ export interface CreatePromptTemplateRequest {
 export interface UpdatePromptTemplateRequest {
   name?: string;
   content?: string;
+}
+
+// Strategy types
+export interface Strategy {
+  id: string
+  user_id: string
+  name: string
+  description: string
+  system_prompt_template: string
+  custom_prompt: string
+  override_base_prompt: boolean
+  btc_eth_leverage: number
+  altcoin_leverage: number
+  trading_symbols: string
+  is_cross_margin: boolean
+  use_coin_pool: boolean
+  use_oi_top: boolean
+  use_tradingview: boolean
+  enable_raw_klines: boolean
+  enable_ema: boolean
+  enable_macd: boolean
+  enable_rsi: boolean
+  enable_atr: boolean
+  enable_volume: boolean
+  enable_oi: boolean
+  enable_funding: boolean
+  indicator_timeframe: string
+  quant_data_url: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateStrategyRequest {
+  name: string
+  description?: string
+  system_prompt_template?: string
+  custom_prompt?: string
+  override_base_prompt?: boolean
+  btc_eth_leverage?: number
+  altcoin_leverage?: number
+  trading_symbols?: string
+  is_cross_margin?: boolean
+  use_coin_pool?: boolean
+  use_oi_top?: boolean
+  use_tradingview?: boolean
+  enable_raw_klines?: boolean
+  enable_ema?: boolean
+  enable_macd?: boolean
+  enable_rsi?: boolean
+  enable_atr?: boolean
+  enable_volume?: boolean
+  enable_oi?: boolean
+  enable_funding?: boolean
+  indicator_timeframe?: string
+  quant_data_url?: string
+}
+
+export interface UpdateStrategyRequest {
+  name: string
+  description?: string
+  system_prompt_template?: string
+  custom_prompt?: string
+  override_base_prompt?: boolean
+  btc_eth_leverage?: number
+  altcoin_leverage?: number
+  trading_symbols?: string
+  is_cross_margin?: boolean
+  use_coin_pool?: boolean
+  use_oi_top?: boolean
+  use_tradingview?: boolean
+  enable_raw_klines?: boolean
+  enable_ema?: boolean
+  enable_macd?: boolean
+  enable_rsi?: boolean
+  enable_atr?: boolean
+  enable_volume?: boolean
+  enable_oi?: boolean
+  enable_funding?: boolean
+  indicator_timeframe?: string
+  quant_data_url?: string
 }

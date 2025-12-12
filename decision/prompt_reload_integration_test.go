@@ -108,7 +108,7 @@ func TestPromptReloadWithCustomPrompt(t *testing.T) {
 
 	// Test 1: Base template + custom prompt (no override)
 	customPrompt := "Personalized rule: only trade BTC"
-	result := buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, false, "base", "")
+	result := buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, false, "base", "", PromptTypeStandard)
 	if !strings.Contains(result, baseContent) {
 		t.Errorf("Does not contain base template content")
 	}
@@ -117,7 +117,7 @@ func TestPromptReloadWithCustomPrompt(t *testing.T) {
 	}
 
 	// Test 2: Override base prompt
-	result = buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, true, "base", "")
+	result = buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, true, "base", "", PromptTypeStandard)
 	if strings.Contains(result, baseContent) {
 		t.Errorf("Override mode still contains base template content")
 	}
@@ -135,7 +135,7 @@ func TestPromptReloadWithCustomPrompt(t *testing.T) {
 		t.Fatalf("Failed to reload: %v", err)
 	}
 
-	result = buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, false, "base", "")
+	result = buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, false, "base", "", PromptTypeStandard)
 	if !strings.Contains(result, updatedBase) {
 		t.Errorf("After reload, does not contain updated base template content")
 	}

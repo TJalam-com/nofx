@@ -245,6 +245,17 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		TradingCoins:          tradingCoins,
 		SystemPromptTemplate:  traderCfg.SystemPromptTemplate, // System prompt template
 		UseTradingView:        traderCfg.UseTradingView,       // TradingView signal source
+
+		// Indicator configuration
+		EnableRawKlines:    traderCfg.EnableRawKlines,    // Raw OHLCV klines
+		EnableEMA:          traderCfg.EnableEMA,          // Enable EMA indicator
+		EnableMACD:         traderCfg.EnableMACD,         // Enable MACD indicator
+		EnableRSI:          traderCfg.EnableRSI,          // Enable RSI indicator
+		EnableATR:          traderCfg.EnableATR,          // Enable ATR indicator
+		EnableVolume:       traderCfg.EnableVolume,       // Enable volume data
+		EnableOI:           traderCfg.EnableOI,           // Enable open interest data
+		EnableFunding:      traderCfg.EnableFunding,      // Enable funding rate data
+		IndicatorTimeframe: traderCfg.IndicatorTimeframe, // Timeframe for indicators
 	}
 
 	// Set API keys based on exchange type
@@ -371,6 +382,17 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		TradingCoins:          tradingCoins,
 		SystemPromptTemplate:  traderCfg.SystemPromptTemplate, // System prompt template
 		UseTradingView:        traderCfg.UseTradingView,       // TradingView signal source
+
+		// Indicator configuration
+		EnableRawKlines:    traderCfg.EnableRawKlines,    // Raw OHLCV klines
+		EnableEMA:          traderCfg.EnableEMA,          // Enable EMA indicator
+		EnableMACD:         traderCfg.EnableMACD,         // Enable MACD indicator
+		EnableRSI:          traderCfg.EnableRSI,          // Enable RSI indicator
+		EnableATR:          traderCfg.EnableATR,          // Enable ATR indicator
+		EnableVolume:       traderCfg.EnableVolume,       // Enable volume data
+		EnableOI:           traderCfg.EnableOI,           // Enable open interest data
+		EnableFunding:      traderCfg.EnableFunding,      // Enable funding rate data
+		IndicatorTimeframe: traderCfg.IndicatorTimeframe, // Timeframe for indicators
 	}
 
 	// Set API keys based on exchange type

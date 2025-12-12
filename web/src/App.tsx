@@ -76,6 +76,7 @@ function App() {
     if (path === '/backtest' || hash === 'backtest') return 'backtest'
     if (path === '/webhook' || hash === 'webhook') return 'webhook'
     if (path === '/stats' || hash === 'stats') return 'stats'
+    if (path === '/strategy-studio' || hash === 'strategy-studio') return 'strategy-studio'
     if (path === '/dashboard' || hash === 'trader' || hash === 'details')
       return 'trader'
     return 'competition' // 默认为竞赛页面
@@ -127,6 +128,8 @@ function App() {
         setCurrentPage('webhook')
       } else if (path === '/stats' || hash === 'stats') {
         setCurrentPage('stats')
+      } else if (path === '/strategy-studio' || hash === 'strategy-studio') {
+        setCurrentPage('strategy-studio')
       } else if (
         path === '/dashboard' ||
         hash === 'trader' ||
@@ -467,6 +470,10 @@ function App() {
             window.history.pushState({}, '', '/stats')
             setRoute('/stats')
             setCurrentPage('stats')
+          } else if (page === 'strategy-studio') {
+            window.history.pushState({}, '', '/strategy-studio')
+            setRoute('/strategy-studio')
+            setCurrentPage('strategy-studio')
           }
         }}
       />

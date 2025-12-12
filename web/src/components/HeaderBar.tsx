@@ -17,6 +17,7 @@ type Page =
   | 'faq'
   | 'stats'
   | 'applications'
+  | 'strategy-studio'
   | 'login'
   | 'register'
 
@@ -175,6 +176,47 @@ export default function HeaderBar({
                   />
 
                   {t('configNav', language)}
+                </button>
+
+                <button
+                  key="strategy-studio-tab"
+                  onClick={() => {
+                    if (onPageChange) {
+                      onPageChange('strategy-studio')
+                    }
+                    navigate('/strategy-studio')
+                  }}
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
+                  style={{
+                    color:
+                      currentPage === 'strategy-studio'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    position: 'relative',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== 'strategy-studio') {
+                      e.currentTarget.style.color = 'var(--brand-yellow)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== 'strategy-studio') {
+                      e.currentTarget.style.color = 'var(--brand-light-gray)'
+                    }
+                  }}
+                >
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(0, 51, 102, 0.3)',
+                      zIndex: -1,
+                      opacity: currentPage === 'strategy-studio' ? 1 : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  {language === 'zh' ? '策略' : 'Strategy'}
                 </button>
 
                 <button
@@ -856,6 +898,39 @@ export default function HeaderBar({
                 />
 
                 {t('configNav', language)}
+              </button>
+              <button
+                key="mobile-strategy-studio-tab"
+                onClick={() => {
+                  if (onPageChange) {
+                    onPageChange('strategy-studio')
+                  }
+                  navigate('/strategy-studio')
+                  setMobileMenuOpen(false)
+                }}
+                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500 hover:text-green-500"
+                style={{
+                  color:
+                    currentPage === 'strategy-studio'
+                      ? 'var(--brand-yellow)'
+                      : 'var(--brand-light-gray)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  position: 'relative',
+                  width: '100%',
+                  textAlign: 'left',
+                }}
+              >
+                <span
+                  className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                  style={{
+                    background: 'rgba(0, 51, 102, 0.3)',
+                    zIndex: -1,
+                    opacity: currentPage === 'strategy-studio' ? 1 : 0,
+                    pointerEvents: 'none',
+                  }}
+                />
+                {language === 'zh' ? '策略' : 'Strategy'}
               </button>
               <button
                 key="mobile-trader-tab"

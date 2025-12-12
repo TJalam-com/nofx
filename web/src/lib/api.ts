@@ -29,6 +29,9 @@ import type {
   UserFollowersResponse,
   TraderApplication,
   CreateTraderApplicationRequest,
+  Strategy,
+  CreateStrategyRequest,
+  UpdateStrategyRequest,
 } from '../types'
 import { CryptoService } from './crypto'
 import { httpClient } from './httpClient'
@@ -261,6 +264,52 @@ export const api = {
       quant_data_url: string
     }>(`${API_BASE}/config/default-urls`)
     if (!result.success) throw new Error('获取默认URL配置失败')
+    return result.data!
+  },
+
+  // Strategy management
+  async getStrategies(): Promise<Strategy[]> {
+    const result = await httpClient.get<Strategy[]>(`${API_BASE}/strategies`)
+    if (!result.success) throw new Error('获取策略列表失败')
+    return result.data!
+  },
+
+  async getStrategy(id: string): Promise<Strategy> {
+    const result = await httpClient.get<Strategy>(`${API_BASE}/strategies/${id}`)
+    if (!result.success) throw new Error('获取策略失败')
+    return result.data!
+  },
+
+  async createStrategy(data: CreateStrategyRequest): Promise<Strategy> {
+    const result = await httpClient.post<Strategy>(`${API_BASE}/strategies`, data)
+    if (!result.success) throw new Error('创建策略失败')
+    return result.data!
+  },
+
+  async updateStrategy(id: string, data: UpdateStrategyRequest): Promise<Strategy> {
+    const result = await httpClient.put<Strategy>(`${API_BASE}/strategies/${id}`, data)
+    if (!result.success) throw new Error('更新策略失败')
+    return result.data!
+  },
+
+  async deleteStrategy(id: string): Promise<void> {
+    const result = await httpClient.delete(`${API_BASE}/strategies/${id}`)
+    if (!result.success) throw new Error('删除策略失败')
+  },
+
+  async exportStrategy(id: string): Promise<Blob> {
+    const res = await fetch(`${API_BASE}/strategies/${id}/export`, {
+      headers: getAuthHeaders(),
+    })
+    if (!res.ok) throw new Error('导出策略失败')
+    return await res.blob()
+  },
+
+  async importStrategy(strategyData: Record<string, any>): Promise<Strategy> {
+    const result = await httpClient.post<Strategy>(`${API_BASE}/strategies/import`, {
+      strategy_data: strategyData,
+    })
+    if (!result.success) throw new Error('导入策略失败')
     return result.data!
   },
 

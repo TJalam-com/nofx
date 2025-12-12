@@ -26,7 +26,98 @@ var (
 	// New: XML tag extraction (supports any characters in reasoning chain)
 	reReasoningTag = regexp.MustCompile(`(?s)<reasoning>(.*?)</reasoning>`)
 	reDecisionTag  = regexp.MustCompile(`(?s)<decision>(.*?)</decision>`)
+
+	// Enhanced JSON parsing for inconsistent AI outputs
+	reJSONCodeBlock  = regexp.MustCompile(`(?is)\x60\x60\x60(?:json)?\s*(\{.*?\})\s*\x60\x60\x60|\x60\x60\x60json\s*(\{.*?\})\s*\x60\x60\x60|\x60\x60\x60json\s*(\[.*?\])\s*\x60\x60\x60|\x60\x60\x60(?:json)?\s*(\[.*?\])\s*\x60\x60\x60`)
+	reJSONObject     = regexp.MustCompile(`(?s)\{[^{}]*"symbol"[^}]*\}`)
+	reJSONArrayAlt   = regexp.MustCompile(`(?s)\[\s*\{[^{}]*(?:"symbol"[^{}]*|[^{}]*"action"[^{}]*|[^{}]*"signal_decision"[^{}]*)+[^{}]*\}\s*\]`)
+	reSignalDecision = regexp.MustCompile(`(?s)"signal_decision"\s*:\s*"([^"]+)"`)
 )
+
+/*
+JSON Response Format Documentation for AI Models
+
+The system supports multiple JSON response formats for different trading scenarios.
+AI models should use the appropriate format based on the prompt instructions.
+
+1. STANDARD TRADING DECISIONS (Regular autonomous trading)
+   Required tags: <reasoning> and <decision>
+   Format:
+   <reasoning>
+   Your step-by-step analysis and reasoning...
+   </reasoning>
+
+   <decision>
+   [
+     {
+       "symbol": "BTCUSDT",
+       "action": "open_long",
+       "leverage": 5,
+       "position_size_usd": 2200,
+       "stop_loss": 95000,
+       "take_profit": 105000,
+       "confidence": 85,
+       "risk_usd": 300,
+       "reasoning": "Strong bullish signal with support at 95000"
+     }
+   ]
+   </decision>
+
+2. TRADINGVIEW SIGNAL DECISIONS (Webhook-based trading)
+   Required tags: <reasoning> and <decision>
+   Format:
+   <reasoning>
+   Analysis of the TradingView signal...
+   </reasoning>
+
+   <decision>
+   {
+     "symbol": "SOLUSDT",
+     "action": "open_short",
+     "signal_decision": "accept",
+     "tradingview_signal_id": "alert_123",
+     "leverage": 3,
+     "position_size_usd": 1500,
+     "stop_loss": 130.00,
+     "take_profit": 120.00,
+     "reasoning": "Signal parameters meet risk criteria"
+   }
+   </decision>
+
+   Alternative for rejection:
+   <decision>
+   {
+     "symbol": "SOLUSDT",
+     "signal_decision": "reject",
+     "tradingview_signal_id": "alert_123",
+     "reasoning": "Signal parameters outside risk tolerance"
+   }
+   </decision>
+
+3. FLEXIBLE JSON FORMATS (Auto-detected)
+   The system can parse JSON in multiple formats:
+   - Standard tagged format: <decision>[{"symbol": "..."}]</decision>
+   - Code blocks: ```json [{"symbol": "..."}] ```
+   - Raw JSON arrays: [{"symbol": "..."}]
+   - Single objects: {"symbol": "...", "action": "..."}
+
+4. COMMON AI MISTAKES AND FIXES
+   - Use straight quotes (") not smart quotes (", ")
+   - Use standard brackets [] {} not full-width ［］｛｝
+   - Use standard colon (:) not full-width (：)
+   - Remove thousands separators: 50000 not 50,000
+   - Remove range symbols: 100 not 95~100
+   - Ensure all strings are quoted
+   - Add missing commas between fields
+
+5. FALLBACK BEHAVIOR
+   If no valid JSON is found, the system enters "safe wait mode" and generates:
+   {
+     "symbol": "ALL",
+     "action": "wait",
+     "reasoning": "AI did not output structured JSON decision..."
+   }
+*/
 
 // PositionInfo Position information
 type PositionInfo struct {
@@ -85,20 +176,20 @@ type CompletedTrade struct {
 
 // Context Trading context (complete information passed to AI)
 type Context struct {
-	CurrentTime      string                             `json:"current_time"`
-	RuntimeMinutes   int                                `json:"runtime_minutes"`
-	CallCount        int                                `json:"call_count"`
-	Account          AccountInfo                        `json:"account"`
-	Positions        []PositionInfo                     `json:"positions"`
-	CompletedTrades  []CompletedTrade                   `json:"completed_trades"`
-	CandidateCoins   []CandidateCoin                    `json:"candidate_coins"`
-	PromptVariant    string                             `json:"prompt_variant,omitempty"`
-	MarketDataMap    map[string]*market.Data            `json:"-"` // Not serialized, but used internally
-	MultiTFMarket    map[string]map[string]*market.Data `json:"-"`
-	OITopDataMap     map[string]*OITopData              `json:"-"` // OI Top data mapping
-	Performance      interface{}                        `json:"-"` // Historical performance analysis (logger.PerformanceAnalysis)
-	BTCETHLeverage   int                                `json:"-"` // BTC/ETH leverage multiplier (read from config)
-	AltcoinLeverage  int                                `json:"-"` // Altcoin leverage multiplier (read from config)
+	CurrentTime     string                             `json:"current_time"`
+	RuntimeMinutes  int                                `json:"runtime_minutes"`
+	CallCount       int                                `json:"call_count"`
+	Account         AccountInfo                        `json:"account"`
+	Positions       []PositionInfo                     `json:"positions"`
+	CompletedTrades []CompletedTrade                   `json:"completed_trades"`
+	CandidateCoins  []CandidateCoin                    `json:"candidate_coins"`
+	PromptVariant   string                             `json:"prompt_variant,omitempty"`
+	MarketDataMap   map[string]*market.Data            `json:"-"` // Not serialized, but used internally
+	MultiTFMarket   map[string]map[string]*market.Data `json:"-"`
+	OITopDataMap    map[string]*OITopData              `json:"-"` // OI Top data mapping
+	Performance     interface{}                        `json:"-"` // Historical performance analysis (logger.PerformanceAnalysis)
+	BTCETHLeverage  int                                `json:"-"` // BTC/ETH leverage multiplier (read from config)
+	AltcoinLeverage int                                `json:"-"` // Altcoin leverage multiplier (read from config)
 }
 
 // Decision AI trading decision
@@ -125,9 +216,9 @@ type Decision struct {
 	// TradingView signal related fields
 	TradingViewSignalID string `json:"tradingview_signal_id,omitempty"` // TradingView alert ID
 	SignalDecision      string `json:"signal_decision,omitempty"`       // "accept", "reject", "modify"
-	
+
 	// Parent trade signal related fields
-	ParentSignalID      string `json:"parent_signal_id,omitempty"`      // Parent trader signal ID
+	ParentSignalID string `json:"parent_signal_id,omitempty"` // Parent trader signal ID
 }
 
 // FullDecision AI's complete decision (includes reasoning chain)
@@ -172,6 +263,7 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 		overrideBase,
 		templateName,
 		ctx.PromptVariant,
+		PromptTypeStandard,
 	)
 	userPrompt := buildUserPrompt(ctx)
 
@@ -313,16 +405,20 @@ func calculateMaxCandidates(ctx *Context) int {
 }
 
 // buildSystemPromptWithCustom Builds System Prompt with custom content
-func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string) string {
+func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, promptType PromptType) string {
 	// If override base prompt and have custom prompt, use only custom prompt
 	if overrideBase && customPrompt != "" {
-		return customPrompt
+		// Ensure format section is included when overriding base prompt
+		enhancedPrompt := EnsureFormatSection(customPrompt, promptType, accountEquity, btcEthLeverage, altcoinLeverage)
+		// Validate and warn if format is incomplete
+		ValidateAndWarn(enhancedPrompt, promptType, accountEquity, btcEthLeverage, altcoinLeverage)
+		return enhancedPrompt
 	}
 
 	// Get base prompt (using specified template)
 	basePrompt := buildSystemPrompt(accountEquity, btcEthLeverage, altcoinLeverage, templateName, variant)
 
-	// If no custom prompt, return base prompt directly
+	// If no custom prompt, return base prompt directly (which already includes format)
 	if customPrompt == "" {
 		return basePrompt
 	}
@@ -342,7 +438,7 @@ func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinL
 // BuildSystemPromptWithTradingView Builds System Prompt with TradingView signal analysis
 func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string) string {
 	// Build base prompt first
-	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant)
+	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeTradingView)
 
 	// Add TradingView signal analysis section
 	var sb strings.Builder
@@ -361,12 +457,10 @@ func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, alt
 	sb.WriteString("1. **accept**: The signal aligns with your trading strategy, execute the trade using the parameters provided by the signal\n")
 	sb.WriteString("2. **reject**: The signal does not align with your trading strategy or risk control requirements, do not execute the trade\n")
 	sb.WriteString("3. **modify**: The signal direction is correct, but parameters need adjustment, execute the trade using your optimized parameters\n\n")
-	sb.WriteString("## Output Format Requirements\n\n")
-	sb.WriteString("In the JSON decision output, you must include the following fields:\n")
-	sb.WriteString("- `signal_decision`: Must be one of \"accept\", \"reject\", or \"modify\"\n")
-	sb.WriteString("- `tradingview_signal_id`: TradingView alert ID (obtained from user prompt)\n")
-	sb.WriteString("- If `signal_decision` is \"reject\", you do not need to provide other trading parameters\n")
-	sb.WriteString("- If `signal_decision` is \"accept\" or \"modify\", you must provide complete trading parameters (symbol, action, leverage, position_size_usd, stop_loss, take_profit, etc.)\n\n")
+
+	// Use modular JSON format template
+	sb.WriteString(GetTradingViewJSONFormat())
+
 	sb.WriteString("## Analysis Points\n\n")
 	sb.WriteString("- Carefully analyze the consistency between current market data (price, indicators, OI, etc.) and the signal\n")
 	sb.WriteString("- Check if signal parameters meet risk control requirements (stop loss/take profit ratio, position size, etc.)\n")
@@ -380,8 +474,8 @@ func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, alt
 // BuildSystemPromptWithParentSignal Builds System Prompt with parent trader signal analysis
 func BuildSystemPromptWithParentSignal(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string) string {
 	// Build base prompt first (using risk_management template)
-	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant)
-	
+	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeParent)
+
 	// Add parent trader signal analysis section
 	var sb strings.Builder
 	sb.WriteString(basePrompt)
@@ -401,12 +495,10 @@ func BuildSystemPromptWithParentSignal(accountEquity float64, btcEthLeverage, al
 	sb.WriteString("1. **accept**: The signal aligns with your risk management strategy, execute the trade using parameters scaled to your account size\n")
 	sb.WriteString("2. **reject**: The signal does not align with your risk control requirements or account state, do not execute the trade\n")
 	sb.WriteString("3. **modify**: The signal direction is correct, but parameters need adjustment for your account size/risk tolerance, execute with your optimized parameters\n\n")
-	sb.WriteString("## Output Format Requirements\n\n")
-	sb.WriteString("In the JSON decision output, you must include the following fields:\n")
-	sb.WriteString("- `signal_decision`: Must be one of \"accept\", \"reject\", or \"modify\"\n")
-	sb.WriteString("- `parent_signal_id`: Parent signal ID (obtained from user prompt)\n")
-	sb.WriteString("- If `signal_decision` is \"reject\", you do not need to provide other trading parameters\n")
-	sb.WriteString("- If `signal_decision` is \"accept\" or \"modify\", you must provide complete trading parameters (symbol, action, leverage, position_size_usd, stop_loss, take_profit, etc.)\n\n")
+
+	// Use modular JSON format template
+	sb.WriteString(GetParentSignalJSONFormat())
+
 	sb.WriteString("## Analysis Points\n\n")
 	sb.WriteString("- Carefully analyze if the parent's trade makes sense for your account size and risk tolerance\n")
 	sb.WriteString("- Scale position sizes appropriately based on your available balance (not the parent's balance)\n")
@@ -500,32 +592,8 @@ func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage in
 	sb.WriteString("3. Scan candidate coins + multiple timeframes → Whether strong signals exist\n")
 	sb.WriteString("4. Write chain of thought first, then output structured JSON\n\n")
 
-	// 7. Output format - dynamically generated
-	sb.WriteString("# Output Format (Strict Compliance)\n\n")
-	sb.WriteString("**Must use XML tags <reasoning> and <decision> to separate chain of thought and decision JSON to avoid parsing errors**\n\n")
-	sb.WriteString("## Format Requirements\n\n")
-	sb.WriteString("<reasoning>\n")
-	sb.WriteString("Your chain of thought analysis...\n")
-	sb.WriteString("- Briefly analyze your thinking process \n")
-	sb.WriteString("</reasoning>\n\n")
-	sb.WriteString("<decision>\n")
-	sb.WriteString("Step 2: JSON decision array\n\n")
-	sb.WriteString("```json\n[\n")
-	sb.WriteString(fmt.Sprintf("  {\"symbol\": \"BTCUSDT\", \"action\": \"open_short\", \"leverage\": %d, \"position_size_usd\": %.0f, \"stop_loss\": 97000, \"take_profit\": 91000, \"confidence\": 85, \"risk_usd\": 300, \"reasoning\": \"Downtrend + MACD death cross\"},\n", btcEthLeverage, accountEquity*5))
-	sb.WriteString("  {\"symbol\": \"SOLUSDT\", \"action\": \"update_stop_loss\", \"new_stop_loss\": 155, \"reasoning\": \"Move stop loss to breakeven\"},\n")
-	sb.WriteString("  {\"symbol\": \"ETHUSDT\", \"action\": \"close_long\", \"reasoning\": \"Take profit exit\"}\n")
-	sb.WriteString("]\n```\n")
-	sb.WriteString("</decision>\n\n")
-	sb.WriteString("## Field Descriptions\n\n")
-	sb.WriteString("- `action`: open_long | open_short | close_long | close_short | update_stop_loss | update_take_profit | partial_close | hold | wait\n")
-	sb.WriteString("- `confidence`: 0-100 (recommended ≥75 for opening positions)\n")
-	sb.WriteString("- Required when opening positions: leverage, position_size_usd, stop_loss, take_profit, confidence, risk_usd, reasoning\n")
-	sb.WriteString("- Required for update_stop_loss: new_stop_loss (note: it's new_stop_loss, not stop_loss)\n")
-	sb.WriteString("- Required for update_take_profit: new_take_profit (note: it's new_take_profit, not take_profit)\n")
-	sb.WriteString("- Required for partial_close: close_percentage (0-100)\n\n")
-	sb.WriteString("**IMPORTANT: All numeric values in your JSON decision output must be calculated numbers, not formulas or expressions.**\n")
-	sb.WriteString("- ✅ Correct: `\"position_size_usd\": 2200`, `\"stop_loss\": 95000`, `\"leverage\": 5`\n")
-	sb.WriteString("- ❌ Wrong: `\"position_size_usd\": \"available_margin * 5\"`, `\"stop_loss\": \"entry_price * 0.95\"`, `\"leverage\": \"max_leverage\"`\n\n")
+	// 7. Output format - use modular template
+	sb.WriteString(GetStandardJSONFormat(accountEquity, btcEthLeverage, altcoinLeverage))
 
 	return sb.String()
 }
@@ -726,7 +794,7 @@ func extractCoTTrace(response string) string {
 	return strings.TrimSpace(response)
 }
 
-// extractDecisions Extracts JSON decision list
+// extractDecisions Extracts JSON decision list with enhanced robustness for inconsistent AI outputs
 func extractDecisions(response string) ([]Decision, error) {
 	// Pre-clean: remove zero-width/BOM
 	s := removeInvisibleRunes(response)
@@ -750,60 +818,161 @@ func extractDecisions(response string) ([]Decision, error) {
 	// Fix full-width characters in jsonPart
 	jsonPart = fixMissingQuotes(jsonPart)
 
+	// Try multiple parsing methods in order of preference
+
 	// 1) Prioritize extracting from ```json code block
 	if m := reJSONFence.FindStringSubmatch(jsonPart); len(m) > 1 {
 		jsonContent := strings.TrimSpace(m[1])
 		jsonContent = compactArrayOpen(jsonContent) // Normalize "[ {" to "[{"
 		jsonContent = fixMissingQuotes(jsonContent) // Second fix (prevent remaining full-width after regex extraction)
-		if err := validateJSONFormat(jsonContent); err != nil {
-			return nil, fmt.Errorf("JSON format validation failed: %w\nJSON content: %s\nFull response:\n%s", err, jsonContent, response)
+		if decisions, err := tryParseJSON(jsonContent, response); err == nil {
+			log.Printf("✓ Successfully parsed JSON from ```json code block")
+			return decisions, nil
 		}
-		var decisions []Decision
-		if err := json.Unmarshal([]byte(jsonContent), &decisions); err != nil {
-			return nil, fmt.Errorf("JSON parsing failed: %w\nJSON content: %s", err, jsonContent)
-		}
-		return decisions, nil
+		log.Printf("⚠️  Failed to parse JSON from ```json code block, trying alternatives")
 	}
 
-	// 2) Fallback: Search entire text for first object array
-	// Note: jsonPart has already been processed by fixMissingQuotes(), full-width characters converted to half-width
+	// 2) Try enhanced JSON code block regex (more flexible)
+	if m := reJSONCodeBlock.FindStringSubmatch(jsonPart); len(m) > 1 {
+		for i := 1; i < len(m); i++ {
+			if m[i] != "" {
+				jsonContent := strings.TrimSpace(m[i])
+				jsonContent = compactArrayOpen(jsonContent)
+				jsonContent = fixMissingQuotes(jsonContent)
+				if decisions, err := tryParseJSON(jsonContent, response); err == nil {
+					log.Printf("✓ Successfully parsed JSON from enhanced code block regex")
+					return decisions, nil
+				}
+			}
+		}
+	}
+
+	// 3) Try alternative array regex (more permissive)
+	if jsonContent := strings.TrimSpace(reJSONArrayAlt.FindString(jsonPart)); jsonContent != "" {
+		jsonContent = compactArrayOpen(jsonContent)
+		jsonContent = fixMissingQuotes(jsonContent)
+		if decisions, err := tryParseJSON(jsonContent, response); err == nil {
+			log.Printf("✓ Successfully parsed JSON from alternative array regex")
+			return decisions, nil
+		}
+	}
+
+	// 4) Fallback: Search entire text for first object array
 	jsonContent := strings.TrimSpace(reJSONArray.FindString(jsonPart))
-	if jsonContent == "" {
-		// 🔧 Safe Fallback: When AI only outputs reasoning chain without JSON, generate fallback decision (avoid system crash)
-		log.Printf("⚠️  [SafeFallback] AI did not output JSON decision, entering safe wait mode (AI response without JSON, entering safe wait mode)")
-
-		// Extract reasoning chain summary (max 240 characters)
-		cotSummary := jsonPart
-		if len(cotSummary) > 240 {
-			cotSummary = cotSummary[:240] + "..."
+	if jsonContent != "" {
+		jsonContent = compactArrayOpen(jsonContent)
+		jsonContent = fixMissingQuotes(jsonContent)
+		if decisions, err := tryParseJSON(jsonContent, response); err == nil {
+			log.Printf("✓ Successfully parsed JSON from standard array regex")
+			return decisions, nil
 		}
-
-		// Generate fallback decision: all coins enter wait state
-		fallbackDecision := Decision{
-			Symbol:    "ALL",
-			Action:    "wait",
-			Reasoning: fmt.Sprintf("model did not output structured JSON decision, entering safe wait mode; summary: %s", cotSummary),
-		}
-
-		return []Decision{fallbackDecision}, nil
 	}
 
-	// 🔧 Normalize format (full-width characters already fixed above)
-	jsonContent = compactArrayOpen(jsonContent)
-	jsonContent = fixMissingQuotes(jsonContent) // Second fix (prevent remaining full-width after regex extraction)
+	// 5) Try to extract single object (for TradingView signals that might output single object)
+	if jsonContent := strings.TrimSpace(reJSONObject.FindString(jsonPart)); jsonContent != "" {
+		jsonContent = fixMissingQuotes(jsonContent)
+		if decisions, err := tryParseJSONObject(jsonContent, response); err == nil {
+			log.Printf("✓ Successfully parsed single JSON object")
+			return decisions, nil
+		}
+	}
 
-	// 🔧 Validate JSON format (detect common errors)
+	// 6) Last resort: Try to repair broken JSON
+	if repairedJSON, err := tryRepairJSON(jsonPart); err == nil && repairedJSON != "" {
+		if decisions, err := tryParseJSON(repairedJSON, response); err == nil {
+			log.Printf("✓ Successfully parsed repaired JSON")
+			return decisions, nil
+		}
+	}
+
+	// 🔧 Safe Fallback: When AI only outputs reasoning chain without JSON, generate fallback decision (avoid system crash)
+	log.Printf("⚠️  [SafeFallback] AI did not output any parseable JSON decision, entering safe wait mode (all parsing methods failed)")
+
+	// Extract reasoning chain summary (max 240 characters)
+	cotSummary := jsonPart
+	if len(cotSummary) > 240 {
+		cotSummary = cotSummary[:240] + "..."
+	}
+
+	// Generate fallback decision: all coins enter wait state
+	fallbackDecision := Decision{
+		Symbol:    "ALL",
+		Action:    "wait",
+		Reasoning: fmt.Sprintf("model did not output structured JSON decision, entering safe wait mode; summary: %s", cotSummary),
+	}
+
+	return []Decision{fallbackDecision}, nil
+}
+
+// tryParseJSON attempts to parse JSON content and return decisions with enhanced error reporting
+func tryParseJSON(jsonContent, fullResponse string) ([]Decision, error) {
+	// First try standard validation
 	if err := validateJSONFormat(jsonContent); err != nil {
-		return nil, fmt.Errorf("JSON format validation failed: %w\nJSON content: %s\nFull response:\n%s", err, jsonContent, response)
+		// If standard validation fails, try enhanced validation with suggestions
+		if valid, suggestion, validateErr := validateJSONWithSuggestions(jsonContent); !valid {
+			// Try auto-repair
+			if repaired, fixes, repairErr := repairJSONCommonMistakes(jsonContent); repairErr == nil && len(fixes) > 0 {
+				log.Printf("✓ Auto-repaired JSON: %v", fixes)
+				jsonContent = repaired
+			} else {
+				return nil, fmt.Errorf("JSON validation failed: %w\nSuggestion: %s\nJSON content: %s", validateErr, suggestion, jsonContent)
+			}
+		}
 	}
 
-	// Parse JSON
 	var decisions []Decision
 	if err := json.Unmarshal([]byte(jsonContent), &decisions); err != nil {
-		return nil, fmt.Errorf("JSON parsing failed: %w\nJSON content: %s", err, jsonContent)
+		// Provide more helpful error message
+		return nil, fmt.Errorf("JSON parsing failed: %w\nThis usually means missing quotes, commas, or brackets. Check for: unquoted strings, missing commas between fields, unmatched brackets\nJSON content: %s", err, jsonContent)
 	}
 
 	return decisions, nil
+}
+
+// tryParseJSONObject attempts to parse a single JSON object (for TradingView signals)
+func tryParseJSONObject(jsonContent, fullResponse string) ([]Decision, error) {
+	// Validate JSON format first
+	if err := validateJSONFormat(jsonContent); err != nil {
+		return nil, err
+	}
+
+	var decision Decision
+	if err := json.Unmarshal([]byte(jsonContent), &decision); err != nil {
+		return nil, fmt.Errorf("JSON object parsing failed: %w\nJSON content: %s", err, jsonContent)
+	}
+
+	return []Decision{decision}, nil
+}
+
+// tryRepairJSON attempts to repair common JSON formatting issues
+func tryRepairJSON(content string) (string, error) {
+	content = strings.TrimSpace(content)
+
+	// Try to extract JSON-like content between various markers
+	patterns := []string{
+		`\{[^{}]*"symbol"[^{}]*\}`,          // Single object with symbol
+		`\{[^{}]*"signal_decision"[^{}]*\}`, // TradingView signal object
+		`\{[^{}]*"action"[^{}]*\}`,          // Action-based object
+		`\[[\s\S]*?\]`,                      // Array content
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(`(?s)` + pattern)
+		if match := re.FindString(content); match != "" {
+			// Try to fix common issues
+			fixed := fixMissingQuotes(match)
+			fixed = strings.ReplaceAll(fixed, "”", "\"") // Fix smart quotes
+			fixed = strings.ReplaceAll(fixed, `""`, `"`) // Fix other quote issues
+			fixed = strings.ReplaceAll(fixed, "'", "\"") // Fix single quotes
+
+			// Quick validation
+			if strings.Contains(fixed, "{") && strings.Contains(fixed, "}") {
+				return fixed, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("could not repair JSON")
 }
 
 // removeThousandsSeparators Removes thousands separator commas in JSON numbers
@@ -873,22 +1042,22 @@ func validateJSONFormat(jsonStr string) error {
 	escapeNext := false
 	for i := 0; i < len(jsonStr); i++ {
 		char := jsonStr[i]
-		
+
 		if escapeNext {
 			escapeNext = false
 			continue
 		}
-		
+
 		if char == '\\' {
 			escapeNext = true
 			continue
 		}
-		
+
 		if char == '"' {
 			insideQuotes = !insideQuotes
 			continue
 		}
-		
+
 		// Only check for ~ when outside quotes
 		if !insideQuotes && char == '~' {
 			// Check if ~ is adjacent to a digit (numeric range pattern)
@@ -915,6 +1084,104 @@ func validateJSONFormat(jsonStr string) error {
 	}
 
 	return nil
+}
+
+// validateJSONWithSuggestions Validates JSON and provides repair suggestions for common AI mistakes
+func validateJSONWithSuggestions(jsonStr string) (bool, string, error) {
+	trimmed := strings.TrimSpace(jsonStr)
+
+	// Basic structure checks
+	if !strings.HasPrefix(trimmed, "[") && !strings.HasPrefix(trimmed, "{") {
+		suggestion := "JSON must start with '[' (array) or '{' (object). Try wrapping your decisions in square brackets: [...]"
+		return false, suggestion, fmt.Errorf("invalid JSON structure: must start with [ or {, got: %s", trimmed[:min(20, len(trimmed))])
+	}
+
+	if strings.HasPrefix(trimmed, "[") && !strings.Contains(trimmed, "{") {
+		suggestion := "Array must contain objects. Each decision should be an object like: {\"symbol\": \"BTCUSDT\", \"action\": \"open_long\"}"
+		return false, suggestion, fmt.Errorf("array does not contain objects")
+	}
+
+	// Check for common AI mistakes
+	mistakes := []struct {
+		pattern     string
+		suggestion  string
+		description string
+	}{
+		{`~\d`, "Remove range symbols (~) from numbers. Use exact values: 100 instead of 95~100", "range symbol in numeric value"},
+		{`[\u201c\u201d]`, `Use straight quotes (") instead of smart quotes (")`, "smart quotes detected"},
+		{`[\u2018\u2019]`, "Use straight quotes (\") instead of smart quotes (\u2018\u2019)", "smart single quotes detected"},
+		{`[\uff1a]`, "Use colon (:) instead of full-width colon (：)", "full-width colon detected"},
+		{`[\uff0c]`, "Use comma (,) instead of full-width comma (，)", "full-width comma detected"},
+		{`[\uff3b\uff3d]`, "Use square brackets [] instead of full-width brackets ［］", "full-width brackets detected"},
+		{`[\uff5b\uff5d]`, "Use curly braces {} instead of full-width braces ｛｝", "full-width braces detected"},
+		{`\d{1,3},\d{3}`, "Remove thousands separators from numbers: 50000 instead of 50,000", "thousands separator detected"},
+	}
+
+	var foundMistakes []string
+	for _, mistake := range mistakes {
+		if matched, _ := regexp.MatchString(mistake.pattern, jsonStr); matched {
+			foundMistakes = append(foundMistakes, mistake.description)
+		}
+	}
+
+	if len(foundMistakes) > 0 {
+		suggestion := "Common issues found: " + strings.Join(foundMistakes, "; ") + ". Try using the repair function."
+		return false, suggestion, fmt.Errorf("JSON contains formatting errors: %v", foundMistakes)
+	}
+
+	// Try to parse as JSON
+	var temp interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &temp); err != nil {
+		suggestion := "Try these fixes: 1) Ensure all quotes are straight (\") 2) Check for missing commas 3) Verify brackets are balanced 4) Remove any non-JSON text"
+		return false, suggestion, err
+	}
+
+	return true, "", nil
+}
+
+// repairJSONCommonMistakes Attempts to automatically fix common JSON formatting mistakes
+func repairJSONCommonMistakes(jsonStr string) (string, []string, error) {
+	original := jsonStr
+	var fixes []string
+
+	// Fix smart quotes
+	if strings.Contains(jsonStr, "\u201c") || strings.Contains(jsonStr, "\u201d") {
+		jsonStr = strings.ReplaceAll(jsonStr, "\u201c", "\"")
+		jsonStr = strings.ReplaceAll(jsonStr, "\u201d", "\"")
+		fixes = append(fixes, "replaced smart quotes with straight quotes")
+	}
+
+	// Fix smart single quotes
+	if strings.Contains(jsonStr, "\u2018") || strings.Contains(jsonStr, "\u2019") {
+		jsonStr = strings.ReplaceAll(jsonStr, "\u2018", "'")
+		jsonStr = strings.ReplaceAll(jsonStr, "\u2019", "'")
+		fixes = append(fixes, "replaced smart single quotes")
+	}
+
+	// Fix full-width characters
+	replacements := map[string]string{
+		"［": "[", "］": "]", "｛": "{", "｝": "}", "：": ":", "，": ",",
+	}
+	for old, new := range replacements {
+		if strings.Contains(jsonStr, old) {
+			jsonStr = strings.ReplaceAll(jsonStr, old, new)
+			fixes = append(fixes, fmt.Sprintf("replaced %s with %s", old, new))
+		}
+	}
+
+	// Fix thousands separators in numbers
+	if matched, _ := regexp.MatchString(`\d{1,3},\d{3}`, jsonStr); matched {
+		re := regexp.MustCompile(`(\d{1,3}),(\d{3})`)
+		jsonStr = re.ReplaceAllString(jsonStr, "$1$2")
+		fixes = append(fixes, "removed thousands separators from numbers")
+	}
+
+	// Try to validate the repaired JSON
+	if valid, _, err := validateJSONWithSuggestions(jsonStr); valid {
+		return jsonStr, fixes, nil
+	} else {
+		return original, []string{}, fmt.Errorf("auto-repair failed: %w", err)
+	}
 }
 
 // min Returns the smaller of two integers

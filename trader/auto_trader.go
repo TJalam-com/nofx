@@ -98,6 +98,17 @@ type AutoTraderConfig struct {
 
 	// TradingView configuration
 	UseTradingView bool // Whether to use TradingView signal source (if true, will skip AI decisions)
+
+	// Indicator configuration
+	EnableRawKlines    bool   // Raw OHLCV klines (always true, required)
+	EnableEMA          bool   // Enable EMA indicator
+	EnableMACD         bool   // Enable MACD indicator
+	EnableRSI          bool   // Enable RSI indicator
+	EnableATR          bool   // Enable ATR indicator
+	EnableVolume       bool   // Enable volume data
+	EnableOI           bool   // Enable open interest data
+	EnableFunding      bool   // Enable funding rate data
+	IndicatorTimeframe string // Timeframe for indicators (e.g., "3m", "15m", "1h", "4h")
 }
 
 // ParentTradeSignal represents a trade signal from a followed trader
@@ -2921,6 +2932,18 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 	// Get first decision (should be only one)
 	aiDecision := fullDecision.Decisions[0]
 
+	// Handle safe fallback "wait" action (when AI doesn't provide valid JSON)
+	if aiDecision.Action == "wait" && aiDecision.Reasoning != "" && strings.Contains(aiDecision.Reasoning, "model did not output structured JSON") {
+		log.Printf("⚠️ [%s] AI failed to output valid JSON, entering safe wait mode: %s", at.name, aiDecision.Reasoning)
+		record.ErrorMessage = aiDecision.Reasoning
+		_ = db.UpdateAlertStatus(alertID, "error")
+		// Debug: Log AccountState before saving (safe fallback case)
+		log.Printf("🔍 [%s] TradingView Signal - Before LogDecision (safe fallback): AccountState TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d",
+			at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance, record.AccountState.PositionCount)
+		at.decisionLogger.LogDecision(record)
+		return
+	}
+
 	// Check signal decision
 	if aiDecision.SignalDecision == "reject" {
 		log.Printf("❌ [%s] AI rejected TradingView signal: %s", at.name, aiDecision.Reasoning)
@@ -3373,7 +3396,19 @@ func (at *AutoTrader) buildTradingViewUserPrompt(ctx *decision.Context, alert *c
 	// Target symbol's complete market data
 	if marketData, ok := ctx.MarketDataMap[alert.Symbol]; ok {
 		sb.WriteString(fmt.Sprintf("## %s Market Data\n\n", alert.Symbol))
-		sb.WriteString(market.Format(marketData))
+		// Use trader-specific indicator configuration
+		indicatorConfig := &market.IndicatorConfig{
+			EnableRawKlines:    at.config.EnableRawKlines,
+			EnableEMA:          at.config.EnableEMA,
+			EnableMACD:         at.config.EnableMACD,
+			EnableRSI:          at.config.EnableRSI,
+			EnableATR:          at.config.EnableATR,
+			EnableVolume:       at.config.EnableVolume,
+			EnableOI:           at.config.EnableOI,
+			EnableFunding:      at.config.EnableFunding,
+			IndicatorTimeframe: at.config.IndicatorTimeframe,
+		}
+		sb.WriteString(market.FormatWithIndicators(marketData, indicatorConfig))
 		sb.WriteString("\n\n")
 	}
 
@@ -3443,11 +3478,15 @@ func (at *AutoTrader) buildParentSignalUserPrompt(ctx *decision.Context, signal 
 		if marketData.PriceChange4h != 0 {
 			sb.WriteString(fmt.Sprintf("- 4h Change: %.2f%%\n", marketData.PriceChange4h))
 		}
-		if marketData.CurrentRSI7 > 0 {
+		// Add indicators based on trader configuration
+		if at.config.EnableRSI && marketData.CurrentRSI7 > 0 {
 			sb.WriteString(fmt.Sprintf("- RSI(7): %.2f\n", marketData.CurrentRSI7))
 		}
-		if marketData.CurrentMACD != 0 {
+		if at.config.EnableMACD && marketData.CurrentMACD != 0 {
 			sb.WriteString(fmt.Sprintf("- MACD: %.4f\n", marketData.CurrentMACD))
+		}
+		if at.config.EnableEMA && marketData.CurrentEMA20 > 0 {
+			sb.WriteString(fmt.Sprintf("- EMA(20): %.4f\n", marketData.CurrentEMA20))
 		}
 		sb.WriteString("\n")
 	}

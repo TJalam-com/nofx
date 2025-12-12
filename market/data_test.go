@@ -2,6 +2,7 @@ package market
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -60,7 +61,7 @@ func TestCalculateIntradaySeries_VolumeCollection(t *testing.T) {
 		},
 	}
 
-		for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			klines := generateTestKlines(tt.klineCount)
 			data := calculateIntradaySeries(klines, 10) // Use default kline count of 10
@@ -163,7 +164,7 @@ func TestCalculateIntradaySeries_ATR14(t *testing.T) {
 		},
 	}
 
-		for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			klines := generateTestKlines(tt.klineCount)
 			data := calculateIntradaySeries(klines, 10) // Use default kline count of 10
@@ -498,5 +499,106 @@ func TestIsStaleData_EmptyKlines(t *testing.T) {
 
 	if result {
 		t.Error("Expected false for empty klines, got true")
+	}
+}
+
+// TestFormatWithIndicators tests that FormatWithIndicators respects indicator configuration
+func TestFormatWithIndicators(t *testing.T) {
+	// Create test market data
+	data := &Data{
+		Symbol:       "BTCUSDT",
+		CurrentPrice: 50000.0,
+		CurrentEMA20: 49500.0,
+		CurrentMACD:  250.0,
+		CurrentRSI7:  65.0,
+		FundingRate:  0.0001,
+		OpenInterest: &OIData{
+			Latest:  1000000.0,
+			Average: 950000.0,
+		},
+		IntradaySeries: &IntradayData{
+			MidPrices:   []float64{50000.0, 50100.0, 49900.0},
+			EMA20Values: []float64{49500.0, 49600.0, 49400.0},
+			MACDValues:  []float64{250.0, 260.0, 240.0},
+			RSI7Values:  []float64{65.0, 67.0, 63.0},
+			Volume:      []float64{100.0, 110.0, 90.0},
+			ATR14:       500.0,
+			Klines: []KlineBar{
+				{Open: 49900.0, High: 50100.0, Low: 49800.0, Close: 50000.0, Volume: 100.0},
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		config   *IndicatorConfig
+		contains []string
+		excludes []string
+	}{
+		{
+			name: "All indicators enabled",
+			config: &IndicatorConfig{
+				EnableRawKlines: true,
+				EnableEMA:       true,
+				EnableMACD:      true,
+				EnableRSI:       true,
+				EnableATR:       true,
+				EnableVolume:    true,
+				EnableOI:        true,
+				EnableFunding:   true,
+			},
+			contains: []string{"current_ema20", "current_macd", "current_rsi", "EMA indicators", "MACD indicators", "RSI indicators", "Volume:", "ATR (14‑period)", "Open Interest", "Funding Rate"},
+			excludes: []string{},
+		},
+		{
+			name: "Only EMA and RSI enabled",
+			config: &IndicatorConfig{
+				EnableRawKlines: true,
+				EnableEMA:       true,
+				EnableMACD:      false,
+				EnableRSI:       true,
+				EnableATR:       false,
+				EnableVolume:    false,
+				EnableOI:        false,
+				EnableFunding:   false,
+			},
+			contains: []string{"current_ema20", "current_rsi", "EMA indicators", "RSI indicators", "Kline data"},
+			excludes: []string{"current_macd", "MACD indicators", "Volume:", "ATR (14‑period)", "Open Interest", "Funding Rate"},
+		},
+		{
+			name: "No indicators enabled",
+			config: &IndicatorConfig{
+				EnableRawKlines: false,
+				EnableEMA:       false,
+				EnableMACD:      false,
+				EnableRSI:       false,
+				EnableATR:       false,
+				EnableVolume:    false,
+				EnableOI:        false,
+				EnableFunding:   false,
+			},
+			contains: []string{"current_price"},
+			excludes: []string{"current_ema20", "current_macd", "current_rsi", "EMA indicators", "MACD indicators", "RSI indicators", "Volume:", "ATR (14‑period)", "Open Interest", "Funding Rate", "Kline data"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatWithIndicators(data, tt.config)
+
+			// Check that required strings are present
+			for _, contain := range tt.contains {
+				if !strings.Contains(result, contain) {
+					t.Errorf("Expected result to contain '%s', but it doesn't", contain)
+				}
+			}
+
+			// Check that excluded strings are not present
+			for _, exclude := range tt.excludes {
+				if strings.Contains(result, exclude) {
+					t.Errorf("Expected result to NOT contain '%s', but it does", exclude)
+				}
+			}
+		})
 	}
 }

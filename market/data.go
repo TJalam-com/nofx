@@ -22,7 +22,7 @@ type FundingRateCache struct {
 var (
 	fundingRateMap sync.Map // map[string]*FundingRateCache
 	frCacheTTL     = 1 * time.Hour
-	klineCount     = 10    // Default number of klines to include in AI prompts
+	klineCount     = 10 // Default number of klines to include in AI prompts
 )
 
 // SetKlineCount sets the number of klines to include in AI prompts
@@ -35,6 +35,19 @@ func SetKlineCount(count int) {
 // getKlineCount returns the configured kline count (default: 10)
 func getKlineCount() int {
 	return klineCount
+}
+
+// IndicatorConfig holds configuration for which indicators to include in formatted output
+type IndicatorConfig struct {
+	EnableRawKlines    bool   // Raw OHLCV klines (always true, required)
+	EnableEMA          bool   // Enable EMA indicator
+	EnableMACD         bool   // Enable MACD indicator
+	EnableRSI          bool   // Enable RSI indicator
+	EnableATR          bool   // Enable ATR indicator
+	EnableVolume       bool   // Enable volume data
+	EnableOI           bool   // Enable open interest data
+	EnableFunding      bool   // Enable funding rate data
+	IndicatorTimeframe string // Timeframe for indicators (e.g., "3m", "15m", "1h", "4h")
 }
 
 // Get retrieves market data for the specified token
@@ -246,7 +259,7 @@ func calculateIntradaySeries(klines []Kline, klineCount int) *IntradayData {
 	if klineCount <= 0 {
 		klineCount = 10 // Default to 10 if invalid
 	}
-	
+
 	data := &IntradayData{
 		MidPrices:   make([]float64, 0, klineCount),
 		EMA20Values: make([]float64, 0, klineCount),
@@ -267,7 +280,7 @@ func calculateIntradaySeries(klines []Kline, klineCount int) *IntradayData {
 		k := klines[i]
 		data.MidPrices = append(data.MidPrices, k.Close)
 		data.Volume = append(data.Volume, k.Volume)
-		
+
 		// Store complete OHLCV data as KlineBar
 		data.Klines = append(data.Klines, KlineBar{
 			Time:   time.Unix(k.CloseTime/1000, 0),
@@ -312,7 +325,7 @@ func calculateLongerTermData(klines []Kline, klineCount int) *LongerTermData {
 	if klineCount <= 0 {
 		klineCount = 10 // Default to 10 if invalid
 	}
-	
+
 	data := &LongerTermData{
 		MACDValues:  make([]float64, 0, klineCount),
 		RSI14Values: make([]float64, 0, klineCount),
@@ -344,7 +357,7 @@ func calculateLongerTermData(klines []Kline, klineCount int) *LongerTermData {
 	if start < 0 {
 		start = 0
 	}
-	
+
 	// Store complete OHLCV data as KlineBar
 	for i := start; i < len(klines); i++ {
 		k := klines[i]
@@ -599,6 +612,174 @@ func Format(data *Data) string {
 	return sb.String()
 }
 
+// FormatWithIndicators formats market data based on indicator configuration
+func FormatWithIndicators(data *Data, config *IndicatorConfig) string {
+	var sb strings.Builder
+
+	// Use dynamic precision to format price
+	priceStr := formatPriceWithDynamicPrecision(data.CurrentPrice)
+
+	// Build current price line with enabled indicators
+	currentParts := []string{fmt.Sprintf("current_price = %s", priceStr)}
+
+	if config.EnableEMA {
+		currentParts = append(currentParts, fmt.Sprintf("current_ema20 = %.3f", data.CurrentEMA20))
+	}
+	if config.EnableMACD {
+		currentParts = append(currentParts, fmt.Sprintf("current_macd = %.3f", data.CurrentMACD))
+	}
+	if config.EnableRSI {
+		currentParts = append(currentParts, fmt.Sprintf("current_rsi (7 period) = %.3f", data.CurrentRSI7))
+	}
+
+	sb.WriteString(strings.Join(currentParts, ", "))
+	sb.WriteString("\n\n")
+
+	// Open interest and funding rate (only if enabled)
+	if config.EnableOI || config.EnableFunding {
+		sb.WriteString(fmt.Sprintf("In addition, here is the latest %s open interest and funding rate for perps:\n\n",
+			data.Symbol))
+
+		if config.EnableOI && data.OpenInterest != nil {
+			// Use dynamic precision to format OI data
+			oiLatestStr := formatPriceWithDynamicPrecision(data.OpenInterest.Latest)
+			oiAverageStr := formatPriceWithDynamicPrecision(data.OpenInterest.Average)
+			sb.WriteString(fmt.Sprintf("Open Interest: Latest: %s Average: %s\n\n",
+				oiLatestStr, oiAverageStr))
+		}
+
+		// Display multi-timeframe OI delta if quant data is available and OI is enabled
+		if config.EnableOI && data.QuantData != nil && data.QuantData.OIDelta != nil && len(data.QuantData.OIDelta) > 0 {
+			oiDeltaParts := []string{}
+			// Order timeframes: 1m, 5m, 15m, 30m, 1h, 4h, 8h, 12h, 24h, 2d, 3d
+			timeframeOrder := []string{"1m", "5m", "15m", "30m", "1h", "4h", "8h", "12h", "24h", "2d", "3d"}
+			for _, tf := range timeframeOrder {
+				if delta, exists := data.QuantData.OIDelta[tf]; exists {
+					sign := "+"
+					if delta.OIDelta < 0 {
+						sign = ""
+					}
+					oiDeltaParts = append(oiDeltaParts, fmt.Sprintf("%s: %s%.0f", tf, sign, delta.OIDelta))
+				}
+			}
+			if len(oiDeltaParts) > 0 {
+				sb.WriteString(fmt.Sprintf("OI Delta (%s)\n\n", strings.Join(oiDeltaParts, ", ")))
+			}
+		}
+
+		// Display multi-timeframe Netflow if quant data is available and OI is enabled
+		if config.EnableOI && data.QuantData != nil && data.QuantData.Netflow != nil && len(data.QuantData.Netflow) > 0 {
+			netflowParts := []string{}
+			// Order timeframes: 1m, 5m, 15m, 30m, 1h, 4h, 8h, 12h, 24h, 2d, 3d
+			timeframeOrder := []string{"1m", "5m", "15m", "30m", "1h", "4h", "8h", "12h", "24h", "2d", "3d"}
+			for _, tf := range timeframeOrder {
+				if netflow, exists := data.QuantData.Netflow[tf]; exists {
+					total := netflow.Total
+					// Format large numbers with K/M/B suffixes
+					var formatted string
+					if total >= 1000000000 {
+						formatted = fmt.Sprintf("%.2fB", total/1000000000)
+					} else if total >= 1000000 {
+						formatted = fmt.Sprintf("%.2fM", total/1000000)
+					} else if total >= 1000 {
+						formatted = fmt.Sprintf("%.2fK", total/1000)
+					} else {
+						formatted = fmt.Sprintf("%.0f", total)
+					}
+					sign := "+"
+					if total < 0 {
+						sign = ""
+					}
+					netflowParts = append(netflowParts, fmt.Sprintf("%s: %s%s", tf, sign, formatted))
+				}
+			}
+			if len(netflowParts) > 0 {
+				sb.WriteString(fmt.Sprintf("Netflow (%s USDT)\n\n", strings.Join(netflowParts, ", ")))
+			}
+		}
+
+		if config.EnableFunding {
+			sb.WriteString(fmt.Sprintf("Funding Rate: %.2e\n\n", data.FundingRate))
+		}
+	}
+
+	if data.IntradaySeries != nil {
+		sb.WriteString("Intraday series (3‑minute intervals, oldest → latest):\n\n")
+
+		// Format klines as OHLCV table if available and raw klines are enabled
+		if config.EnableRawKlines && len(data.IntradaySeries.Klines) > 0 {
+			sb.WriteString("Kline data (OHLCV):\n")
+			sb.WriteString(formatKlineTable(data.IntradaySeries.Klines))
+			sb.WriteString("\n")
+		}
+
+		// Keep backward compatibility: show MidPrices array if raw klines enabled
+		if config.EnableRawKlines && len(data.IntradaySeries.MidPrices) > 0 {
+			sb.WriteString(fmt.Sprintf("Mid prices: %s\n\n", formatFloatSlice(data.IntradaySeries.MidPrices)))
+		}
+
+		if config.EnableEMA && len(data.IntradaySeries.EMA20Values) > 0 {
+			sb.WriteString(fmt.Sprintf("EMA indicators (20‑period): %s\n\n", formatFloatSlice(data.IntradaySeries.EMA20Values)))
+		}
+
+		if config.EnableMACD && len(data.IntradaySeries.MACDValues) > 0 {
+			sb.WriteString(fmt.Sprintf("MACD indicators: %s\n\n", formatFloatSlice(data.IntradaySeries.MACDValues)))
+		}
+
+		if config.EnableRSI && len(data.IntradaySeries.RSI7Values) > 0 {
+			sb.WriteString(fmt.Sprintf("RSI indicators (7‑Period): %s\n\n", formatFloatSlice(data.IntradaySeries.RSI7Values)))
+		}
+
+		if config.EnableRSI && len(data.IntradaySeries.RSI14Values) > 0 {
+			sb.WriteString(fmt.Sprintf("RSI indicators (14‑Period): %s\n\n", formatFloatSlice(data.IntradaySeries.RSI14Values)))
+		}
+
+		if config.EnableVolume && len(data.IntradaySeries.Volume) > 0 {
+			sb.WriteString(fmt.Sprintf("Volume: %s\n\n", formatFloatSlice(data.IntradaySeries.Volume)))
+		}
+
+		if config.EnableATR && data.IntradaySeries.ATR14 > 0 {
+			sb.WriteString(fmt.Sprintf("3m ATR (14‑period): %.3f\n\n", data.IntradaySeries.ATR14))
+		}
+	}
+
+	if data.LongerTermContext != nil {
+		sb.WriteString("Longer‑term context (4‑hour timeframe):\n\n")
+
+		// Format klines as OHLCV table if available and raw klines are enabled
+		if config.EnableRawKlines && len(data.LongerTermContext.Klines) > 0 {
+			sb.WriteString("Kline data (OHLCV):\n")
+			sb.WriteString(formatKlineTable(data.LongerTermContext.Klines))
+			sb.WriteString("\n")
+		}
+
+		if config.EnableEMA {
+			sb.WriteString(fmt.Sprintf("20‑Period EMA: %.3f vs. 50‑Period EMA: %.3f\n\n",
+				data.LongerTermContext.EMA20, data.LongerTermContext.EMA50))
+		}
+
+		if config.EnableATR {
+			sb.WriteString(fmt.Sprintf("3‑Period ATR: %.3f vs. 14‑Period ATR: %.3f\n\n",
+				data.LongerTermContext.ATR3, data.LongerTermContext.ATR14))
+		}
+
+		if config.EnableVolume {
+			sb.WriteString(fmt.Sprintf("Current Volume: %.3f vs. Average Volume: %.3f\n\n",
+				data.LongerTermContext.CurrentVolume, data.LongerTermContext.AverageVolume))
+		}
+
+		if config.EnableMACD && len(data.LongerTermContext.MACDValues) > 0 {
+			sb.WriteString(fmt.Sprintf("MACD indicators: %s\n\n", formatFloatSlice(data.LongerTermContext.MACDValues)))
+		}
+
+		if config.EnableRSI && len(data.LongerTermContext.RSI14Values) > 0 {
+			sb.WriteString(fmt.Sprintf("RSI indicators (14‑Period): %s\n\n", formatFloatSlice(data.LongerTermContext.RSI14Values)))
+		}
+	}
+
+	return sb.String()
+}
+
 // formatPriceWithDynamicPrecision dynamically selects precision based on price range
 // This perfectly supports all coins from ultra-low price meme coins (< 0.0001) to BTC/ETH
 func formatPriceWithDynamicPrecision(price float64) string {
@@ -647,7 +828,7 @@ func formatKlineTable(klines []KlineBar) string {
 	}
 
 	var sb strings.Builder
-	
+
 	// Table header
 	sb.WriteString("┌─────────────────────┬──────────────┬──────────────┬──────────────┬──────────────┬──────────────┐\n")
 	sb.WriteString("│ Time                 │ Open         │ High         │ Low          │ Close        │ Volume       │\n")
