@@ -1,11 +1,19 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
-import { lazy, Suspense, ReactNode } from 'react'
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { lazy, Suspense, ReactNode, useEffect } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import AuthLayout from '../layouts/AuthLayout'
 import { LandingPage } from '../pages/LandingPage'
 import { LoginPage } from '../components/LoginPage'
 import { RegisterPage } from '../components/RegisterPage'
 import { ResetPasswordPage } from '../components/ResetPasswordPage'
+import { TermsAndConditionsPage } from '../pages/TermsAndConditionsPage'
+import { RiskDisclaimerPage } from '../pages/RiskDisclaimerPage'
+import { LicensePage } from '../pages/LicensePage'
+import { PricingPage } from '../pages/PricingPage'
+import { AboutPage } from '../pages/AboutPage'
+import { FeaturesPage } from '../pages/FeaturesPage'
+import { SecurityPage } from '../pages/SecurityPage'
+import { ContactPage } from '../pages/ContactPage'
 import { CompetitionPage } from '../components/CompetitionPage'
 import { AITradersPage } from '../pages/AITradersPage'
 import TraderDashboard from '../pages/TraderDashboard'
@@ -38,12 +46,28 @@ function RouteLoadingFallback() {
   )
 }
 
+// Scroll to top on route change
+function ScrollToTop() {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant', // Use 'instant' for immediate scroll, or 'smooth' for animated scroll
+    })
+  }, [pathname])
+
+  return null
+}
+
 // Root layout with all providers
 function RootLayout() {
   return (
     <LanguageProvider>
       <AuthProvider>
         <ConfirmDialogProvider>
+          <ScrollToTop />
           <Outlet />
         </ConfirmDialogProvider>
       </AuthProvider>
@@ -91,6 +115,38 @@ export const router = createBrowserRouter([
       {
         element: <MainLayout />,
         children: [
+          {
+            path: '/terms',
+            element: <TermsAndConditionsPage />,
+          },
+          {
+            path: '/risk-disclaimer',
+            element: <RiskDisclaimerPage />,
+          },
+          {
+            path: '/license',
+            element: <LicensePage />,
+          },
+          {
+            path: '/pricing',
+            element: <PricingPage />,
+          },
+          {
+            path: '/about',
+            element: <AboutPage />,
+          },
+          {
+            path: '/features',
+            element: <FeaturesPage />,
+          },
+          {
+            path: '/security',
+            element: <SecurityPage />,
+          },
+          {
+            path: '/contact',
+            element: <ContactPage />,
+          },
           {
             path: '/faq',
             element: (

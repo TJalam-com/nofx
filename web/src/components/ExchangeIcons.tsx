@@ -192,6 +192,34 @@ const OKXIcon: React.FC<IconProps> = ({
   </svg>
 )
 
+// Bitget SVG Icon Component
+const BitgetIcon: React.FC<IconProps> = ({
+  width = 24,
+  height = 24,
+  className,
+}) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 200 200"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <rect width="200" height="200" rx="40" fill="#7B2CBF" />
+    <path
+      d="M100 60L120 80L100 100L80 80L100 60Z"
+      fill="#FFFFFF"
+    />
+    <path
+      d="M100 100L120 120L100 140L80 120L100 100Z"
+      fill="#FFFFFF"
+    />
+    <circle cx="100" cy="80" r="8" fill="#FFFFFF" />
+    <circle cx="100" cy="120" r="8" fill="#FFFFFF" />
+  </svg>
+)
+
 // 获取交易所图标的函数
 export const getExchangeIcon = (
   exchangeType: string,
@@ -204,11 +232,13 @@ export const getExchangeIcon = (
       ? 'bybit'
       : exchangeType.toLowerCase().includes('okx')
         ? 'okx'
-        : exchangeType.toLowerCase().includes('hyperliquid')
-          ? 'hyperliquid'
-          : exchangeType.toLowerCase().includes('aster')
-            ? 'aster'
-            : exchangeType.toLowerCase()
+        : exchangeType.toLowerCase().includes('bitget')
+          ? 'bitget'
+          : exchangeType.toLowerCase().includes('hyperliquid')
+            ? 'hyperliquid'
+            : exchangeType.toLowerCase().includes('aster')
+              ? 'aster'
+              : exchangeType.toLowerCase()
 
   const iconProps = {
     width: props.width || 24,
@@ -223,6 +253,8 @@ export const getExchangeIcon = (
       return <BybitIcon {...iconProps} />
     case 'okx':
       return <OKXIcon {...iconProps} />
+    case 'bitget':
+      return <BitgetIcon {...iconProps} />
     case 'hyperliquid':
     case 'dex':
       return <HyperliquidIcon {...iconProps} />

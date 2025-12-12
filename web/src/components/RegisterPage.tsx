@@ -55,7 +55,7 @@ function translateBackendError(message: string, language: 'en' | 'zh'): string {
 
 export function RegisterPage() {
   const { language } = useLanguage()
-  const { register, completeRegistration } = useAuth()
+  const { register, completeRegistration, user } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState<'register' | 'setup-otp' | 'verify-otp'>(
     'register'
@@ -75,6 +75,14 @@ export function RegisterPage() {
   const [passwordValid, setPasswordValid] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/traders', { replace: true })
+    }
+  }, [user, navigate])
 
   useEffect(() => {
     // 获取系统配置，检查是否开启内测模式和注册功能
@@ -96,6 +104,12 @@ export function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    // Check if terms are accepted
+    if (!termsAccepted) {
+      setError(t('termsMustAccept', language))
+      return
+    }
 
     // 使用 PasswordChecklist 的校验结果
     if (!passwordValid) {
@@ -172,6 +186,8 @@ export function RegisterPage() {
               src="/icons/nofx.svg"
               alt="AI Trading 24x7 Logo"
               className="w-16 h-16 object-contain"
+              width="64"
+              height="64"
             />
           </div>
           <h1 className="text-2xl font-bold" style={{ color: '#EAECEF' }}>
@@ -340,6 +356,40 @@ export function RegisterPage() {
                 </div>
               )}
 
+              {/* Terms and Conditions Checkbox */}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="terms-checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded cursor-pointer"
+                  style={{
+                    background: termsAccepted ? 'var(--green-primary)' : 'var(--navy-primary)',
+                    border: '1px solid var(--panel-border)',
+                    accentColor: 'var(--green-primary)',
+                  }}
+                  required
+                />
+                <label
+                  htmlFor="terms-checkbox"
+                  className="text-sm cursor-pointer flex-1"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  <span>{t('termsAgree', language)} </span>
+                  <a
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-semibold hover:underline transition-colors"
+                    style={{ color: 'var(--green-primary)' }}
+                  >
+                    {t('termsViewTerms', language)}
+                  </a>
+                </label>
+              </div>
+
               {error && (
                 <div
                   className="text-sm px-3 py-2 rounded"
@@ -355,7 +405,7 @@ export function RegisterPage() {
               <button
                 type="submit"
                 disabled={
-                  loading || (betaMode && !betaCode.trim()) || !passwordValid
+                  loading || (betaMode && !betaCode.trim()) || !passwordValid || !termsAccepted
                 }
                 className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
                 style={{

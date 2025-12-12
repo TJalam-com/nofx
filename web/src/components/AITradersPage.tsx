@@ -2924,13 +2924,16 @@ function ExchangeConfigModal({
               </button>
             </div>
             <div className="overflow-y-auto max-h-[80vh]">
-              <img
-                src="/images/guide.png"
-                alt={t('binanceSetupGuide', language)}
-                className="w-full h-auto rounded"
-                loading="lazy"
-                decoding="async"
-              />
+              <picture>
+                <source srcSet="/images/guide.webp" type="image/webp" />
+                <img
+                  src="/images/guide.png"
+                  alt={t('binanceSetupGuide', language)}
+                  className="w-full h-auto rounded"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </picture>
             </div>
           </div>
         </div>

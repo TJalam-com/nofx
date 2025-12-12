@@ -25,7 +25,7 @@ type AutoTraderConfig struct {
 	AIModel string // AI model: "qwen" or "deepseek"
 
 	// Exchange selection
-	Exchange string // "binance", "bybit", "hyperliquid", "aster" or "lighter"
+	Exchange string // "binance", "bybit", "okx", "bitget", "hyperliquid", "aster" or "lighter"
 
 	// Binance API configuration
 	BinanceAPIKey    string
@@ -39,6 +39,11 @@ type AutoTraderConfig struct {
 	OkxAPIKey     string
 	OkxSecretKey  string
 	OkxPassphrase string // OKX requires passphrase
+
+	// Bitget API configuration
+	BitgetAPIKey     string
+	BitgetSecretKey  string
+	BitgetPassphrase string // Bitget requires passphrase (like OKX)
 
 	// Hyperliquid configuration
 	HyperliquidPrivateKey string
@@ -296,6 +301,9 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 	case "okx":
 		log.Printf("🏦 [%s] Using OKX Futures trading", config.Name)
 		trader = NewOKXTrader(config.OkxAPIKey, config.OkxSecretKey, config.OkxPassphrase)
+	case "bitget":
+		log.Printf("🏦 [%s] Using Bitget Futures trading", config.Name)
+		trader = NewBitgetTrader(config.BitgetAPIKey, config.BitgetSecretKey, config.BitgetPassphrase)
 	case "hyperliquid":
 		log.Printf("🏦 [%s] Using Hyperliquid trading", config.Name)
 		trader, err = NewHyperliquidTrader(config.HyperliquidPrivateKey, config.HyperliquidWalletAddr, config.HyperliquidTestnet)

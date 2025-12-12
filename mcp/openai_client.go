@@ -7,7 +7,7 @@ import (
 const (
 	ProviderOpenAI       = "openai"
 	DefaultOpenAIBaseURL = "https://api.openai.com/v1"
-	DefaultOpenAIModel    = "gpt-4o"
+	DefaultOpenAIModel   = "gpt-5.2"
 )
 
 type OpenAIClient struct {
@@ -24,15 +24,16 @@ func NewOpenAIClient() AIClient {
 // NewOpenAIClientWithOptions creates OpenAI client (supports options pattern)
 //
 // Usage examples:
-//   // Basic usage
-//   client := mcp.NewOpenAIClientWithOptions()
 //
-//   // Custom configuration
-//   client := mcp.NewOpenAIClientWithOptions(
-//       mcp.WithAPIKey("sk-xxx"),
-//       mcp.WithLogger(customLogger),
-//       mcp.WithTimeout(60*time.Second),
-//   )
+//	// Basic usage
+//	client := mcp.NewOpenAIClientWithOptions()
+//
+//	// Custom configuration
+//	client := mcp.NewOpenAIClientWithOptions(
+//	    mcp.WithAPIKey("sk-xxx"),
+//	    mcp.WithLogger(customLogger),
+//	    mcp.WithTimeout(60*time.Second),
+//	)
 func NewOpenAIClientWithOptions(opts ...ClientOption) AIClient {
 	// 1. Create OpenAI preset options
 	openaiOpts := []ClientOption{
@@ -81,4 +82,3 @@ func (openaiClient *OpenAIClient) SetAPIKey(apiKey string, customURL string, cus
 func (openaiClient *OpenAIClient) setAuthHeader(reqHeaders http.Header) {
 	openaiClient.Client.setAuthHeader(reqHeaders)
 }
-

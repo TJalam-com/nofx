@@ -43,7 +43,7 @@ type Client struct {
 	MaxTokens  int  // Maximum tokens for AI response
 
 	httpClient *http.Client
-	logger     Logger // Logger (replaceable)
+	logger     Logger  // Logger (replaceable)
 	config     *Config // Config object (stores all configurations)
 
 	// hooks are used to implement dynamic dispatch (polymorphism)
@@ -62,21 +62,22 @@ func New() AIClient {
 // NewClient creates client (supports options pattern)
 //
 // Usage examples:
-//   // Basic usage (backward compatible)
-//   client := mcp.NewClient()
 //
-//   // Custom logger
-//   client := mcp.NewClient(mcp.WithLogger(customLogger))
+//	// Basic usage (backward compatible)
+//	client := mcp.NewClient()
 //
-//   // Custom timeout
-//   client := mcp.NewClient(mcp.WithTimeout(60*time.Second))
+//	// Custom logger
+//	client := mcp.NewClient(mcp.WithLogger(customLogger))
 //
-//   // Combine multiple options
-//   client := mcp.NewClient(
-//       mcp.WithDeepSeekConfig("sk-xxx"),
-//       mcp.WithLogger(customLogger),
-//       mcp.WithTimeout(60*time.Second),
-//   )
+//	// Custom timeout
+//	client := mcp.NewClient(mcp.WithTimeout(60*time.Second))
+//
+//	// Combine multiple options
+//	client := mcp.NewClient(
+//	    mcp.WithDeepSeekConfig("sk-xxx"),
+//	    mcp.WithLogger(customLogger),
+//	    mcp.WithTimeout(60*time.Second),
+//	)
 func NewClient(opts ...ClientOption) AIClient {
 	// 1. Create default config
 	cfg := DefaultConfig()
@@ -200,7 +201,12 @@ func (client *Client) buildMCPRequestBody(systemPrompt, userPrompt string) map[s
 		"model":       client.Model,
 		"messages":    messages,
 		"temperature": client.config.Temperature, // Use configured temperature
-		"max_tokens":  client.MaxTokens,
+	}
+	// OpenAI newer models use max_completion_tokens instead of max_tokens
+	if client.Provider == ProviderOpenAI {
+		requestBody["max_completion_tokens"] = client.MaxTokens
+	} else {
+		requestBody["max_tokens"] = client.MaxTokens
 	}
 	return requestBody
 }
@@ -341,12 +347,13 @@ func (client *Client) isRetryableError(err error) bool {
 // - Streaming responses (future support)
 //
 // Usage examples:
-//   request := NewRequestBuilder().
-//       WithSystemPrompt("You are helpful").
-//       WithUserPrompt("Hello").
-//       WithTemperature(0.8).
-//       Build()
-//   result, err := client.CallWithRequest(request)
+//
+//	request := NewRequestBuilder().
+//	    WithSystemPrompt("You are helpful").
+//	    WithUserPrompt("Hello").
+//	    WithTemperature(0.8).
+//	    Build()
+//	result, err := client.CallWithRequest(request)
 func (client *Client) CallWithRequest(req *Request) (string, error) {
 	if client.APIKey == "" {
 		return "", fmt.Errorf("AI API key not set, please call SetAPIKey first")
@@ -469,11 +476,16 @@ func (client *Client) buildRequestBodyFromRequest(req *Request) map[string]any {
 		requestBody["temperature"] = client.config.Temperature
 	}
 
+	// OpenAI newer models use max_completion_tokens instead of max_tokens
+	tokenKey := "max_tokens"
+	if client.Provider == ProviderOpenAI {
+		tokenKey = "max_completion_tokens"
+	}
 	if req.MaxTokens != nil {
-		requestBody["max_tokens"] = *req.MaxTokens
+		requestBody[tokenKey] = *req.MaxTokens
 	} else {
 		// If not set in Request, use Client's MaxTokens
-		requestBody["max_tokens"] = client.MaxTokens
+		requestBody[tokenKey] = client.MaxTokens
 	}
 
 	if req.TopP != nil {

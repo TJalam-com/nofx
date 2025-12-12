@@ -710,6 +710,42 @@ func buildUserPrompt(ctx *Context) string {
 	}
 	sb.WriteString("\n")
 
+	// OI Ranking Data (Top Open Interest Growth)
+	if len(ctx.OITopDataMap) > 0 {
+		sb.WriteString("## OI Ranking Data (Top Open Interest Growth)\n\n")
+		sb.WriteString("The following coins show significant open interest growth and may indicate strong market momentum:\n\n")
+
+		// Collect and sort OI data by rank
+		type rankedOIData struct {
+			Symbol string
+			Data   *OITopData
+		}
+		rankedData := make([]rankedOIData, 0, len(ctx.OITopDataMap))
+		for symbol, oiData := range ctx.OITopDataMap {
+			rankedData = append(rankedData, rankedOIData{Symbol: symbol, Data: oiData})
+		}
+
+		// Sort by rank (ascending, rank 1 is best)
+		for i := 0; i < len(rankedData)-1; i++ {
+			for j := i + 1; j < len(rankedData); j++ {
+				if rankedData[i].Data.Rank > rankedData[j].Data.Rank {
+					rankedData[i], rankedData[j] = rankedData[j], rankedData[i]
+				}
+			}
+		}
+
+		// Display OI ranking data
+		for _, item := range rankedData {
+			oiData := item.Data
+			sb.WriteString(fmt.Sprintf("Rank #%d: %s | OI Delta: %+.2f%% (%+.0f) | Price Delta: %+.2f%% | Net Long: %.0f | Net Short: %.0f\n",
+				oiData.Rank, item.Symbol,
+				oiData.OIDeltaPercent, oiData.OIDeltaValue,
+				oiData.PriceDeltaPercent,
+				oiData.NetLong, oiData.NetShort))
+		}
+		sb.WriteString("\n")
+	}
+
 	// Sharpe ratio (pass value directly, no complex formatting)
 	if ctx.Performance != nil {
 		// Extract SharpeRatio directly from interface{}
@@ -839,9 +875,20 @@ func extractDecisions(response string) ([]Decision, error) {
 				jsonContent := strings.TrimSpace(m[i])
 				jsonContent = compactArrayOpen(jsonContent)
 				jsonContent = fixMissingQuotes(jsonContent)
-				if decisions, err := tryParseJSON(jsonContent, response); err == nil {
-					log.Printf("✓ Successfully parsed JSON from enhanced code block regex")
-					return decisions, nil
+				// Check if it's a single object or an array
+				trimmedContent := strings.TrimSpace(jsonContent)
+				if strings.HasPrefix(trimmedContent, "{") {
+					// Single object - use tryParseJSONObject
+					if decisions, err := tryParseJSONObject(jsonContent, response); err == nil {
+						log.Printf("✓ Successfully parsed single JSON object from enhanced code block regex")
+						return decisions, nil
+					}
+				} else {
+					// Array - use tryParseJSON
+					if decisions, err := tryParseJSON(jsonContent, response); err == nil {
+						log.Printf("✓ Successfully parsed JSON array from enhanced code block regex")
+						return decisions, nil
+					}
 				}
 			}
 		}
@@ -879,9 +926,20 @@ func extractDecisions(response string) ([]Decision, error) {
 
 	// 6) Last resort: Try to repair broken JSON
 	if repairedJSON, err := tryRepairJSON(jsonPart); err == nil && repairedJSON != "" {
-		if decisions, err := tryParseJSON(repairedJSON, response); err == nil {
-			log.Printf("✓ Successfully parsed repaired JSON")
-			return decisions, nil
+		// Check if it's a single object or an array
+		trimmedRepaired := strings.TrimSpace(repairedJSON)
+		if strings.HasPrefix(trimmedRepaired, "{") {
+			// Single object - use tryParseJSONObject first
+			if decisions, err := tryParseJSONObject(repairedJSON, response); err == nil {
+				log.Printf("✓ Successfully parsed repaired JSON object")
+				return decisions, nil
+			}
+		} else if strings.HasPrefix(trimmedRepaired, "[") {
+			// Array - use tryParseJSON
+			if decisions, err := tryParseJSON(repairedJSON, response); err == nil {
+				log.Printf("✓ Successfully parsed repaired JSON array")
+				return decisions, nil
+			}
 		}
 	}
 
@@ -931,9 +989,10 @@ func tryParseJSON(jsonContent, fullResponse string) ([]Decision, error) {
 
 // tryParseJSONObject attempts to parse a single JSON object (for TradingView signals)
 func tryParseJSONObject(jsonContent, fullResponse string) ([]Decision, error) {
-	// Validate JSON format first
-	if err := validateJSONFormat(jsonContent); err != nil {
-		return nil, err
+	// Validate that it's a single object (not an array)
+	trimmed := strings.TrimSpace(jsonContent)
+	if !strings.HasPrefix(trimmed, "{") {
+		return nil, fmt.Errorf("JSON object must start with {, actual: %s", trimmed[:min(20, len(trimmed))])
 	}
 
 	var decision Decision

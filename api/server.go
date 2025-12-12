@@ -507,53 +507,53 @@ type CreateTraderRequest struct {
 
 // Strategy management related structures
 type CreateStrategyRequest struct {
-	Name                string `json:"name" binding:"required"`
-	Description         string `json:"description"`
+	Name                 string `json:"name" binding:"required"`
+	Description          string `json:"description"`
 	SystemPromptTemplate string `json:"system_prompt_template"`
-	CustomPrompt        string `json:"custom_prompt"`
-	OverrideBasePrompt  bool   `json:"override_base_prompt"`
-	BTCETHLeverage      int    `json:"btc_eth_leverage"`
-	AltcoinLeverage     int    `json:"altcoin_leverage"`
+	CustomPrompt         string `json:"custom_prompt"`
+	OverrideBasePrompt   bool   `json:"override_base_prompt"`
+	BTCETHLeverage       int    `json:"btc_eth_leverage"`
+	AltcoinLeverage      int    `json:"altcoin_leverage"`
 	TradingSymbols       string `json:"trading_symbols"`
-	IsCrossMargin       bool   `json:"is_cross_margin"`
-	UseCoinPool         bool   `json:"use_coin_pool"`
-	UseOITop            bool   `json:"use_oi_top"`
-	UseTradingView      bool   `json:"use_tradingview"`
-	EnableRawKlines     bool   `json:"enable_raw_klines"`
-	EnableEMA           bool   `json:"enable_ema"`
-	EnableMACD          bool   `json:"enable_macd"`
-	EnableRSI           bool   `json:"enable_rsi"`
-	EnableATR           bool   `json:"enable_atr"`
-	EnableVolume        bool   `json:"enable_volume"`
-	EnableOI            bool   `json:"enable_oi"`
-	EnableFunding       bool   `json:"enable_funding"`
-	IndicatorTimeframe  string `json:"indicator_timeframe"`
-	QuantDataURL        string `json:"quant_data_url"`
+	IsCrossMargin        bool   `json:"is_cross_margin"`
+	UseCoinPool          bool   `json:"use_coin_pool"`
+	UseOITop             bool   `json:"use_oi_top"`
+	UseTradingView       bool   `json:"use_tradingview"`
+	EnableRawKlines      bool   `json:"enable_raw_klines"`
+	EnableEMA            bool   `json:"enable_ema"`
+	EnableMACD           bool   `json:"enable_macd"`
+	EnableRSI            bool   `json:"enable_rsi"`
+	EnableATR            bool   `json:"enable_atr"`
+	EnableVolume         bool   `json:"enable_volume"`
+	EnableOI             bool   `json:"enable_oi"`
+	EnableFunding        bool   `json:"enable_funding"`
+	IndicatorTimeframe   string `json:"indicator_timeframe"`
+	QuantDataURL         string `json:"quant_data_url"`
 }
 
 type UpdateStrategyRequest struct {
-	Name                string `json:"name" binding:"required"`
-	Description         string `json:"description"`
+	Name                 string `json:"name" binding:"required"`
+	Description          string `json:"description"`
 	SystemPromptTemplate string `json:"system_prompt_template"`
-	CustomPrompt        string `json:"custom_prompt"`
-	OverrideBasePrompt  bool   `json:"override_base_prompt"`
-	BTCETHLeverage      int    `json:"btc_eth_leverage"`
-	AltcoinLeverage     int    `json:"altcoin_leverage"`
+	CustomPrompt         string `json:"custom_prompt"`
+	OverrideBasePrompt   bool   `json:"override_base_prompt"`
+	BTCETHLeverage       int    `json:"btc_eth_leverage"`
+	AltcoinLeverage      int    `json:"altcoin_leverage"`
 	TradingSymbols       string `json:"trading_symbols"`
-	IsCrossMargin       bool   `json:"is_cross_margin"`
-	UseCoinPool         bool   `json:"use_coin_pool"`
-	UseOITop            bool   `json:"use_oi_top"`
-	UseTradingView      bool   `json:"use_tradingview"`
-	EnableRawKlines     bool   `json:"enable_raw_klines"`
-	EnableEMA           bool   `json:"enable_ema"`
-	EnableMACD          bool   `json:"enable_macd"`
-	EnableRSI           bool   `json:"enable_rsi"`
-	EnableATR           bool   `json:"enable_atr"`
-	EnableVolume        bool   `json:"enable_volume"`
-	EnableOI            bool   `json:"enable_oi"`
-	EnableFunding       bool   `json:"enable_funding"`
-	IndicatorTimeframe  string `json:"indicator_timeframe"`
-	QuantDataURL        string `json:"quant_data_url"`
+	IsCrossMargin        bool   `json:"is_cross_margin"`
+	UseCoinPool          bool   `json:"use_coin_pool"`
+	UseOITop             bool   `json:"use_oi_top"`
+	UseTradingView       bool   `json:"use_tradingview"`
+	EnableRawKlines      bool   `json:"enable_raw_klines"`
+	EnableEMA            bool   `json:"enable_ema"`
+	EnableMACD           bool   `json:"enable_macd"`
+	EnableRSI            bool   `json:"enable_rsi"`
+	EnableATR            bool   `json:"enable_atr"`
+	EnableVolume         bool   `json:"enable_volume"`
+	EnableOI             bool   `json:"enable_oi"`
+	EnableFunding        bool   `json:"enable_funding"`
+	IndicatorTimeframe   string `json:"indicator_timeframe"`
+	QuantDataURL         string `json:"quant_data_url"`
 }
 
 type ImportStrategyRequest struct {
@@ -801,11 +801,11 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 									OverrideBasePrompt:   parentStrategy.OverrideBasePrompt,
 									BTCETHLeverage:       parentStrategy.BTCETHLeverage,
 									AltcoinLeverage:      parentStrategy.AltcoinLeverage,
-									TradingSymbols:        parentStrategy.TradingSymbols,
+									TradingSymbols:       parentStrategy.TradingSymbols,
 									IsCrossMargin:        parentStrategy.IsCrossMargin,
 									UseCoinPool:          parentStrategy.UseCoinPool,
 									UseOITop:             parentStrategy.UseOITop,
-									UseTradingView:        parentStrategy.UseTradingView,
+									UseTradingView:       parentStrategy.UseTradingView,
 									EnableRawKlines:      parentStrategy.EnableRawKlines,
 									EnableEMA:            parentStrategy.EnableEMA,
 									EnableMACD:           parentStrategy.EnableMACD,
@@ -839,11 +839,11 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 								OverrideBasePrompt:   trader.OverrideBasePrompt,
 								BTCETHLeverage:       trader.BTCETHLeverage,
 								AltcoinLeverage:      trader.AltcoinLeverage,
-								TradingSymbols:        trader.TradingSymbols,
+								TradingSymbols:       trader.TradingSymbols,
 								IsCrossMargin:        trader.IsCrossMargin,
 								UseCoinPool:          trader.UseCoinPool,
 								UseOITop:             trader.UseOITop,
-								UseTradingView:        trader.UseTradingView,
+								UseTradingView:       trader.UseTradingView,
 								EnableRawKlines:      trader.EnableRawKlines,
 								EnableEMA:            trader.EnableEMA,
 								EnableMACD:           trader.EnableMACD,
@@ -1026,6 +1026,18 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 				exchangeCfg.APIKey,
 				exchangeCfg.SecretKey,
 			)
+		case "okx":
+			tempTrader = trader.NewOKXTrader(
+				exchangeCfg.APIKey,
+				exchangeCfg.SecretKey,
+				exchangeCfg.OkxPassphrase,
+			)
+		case "bitget":
+			tempTrader = trader.NewBitgetTrader(
+				exchangeCfg.APIKey,
+				exchangeCfg.SecretKey,
+				exchangeCfg.OkxPassphrase, // Reuse passphrase field
+			)
 		default:
 			log.Printf("⚠️ Unsupported exchange type: %s, using user input initial balance", req.ExchangeID)
 		}
@@ -1152,7 +1164,7 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 		TradingSymbols:       req.TradingSymbols,
 		UseCoinPool:          req.UseCoinPool,
 		UseOITop:             req.UseOITop,
-		UseTradingView:        req.UseTradingView,
+		UseTradingView:       req.UseTradingView,
 		FollowedTraderID:     req.FollowedTraderID,
 		CustomPrompt:         req.CustomPrompt,
 		OverrideBasePrompt:   req.OverrideBasePrompt,
@@ -2137,6 +2149,7 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 			{ID: "binance", Name: "Binance Futures", Type: "binance", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
 			{ID: "bybit", Name: "Bybit Futures", Type: "bybit", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
 			{ID: "okx", Name: "OKX Futures", Type: "okx", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+			{ID: "bitget", Name: "Bitget Futures", Type: "bitget", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
 			{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
 			{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
 			{ID: "lighter", Name: "LIGHTER DEX", Type: "lighter", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
@@ -2849,16 +2862,16 @@ func (s *Server) handleGetTraderConfig(c *gin.Context) {
 		"strategy_id":            traderConfig.StrategyID,
 		"is_running":             isRunning,
 		// Indicator configuration
-		"enable_raw_klines":  traderConfig.EnableRawKlines,
-		"enable_ema":        traderConfig.EnableEMA,
-		"enable_macd":       traderConfig.EnableMACD,
-		"enable_rsi":        traderConfig.EnableRSI,
-		"enable_atr":        traderConfig.EnableATR,
-		"enable_volume":     traderConfig.EnableVolume,
-		"enable_oi":          traderConfig.EnableOI,
-		"enable_funding":     traderConfig.EnableFunding,
+		"enable_raw_klines":   traderConfig.EnableRawKlines,
+		"enable_ema":          traderConfig.EnableEMA,
+		"enable_macd":         traderConfig.EnableMACD,
+		"enable_rsi":          traderConfig.EnableRSI,
+		"enable_atr":          traderConfig.EnableATR,
+		"enable_volume":       traderConfig.EnableVolume,
+		"enable_oi":           traderConfig.EnableOI,
+		"enable_funding":      traderConfig.EnableFunding,
 		"indicator_timeframe": traderConfig.IndicatorTimeframe,
-		"quant_data_url":     traderConfig.QuantDataURL,
+		"quant_data_url":      traderConfig.QuantDataURL,
 	}
 
 	log.Printf("🔍 DEBUG [handleGetTraderConfig]: Returning trader config - trader_id: %s, strategy_id: '%s', system_prompt_template: '%s' (original: '%s')", traderConfig.ID, traderConfig.StrategyID, systemPromptTemplate, traderConfig.SystemPromptTemplate)
@@ -3047,7 +3060,7 @@ func (s *Server) handleDecisions(c *gin.Context) {
 	c.JSON(http.StatusOK, records)
 }
 
-// handleLatestDecisions latest decision logs (last 5, newest first)
+// handleLatestDecisions latest decision logs (configurable limit, newest first)
 func (s *Server) handleLatestDecisions(c *gin.Context) {
 	_, traderID, err := s.getTraderFromQuery(c)
 	if err != nil {
@@ -3061,7 +3074,15 @@ func (s *Server) handleLatestDecisions(c *gin.Context) {
 		return
 	}
 
-	records, err := trader.GetDecisionLogger().GetLatestRecords(5)
+	// Get limit from query parameter, default to 5
+	limit := 5
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	records, err := trader.GetDecisionLogger().GetLatestRecords(limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("Failed to get decision logs: %v", err),
@@ -3456,7 +3477,7 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 	// Filter out parent traders (traders without followed_trader_id)
 	var parentTraders []*config.TraderRecord
 	for _, trader := range userTraders {
-		log.Printf("🔍 DEBUG [handleGetUserFollowers]: Checking trader ID: '%s', Name: '%s', FollowedTraderID: '%s'", 
+		log.Printf("🔍 DEBUG [handleGetUserFollowers]: Checking trader ID: '%s', Name: '%s', FollowedTraderID: '%s'",
 			trader.ID, trader.Name, trader.FollowedTraderID)
 		if trader.FollowedTraderID == "" {
 			parentTraders = append(parentTraders, trader)
@@ -3472,9 +3493,9 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 	parentTradersList := make([]gin.H, 0, len(parentTraders))
 
 	for _, parentTrader := range parentTraders {
-		log.Printf("🔍 DEBUG [handleGetUserFollowers]: Querying followers for parent trader ID: '%s', Name: '%s'", 
+		log.Printf("🔍 DEBUG [handleGetUserFollowers]: Querying followers for parent trader ID: '%s', Name: '%s'",
 			parentTrader.ID, parentTrader.Name)
-		
+
 		// Get all followers of this parent trader
 		followers, err := s.database.GetFollowerTraders(parentTrader.ID)
 		if err != nil {
@@ -3581,12 +3602,12 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 			"followers":   followersList,
 		}
 
-		log.Printf("✅ DEBUG [handleGetUserFollowers]: Added parent trader '%s' with %d followers to response", 
+		log.Printf("✅ DEBUG [handleGetUserFollowers]: Added parent trader '%s' with %d followers to response",
 			parentTrader.ID, len(followersList))
 		parentTradersList = append(parentTradersList, parentInfo)
 	}
 
-	log.Printf("📊 DEBUG [handleGetUserFollowers]: Returning %d parent traders with followers for user '%s'", 
+	log.Printf("📊 DEBUG [handleGetUserFollowers]: Returning %d parent traders with followers for user '%s'",
 		len(parentTradersList), userID)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -4167,7 +4188,7 @@ func (s *Server) handleCreateStrategy(c *gin.Context) {
 		OverrideBasePrompt:   req.OverrideBasePrompt,
 		BTCETHLeverage:       req.BTCETHLeverage,
 		AltcoinLeverage:      req.AltcoinLeverage,
-		TradingSymbols:        req.TradingSymbols,
+		TradingSymbols:       req.TradingSymbols,
 		IsCrossMargin:        req.IsCrossMargin,
 		UseCoinPool:          req.UseCoinPool,
 		UseOITop:             req.UseOITop,
@@ -4294,7 +4315,7 @@ func (s *Server) handleImportStrategy(c *gin.Context) {
 		OverrideBasePrompt:   getBoolFromMap(strategyData, "override_base_prompt"),
 		BTCETHLeverage:       getIntFromMap(strategyData, "btc_eth_leverage", 5),
 		AltcoinLeverage:      getIntFromMap(strategyData, "altcoin_leverage", 3),
-		TradingSymbols:        getStringFromMap(strategyData, "trading_symbols"),
+		TradingSymbols:       getStringFromMap(strategyData, "trading_symbols"),
 		IsCrossMargin:        getBoolFromMap(strategyData, "is_cross_margin"),
 		UseCoinPool:          getBoolFromMap(strategyData, "use_coin_pool"),
 		UseOITop:             getBoolFromMap(strategyData, "use_oi_top"),
@@ -4341,28 +4362,28 @@ func (s *Server) handleExportStrategy(c *gin.Context) {
 
 	// Convert to map for JSON export (exclude user_id and timestamps for cleaner export)
 	exportData := map[string]interface{}{
-		"name":                  strategy.Name,
-		"description":           strategy.Description,
+		"name":                   strategy.Name,
+		"description":            strategy.Description,
 		"system_prompt_template": strategy.SystemPromptTemplate,
-		"custom_prompt":         strategy.CustomPrompt,
-		"override_base_prompt":  strategy.OverrideBasePrompt,
-		"btc_eth_leverage":      strategy.BTCETHLeverage,
-		"altcoin_leverage":      strategy.AltcoinLeverage,
-		"trading_symbols":       strategy.TradingSymbols,
-		"is_cross_margin":       strategy.IsCrossMargin,
-		"use_coin_pool":         strategy.UseCoinPool,
-		"use_oi_top":            strategy.UseOITop,
-		"use_tradingview":       strategy.UseTradingView,
+		"custom_prompt":          strategy.CustomPrompt,
+		"override_base_prompt":   strategy.OverrideBasePrompt,
+		"btc_eth_leverage":       strategy.BTCETHLeverage,
+		"altcoin_leverage":       strategy.AltcoinLeverage,
+		"trading_symbols":        strategy.TradingSymbols,
+		"is_cross_margin":        strategy.IsCrossMargin,
+		"use_coin_pool":          strategy.UseCoinPool,
+		"use_oi_top":             strategy.UseOITop,
+		"use_tradingview":        strategy.UseTradingView,
 		"enable_raw_klines":      strategy.EnableRawKlines,
-		"enable_ema":            strategy.EnableEMA,
-		"enable_macd":           strategy.EnableMACD,
-		"enable_rsi":            strategy.EnableRSI,
-		"enable_atr":            strategy.EnableATR,
-		"enable_volume":         strategy.EnableVolume,
-		"enable_oi":             strategy.EnableOI,
-		"enable_funding":        strategy.EnableFunding,
-		"indicator_timeframe":   strategy.IndicatorTimeframe,
-		"quant_data_url":        strategy.QuantDataURL,
+		"enable_ema":             strategy.EnableEMA,
+		"enable_macd":            strategy.EnableMACD,
+		"enable_rsi":             strategy.EnableRSI,
+		"enable_atr":             strategy.EnableATR,
+		"enable_volume":          strategy.EnableVolume,
+		"enable_oi":              strategy.EnableOI,
+		"enable_funding":         strategy.EnableFunding,
+		"indicator_timeframe":    strategy.IndicatorTimeframe,
+		"quant_data_url":         strategy.QuantDataURL,
 	}
 
 	c.JSON(http.StatusOK, exportData)

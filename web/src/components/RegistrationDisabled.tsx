@@ -20,6 +20,8 @@ export function RegistrationDisabled() {
           src="/icons/nofx.svg"
           alt="AI Trading 24x7 Logo"
           className="w-16 h-16 mx-auto mb-4"
+          width="64"
+          height="64"
         />
         <h1 className="text-2xl font-semibold mb-3">
           {t('registrationClosed', language)}

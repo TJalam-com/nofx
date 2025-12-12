@@ -1189,7 +1189,7 @@ type TraderRecord struct {
 	OverrideBasePrompt   bool    `json:"override_base_prompt"`   // Whether to override base prompt
 	SystemPromptTemplate string  `json:"system_prompt_template"` // System prompt template name
 	IsCrossMargin        bool    `json:"is_cross_margin"`        // Whether cross margin mode (true=cross, false=isolated)
-	ShowInCompetition    bool    `json:"show_in_competition"`     // Whether to show in competition page
+	ShowInCompetition    bool    `json:"show_in_competition"`    // Whether to show in competition page
 	StrategyID           string  `json:"strategy_id"`            // Strategy ID (nullable, references strategies table)
 	// Indicator configuration
 	EnableRawKlines    bool      `json:"enable_raw_klines"`   // Raw OHLCV klines (always true, required)
@@ -2913,7 +2913,7 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 // GetFollowerTraders get all traders following specified trader list
 func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord, error) {
 	log.Printf("🔍 DEBUG [GetFollowerTraders]: Querying followers for parent trader ID: '%s'", followedTraderID)
-	
+
 	// Query handles both NULL and empty string by using COALESCE in SELECT, but WHERE clause needs to handle both
 	// SQLite: NULL != '' and '' != NULL, so we need to check both cases
 	rows, err := d.db.Query(`
@@ -2976,7 +2976,7 @@ func (d *Database) GetFollowerTraders(followedTraderID string) ([]*TraderRecord,
 		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 		traders = append(traders, &trader)
-		log.Printf("✅ DEBUG [GetFollowerTraders]: Found follower - ID: '%s', Name: '%s', UserID: '%s', FollowedTraderID: '%s', IsRunning: %v", 
+		log.Printf("✅ DEBUG [GetFollowerTraders]: Found follower - ID: '%s', Name: '%s', UserID: '%s', FollowedTraderID: '%s', IsRunning: %v",
 			trader.ID, trader.Name, trader.UserID, trader.FollowedTraderID, trader.IsRunning)
 	}
 
@@ -3020,7 +3020,7 @@ func (d *Database) UpdateTrader(trader *TraderRecord) error {
 	result, err := d.db.Exec(`
 		UPDATE traders SET
 			name = ?, ai_model_id = ?, exchange_id = ?,
-			scan_interval_minutes = ?, btc_eth_leverage = ?, altcoin_leverage = ?,
+			initial_balance = ?, scan_interval_minutes = ?, btc_eth_leverage = ?, altcoin_leverage = ?,
 			trading_symbols = ?, use_coin_pool = ?, use_oi_top = ?, use_tradingview = ?,
 			followed_trader_id = ?,
 			custom_prompt = ?, override_base_prompt = ?,
@@ -3031,7 +3031,7 @@ func (d *Database) UpdateTrader(trader *TraderRecord) error {
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND user_id = ?
 	`, trader.Name, trader.AIModelID, trader.ExchangeID,
-		trader.ScanIntervalMinutes, trader.BTCETHLeverage, trader.AltcoinLeverage,
+		trader.InitialBalance, trader.ScanIntervalMinutes, trader.BTCETHLeverage, trader.AltcoinLeverage,
 		trader.TradingSymbols, trader.UseCoinPool, trader.UseOITop, trader.UseTradingView,
 		trader.FollowedTraderID,
 		trader.CustomPrompt, trader.OverrideBasePrompt,

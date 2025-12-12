@@ -219,11 +219,14 @@ export interface CompetitionTraderData {
   margin_used_pct: number
   is_running: boolean
   followed_trader_id?: string // 跟随的交易员ID（用于follower角色）
+  followers_count?: number // Number of followers for this trader
 }
 
 export interface CompetitionData {
   traders: CompetitionTraderData[]
   count: number
+  follower_total_count?: number // Total count of all follower traders
+  follower_running_count?: number // Count of running follower traders
 }
 
 // Trader Configuration Data for View Modal

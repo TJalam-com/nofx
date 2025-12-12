@@ -276,100 +276,140 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
   const CustomLegend = ({ payload }: any) => {
     if (!payload) return null
 
-    // Filter out Area entries (they don't have a value/name property)
-    // Only show Line entries that have proper trader names
-    const filteredPayload = payload.filter((entry: any) => {
-      // Area entries don't have a name prop, so they won't have entry.value
-      // Line entries have name={trader.trader_name}, so they will have entry.value
-      return entry.value != null
-    })
+    // Filter to only show Line entries (they have 'name' prop, Area entries don't)
+    // Also deduplicate by trader_id to ensure each trader appears only once
+    const seenTraderIds = new Set<string>()
+    const filteredPayload = payload
+      .filter((entry: any) => {
+        // Only show Line entries (they have a name prop, Area entries don't)
+        // Also check if dataKey ends with _pnl_pct to be safe
+        return entry.name && entry.dataKey && entry.dataKey.endsWith('_pnl_pct')
+      })
+      .map((entry: any) => {
+        // Extract trader_id from dataKey
+        const traderId = entry.dataKey.replace('_pnl_pct', '')
+        const trader = traders.find((t) => t.trader_id === traderId)
+        return { ...entry, traderId, trader }
+      })
+      .filter((entry: any) => {
+        // Only show entries with valid traders and deduplicate by trader_id
+        if (!entry.trader || seenTraderIds.has(entry.traderId)) {
+          return false
+        }
+        seenTraderIds.add(entry.traderId)
+        return true
+      })
+
+    const hasManyTraders = filteredPayload.length > 10
 
     return (
-      <ul
-        className="recharts-default-legend"
+      <div
         style={{
           paddingTop: '20px',
           paddingBottom: '10px',
-          textAlign: 'center',
+          maxHeight: hasManyTraders ? '150px' : 'none',
+          overflowY: hasManyTraders ? 'auto' : 'visible',
+          overflowX: 'hidden',
         }}
       >
-        {filteredPayload.map((entry: any) => {
-          const trader = traders.find((t) => t.trader_name === entry.value)
-          
-          // Find each trader's last available data point to avoid showing 0%
-          let lastPnLPct: number | null = null
-          if (combinedData.length > 0 && trader) {
-            // Search backwards through combinedData to find last non-null data point
-            for (let i = combinedData.length - 1; i >= 0; i--) {
-              const dataPoint = combinedData[i]
-              const pnlPct = dataPoint[`${trader.trader_id}_pnl_pct`]
-              if (pnlPct !== undefined && pnlPct !== null && !isNaN(pnlPct)) {
-                lastPnLPct = pnlPct
-                break
+        <ul
+          className="recharts-default-legend"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '12px',
+            listStyle: 'none',
+            margin: 0,
+            padding: 0,
+          }}
+        >
+          {filteredPayload.map((entry: any) => {
+            const trader = entry.trader
+            
+            // Find each trader's last available data point to avoid showing 0%
+            let lastPnLPct: number | null = null
+            if (combinedData.length > 0 && trader) {
+              // Search backwards through combinedData to find last non-null data point
+              for (let i = combinedData.length - 1; i >= 0; i--) {
+                const dataPoint = combinedData[i]
+                const pnlPct = dataPoint[`${trader.trader_id}_pnl_pct`]
+                if (pnlPct !== undefined && pnlPct !== null && !isNaN(pnlPct)) {
+                  lastPnLPct = pnlPct
+                  break
+                }
               }
             }
-          }
 
-          return (
-            <li
-              key={entry.value}
-              className="recharts-legend-item"
-              style={{
-                display: 'inline-block',
-                marginRight: '20px',
-                marginLeft: '20px',
-              }}
-            >
-              <svg
-                className="recharts-surface"
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
+            return (
+              <li
+                key={trader.trader_id}
+                className="recharts-legend-item"
                 style={{
-                  display: 'inline-block',
-                  verticalAlign: 'middle',
-                  marginRight: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  flexShrink: 0,
                 }}
               >
-                <line
-                  x1="0"
-                  y1="7"
-                  x2="14"
-                  y2="7"
-                  stroke={entry.color}
-                  strokeWidth="2.5"
-                />
-              </svg>
-              <span
-                className="recharts-legend-item-text"
-                style={{
-                  color: entry.color,
-                  fontWeight: 600,
-                  fontSize: '14px',
-                }}
-              >
-                {trader?.trader_name}{' '}
-                <span style={{ opacity: 0.6 }}>
-                  ({trader?.ai_model.toUpperCase()})
-                </span>
-                {lastPnLPct !== null && (
-                  <span
-                    style={{
-                      marginLeft: '8px',
-                      opacity: 0.8,
-                      fontWeight: 500,
-                      color: lastPnLPct >= 0 ? 'var(--green-primary)' : 'var(--error)',
-                    }}
-                  >
-                    {lastPnLPct >= 0 ? '+' : ''}
-                    {lastPnLPct.toFixed(2)}%
+                <svg
+                  className="recharts-surface"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 14 14"
+                  style={{
+                    flexShrink: 0,
+                  }}
+                >
+                  <line
+                    x1="0"
+                    y1="7"
+                    x2="14"
+                    y2="7"
+                    stroke={entry.color}
+                    strokeWidth="2.5"
+                  />
+                </svg>
+                <span
+                  className="recharts-legend-item-text"
+                  style={{
+                    color: entry.color,
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <span className="truncate max-w-[100px]" title={trader.trader_name}>
+                    {trader.trader_name}
                   </span>
-                )}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
+                  {lastPnLPct !== null && (
+                    <span
+                      style={{
+                        opacity: 0.9,
+                        fontWeight: 600,
+                        fontSize: '12px',
+                        color: lastPnLPct >= 0 ? 'var(--green-primary)' : 'var(--error)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {lastPnLPct >= 0 ? '+' : ''}
+                      {lastPnLPct.toFixed(2)}%
+                    </span>
+                  )}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
     )
   }
 
@@ -466,45 +506,67 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
       {/* Mini Stats Bar - Show all traders with current PnL */}
       {currentPnLData.length > 0 && (
         <div
-          className="flex flex-wrap gap-2 p-3 rounded-lg"
+          className="rounded-lg overflow-hidden"
           style={{
             background: 'var(--bg-dark)',
             border: '1px solid var(--bg-panel)',
           }}
         >
-          {currentPnLData.map((trader) => {
-            const isPositive = trader.pnl_pct >= 0
-            return (
-              <div
-                key={trader.trader_id}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-md"
-                style={{
-                  background: 'rgba(0, 255, 127, 0.05)',
-                  border: `1px solid ${traderColor(trader.trader_id)}40`,
-                }}
-              >
+          <div
+            className="flex flex-wrap gap-2 p-3"
+            style={{
+              maxHeight: currentPnLData.length > 8 ? '120px' : 'none',
+              overflowY: currentPnLData.length > 8 ? 'auto' : 'visible',
+              overflowX: 'hidden',
+            }}
+          >
+            {currentPnLData.map((trader) => {
+              const isPositive = trader.pnl_pct >= 0
+              return (
                 <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ background: traderColor(trader.trader_id) }}
-                />
-                <span
-                  className="text-xs font-semibold"
-                  style={{ color: traderColor(trader.trader_id) }}
-                >
-                  {trader.trader_name}:
-                </span>
-                <span
-                  className="text-xs font-bold mono"
+                  key={trader.trader_id}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md flex-shrink-0"
                   style={{
-                    color: isPositive ? 'var(--green-primary)' : 'var(--error)',
+                    background: 'rgba(0, 255, 127, 0.05)',
+                    border: `1px solid ${traderColor(trader.trader_id)}40`,
                   }}
                 >
-                  {isPositive ? '+' : ''}
-                  {trader.pnl_pct.toFixed(2)}%
-                </span>
-              </div>
-            )
-          })}
+                  <div
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ background: traderColor(trader.trader_id) }}
+                  />
+                  <span
+                    className="text-xs font-semibold truncate max-w-[120px]"
+                    style={{ color: traderColor(trader.trader_id) }}
+                    title={trader.trader_name}
+                  >
+                    {trader.trader_name}:
+                  </span>
+                  <span
+                    className="text-xs font-bold mono whitespace-nowrap flex-shrink-0"
+                    style={{
+                      color: isPositive ? 'var(--green-primary)' : 'var(--error)',
+                    }}
+                  >
+                    {isPositive ? '+' : ''}
+                    {trader.pnl_pct.toFixed(2)}%
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          {currentPnLData.length > 8 && (
+            <div
+              className="px-3 py-1.5 text-xs text-center"
+              style={{
+                color: 'var(--text-gray-light)',
+                borderTop: '1px solid var(--bg-panel)',
+                background: 'rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              {t('showingAllTraders', language) || `Showing all ${currentPnLData.length} traders`} • {t('scrollToView', language) || 'Scroll to view all'}
+            </div>
+          )}
         </div>
       )}
 

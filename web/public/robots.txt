@@ -6,6 +6,14 @@ Allow: /competition
 Allow: /traders
 Allow: /faq
 Allow: /become-trader
+Allow: /about
+Allow: /features
+Allow: /pricing
+Allow: /security
+Allow: /contact
+Allow: /terms
+Allow: /risk-disclaimer
+Allow: /license
 
 # Disallow private/user-specific pages
 Disallow: /dashboard

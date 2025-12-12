@@ -85,6 +85,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>(getInitialPage())
   const [selectedTraderId, setSelectedTraderId] = useState<string | undefined>()
   const [lastUpdate, setLastUpdate] = useState<string>('--:--:--')
+  const [decisionsLimit, setDecisionsLimit] = useState<number>(5)
   const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null)
 
   // 检查后端连接状态
@@ -229,9 +230,9 @@ function App() {
 
   const { data: decisions } = useSWR<DecisionRecord[]>(
     currentPage === 'trader' && selectedTraderId
-      ? `decisions/latest-${selectedTraderId}`
+      ? `decisions/latest-${selectedTraderId}-${decisionsLimit}`
       : null,
-    () => api.getLatestDecisions(selectedTraderId),
+    () => api.getLatestDecisions(selectedTraderId, decisionsLimit),
     {
       refreshInterval: 30000, // 30秒刷新（决策更新频率较低）
       revalidateOnFocus: false,
@@ -294,6 +295,8 @@ function App() {
             src="/icons/nofx.svg"
             alt="AI Trading 24x7 Logo"
             className="w-16 h-16 mx-auto mb-4 animate-pulse"
+            width="64"
+            height="64"
           />
           <p style={{ color: '#EAECEF' }}>{t('loading', language)}</p>
         </div>
@@ -537,6 +540,8 @@ function App() {
             account={account}
             positions={positions}
             decisions={decisions}
+            decisionsLimit={decisionsLimit}
+            onDecisionsLimitChange={setDecisionsLimit}
             stats={stats}
             lastUpdate={lastUpdate}
             language={language}
@@ -566,6 +571,8 @@ function TraderDetailsPage({
   account,
   positions,
   decisions,
+  decisionsLimit,
+  onDecisionsLimitChange,
   lastUpdate,
   language,
   traders,
@@ -584,6 +591,8 @@ function TraderDetailsPage({
   account?: AccountInfo
   positions?: Position[]
   decisions?: DecisionRecord[]
+  decisionsLimit: number
+  onDecisionsLimitChange: (limit: number) => void
   stats?: Statistics
   lastUpdate: string
   language: Language
@@ -1137,7 +1146,7 @@ function TraderDetailsPage({
             >
               🧠
             </div>
-            <div>
+            <div className="flex-1">
               <h2 className="text-xl font-bold" style={{ color: '#EAECEF' }}>
                 {t('recentDecisions', language)}
               </h2>
@@ -1147,6 +1156,23 @@ function TraderDetailsPage({
                 </div>
               )}
             </div>
+            {/* 数量选择器 */}
+            <select
+              value={decisionsLimit}
+              onChange={(e) => onDecisionsLimitChange(Number(e.target.value))}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-all"
+              style={{
+                background: '#2B3139',
+                color: '#EAECEF',
+                border: '1px solid #3C4043',
+              }}
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
           </div>
 
           {/* 决策列表 - 可滚动 */}

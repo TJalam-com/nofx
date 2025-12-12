@@ -281,6 +281,12 @@ export function ExchangeConfigModal({
           return
         }
         await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, passphrase.trim())
+      } else if (selectedExchange?.id === 'bitget') {
+        if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) {
+          setIsLoading(false)
+          return
+        }
+        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, passphrase.trim())
       } else {
         // Default case (other CEX exchanges)
         if (!apiKey.trim() || !secretKey.trim()) {
@@ -430,10 +436,11 @@ export function ExchangeConfigModal({
 
             {selectedExchange && (
               <>
-                {/* Common fields for Binance/Bybit/OKX */}
+                {/* Common fields for Binance/Bybit/OKX/Bitget */}
                 {(selectedExchange.id === 'binance' ||
                   selectedExchange.id === 'bybit' ||
-                  selectedExchange.id === 'okx') && (
+                  selectedExchange.id === 'okx' ||
+                  selectedExchange.id === 'bitget') && (
                     <>
                       {/* Binance user configuration guide (D1 solution) */}
                       {selectedExchange.id === 'binance' && (
@@ -578,7 +585,7 @@ export function ExchangeConfigModal({
                         />
                       </div>
 
-                      {selectedExchange.id === 'okx' && (
+                      {(selectedExchange.id === 'okx' || selectedExchange.id === 'bitget') && (
                         <div>
                           <label
                             className="block text-sm font-semibold mb-2"
@@ -1030,6 +1037,10 @@ export function ExchangeConfigModal({
                   (!apiKey.trim() ||
                     !secretKey.trim() ||
                     !passphrase.trim())) ||
+                (selectedExchange.id === 'bitget' &&
+                  (!apiKey.trim() ||
+                    !secretKey.trim() ||
+                    !passphrase.trim())) ||
                 (selectedExchange.id === 'hyperliquid' &&
                   (!apiKey.trim() || !hyperliquidWalletAddr.trim())) || // Validate private key and wallet address
                 (selectedExchange.id === 'aster' &&
@@ -1087,13 +1098,16 @@ export function ExchangeConfigModal({
               </button>
             </div>
             <div className="overflow-y-auto max-h-[80vh]">
-              <img
-                src="/images/guide.png"
-                alt={t('binanceSetupGuide', language)}
-                className="w-full h-auto rounded"
-                loading="lazy"
-                decoding="async"
-              />
+              <picture>
+                <source srcSet="/images/guide.webp" type="image/webp" />
+                <img
+                  src="/images/guide.png"
+                  alt={t('binanceSetupGuide', language)}
+                  className="w-full h-auto rounded"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </picture>
             </div>
           </div>
         </div>

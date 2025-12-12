@@ -18,7 +18,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { SEOComponent } = useSEO()
 
   // 根据路径自动判断当前页面
-  const getCurrentPage = (): 'competition' | 'traders' | 'trader' | 'followers' | 'faq' | 'stats' | 'webhook' | 'applications' | 'strategy-studio' => {
+  const getCurrentPage = (): 'competition' | 'traders' | 'trader' | 'followers' | 'faq' | 'stats' | 'webhook' | 'applications' | 'strategy-studio' | 'backtest' => {
     if (location.pathname === '/faq') {
       return 'faq'
     }
@@ -36,6 +36,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
     }
     if (location.pathname === '/webhook') {
       return 'webhook'
+    }
+    if (location.pathname === '/backtest') {
+      return 'backtest'
     }
     if (location.pathname === '/admin/trader-applications') {
       return 'applications'

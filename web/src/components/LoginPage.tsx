@@ -52,7 +52,7 @@ function translateBackendError(message: string, language: 'en' | 'zh'): string {
 
 export function LoginPage() {
   const { language } = useLanguage()
-  const { login, loginAdmin, verifyOTP } = useAuth()
+  const { login, loginAdmin, verifyOTP, user } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState<'login' | 'otp'>('login')
   const [email, setEmail] = useState('')
@@ -67,6 +67,13 @@ export function LoginPage() {
   const { config: systemConfig } = useSystemConfig()
   const registrationEnabled = systemConfig?.registration_enabled !== false
   const [expiredToastId, setExpiredToastId] = useState<string | number | null>(null)
+
+  // Redirect if already logged in (unless redirected here due to 401/session expiry)
+  useEffect(() => {
+    if (user && sessionStorage.getItem('from401') !== 'true') {
+      navigate('/traders', { replace: true })
+    }
+  }, [user, navigate])
 
   // Show notification if user was redirected here due to 401
   useEffect(() => {
@@ -167,6 +174,8 @@ export function LoginPage() {
               src="/icons/nofx.svg"
               alt="AI Trading 24x7 Logo"
               className="w-16 h-16 object-contain"
+              width="64"
+              height="64"
             />
           </div>
           <h1

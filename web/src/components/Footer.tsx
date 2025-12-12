@@ -1,5 +1,6 @@
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
+import { Link } from 'react-router-dom'
 
 interface FooterProps {
   variant?: 'full' | 'simple'
@@ -30,6 +31,84 @@ export default function Footer({ variant = 'full' }: FooterProps) {
                 {t('footerTitle', language)}
               </p>
               <p className="leading-relaxed text-sm" style={{ color: 'var(--error)' }}>{t('footerWarning', language)}</p>
+            </div>
+
+            {/* Legal & Info Links */}
+            <div className="flex flex-wrap items-center justify-center gap-4 mb-4">
+              <Link
+                to="/terms"
+                className="text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('footerLinkTerms', language)}
+              </Link>
+              <span style={{ color: 'var(--text-tertiary)' }}>•</span>
+              <Link
+                to="/risk-disclaimer"
+                className="text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('footerLinkRiskDisclaimer', language)}
+              </Link>
+              <span style={{ color: 'var(--text-tertiary)' }}>•</span>
+              <Link
+                to="/license"
+                className="text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('footerLinkLicense', language)}
+              </Link>
+              <span style={{ color: 'var(--text-tertiary)' }}>•</span>
+              <Link
+                to="/pricing"
+                className="text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('footerLinkPricing', language)}
+              </Link>
+            </div>
+
+            {/* Platform Links */}
+            <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
+              <Link
+                to="/faq"
+                className="text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('footerLinkFAQ', language)}
+              </Link>
+              <span style={{ color: 'var(--text-tertiary)' }}>•</span>
+              <Link
+                to="/about"
+                className="text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('footerLinkAbout', language)}
+              </Link>
+              <span style={{ color: 'var(--text-tertiary)' }}>•</span>
+              <Link
+                to="/features"
+                className="text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('footerLinkFeatures', language)}
+              </Link>
+              <span style={{ color: 'var(--text-tertiary)' }}>•</span>
+              <Link
+                to="/security"
+                className="text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('footerLinkSecurity', language)}
+              </Link>
+              <span style={{ color: 'var(--text-tertiary)' }}>•</span>
+              <Link
+                to="/contact"
+                className="text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('footerLinkContact', language)}
+              </Link>
             </div>
 
             {/* GitHub Links */}

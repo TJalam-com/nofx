@@ -1,4 +1,4 @@
-import { Trophy, TrendingUp, TrendingDown, Eye } from 'lucide-react'
+import { Trophy, TrendingUp, TrendingDown, Users } from 'lucide-react'
 import type { CompetitionTraderData } from '../types'
 import { getTraderColor } from '../utils/traderColors'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -16,26 +16,28 @@ export function LeaderSpotlight({ leader, allTraders, onViewDetails }: LeaderSpo
   const isPositive = (leader.total_pnl ?? 0) >= 0
   const pnlPct = leader.total_pnl_pct?.toFixed(2) || '0.00'
   const pnlValue = leader.total_pnl?.toFixed(2) || '0.00'
+  const isFollowerTrader = !!(leader.followed_trader_id && leader.followed_trader_id !== '')
 
   return (
     <div
-      className="binance-card-enhanced p-6 md:p-8 relative overflow-hidden animate-slide-in"
+      className="binance-card-enhanced p-3 relative overflow-hidden animate-slide-in"
       style={{
         animationDelay: '0.05s',
-        background: isPositive
+        background: isFollowerTrader
+          ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(11, 14, 17, 0.95) 50%, rgba(99, 102, 241, 0.05) 100%)'
+          : isPositive
           ? 'linear-gradient(135deg, rgba(0, 255, 127, 0.08) 0%, rgba(11, 14, 17, 0.95) 50%, rgba(0, 255, 127, 0.05) 100%)'
           : 'linear-gradient(135deg, rgba(246, 70, 93, 0.08) 0%, rgba(11, 14, 17, 0.95) 50%, rgba(246, 70, 93, 0.05) 100%)',
-        border: isPositive
-          ? '2px solid rgba(0, 255, 127, 0.3)'
-          : '2px solid rgba(246, 70, 93, 0.3)',
-        boxShadow: isPositive
-          ? '0 8px 32px rgba(0, 255, 127, 0.15), 0 0 0 1px rgba(0, 255, 127, 0.1)'
-          : '0 8px 32px rgba(246, 70, 93, 0.15), 0 0 0 1px rgba(246, 70, 93, 0.1)',
+        border: isFollowerTrader
+          ? '1px solid rgba(99, 102, 241, 0.4)'
+          : isPositive
+          ? '1px solid rgba(0, 255, 127, 0.3)'
+          : '1px solid rgba(246, 70, 93, 0.3)',
       }}
     >
       {/* Animated background gradient - Subtle accent */}
       <div
-        className="absolute top-0 right-0 w-32 h-32 md:w-40 md:h-40 opacity-20 pointer-events-none"
+        className="absolute top-0 right-0 w-24 h-24 opacity-15 pointer-events-none"
         style={{
           background: isPositive
             ? 'radial-gradient(circle, rgba(0, 255, 127, 0.3) 0%, transparent 70%)'
@@ -43,206 +45,106 @@ export function LeaderSpotlight({ leader, allTraders, onViewDetails }: LeaderSpo
         }}
       />
 
-      {/* Content */}
-      <div className="relative z-10">
-        {/* Header - Single Line: Trophy | 1 LEADER | Trader Name | View Details | LIVE */}
-        <div className="flex items-center gap-3 md:gap-4 mb-6 flex-wrap">
-          {/* Trophy Icon with Badge */}
-          <div
-            className="w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center relative flex-shrink-0"
-            style={{
-              background: isPositive
-                ? 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)'
-                : 'linear-gradient(135deg, var(--error) 0%, rgba(246, 70, 93, 0.8) 100%)',
-              boxShadow: isPositive
-                ? '0 4px 16px rgba(0, 255, 127, 0.4)'
-                : '0 4px 16px rgba(246, 70, 93, 0.4)',
-            }}
-          >
-            <Trophy className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--navy-primary)' }} />
-            <div
-              className="absolute -top-1 -right-1 w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{
-                background: 'var(--gold-primary)',
-                color: 'var(--navy-primary)',
-                boxShadow: '0 2px 8px rgba(255, 215, 0, 0.5)',
-              }}
-            >
-              1
-            </div>
-          </div>
-
-          {/* Leader Label */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span
-              className="text-xs md:text-sm font-bold mono"
-              style={{ color: 'var(--gold-primary)' }}
-            >
-              1
-            </span>
-            <span
-              className="text-xs md:text-sm uppercase tracking-wider font-semibold"
-              style={{ color: 'var(--text-gray-light)' }}
-            >
-              {t('leader', language)}
-            </span>
-          </div>
-
-          {/* Trader Name */}
-          <div className="flex-1 min-w-0">
-            <h2
-              className="text-base md:text-lg lg:text-xl font-bold truncate"
-              style={{ color: 'var(--text-white)' }}
-            >
-              {leader.trader_name}
-            </h2>
-          </div>
-
-          {/* View Details Button */}
-          {onViewDetails && (
-            <button
-              onClick={onViewDetails}
-              className="flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-lg font-semibold text-xs md:text-sm transition-all duration-300 hover:scale-105 active:scale-95 flex-shrink-0"
-              style={{
-                background: 'rgba(0, 255, 127, 0.15)',
-                color: 'var(--green-primary)',
-                border: '1px solid rgba(0, 255, 127, 0.3)',
-              }}
-            >
-              <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              <span className="hidden sm:inline">{t('viewDetails', language) || 'View Details'}</span>
-              <span className="sm:hidden">{t('view', language)}</span>
-            </button>
+      {/* Content - Single Compact Row with Equidistant Spacing */}
+      <div className="relative z-10 flex items-center justify-between gap-3">
+        {/* Trophy Icon or Follower Badge */}
+        <div
+          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 relative"
+          style={{
+            background: isFollowerTrader
+              ? 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)'
+              : isPositive
+              ? 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)'
+              : 'linear-gradient(135deg, var(--error) 0%, rgba(246, 70, 93, 0.8) 100%)',
+          }}
+        >
+          {isFollowerTrader ? (
+            <Users className="w-3.5 h-3.5" style={{ color: '#FFFFFF' }} />
+          ) : (
+            <Trophy className="w-3.5 h-3.5" style={{ color: 'var(--navy-primary)' }} />
           )}
-
-          {/* LIVE Status Badge */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                leader.is_running ? 'pulse-live' : ''
-              }`}
-              style={{
-                background: leader.is_running ? 'var(--green-primary)' : 'var(--error)',
-                boxShadow: leader.is_running
-                  ? '0 0 8px var(--green-primary)'
-                  : 'none',
-              }}
-            />
+        </div>
+        
+        {/* Trader Name with Follower Badge */}
+        <div className="flex items-center gap-1.5 flex-shrink-0 min-w-0">
+          <h2
+            className="text-sm md:text-base font-bold truncate"
+            style={{ color: isFollowerTrader ? '#A5B4FC' : 'var(--text-white)' }}
+          >
+            {leader.trader_name}
+          </h2>
+          {isFollowerTrader && (
             <span
-              className="text-xs md:text-sm font-semibold uppercase tracking-wider"
+              className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider flex-shrink-0"
               style={{
-                color: leader.is_running ? 'var(--green-primary)' : 'var(--error)',
+                background: 'rgba(99, 102, 241, 0.2)',
+                color: '#A5B4FC',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
               }}
             >
-              {leader.is_running
-                ? t('live', language) || 'LIVE'
-                : t('stopped', language) || 'STOPPED'}
+              {t('follower', language) || 'FOLLOWER'}
+            </span>
+          )}
+        </div>
+
+        {/* Stats - Equidistantly Spaced */}
+        <div className="flex items-center justify-between flex-1 gap-4 px-4">
+          {/* P&L */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {isPositive ? (
+              <TrendingUp className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--green-primary)' }} />
+            ) : (
+              <TrendingDown className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--error)' }} />
+            )}
+            <span
+              className="text-sm md:text-base font-bold mono whitespace-nowrap"
+              style={{
+                color: isPositive ? 'var(--green-primary)' : 'var(--error)',
+              }}
+            >
+              {isPositive ? '+' : ''}
+              {pnlPct}%
+            </span>
+          </div>
+
+          {/* Equity */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-xs text-[#848E9C] whitespace-nowrap">{t('equity', language)}</span>
+            <span className="text-sm md:text-base font-bold mono whitespace-nowrap" style={{ color: 'var(--text-white)' }}>
+              {leader.total_equity?.toFixed(2) || '0.00'}
+            </span>
+          </div>
+
+          {/* Positions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-xs text-[#848E9C] whitespace-nowrap">{t('pos', language)}</span>
+            <span className="text-sm md:text-base font-bold mono whitespace-nowrap" style={{ color: 'var(--text-white)' }}>
+              {leader.position_count}
             </span>
           </div>
         </div>
 
-        {/* Stats Grid - Equidistant spacing */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-6">
-          {/* PnL Percentage */}
-          <div className="col-span-2 md:col-span-1 flex flex-col">
-            <div
-              className="text-xs uppercase tracking-wider mb-2 font-semibold"
-              style={{ color: 'var(--text-gray-light)' }}
-            >
-              {t('pnl', language)}
-            </div>
-            <div className="flex items-baseline gap-2">
-              {isPositive ? (
-                <TrendingUp className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--green-primary)' }} />
-              ) : (
-                <TrendingDown className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--error)' }} />
-              )}
-              <div className="flex flex-col">
-                <div
-                  className="text-xl md:text-2xl lg:text-3xl font-bold mono leading-tight"
-                  style={{
-                    color: isPositive ? 'var(--green-primary)' : 'var(--error)',
-                  }}
-                >
-                  {isPositive ? '+' : ''}
-                  {pnlPct}%
-                </div>
-                <div
-                  className="text-xs md:text-sm mono mt-1"
-                  style={{ color: 'var(--text-gray-light)' }}
-                >
-                  {isPositive ? '+' : ''}
-                  {pnlValue} USDT
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Equity */}
-          <div className="flex flex-col">
-            <div
-              className="text-xs uppercase tracking-wider mb-2 font-semibold"
-              style={{ color: 'var(--text-gray-light)' }}
-            >
-              {t('equity', language)}
-            </div>
-            <div
-              className="text-lg md:text-xl lg:text-2xl font-bold mono leading-tight"
-              style={{ color: 'var(--text-white)' }}
-            >
-              {leader.total_equity?.toFixed(2) || '0.00'}
-            </div>
-            <div
-              className="text-xs mt-1"
-              style={{ color: 'var(--text-gray-light)' }}
-            >
-              USDT
-            </div>
-          </div>
-
-          {/* Positions */}
-          <div className="flex flex-col">
-            <div
-              className="text-xs uppercase tracking-wider mb-2 font-semibold"
-              style={{ color: 'var(--text-gray-light)' }}
-            >
-              {t('pos', language)}
-            </div>
-            <div
-              className="text-lg md:text-xl lg:text-2xl font-bold mono leading-tight"
-              style={{ color: 'var(--text-white)' }}
-            >
-              {leader.position_count}
-            </div>
-            <div
-              className="text-xs mt-1"
-              style={{ color: 'var(--text-gray-light)' }}
-            >
-              {leader.margin_used_pct.toFixed(1)}% {t('margin', language) || 'Margin'}
-            </div>
-          </div>
-
-          {/* AI Model & Exchange */}
-          <div className="flex flex-col">
-            <div
-              className="text-xs uppercase tracking-wider mb-2 font-semibold"
-              style={{ color: 'var(--text-gray-light)' }}
-            >
-              {t('aiModel', language) || 'AI Model'}
-            </div>
-            <div
-              className="text-base md:text-lg lg:text-xl font-bold truncate leading-tight"
-              style={{ color: leaderColor }}
-            >
-              {leader.ai_model.toUpperCase()}
-            </div>
-            <div
-              className="text-xs mt-1 mono"
-              style={{ color: 'var(--text-gray-light)' }}
-            >
-              {leader.exchange.toUpperCase()}
-            </div>
-          </div>
+        {/* LIVE Status */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              leader.is_running ? 'pulse-live' : ''
+            }`}
+            style={{
+              background: leader.is_running ? 'var(--green-primary)' : 'var(--error)',
+              boxShadow: leader.is_running
+                ? '0 0 6px var(--green-primary)'
+                : 'none',
+            }}
+          />
+          <span
+            className="text-xs font-semibold whitespace-nowrap"
+            style={{
+              color: leader.is_running ? 'var(--green-primary)' : 'var(--error)',
+            }}
+          >
+            {t('live', language) || 'LIVE'}
+          </span>
         </div>
       </div>
     </div>

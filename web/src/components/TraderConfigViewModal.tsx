@@ -158,6 +158,49 @@ export function TraderConfigViewModal({
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* Performance Metrics - Show if available */}
+          {((traderData as any).total_pnl !== undefined || 
+            (traderData as any).total_equity !== undefined || 
+            (traderData as any).position_count !== undefined) && (
+          <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
+            <h3 className="text-lg font-semibold text-[#EAECEF] mb-4 flex items-center gap-2">
+              📊 {t('performance', language) || 'Performance'}
+            </h3>
+            <div className="space-y-3">
+              {(traderData as any).total_pnl_pct !== undefined && (
+              <InfoRow
+                label={t('pnl', language)}
+                value={`${(traderData as any).total_pnl_pct >= 0 ? '+' : ''}${((traderData as any).total_pnl_pct || 0).toFixed(2)}%`}
+              />
+              )}
+              {(traderData as any).total_pnl !== undefined && (
+              <InfoRow
+                label={t('pnl', language) + ' (USDT)'}
+                value={`${(traderData as any).total_pnl >= 0 ? '+' : ''}${((traderData as any).total_pnl || 0).toFixed(2)}`}
+              />
+              )}
+              {(traderData as any).total_equity !== undefined && (
+              <InfoRow
+                label={t('equity', language)}
+                value={`${((traderData as any).total_equity || 0).toFixed(2)} USDT`}
+              />
+              )}
+              {(traderData as any).position_count !== undefined && (
+              <InfoRow
+                label={t('pos', language)}
+                value={`${(traderData as any).position_count || 0}`}
+              />
+              )}
+              {(traderData as any).margin_used_pct !== undefined && (
+              <InfoRow
+                label={t('margin', language) || 'Margin'}
+                value={`${((traderData as any).margin_used_pct || 0).toFixed(1)}%`}
+              />
+              )}
+            </div>
+          </div>
+          )}
+
           {/* Basic Info */}
           <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-4 flex items-center gap-2">

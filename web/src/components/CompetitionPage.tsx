@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react'
-import { Trophy, Medal, Clock, Users } from 'lucide-react'
+import { Trophy, Medal, Clock, Users, UserCheck } from 'lucide-react'
 import useSWR from 'swr'
 import { api } from '../lib/api'
 import type { CompetitionData } from '../types'
 import { ComparisonChart } from './ComparisonChart'
 import { TraderConfigViewModal } from './TraderConfigViewModal'
-import { LeaderSpotlight } from './LeaderSpotlight'
 import { getTraderColor } from '../utils/traderColors'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isFollower } from '../contexts/AuthContext'
@@ -40,7 +39,20 @@ export function CompetitionPage() {
   const handleTraderClick = async (traderId: string) => {
     try {
       const traderConfig = await api.getPublicTraderConfig(traderId)
-      setSelectedTrader(traderConfig)
+      // Merge performance data from competition data
+      const traderFromCompetition = competition?.traders?.find((t) => t.trader_id === traderId)
+      if (traderFromCompetition) {
+        setSelectedTrader({
+          ...traderConfig,
+          total_equity: traderFromCompetition.total_equity,
+          total_pnl: traderFromCompetition.total_pnl,
+          total_pnl_pct: traderFromCompetition.total_pnl_pct,
+          position_count: traderFromCompetition.position_count,
+          margin_used_pct: traderFromCompetition.margin_used_pct,
+        } as any)
+      } else {
+        setSelectedTrader(traderConfig)
+      }
       setIsModalOpen(true)
     } catch (error) {
       console.error('Failed to fetch trader config:', error)
@@ -175,7 +187,6 @@ export function CompetitionPage() {
   )
 
   // 找出领先者
-  const leader = sortedTraders[0]
 
   return (
     <div className="space-y-6 md:space-y-8 animate-fade-in">
@@ -183,38 +194,32 @@ export function CompetitionPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Card 1: Competition Title */}
         <div
-          className="binance-card-enhanced p-5 md:p-6 animate-slide-in relative overflow-hidden"
+          className="binance-card-enhanced p-3 md:p-4 animate-slide-in relative overflow-hidden"
           style={{
             animationDelay: '0.1s',
             background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
           }}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
             <div
-              className="w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center trophy-icon relative flex-shrink-0"
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{
                 background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               }}
             >
               <Trophy
-                className="w-6 h-6 md:w-7 md:h-7 relative z-10"
+                className="w-4 h-4"
                 style={{ color: 'var(--navy-primary)' }}
-              />
-              <div
-                className="absolute inset-0 rounded-xl opacity-50"
-                style={{
-                  background: 'radial-gradient(circle, rgba(0, 255, 127, 0.6) 0%, transparent 70%)',
-                }}
               />
             </div>
             <div className="flex-1 min-w-0">
               <h1
-                className="text-xl md:text-2xl font-bold mb-1 truncate"
+                className="text-sm md:text-base font-bold truncate"
                 style={{ color: 'var(--text-white)' }}
               >
                 {t('aiCompetition', language)}
               </h1>
-              <p className="text-xs md:text-sm truncate" style={{ color: 'var(--text-gray-light)' }}>
+              <p className="text-xs truncate" style={{ color: 'var(--text-gray-light)' }}>
                 {t('liveBattle', language)}
               </p>
             </div>
@@ -223,104 +228,108 @@ export function CompetitionPage() {
 
         {/* Card 2: Live Stats */}
         <div
-          className="binance-card-enhanced p-5 md:p-6 animate-slide-in relative overflow-hidden"
+          className="binance-card-enhanced p-3 md:p-4 animate-slide-in relative overflow-hidden"
           style={{
             animationDelay: '0.15s',
             background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
           }}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
             <div
-              className="w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{
                 background: 'rgba(0, 255, 127, 0.1)',
                 border: '1px solid rgba(0, 255, 127, 0.2)',
               }}
             >
-              <Users className="w-6 h-6 md:w-7 md:h-7" style={{ color: 'var(--green-primary)' }} />
+              <Users className="w-4 h-4" style={{ color: 'var(--green-primary)' }} />
             </div>
             <div className="flex-1 min-w-0">
-              <div
-                className="text-xs uppercase tracking-wider mb-1 font-semibold"
-                style={{ color: 'var(--text-gray-light)' }}
-              >
-                {t('traders', language)}
-              </div>
-              <div
-                className="text-2xl md:text-3xl font-bold mono"
-                style={{ color: 'var(--text-white)' }}
-              >
-                {competition.count}
-              </div>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-baseline gap-2">
                 <div
-                  className="w-2 h-2 rounded-full pulse-live"
-                  style={{
-                    background: 'var(--green-primary)',
-                    boxShadow: '0 0 8px var(--green-primary)',
-                  }}
-                />
-                <span
-                  className="text-xs font-semibold"
-                  style={{ color: 'var(--green-primary)' }}
+                  className="text-lg md:text-xl font-bold mono"
+                  style={{ color: 'var(--text-white)' }}
                 >
-                  {t('live', language)}
-                </span>
+                  {competition.count}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="w-2 h-2 rounded-full pulse-live"
+                    style={{
+                      background: 'var(--green-primary)',
+                      boxShadow: '0 0 8px var(--green-primary)',
+                    }}
+                  />
+                  <span
+                    className="text-xs font-semibold"
+                    style={{ color: 'var(--green-primary)' }}
+                  >
+                    {t('live', language)}
+                  </span>
+                </div>
               </div>
+              {(competition.follower_total_count !== undefined && 
+                competition.follower_total_count !== null && 
+                Number(competition.follower_total_count) > 0) && (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-gray-light)' }}>
+                    {Number(competition.follower_total_count)}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--text-gray-light)' }}>
+                    {t('followers', language) || 'followers'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Card 3: Last Update */}
         <div
-          className="binance-card-enhanced p-5 md:p-6 animate-slide-in relative overflow-hidden"
+          className="binance-card-enhanced p-3 md:p-4 animate-slide-in relative overflow-hidden"
           style={{
             animationDelay: '0.2s',
             background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
           }}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
             <div
-              className="w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{
                 background: 'rgba(0, 255, 127, 0.1)',
                 border: '1px solid rgba(0, 255, 127, 0.2)',
               }}
             >
-              <Clock className="w-6 h-6 md:w-7 md:h-7" style={{ color: 'var(--green-primary)' }} />
+              <Clock className="w-4 h-4" style={{ color: 'var(--green-primary)' }} />
             </div>
             <div className="flex-1 min-w-0">
-              <div
-                className="text-xs uppercase tracking-wider mb-1 font-semibold"
-                style={{ color: 'var(--text-gray-light)' }}
-              >
-                {t('lastUpdate', language) || 'Last Update'}
-              </div>
-              <div
-                className="text-lg md:text-xl font-bold mono"
-                style={{ color: 'var(--text-white)' }}
-              >
-                {lastUpdateTime}
-              </div>
-              <div
-                className="text-xs mt-1"
-                style={{ color: 'var(--text-gray-light)' }}
-              >
-                {t('realTime', language)}
+              <div className="flex items-baseline gap-2">
+                <div
+                  className="text-sm md:text-base font-bold mono"
+                  style={{ color: 'var(--text-white)' }}
+                >
+                  {lastUpdateTime}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="w-2 h-2 rounded-full pulse-live"
+                    style={{
+                      background: 'var(--green-primary)',
+                      boxShadow: '0 0 8px var(--green-primary)',
+                    }}
+                  />
+                  <span
+                    className="text-xs font-semibold"
+                    style={{ color: 'var(--green-primary)' }}
+                  >
+                    {t('live', language)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Leader Spotlight - Prominent Display */}
-      {leader && (
-        <LeaderSpotlight
-          leader={leader}
-          allTraders={sortedTraders}
-          onViewDetails={() => handleTraderClick(leader.trader_id)}
-        />
-      )}
 
       {/* Left/Right Split: Performance Chart + Leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
@@ -355,26 +364,25 @@ export function CompetitionPage() {
           className="binance-card-enhanced p-6 md:p-8 animate-slide-in"
           style={{ animationDelay: '0.2s' }}
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h2
-              className="text-xl md:text-2xl font-bold flex items-center gap-2"
+              className="text-lg md:text-xl font-bold flex items-center gap-2"
               style={{ color: 'var(--text-white)' }}
             >
               {t('leaderboard', language)}
             </h2>
             <div
-              className="text-xs px-3 py-1.5 rounded-md font-semibold pulse-live"
+              className="text-xs px-2 py-1 rounded font-semibold pulse-live"
               style={{
                 background: 'var(--success-bg)',
                 color: 'var(--green-primary)',
                 border: '1px solid var(--success-border)',
-                boxShadow: '0 2px 8px var(--green-glow)',
               }}
             >
               {t('live', language)}
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {sortedTraders.map((trader, index) => {
               const isLeader = index === 0
               const isSilver = index === 1
@@ -383,6 +391,7 @@ export function CompetitionPage() {
                 sortedTraders,
                 trader.trader_id
               )
+              const isFollowerTrader = !!(trader.followed_trader_id && trader.followed_trader_id !== '')
 
               // Determine rank badge class
               let rankBadgeClass = ''
@@ -402,84 +411,79 @@ export function CompetitionPage() {
                 <div
                   key={trader.trader_id}
                   onClick={() => handleTraderClick(trader.trader_id)}
-                  className={`rounded-lg p-3 md:p-4 transition-all duration-300 cursor-pointer hover:scale-[1.01] active:scale-[0.99] ${
+                  className={`rounded-lg p-2.5 md:p-3 transition-all duration-200 cursor-pointer hover:opacity-90 active:scale-[0.98] ${
                     itemClass || ''
                   }`}
                   style={{
                     background: itemClass
                       ? undefined
-                      : 'var(--navy-dark)',
+                      : isFollowerTrader
+                      ? 'rgba(99, 102, 241, 0.08)'
+                      : 'rgba(255, 255, 255, 0.02)',
                     border: itemClass
                       ? undefined
-                      : '1px solid var(--navy-light)',
-                    boxShadow: itemClass
-                      ? undefined
-                      : 'var(--shadow-sm)',
-                    animationDelay: `${index * 0.05}s`,
+                      : isFollowerTrader
+                      ? '1px solid rgba(99, 102, 241, 0.3)'
+                      : '1px solid rgba(255, 255, 255, 0.05)',
+                    animationDelay: `${index * 0.03}s`,
                   }}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                  <div className="flex items-center justify-between gap-3">
                     {/* Rank & Name */}
-                    <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 md:gap-3 flex-1 min-w-0">
                       <div
-                        className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center font-bold text-sm md:text-base flex-shrink-0 ${
+                        className={`w-7 h-7 md:w-8 md:h-8 rounded-md flex items-center justify-center font-bold text-xs md:text-sm flex-shrink-0 ${
                           rankBadgeClass || ''
                         }`}
                         style={
                           rankBadgeClass
                             ? {}
+                            : isFollowerTrader
+                            ? {
+                                background: 'rgba(99, 102, 241, 0.2)',
+                                color: '#A5B4FC',
+                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                              }
                             : {
-                                background: 'var(--navy-dark)',
-                                border: '1px solid var(--navy-light)',
+                                background: 'rgba(255, 255, 255, 0.05)',
                                 color: 'var(--text-gray-light)',
                               }
                         }
                       >
                         {index < 3 ? (
-                          <Medal className="w-5 h-5 md:w-6 md:h-6" />
+                          <Medal className="w-4 h-4 md:w-5 md:h-5" />
                         ) : (
                           <span>#{index + 1}</span>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
                         <div
-                          className="font-bold text-sm md:text-base lg:text-lg mb-1 truncate"
-                          style={{ color: 'var(--text-white)' }}
+                          className="font-semibold text-sm md:text-base truncate"
+                          style={{ color: isFollowerTrader ? '#A5B4FC' : 'var(--text-white)' }}
                         >
                           {trader.trader_name}
                         </div>
-                        <div
-                          className="text-xs md:text-sm mono font-semibold truncate"
-                          style={{ color: traderColor }}
-                        >
-                          {trader.ai_model.toUpperCase()} +{' '}
-                          {trader.exchange.toUpperCase()}
-                        </div>
+                        {isFollowerTrader && (
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider flex-shrink-0"
+                            style={{
+                              background: 'rgba(99, 102, 241, 0.2)',
+                              color: '#A5B4FC',
+                              border: '1px solid rgba(99, 102, 241, 0.3)',
+                            }}
+                          >
+                            {t('follower', language) || 'FOLLOWER'}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Stats */}
-                    <div className="flex items-center gap-2 md:gap-4 flex-wrap md:flex-nowrap">
-                      {/* Total Equity */}
-                      <div className="text-right rounded-md px-2 md:px-3 py-1.5 md:py-2 min-w-[70px] md:min-w-[80px]" style={{ background: 'rgba(0, 31, 63, 0.2)' }}>
-                        <div className="text-xs uppercase tracking-wider mb-1 font-semibold" style={{ color: 'var(--text-gray-light)' }}>
-                          {t('equity', language)}
-                        </div>
-                        <div
-                          className="text-xs md:text-sm lg:text-base font-bold mono"
-                          style={{ color: 'var(--text-white)' }}
-                        >
-                          {trader.total_equity?.toFixed(2) || '0.00'}
-                        </div>
-                      </div>
-
+                    {/* Compact Stats */}
+                    <div className="flex items-center gap-3 md:gap-4">
                       {/* P&L */}
-                      <div className="text-right min-w-[80px] md:min-w-[110px] rounded-md px-2 md:px-3 py-1.5 md:py-2" style={{ background: 'rgba(0, 31, 63, 0.2)' }}>
-                        <div className="text-xs uppercase tracking-wider mb-1 font-semibold" style={{ color: 'var(--text-gray-light)' }}>
-                          {t('pnl', language)}
-                        </div>
+                      <div className="text-right min-w-[70px]">
                         <div
-                          className="text-base md:text-lg lg:text-xl font-bold mono mb-0.5"
+                          className="text-sm md:text-base font-bold mono"
                           style={{
                             color:
                               (trader.total_pnl ?? 0) >= 0
@@ -490,52 +494,49 @@ export function CompetitionPage() {
                           {(trader.total_pnl ?? 0) >= 0 ? '+' : ''}
                           {trader.total_pnl_pct?.toFixed(2) || '0.00'}%
                         </div>
-                        <div
-                          className="text-xs mono hidden sm:block"
-                          style={{ color: 'var(--text-gray-light)' }}
-                        >
-                          {(trader.total_pnl ?? 0) >= 0 ? '+' : ''}
-                          {trader.total_pnl?.toFixed(2) || '0.00'}
-                        </div>
                       </div>
 
                       {/* Positions */}
-                      <div className="text-right rounded-md px-2 md:px-3 py-1.5 md:py-2 min-w-[60px] md:min-w-[70px]" style={{ background: 'rgba(0, 31, 63, 0.2)' }}>
-                        <div className="text-xs uppercase tracking-wider mb-1 font-semibold" style={{ color: 'var(--text-gray-light)' }}>
-                          {t('pos', language)}
-                        </div>
+                      <div className="text-right min-w-[40px]">
                         <div
-                          className="text-xs md:text-sm lg:text-base font-bold mono"
-                          style={{ color: 'var(--text-white)' }}
+                          className="text-xs md:text-sm font-semibold mono"
+                          style={{ color: 'var(--text-gray-light)' }}
                         >
                           {trader.position_count}
                         </div>
-                        <div className="text-xs hidden sm:block" style={{ color: 'var(--text-gray-light)' }}>
-                          {trader.margin_used_pct.toFixed(1)}%
-                        </div>
                       </div>
 
+                      {/* Followers Count */}
+                      {trader.followers_count !== undefined && trader.followers_count > 0 && (
+                        <div className="text-right min-w-[50px]">
+                          <div className="flex items-center gap-1 justify-end">
+                            <Users className="w-3 h-3" style={{ color: 'var(--text-gray-light)' }} />
+                            <div
+                              className="text-xs md:text-sm font-semibold mono"
+                              style={{ color: 'var(--text-gray-light)' }}
+                            >
+                              {trader.followers_count}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Status */}
-                      <div className="flex items-center justify-center">
+                      <div className="flex items-center justify-center min-w-[20px]">
                         <div
-                          className="px-2 md:px-3 py-1.5 md:py-2 rounded-md text-xs font-bold"
+                          className="w-2 h-2 rounded-full"
                           style={
                             Boolean(trader.is_running)
                               ? {
-                                  background: 'var(--success-bg)',
-                                  color: 'var(--green-primary)',
-                                  border: '1px solid var(--success-border)',
-                                  boxShadow: '0 2px 8px var(--green-glow)',
+                                  background: 'var(--green-primary)',
+                                  boxShadow: '0 0 8px var(--green-primary)',
                                 }
                               : {
-                                  background: 'var(--error-bg)',
-                                  color: 'var(--error)',
-                                  border: '1px solid var(--error-border)',
+                                  background: 'var(--error)',
+                                  opacity: 0.5,
                                 }
                           }
-                        >
-                          {Boolean(trader.is_running) ? '●' : '○'}
-                        </div>
+                        />
                       </div>
                     </div>
                   </div>

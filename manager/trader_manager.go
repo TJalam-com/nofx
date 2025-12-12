@@ -269,6 +269,10 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.OkxAPIKey = exchangeCfg.APIKey
 		traderConfig.OkxSecretKey = exchangeCfg.SecretKey
 		traderConfig.OkxPassphrase = exchangeCfg.OkxPassphrase
+	} else if exchangeCfg.ID == "bitget" {
+		traderConfig.BitgetAPIKey = exchangeCfg.APIKey
+		traderConfig.BitgetSecretKey = exchangeCfg.SecretKey
+		traderConfig.BitgetPassphrase = exchangeCfg.OkxPassphrase // Reuse passphrase field
 	} else if exchangeCfg.ID == "hyperliquid" {
 		traderConfig.HyperliquidPrivateKey = exchangeCfg.APIKey // hyperliquid uses APIKey to store private key
 		traderConfig.HyperliquidWalletAddr = exchangeCfg.HyperliquidWalletAddr
@@ -288,6 +292,9 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.QwenKey = aiModelCfg.APIKey
 	} else if aiModelCfg.Provider == "deepseek" {
 		traderConfig.DeepSeekKey = aiModelCfg.APIKey
+	} else {
+		// For other providers (grok, openai, claude, gemini, kimi, custom), use CustomAPIKey
+		traderConfig.CustomAPIKey = aiModelCfg.APIKey
 	}
 
 	// Create trader instance
@@ -406,6 +413,10 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.OkxAPIKey = exchangeCfg.APIKey
 		traderConfig.OkxSecretKey = exchangeCfg.SecretKey
 		traderConfig.OkxPassphrase = exchangeCfg.OkxPassphrase
+	} else if exchangeCfg.ID == "bitget" {
+		traderConfig.BitgetAPIKey = exchangeCfg.APIKey
+		traderConfig.BitgetSecretKey = exchangeCfg.SecretKey
+		traderConfig.BitgetPassphrase = exchangeCfg.OkxPassphrase // Reuse passphrase field
 	} else if exchangeCfg.ID == "hyperliquid" {
 		traderConfig.HyperliquidPrivateKey = exchangeCfg.APIKey // hyperliquid uses APIKey to store private key
 		traderConfig.HyperliquidWalletAddr = exchangeCfg.HyperliquidWalletAddr
@@ -425,6 +436,9 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.QwenKey = aiModelCfg.APIKey
 	} else if aiModelCfg.Provider == "deepseek" {
 		traderConfig.DeepSeekKey = aiModelCfg.APIKey
+	} else {
+		// For other providers (grok, openai, claude, gemini, kimi, custom), use CustomAPIKey
+		traderConfig.CustomAPIKey = aiModelCfg.APIKey
 	}
 
 	// Create trader instance
@@ -654,8 +668,11 @@ func (tm *TraderManager) GetCompetitionData(database *config.Database) (map[stri
 	traders := tm.getConcurrentTraderData(allTraders, database)
 
 	// Filter out follower traders (traders with non-empty followed_trader_id)
+	// Also count all follower traders (total and running)
 	filteredTraders := make([]map[string]interface{}, 0, len(traders))
 	filteredCount := 0
+	followerTotalCount := 0
+	followerRunningCount := 0
 	for _, t := range traders {
 		traderID, _ := t["trader_id"].(string)
 		followedTraderIDRaw := t["followed_trader_id"]
@@ -685,6 +702,13 @@ func (tm *TraderManager) GetCompetitionData(database *config.Database) (map[stri
 		if followedTraderID != "" {
 			log.Printf("🚫 DEBUG [GetCompetitionData]: Filtering out follower trader: %s (followed_trader_id: '%s')", traderID, followedTraderID)
 			filteredCount++
+			followerTotalCount++ // Count all follower traders
+			// Count running follower traders
+			if runningRaw, ok := t["is_running"]; ok {
+				if isRunning, ok := runningRaw.(bool); ok && isRunning {
+					followerRunningCount++
+				}
+			}
 			continue
 		}
 		// Only include non-follower traders
@@ -693,7 +717,7 @@ func (tm *TraderManager) GetCompetitionData(database *config.Database) (map[stri
 	}
 	traders = filteredTraders
 
-	log.Printf("📋 After filtering follower traders, remaining trader count: %d (filtered: %d)", len(traders), filteredCount)
+	log.Printf("📋 After filtering follower traders, remaining trader count: %d (filtered: %d, total followers: %d, running followers: %d)", len(traders), filteredCount, followerTotalCount, followerRunningCount)
 
 	// Sort by return percentage (descending)
 	sort.Slice(traders, func(i, j int) bool {
@@ -715,10 +739,24 @@ func (tm *TraderManager) GetCompetitionData(database *config.Database) (map[stri
 		traders = traders[:limit]
 	}
 
+	// Add follower count to each trader
+	for i := range traders {
+		traderID, _ := traders[i]["trader_id"].(string)
+		// Get follower count for this trader from database
+		followers, err := database.GetFollowerTraders(traderID)
+		if err == nil {
+			traders[i]["followers_count"] = len(followers)
+		} else {
+			traders[i]["followers_count"] = 0
+		}
+	}
+
 	comparison := make(map[string]interface{})
 	comparison["traders"] = traders
 	comparison["count"] = len(traders)
-	comparison["total_count"] = totalCount // Total trader count
+	comparison["total_count"] = totalCount                      // Total trader count
+	comparison["follower_total_count"] = followerTotalCount     // Total count of all follower traders
+	comparison["follower_running_count"] = followerRunningCount // Count of running follower traders
 
 	// Update cache
 	tm.competitionCache.mu.Lock()
@@ -1353,6 +1391,10 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		traderConfig.OkxAPIKey = exchangeCfg.APIKey
 		traderConfig.OkxSecretKey = exchangeCfg.SecretKey
 		traderConfig.OkxPassphrase = exchangeCfg.OkxPassphrase
+	} else if exchangeCfg.ID == "bitget" {
+		traderConfig.BitgetAPIKey = exchangeCfg.APIKey
+		traderConfig.BitgetSecretKey = exchangeCfg.SecretKey
+		traderConfig.BitgetPassphrase = exchangeCfg.OkxPassphrase // Reuse passphrase field
 	} else if exchangeCfg.ID == "hyperliquid" {
 		traderConfig.HyperliquidPrivateKey = exchangeCfg.APIKey // hyperliquid uses APIKey to store private key
 		traderConfig.HyperliquidWalletAddr = exchangeCfg.HyperliquidWalletAddr
@@ -1372,6 +1414,9 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		traderConfig.QwenKey = aiModelCfg.APIKey
 	} else if aiModelCfg.Provider == "deepseek" {
 		traderConfig.DeepSeekKey = aiModelCfg.APIKey
+	} else {
+		// For other providers (grok, openai, claude, gemini, kimi, custom), use CustomAPIKey
+		traderConfig.CustomAPIKey = aiModelCfg.APIKey
 	}
 
 	// Create trader instance
