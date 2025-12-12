@@ -289,7 +289,7 @@ function App() {
         <div className="text-center">
           <img
             src="/icons/nofx.svg"
-            alt="AI Trading Logo"
+            alt="AI Trading 24x7 Logo"
             className="w-16 h-16 mx-auto mb-4 animate-pulse"
           />
           <p style={{ color: '#EAECEF' }}>{t('loading', language)}</p>

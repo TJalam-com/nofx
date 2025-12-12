@@ -25,7 +25,7 @@ export function LandingPage() {
   const { SEOComponent } = useSEO()
 
   console.log('LandingPage - user:', user, 'isLoggedIn:', isLoggedIn)
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
 
   return (
     <>
@@ -33,7 +33,7 @@ export function LandingPage() {
       <OrganizationSchema />
       <WebSiteSchema />
       <SoftwareApplicationSchema
-        name="AI Trading"
+        name="AI Trading 24x7"
         description="AI-powered copy trading platform supporting multiple exchanges and AI models. Automate trades with AI decision engine, copy top traders, multi-exchange support."
         applicationCategory="FinanceApplication"
         operatingSystem="Web"

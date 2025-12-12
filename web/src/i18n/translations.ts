@@ -3,7 +3,7 @@ export type Language = 'en' | 'zh'
 export const translations = {
   en: {
     // Header
-    appTitle: 'AI Trading',
+    appTitle: 'AI Trading 24x7',
     subtitle: 'Multi-AI Model Trading Platform',
     aiTraders: 'AI Traders',
     details: 'Details',
@@ -31,8 +31,8 @@ export const translations = {
     faqSearchPlaceholder: 'Search FAQ...',
 
     // Footer
-    footerTitle: 'Best AI Trading app',
-    footerWarning: '⚠️ Risk Warning: Cryptocurrency trading involves substantial risk of loss. Past performance does not guarantee future results. Only trade with funds you can afford to lose. AI Trading is a non-custodial platform with no official trading strategies. Market conditions can change rapidly, and you may lose all or more than your initial investment. Please trade responsibly and seek independent financial advice if needed.',
+    footerTitle: 'Best AI Trading 24x7 app',
+    footerWarning: '⚠️ Risk Warning: Cryptocurrency trading involves substantial risk of loss. Past performance does not guarantee future results. Only trade with funds you can afford to lose. AI Trading 24x7 is a non-custodial platform with no official trading strategies. Market conditions can change rapidly, and you may lose all or more than your initial investment. Please trade responsibly and seek independent financial advice if needed.',
 
     // Followers Page
     followersPageTitle: 'My Followers',
@@ -727,7 +727,7 @@ export const translations = {
     passwordNotMeetRequirements:
       'Password does not meet the security requirements',
     otpPlaceholder: '000000',
-    loginTitle: 'Sign in to AI Trading',
+    loginTitle: 'Sign in to AI Trading 24x7',
     loginSubtitle: 'Please enter your email and password',
     loginOTPSubtitle: 'Please enter the two-factor authentication code',
     adminPassword: 'Admin Password',
@@ -837,23 +837,23 @@ export const translations = {
     heroTitle1: 'Read the Market.',
     heroTitle2: 'Write the Trade.',
     heroDescription:
-      'AI Trading is the future standard for AI trading — an open, community-driven agentic trading OS. Supporting Binance, Aster DEX and other exchanges, self-hosted, multi-agent competition, let AI automatically make decisions, execute and optimize trades for you.',
+      'AI Trading 24x7 is the future standard for AI trading — an open, community-driven agentic trading OS. Supporting Binance, Aster DEX and other exchanges, self-hosted, multi-agent competition, let AI automatically make decisions, execute and optimize trades for you.',
     poweredBy:
       'Powered by Aster DEX and Binance, strategically invested by Amber.ac.',
 
     // Landing Page CTA
     readyToDefine: 'Ready to define the future of AI trading?',
     startWithCrypto:
-      'Starting with crypto markets, expanding to TradFi. AI Trading is the infrastructure of AgentFi.',
+      'Starting with crypto markets, expanding to TradFi. AI Trading 24x7 is the infrastructure of AgentFi.',
     getStartedNow: 'Get Started Now',
     viewSourceCode: 'View Source Code',
 
     // Features Section
     coreFeatures: 'Core Features',
-    whyChooseNofx: 'Why Choose AI Trading?',
+    whyChooseNofx: 'Why Choose AI Trading 24x7?',
     openCommunityDriven:
       'Transparent, community-driven AI trading platform',
-    openSourceSelfHosted: 'AI Trading Platform',
+    openSourceSelfHosted: 'AI Trading 24x7 Platform',
     openSourceDesc:
       'Your framework, your rules. Non-black box, supports custom prompts, multi-models, copy trading, and TradingView webhook integration.',
     openSourceFeatures1: 'Fully open source code',
@@ -872,16 +872,16 @@ export const translations = {
     secureReliableTrading: 'Secure and Reliable Trading',
     secureDesc:
       'Enterprise-grade security, complete control over your funds and trading strategies.',
-    secureFeatures1: 'Local private key management',
+    secureFeatures1: 'Secure private key management',
     secureFeatures2: 'Fine-grained API permission control',
     secureFeatures3: 'Real-time risk monitoring',
     secureFeatures4: 'Trading log auditing',
 
     // About Section
-    aboutNofx: 'About AI Trading',
-    whatIsNofx: 'What is AI Trading?',
+    aboutNofx: 'About AI Trading 24x7',
+    whatIsNofx: 'What is AI Trading 24x7?',
     nofxNotAnotherBot:
-      "AI Trading is a powerful SaaS platform for AI-powered trading —",
+      "AI Trading 24x7 is a powerful SaaS platform for AI-powered trading —",
     nofxDescription1:
       'a cloud-based service that provides a unified',
     nofxDescription2:
@@ -899,7 +899,7 @@ export const translations = {
     startupMessages3: 'Web console http://localhost:3000',
 
     // How It Works Section
-    howToStart: 'How to Get Started with AI Trading',
+    howToStart: 'How to Get Started with AI Trading 24x7',
     fourSimpleSteps:
       'Four simple steps to start your AI automated trading journey',
     step1Title: 'Clone GitHub Repository',
@@ -916,7 +916,7 @@ export const translations = {
       'Monitor trading, submit PRs to improve framework. Join Telegram to share strategies.',
     importantRiskWarning: 'Important Risk Warning',
     riskWarningText:
-      'Dev branch is unstable, do not use funds you cannot afford to lose. AI Trading is non-custodial, no official strategies. Trading involves risks, invest carefully.',
+      'Dev branch is unstable, do not use funds you cannot afford to lose. AI Trading 24x7 is non-custodial, no official strategies. Trading involves risks, invest carefully.',
 
     // Community Section (testimonials are kept as-is since they are quotes)
 
@@ -929,7 +929,7 @@ export const translations = {
     strategicInvestment: '(Strategic Investment)',
 
     // Login Modal
-    accessNofxPlatform: 'Access AI Trading Platform',
+    accessNofxPlatform: 'Access AI Trading 24x7 Platform',
     loginRegisterPrompt:
       'Please login or register to access the full AI trading platform',
     registerNewAccount: 'Register New Account',
@@ -1026,7 +1026,7 @@ export const translations = {
 
     // FAQ Page
     faqTitle: 'Frequently Asked Questions',
-    faqSubtitle: 'Find answers to common questions about AI Trading',
+    faqSubtitle: 'Find answers to common questions about AI Trading 24x7',
     faqStillHaveQuestions: 'Still Have Questions?',
     faqContactUs: 'Join our community or check our GitHub for more help',
 
@@ -1040,21 +1040,21 @@ export const translations = {
     faqCategoryData: 'Data & Privacy',
 
     // FAQ Questions & Answers - General
-    faqWhatIsNOFX: 'What is AI Trading?',
+    faqWhatIsNOFX: 'What is AI Trading 24x7?',
     faqWhatIsNOFXAnswer:
-      'AI Trading is an AI-powered cryptocurrency trading bot that uses large language models (LLMs) to make trading decisions on futures markets.',
+      'AI Trading 24x7 is an AI-powered cryptocurrency trading bot that uses large language models (LLMs) to make trading decisions on futures markets.',
 
     faqSupportedExchanges: 'Which exchanges are supported?',
     faqSupportedExchangesAnswer:
       'Binance Futures, Hyperliquid, and Aster DEX are supported. More exchanges coming soon.',
 
-    faqIsProfitable: 'Is AI Trading profitable?',
+    faqIsProfitable: 'Is AI Trading 24x7 profitable?',
     faqIsProfitableAnswer:
       'AI trading is experimental and not guaranteed to be profitable. Always start with small amounts and never invest more than you can afford to lose.',
 
     faqMultipleTraders: 'Can I run multiple traders simultaneously?',
     faqMultipleTradersAnswer:
-      'Yes! AI Trading supports running multiple traders with different configurations, AI models, and trading strategies.',
+      'Yes! AI Trading 24x7 supports running multiple traders with different configurations, AI models, and trading strategies.',
 
     // Contributing & Community
     faqGithubProjectsTasks: 'How to use GitHub Projects and pick up tasks?',
@@ -1072,7 +1072,7 @@ export const translations = {
 
     faqNeedCoding: 'Do I need coding experience?',
     faqNeedCodingAnswer:
-      'No! AI Trading has a web UI for all configuration. However, basic command line knowledge helps with setup and troubleshooting.',
+      'No! AI Trading 24x7 has a web UI for all configuration. However, basic command line knowledge helps with setup and troubleshooting.',
 
     faqGetApiKeys: 'How do I get API keys?',
     faqGetApiKeysAnswer:
@@ -1080,7 +1080,7 @@ export const translations = {
 
     faqUseSubaccount: 'Should I use a subaccount?',
     faqUseSubaccountAnswer:
-      'Recommended: Yes, use a subaccount dedicated to AI Trading for better risk isolation. However, note that some subaccounts have restrictions (e.g., 5x max leverage on Binance).',
+      'Recommended: Yes, use a subaccount dedicated to AI Trading 24x7 for better risk isolation. However, note that some subaccounts have restrictions (e.g., 5x max leverage on Binance).',
 
     faqDockerDeployment: 'Docker deployment keeps failing',
     faqDockerDeploymentAnswer:
@@ -1117,7 +1117,7 @@ export const translations = {
 
     faqHighFees: 'Trading fees are too high',
     faqHighFeesAnswer:
-      'AI Trading default 3-minute scan interval can cause frequent trading. Solutions: Increase decision interval to 5-10 minutes; Optimize system prompt to reduce overtrading; Adjust leverage to reduce position sizes.',
+      'AI Trading 24x7 default 3-minute scan interval can cause frequent trading. Solutions: Increase decision interval to 5-10 minutes; Optimize system prompt to reduce overtrading; Adjust leverage to reduce position sizes.',
 
     faqNoTakeProfit: "AI doesn't close profitable positions",
     faqNoTakeProfitAnswer:
@@ -1167,7 +1167,7 @@ export const translations = {
 
     faqAiLearning: 'Does the AI learn from its mistakes?',
     faqAiLearningAnswer:
-      'Yes, to some extent. AI Trading provides historical performance feedback in each decision prompt, allowing the AI to adjust its strategy.',
+      'Yes, to some extent. AI Trading 24x7 provides historical performance feedback in each decision prompt, allowing the AI to adjust its strategy.',
 
     faqOnlyShort: 'AI only opens short positions, no long positions',
     faqOnlyShortAnswer:
@@ -1215,7 +1215,7 @@ export const translations = {
         'Avoid embedding the app in insecure HTTP iframes or reverse proxies that strip HTTPS.',
       unsupportedTitle: 'Browser does not expose Web Crypto',
       unsupportedDesc:
-        'Open AI Trading over HTTPS (or http://localhost during development) and avoid insecure iframes/reverse proxies so the browser can enable Web Crypto.',
+        'Open AI Trading 24x7 over HTTPS (or http://localhost during development) and avoid insecure iframes/reverse proxies so the browser can enable Web Crypto.',
       disabledTitle: 'Transport encryption disabled',
       disabledDesc:
         'Transport encryption is disabled on the server. You can enter sensitive keys without encryption. This mode is suitable for local development or trusted networks.',
@@ -1260,7 +1260,7 @@ export const translations = {
   },
   zh: {
     // Header
-    appTitle: 'AI Trading',
+    appTitle: 'AI Trading 24x7',
     subtitle: '多AI模型交易平台',
     aiTraders: 'AI交易员',
     details: '详情',
@@ -1282,8 +1282,8 @@ export const translations = {
     faqNav: '常见问题',
 
     // Footer
-    footerTitle: 'Best AI Trading app',
-    footerWarning: '⚠️ 风险提示：加密货币交易存在重大损失风险。过往表现不代表未来结果。请仅使用您能够承受损失的资金进行交易。AI Trading 是一个非托管平台，不提供官方交易策略。市场条件可能快速变化，您可能会损失全部或超过初始投资。请负责任地交易，如有需要，请寻求独立的财务建议。',
+    footerTitle: 'Best AI Trading 24x7 app',
+    footerWarning: '⚠️ 风险提示：加密货币交易存在重大损失风险。过往表现不代表未来结果。请仅使用您能够承受损失的资金进行交易。AI Trading 24x7 是一个非托管平台，不提供官方交易策略。市场条件可能快速变化，您可能会损失全部或超过初始投资。请负责任地交易，如有需要，请寻求独立的财务建议。',
 
     // Followers Page
     followersPageTitle: '我的跟随者',
@@ -1947,7 +1947,7 @@ export const translations = {
     passwordRuleMatch: '两次密码一致',
     passwordNotMeetRequirements: '密码不符合安全要求',
     otpPlaceholder: '000000',
-    loginTitle: '登录 AI Trading',
+    loginTitle: '登录 AI Trading 24x7',
     loginSubtitle: '请输入您的邮箱和密码',
     loginOTPSubtitle: '请输入两步验证码',
     adminPassword: '管理员密码',
@@ -2050,19 +2050,19 @@ export const translations = {
     heroTitle1: 'Read the Market.',
     heroTitle2: 'Write the Trade.',
     heroDescription:
-      'AI Trading 是 AI 交易的未来标准——一个开放、社区驱动的代理式交易操作系统。支持 Binance、Aster DEX 等交易所，自托管、多代理竞争，让 AI 为你自动决策、执行和优化交易。',
+      'AI Trading 24x7 是 AI 交易的未来标准——一个开放、社区驱动的代理式交易操作系统。支持 Binance、Aster DEX 等交易所，自托管、多代理竞争，让 AI 为你自动决策、执行和优化交易。',
     poweredBy: '由 Aster DEX 和 Binance 提供支持，Amber.ac 战略投资。',
 
     // Landing Page CTA
     readyToDefine: '准备好定义 AI 交易的未来吗？',
     startWithCrypto:
-      '从加密市场起步，扩展到 TradFi。AI Trading 是 AgentFi 的基础架构。',
+      '从加密市场起步，扩展到 TradFi。AI Trading 24x7 是 AgentFi 的基础架构。',
     getStartedNow: '立即开始',
     viewSourceCode: '查看源码',
 
     // Features Section
     coreFeatures: '核心功能',
-    whyChooseNofx: '为什么选择 AI Trading？',
+    whyChooseNofx: '为什么选择 AI Trading 24x7？',
     openCommunityDriven: '透明、社区驱动的 AI 交易平台',
     openSourceSelfHosted: 'AI 交易平台',
     openSourceDesc: '你的框架，你的规则。非黑箱，支持自定义提示词、多模型、跟单交易和 TradingView Webhook 集成。',
@@ -2080,15 +2080,15 @@ export const translations = {
     multiAgentFeatures4: '跨市场策略移植',
     secureReliableTrading: '安全可靠交易',
     secureDesc: '企业级安全保障，完全掌控你的资金和交易策略。',
-    secureFeatures1: '本地私钥管理',
+    secureFeatures1: '安全私钥管理',
     secureFeatures2: 'API 权限精细控制',
     secureFeatures3: '实时风险监控',
     secureFeatures4: '交易日志审计',
 
     // About Section
-    aboutNofx: '关于 AI Trading',
-    whatIsNofx: '什么是 AI Trading？',
-    nofxNotAnotherBot: "AI Trading 是一个强大的 AI 交易 SaaS 平台 ——",
+    aboutNofx: '关于 AI Trading 24x7',
+    whatIsNofx: '什么是 AI Trading 24x7？',
+    nofxNotAnotherBot: "AI Trading 24x7 是一个强大的 AI 交易 SaaS 平台 ——",
     nofxDescription1: "一个基于云端的服务，提供统一的 '决策-风险-执行'",
     nofxDescription2: '层，支持所有资产类别。',
     nofxDescription3:
@@ -2103,7 +2103,7 @@ export const translations = {
     startupMessages3: 'Web 控制台 http://localhost:3000',
 
     // How It Works Section
-    howToStart: '如何开始使用 AI Trading',
+    howToStart: '如何开始使用 AI Trading 24x7',
     fourSimpleSteps: '四个简单步骤，开启 AI 自动交易之旅',
     step1Title: '拉取 GitHub 仓库',
     step1Desc:
@@ -2118,7 +2118,7 @@ export const translations = {
     step4Desc: '监控交易，提交 PR 改进框架。加入 Telegram 分享策略。',
     importantRiskWarning: '重要风险提示',
     riskWarningText:
-      'dev 分支不稳定，勿用无法承受损失的资金。AI Trading 非托管，无官方策略。交易有风险，投资需谨慎。',
+      'dev 分支不稳定，勿用无法承受损失的资金。AI Trading 24x7 非托管，无官方策略。交易有风险，投资需谨慎。',
 
     // Community Section (testimonials are kept as-is since they are quotes)
 
@@ -2131,7 +2131,7 @@ export const translations = {
     strategicInvestment: '(战略投资)',
 
     // Login Modal
-    accessNofxPlatform: '访问 AI Trading 平台',
+    accessNofxPlatform: '访问 AI Trading 24x7 平台',
     loginRegisterPrompt: '请选择登录或注册以访问完整的 AI 交易平台',
     registerNewAccount: '注册新账号',
 
@@ -2227,7 +2227,7 @@ export const translations = {
 
     // FAQ Page
     faqTitle: '常见问题',
-    faqSubtitle: '查找关于 AI Trading 的常见问题解答',
+    faqSubtitle: '查找关于 AI Trading 24x7 的常见问题解答',
     faqSearchPlaceholder: '搜索常见问题...',
     faqStillHaveQuestions: '还有其他问题？',
     faqContactUs: '加入我们的社区或查看 GitHub 获取更多帮助',
@@ -2242,21 +2242,21 @@ export const translations = {
     faqCategoryData: '数据与隐私',
 
     // FAQ Questions & Answers - General
-    faqWhatIsNOFX: 'AI Trading 是什么？',
+    faqWhatIsNOFX: 'AI Trading 24x7 是什么？',
     faqWhatIsNOFXAnswer:
-      'AI Trading 是一个 AI 驱动的加密货币交易机器人，使用大语言模型（LLM）在期货市场进行交易决策。',
+      'AI Trading 24x7 是一个 AI 驱动的加密货币交易机器人，使用大语言模型（LLM）在期货市场进行交易决策。',
 
     faqSupportedExchanges: '支持哪些交易所？',
     faqSupportedExchangesAnswer:
       '支持币安合约（Binance Futures）、Hyperliquid 和 Aster DEX。更多交易所开发中。',
 
-    faqIsProfitable: 'AI Trading 能盈利吗？',
+    faqIsProfitable: 'AI Trading 24x7 能盈利吗？',
     faqIsProfitableAnswer:
       'AI 交易是实验性的，不保证盈利。请始终用小额资金测试，不要投入超过您承受能力的资金。',
 
     faqMultipleTraders: '可以同时运行多个交易员吗？',
     faqMultipleTradersAnswer:
-      '可以！AI Trading 支持运行多个交易员，每个可配置不同的 AI 模型和交易策略。',
+      '可以！AI Trading 24x7 支持运行多个交易员，每个可配置不同的 AI 模型和交易策略。',
 
     // Contributing & Community
     faqGithubProjectsTasks: '如何在 GitHub Projects 中领取任务？',
@@ -2274,7 +2274,7 @@ export const translations = {
 
     faqNeedCoding: '需要编程经验吗？',
     faqNeedCodingAnswer:
-      '不需要！AI Trading 有 Web 界面进行所有配置。但基础的命令行知识有助于安装和故障排查。',
+      '不需要！AI Trading 24x7 有 Web 界面进行所有配置。但基础的命令行知识有助于安装和故障排查。',
 
     faqGetApiKeys: '如何获取 API 密钥？',
     faqGetApiKeysAnswer:
@@ -2282,7 +2282,7 @@ export const translations = {
 
     faqUseSubaccount: '应该使用子账户吗？',
     faqUseSubaccountAnswer:
-      '推荐：是的，使用专门的子账户运行 AI Trading 可以更好地隔离风险。但请注意，某些子账户有限制（例如币安子账户最高 5 倍杠杆）。',
+      '推荐：是的，使用专门的子账户运行 AI Trading 24x7 可以更好地隔离风险。但请注意，某些子账户有限制（例如币安子账户最高 5 倍杠杆）。',
 
     faqDockerDeployment: 'Docker 部署一直失败',
     faqDockerDeploymentAnswer:
@@ -2319,7 +2319,7 @@ export const translations = {
 
     faqHighFees: '交易手续费太高',
     faqHighFeesAnswer:
-      'AI Trading 默认 3 分钟扫描间隔会导致频繁交易。解决方案：将决策间隔增加到 5-10 分钟；优化系统提示词减少过度交易；调整杠杆降低仓位大小。',
+      'AI Trading 24x7 默认 3 分钟扫描间隔会导致频繁交易。解决方案：将决策间隔增加到 5-10 分钟；优化系统提示词减少过度交易；调整杠杆降低仓位大小。',
 
     faqNoTakeProfit: 'AI 不平掉盈利的仓位',
     faqNoTakeProfitAnswer:
@@ -2369,7 +2369,7 @@ export const translations = {
 
     faqAiLearning: 'AI 会从错误中学习吗？',
     faqAiLearningAnswer:
-      '会的，在一定程度上。AI Trading 在每次决策提示中提供历史表现反馈，允许 AI 调整策略。',
+      '会的，在一定程度上。AI Trading 24x7 在每次决策提示中提供历史表现反馈，允许 AI 调整策略。',
 
     faqOnlyShort: 'AI 只开空单，不开多单',
     faqOnlyShortAnswer:
@@ -2414,7 +2414,7 @@ export const translations = {
         '避免把应用嵌入在不安全的 HTTP iframe 或会降级协议的反向代理中。',
       unsupportedTitle: '浏览器未提供 Web Crypto',
       unsupportedDesc:
-        '请通过 HTTPS 或本机 localhost 访问 AI Trading，并避免嵌入不安全 iframe/反向代理，以符合浏览器的 Web Crypto 规则。',
+        '请通过 HTTPS 或本机 localhost 访问 AI Trading 24x7，并避免嵌入不安全 iframe/反向代理，以符合浏览器的 Web Crypto 规则。',
       disabledTitle: '传输加密已禁用',
       disabledDesc:
         '服务器已禁用传输加密。您可以无需加密输入敏感密钥。此模式适用于本地开发或受信任的网络。',

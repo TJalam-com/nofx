@@ -165,7 +165,7 @@ export function LoginPage() {
           <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <img
               src="/icons/nofx.svg"
-              alt="AI Trading Logo"
+              alt="AI Trading 24x7 Logo"
               className="w-16 h-16 object-contain"
             />
           </div>

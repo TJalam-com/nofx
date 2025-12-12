@@ -307,7 +307,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
           position: 'relative',
         }}
       >
-        {/* AI Trading Watermark */}
+        {/* AI Trading 24x7 Watermark */}
         <div
           style={{
             position: 'absolute',

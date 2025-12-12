@@ -516,7 +516,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
           border: '1px solid var(--bg-panel)',
         }}
       >
-        {/* Enhanced AI Trading Watermark */}
+        {/* Enhanced AI Trading 24x7 Watermark */}
         <div
           className="absolute top-4 right-4 z-10 pointer-events-none"
           style={{

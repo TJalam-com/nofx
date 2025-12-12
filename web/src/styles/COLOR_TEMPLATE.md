@@ -1,8 +1,8 @@
-# AI Trading Color Template
+# AI Trading 24x7 Color Template
 
 ## Color System Overview
 
-This document provides a comprehensive guide to the AI Trading color system. All colors are defined as CSS custom properties (variables) in `index.css` and should be used via `var(--variable-name)`.
+This document provides a comprehensive guide to the AI Trading 24x7 color system. All colors are defined as CSS custom properties (variables) in `index.css` and should be used via `var(--variable-name)`.
 
 ## Primary Colors
 

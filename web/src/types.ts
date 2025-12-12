@@ -87,7 +87,7 @@ export interface Statistics {
   total_close_positions: number
 }
 
-// AI Trading相关类型
+// AI Trading 24x7相关类型
 export interface TraderInfo {
   trader_id: string
   trader_name: string

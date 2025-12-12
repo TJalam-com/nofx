@@ -75,12 +75,12 @@ export default function HeaderBar({
           to="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <img src="/icons/nofx.svg" alt="AI Trading Logo" className="w-8 h-8" width="32" height="32" />
+          <img src="/icons/nofx.svg" alt="AI Trading 24x7 Logo" className="w-8 h-8" width="32" height="32" />
           <span
             className="text-xl font-bold"
             style={{ color: 'var(--brand-yellow)' }}
           >
-            AI Trading
+            AI Trading 24x7
           </span>
         </Link>
 
