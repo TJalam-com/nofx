@@ -18,7 +18,7 @@ import { SoftwareApplicationSchema, BreadcrumbListSchema } from '../components/S
 export function FeaturesPage() {
   const { language } = useLanguage()
   const { SEOComponent } = useSEO()
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
 
   const featureCategories = [
     {

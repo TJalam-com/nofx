@@ -25,7 +25,7 @@ export function LandingPage() {
   const { SEOComponent } = useSEO()
 
   console.log('LandingPage - user:', user, 'isLoggedIn:', isLoggedIn)
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
 
   return (
     <>

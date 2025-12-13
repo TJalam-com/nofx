@@ -15,7 +15,7 @@ export function SEO({
   canonical,
   lang = 'en',
 }: SEOProps) {
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   const fullCanonical = canonical || baseUrl
   
   // Prefer WebP for OG images, fallback to PNG

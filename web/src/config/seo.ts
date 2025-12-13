@@ -10,7 +10,7 @@ export interface SEOConfig {
   canonical?: string
 }
 
-const BASE_URL = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+const BASE_URL = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
 // Prefer WebP for better performance, modern platforms support it
 const DEFAULT_OG_IMAGE = `${BASE_URL}/images/main.webp`
 

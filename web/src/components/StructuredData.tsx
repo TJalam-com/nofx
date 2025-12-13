@@ -14,7 +14,7 @@ export function StructuredData({ data }: StructuredDataProps) {
 
 // Organization Schema for homepage
 export function OrganizationSchema() {
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   
   const schema = {
     '@context': 'https://schema.org',
@@ -34,7 +34,7 @@ export function OrganizationSchema() {
 
 // WebSite Schema with SearchAction
 export function WebSiteSchema() {
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   
   const schema = {
     '@context': 'https://schema.org',
@@ -74,7 +74,7 @@ export function FAQPageSchema({ faqs }: { faqs: Array<{ question: string; answer
 
 // BreadcrumbList Schema
 export function BreadcrumbListSchema({ items }: { items: Array<{ name: string; url: string }> }) {
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   
   const schema = {
     '@context': 'https://schema.org',
@@ -100,7 +100,7 @@ export interface OfferData {
 }
 
 export function OfferSchema({ offer }: { offer: OfferData }) {
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   
   const schema = {
     '@context': 'https://schema.org',
@@ -156,7 +156,7 @@ export function SoftwareApplicationSchema({
   aggregateRating,
   url,
 }: SoftwareApplicationData = {}) {
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://nofx.ai'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   
   const schema: Record<string, any> = {
     '@context': 'https://schema.org',
