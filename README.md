@@ -17,6 +17,24 @@
 
 ---
 
+## ⚠️ Modified Version Notice
+
+**This software is a modified version of NOFX, originally developed by NoFxAiOS.**
+
+This is a **modified version** of the NOFX software, originally developed by [NoFxAiOS](https://github.com/NoFxAiOS/nofx).
+
+- **Original Repository:** [https://github.com/NoFxAiOS/nofx](https://github.com/NoFxAiOS/nofx)
+- **Original License:** GNU Affero General Public License v3.0 (AGPL-3.0)
+- **Modified by:** TJalam-com
+- **Modification Date:** December 2025
+- **This modified version is also licensed under AGPL-3.0**
+
+This modified version includes rebranding, customizations, and additional features. The complete source code for this modified version is publicly available at: [https://github.com/TJalam-com/nofx](https://github.com/TJalam-com/nofx)
+
+**In accordance with AGPL-3.0 Section 5(a), this work carries prominent notices stating that it has been modified from the original version.**
+
+---
+
 ## 📑 Table of Contents
 
 - [🚀 Universal AI Trading Operating System](#-universal-ai-trading-operating-system)
