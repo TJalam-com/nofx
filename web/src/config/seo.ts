@@ -335,8 +335,8 @@ export const seoConfig: Record<string, (lang: Language) => SEOConfig> = {
       ? 'Contact - AI Trading 24x7 | Support & Help'
       : '联系我们 - AI Trading 24x7 | 支持与帮助',
     description: lang === 'en'
-      ? 'Get in touch with AI Trading 24x7. Email us at contact@aitrading247.com for support, bug reports, security issues, or general inquiries.'
-      : '联系AI Trading 24x7。发送邮件至contact@aitrading247.com获取支持、报告错误、安全问题或一般询问。',
+      ? 'Get in touch with AI Trading 24x7. Email us at contact@tjalam.com for support, bug reports, security issues, or general inquiries.'
+      : '联系AI Trading 24x7。发送邮件至contact@tjalam.com获取支持、报告错误、安全问题或一般询问。',
     keywords: lang === 'en'
       ? 'contact, support, help, bug report, security report, trading platform support, email'
       : '联系, 支持, 帮助, 错误报告, 安全报告, 交易平台支持, 电子邮件',
