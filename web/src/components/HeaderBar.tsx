@@ -491,147 +491,38 @@ export default function HeaderBar({
                     </button>
                   </>
                 )}
-
-                <button
-                  key="faq-tab"
-                  onClick={() => {
-                    if (onPageChange) {
-                      onPageChange('faq')
-                    }
-                    navigate('/faq')
-                  }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
-                  style={{
-                    color:
-                      currentPage === 'faq'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'faq') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'faq') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {/* Background for selected state */}
-                  <span
-                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
-                    style={{
-                      background: 'rgba(0, 51, 102, 0.3)',
-                      zIndex: -1,
-                      opacity: currentPage === 'faq' ? 1 : 0,
-                      pointerEvents: 'none',
-                    }}
-                  />
-
-                  {t('faqNav', language)}
-                </button>
               </>
-            ) : (
-              // Landing page navigation when not logged in
-              <>
-                <a
-                  key="competition-link"
-                  href="/competition"
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
-                  style={{
-                    color:
-                      currentPage === 'competition'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'competition') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'competition') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {/* Background for selected state */}
-                  <span
-                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
-                    style={{
-                      background: 'rgba(0, 51, 102, 0.3)',
-                      zIndex: -1,
-                      opacity: currentPage === 'competition' ? 1 : 0,
-                      pointerEvents: 'none',
-                    }}
-                  />
-
-                  {t('realtimeNav', language)}
-                </a>
-
-                <a
-                  key="faq-link"
-                  href="/faq"
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
-                  style={{
-                    color:
-                      currentPage === 'faq'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'faq') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'faq') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {/* Background for selected state */}
-                  <span
-                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
-                    style={{
-                      background: 'rgba(0, 51, 102, 0.3)',
-                      zIndex: -1,
-                      opacity: currentPage === 'faq' ? 1 : 0,
-                      pointerEvents: 'none',
-                    }}
-                  />
-
-                  {t('faqNav', language)}
-                </a>
-              </>
-            )}
+            ) : null}
           </div>
 
           {/* Right Side - Original Navigation Items and Login */}
           <div className="flex items-center gap-6">
-            {/* Only show original navigation items on home page */}
-            {isHomePage && (
-              <a
-                href="#features"
-                className="text-sm transition-colors relative group"
-                style={{ color: 'var(--brand-light-gray)' }}
-              >
-                {t('features', language)}
-                <span
-                  className="absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300"
-                  style={{ background: 'var(--brand-yellow)' }}
-                />
-              </a>
+            {/* Only show Features and Pricing when logged out and on home page */}
+            {!isLoggedIn && isHomePage && (
+              <>
+                <a
+                  href="#features"
+                  className="text-sm transition-colors relative group"
+                  style={{ color: 'var(--brand-light-gray)' }}
+                >
+                  {t('features', language)}
+                  <span
+                    className="absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300"
+                    style={{ background: 'var(--brand-yellow)' }}
+                  />
+                </a>
+                <a
+                  href="/pricing"
+                  className="text-sm transition-colors relative group"
+                  style={{ color: 'var(--brand-light-gray)' }}
+                >
+                  {t('pricingTitle', language)}
+                  <span
+                    className="absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300"
+                    style={{ background: 'var(--brand-yellow)' }}
+                  />
+                </a>
+              </>
             )}
 
             {/* User Info and Actions */}
@@ -1078,53 +969,27 @@ export default function HeaderBar({
                   Webhook
                 </button>
               )}
-              <button
-                key="mobile-faq-tab"
-                onClick={() => {
-                  if (onPageChange) {
-                    onPageChange('faq')
-                  }
-                  navigate('/faq')
-                  setMobileMenuOpen(false)
-                }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500 hover:text-green-500"
-                style={{
-                  color:
-                    currentPage === 'faq'
-                      ? 'var(--brand-yellow)'
-                      : 'var(--brand-light-gray)',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  position: 'relative',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {/* Background for selected state */}
-                <span
-                  className="absolute inset-0 rounded-lg transition-opacity duration-300"
-                  style={{
-                    background: 'rgba(0, 51, 102, 0.3)',
-                    zIndex: -1,
-                    opacity: currentPage === 'faq' ? 1 : 0,
-                    pointerEvents: 'none',
-                  }}
-                />
-
-                {t('faqNav', language)}
-              </button>
             </>
           )}
 
-          {/* Original Navigation Items - Only on home page */}
-          {isHomePage && (
-            <a
-              href="#features"
-              className="block text-sm py-2"
-              style={{ color: 'var(--brand-light-gray)' }}
-            >
-              {t('features', language)}
-            </a>
+          {/* Original Navigation Items - Only when logged out and on home page */}
+          {!isLoggedIn && isHomePage && (
+            <>
+              <a
+                href="#features"
+                className="block text-sm py-2"
+                style={{ color: 'var(--brand-light-gray)' }}
+              >
+                {t('features', language)}
+              </a>
+              <a
+                href="/pricing"
+                className="block text-sm py-2"
+                style={{ color: 'var(--brand-light-gray)' }}
+              >
+                {t('pricingTitle', language)}
+              </a>
+            </>
           )}
 
           {/* User info and logout for mobile when logged in */}
