@@ -19,7 +19,7 @@ export function ContactPage() {
   const { language } = useLanguage()
   const { SEOComponent } = useSEO()
 
-  const contactEmail = 'contact@aitrading247.com'
+  const contactEmail = 'contact@tjalam.com'
 
   const supportTypes = [
     {
