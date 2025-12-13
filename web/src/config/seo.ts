@@ -26,8 +26,8 @@ export const defaultSEO: SEOConfig = {
 export const seoConfig: Record<string, (lang: Language) => SEOConfig> = {
   '/': (lang: Language) => ({
     title: lang === 'en' 
-      ? 'AI Trading 24x7 | Best AI Copy Trading Platform 2025'
-      : 'AI Trading 24x7 | 最佳AI复制交易平台 2025',
+      ? 'AI Trading 24x7 | Best AI Copy Trading Platform 2026'
+      : 'AI Trading 24x7 | 最佳AI复制交易平台 2026',
     description: lang === 'en'
       ? 'AI Trading 24x7 - The #1 AI copy trading platform. Automate trades with AI decision engine, copy top traders, multi-exchange support. Free trial, open source (AGPL-3.0).'
       : 'AI Trading 24x7 - 排名第一的AI复制交易平台。使用AI决策引擎自动化交易，复制顶级交易员，支持多交易所。免费试用，开源（AGPL-3.0）。',
