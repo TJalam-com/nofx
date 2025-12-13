@@ -26,8 +26,8 @@ export const defaultSEO: SEOConfig = {
 export const seoConfig: Record<string, (lang: Language) => SEOConfig> = {
   '/': (lang: Language) => ({
     title: lang === 'en' 
-      ? 'AI Trading 24x7 | Best AI Copy Trading Platform 2025'
-      : 'AI Trading 24x7 | 最佳AI复制交易平台 2025',
+      ? 'AI Trading 24x7 | Best AI Copy Trading Platform 2026'
+      : 'AI Trading 24x7 | 最佳AI复制交易平台 2026',
     description: lang === 'en'
       ? 'AI Trading 24x7 - The #1 AI copy trading platform. Automate trades with AI decision engine, copy top traders, multi-exchange support. Free trial, open source (AGPL-3.0).'
       : 'AI Trading 24x7 - 排名第一的AI复制交易平台。使用AI决策引擎自动化交易，复制顶级交易员，支持多交易所。免费试用，开源（AGPL-3.0）。',
@@ -335,8 +335,8 @@ export const seoConfig: Record<string, (lang: Language) => SEOConfig> = {
       ? 'Contact - AI Trading 24x7 | Support & Help'
       : '联系我们 - AI Trading 24x7 | 支持与帮助',
     description: lang === 'en'
-      ? 'Get in touch with AI Trading 24x7. Email us at contact@aitrading247.com for support, bug reports, security issues, or general inquiries.'
-      : '联系AI Trading 24x7。发送邮件至contact@aitrading247.com获取支持、报告错误、安全问题或一般询问。',
+      ? 'Get in touch with AI Trading 24x7. Email us at contact@tjalam.com for support, bug reports, security issues, or general inquiries.'
+      : '联系AI Trading 24x7。发送邮件至contact@tjalam.com获取支持、报告错误、安全问题或一般询问。',
     keywords: lang === 'en'
       ? 'contact, support, help, bug report, security report, trading platform support, email'
       : '联系, 支持, 帮助, 错误报告, 安全报告, 交易平台支持, 电子邮件',
