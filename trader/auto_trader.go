@@ -57,9 +57,10 @@ type AutoTraderConfig struct {
 
 	// LIGHTER configuration
 	LighterWalletAddr       string // LIGHTER wallet address (L1 wallet)
-	LighterPrivateKey       string // LIGHTER L1 private key (for account identification)
+	LighterPrivateKey       string // LIGHTER L1 private key (for account identification, deprecated - not needed when wallet address is provided)
 	LighterAPIKeyPrivateKey string // LIGHTER API Key private key (40 bytes, for signing transactions)
-	LighterTestnet          bool   // Whether to use testnet
+	LighterAPIKeyIndex      int    // LIGHTER API Key index (default 0)
+	LighterTestnet          bool   // Deprecated - Lighter only supports mainnet
 
 	CoinPoolAPIURL string
 
@@ -319,25 +320,19 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 	case "lighter":
 		log.Printf("🏦 [%s] Using LIGHTER trading", config.Name)
 
-		// Prefer V2 (requires API Key)
-		if config.LighterAPIKeyPrivateKey != "" {
-			log.Printf("✓ Using LIGHTER SDK (V2) - full signature support")
+		// Lighter V2 requires wallet address and API Key
+		if config.LighterWalletAddr != "" && config.LighterAPIKeyPrivateKey != "" {
+			log.Printf("✓ Using LIGHTER SDK (V2) - mainnet only")
 			trader, err = NewLighterTraderV2(
-				config.LighterPrivateKey,
 				config.LighterWalletAddr,
 				config.LighterAPIKeyPrivateKey,
-				config.LighterTestnet,
+				config.LighterAPIKeyIndex,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("failed to initialize LIGHTER trader (V2): %w", err)
 			}
 		} else {
-			// Fallback to V1 (basic HTTP implementation)
-			log.Printf("⚠️  Using LIGHTER basic implementation (V1) - limited functionality, please configure API Key")
-			trader, err = NewLighterTrader(config.LighterPrivateKey, config.LighterWalletAddr, config.LighterTestnet)
-			if err != nil {
-				return nil, fmt.Errorf("failed to initialize LIGHTER trader (V1): %w", err)
-			}
+			return nil, fmt.Errorf("wallet address and api key private key required for lighter exchange")
 		}
 	default:
 		return nil, fmt.Errorf("unsupported exchange: %s", config.Exchange)
@@ -417,7 +412,7 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		database:              database,
 		userID:                userID,
 		triggerDecisionCh:     make(chan string, 100),             // Buffered channel for webhook triggers (buffer size: 100)
-		parentTradeSignalCh:   make(chan *ParentTradeSignal, 100), // Buffered channel for parent signals
+		parentTradeSignalCh:   make(chan *ParentTradeSignal, 200), // Buffered channel for parent signals (increased for instant TradingView forwarding)
 		isFollower:            isFollower,
 		followedTraderID:      followedTraderID,
 		processedSignals:      make(map[string]time.Time),
@@ -452,7 +447,9 @@ func (at *AutoTrader) Run() error {
 		log.Printf("👥 [%s] Follower mode: waiting for parent signals (parent=%s)",
 			at.name, at.followedTraderID)
 
-		const maxConcurrentSignals = 5
+		// Increased concurrency limit for instant TradingView signal forwarding
+		// Allows faster processing of burst signals while maintaining safety
+		const maxConcurrentSignals = 10
 		semaphore := make(chan struct{}, maxConcurrentSignals)
 
 		for at.isRunning {
@@ -1161,6 +1158,7 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 	var actualFillPrice float64
 	var actualExecutedQty float64
 	var entryFee float64
+	var finalOrderStatus string
 	if orderIDStr != "" {
 		// Wait 500ms before first poll
 		time.Sleep(500 * time.Millisecond)
@@ -1181,6 +1179,7 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 					entryFee = commission
 				}
 				status, _ := orderStatus["status"].(string)
+				finalOrderStatus = status
 				if status == "FILLED" || status == "PARTIALLY_FILLED" {
 					log.Printf("  ✓ Order filled: avgPrice=%.4f, executedQty=%.4f, fee=%.4f", actualFillPrice, actualExecutedQty, entryFee)
 					break
@@ -1190,6 +1189,17 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 				time.Sleep(1 * time.Second)
 			}
 		}
+
+		// Verify order was actually filled
+		if finalOrderStatus != "FILLED" && finalOrderStatus != "PARTIALLY_FILLED" {
+			return fmt.Errorf("order not filled: status=%s, orderId=%s. Order may have been rejected, canceled, or expired", finalOrderStatus, orderIDStr)
+		}
+
+		// Verify executed quantity is greater than 0
+		if actualExecutedQty <= 0 {
+			return fmt.Errorf("order executed quantity is 0: status=%s, orderId=%s. Order was not filled", finalOrderStatus, orderIDStr)
+		}
+
 		if actualFillPrice == 0 {
 			log.Printf("  ⚠ Warning: Could not get actual fill price, using market price")
 			actualFillPrice = marketData.CurrentPrice
@@ -1309,6 +1319,7 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 	var actualFillPrice float64
 	var actualExecutedQty float64
 	var entryFee float64
+	var finalOrderStatus string
 	if orderIDStr != "" {
 		// Wait 500ms before first poll
 		time.Sleep(500 * time.Millisecond)
@@ -1329,6 +1340,7 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 					entryFee = commission
 				}
 				status, _ := orderStatus["status"].(string)
+				finalOrderStatus = status
 				if status == "FILLED" || status == "PARTIALLY_FILLED" {
 					log.Printf("  ✓ Order filled: avgPrice=%.4f, executedQty=%.4f, fee=%.4f", actualFillPrice, actualExecutedQty, entryFee)
 					break
@@ -1338,6 +1350,17 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 				time.Sleep(1 * time.Second)
 			}
 		}
+
+		// Verify order was actually filled
+		if finalOrderStatus != "FILLED" && finalOrderStatus != "PARTIALLY_FILLED" {
+			return fmt.Errorf("order not filled: status=%s, orderId=%s. Order may have been rejected, canceled, or expired", finalOrderStatus, orderIDStr)
+		}
+
+		// Verify executed quantity is greater than 0
+		if actualExecutedQty <= 0 {
+			return fmt.Errorf("order executed quantity is 0: status=%s, orderId=%s. Order was not filled", finalOrderStatus, orderIDStr)
+		}
+
 		if actualFillPrice == 0 {
 			log.Printf("  ⚠ Warning: Could not get actual fill price, using market price")
 			actualFillPrice = marketData.CurrentPrice
@@ -1953,12 +1976,6 @@ func (at *AutoTrader) executePartialCloseWithRecord(decision *decision.Decision,
 			log.Printf("  ✓ Corrected to: close_short")
 			return at.executeCloseShortWithRecord(decision, actionRecord)
 		}
-	}
-
-	// Get entry price from position before closing
-	entryPrice, _ := targetPosition["entryPrice"].(float64)
-	if entryPrice == 0 {
-		entryPrice = marketData.CurrentPrice
 	}
 
 	// Execute close
@@ -3438,7 +3455,16 @@ func (at *AutoTrader) buildParentSignalUserPrompt(ctx *decision.Context, signal 
 	sb.WriteString(fmt.Sprintf("Parent Trader: %s (ID: %s)\n",
 		signal.ParentTraderName, signal.ParentTraderID))
 	sb.WriteString(fmt.Sprintf("Signal ID: %s\n", signal.SignalID))
-	sb.WriteString(fmt.Sprintf("Timestamp: %s\n\n", signal.Timestamp.Format(time.RFC3339)))
+	sb.WriteString(fmt.Sprintf("Timestamp: %s\n", signal.Timestamp.Format(time.RFC3339)))
+
+	// Indicate if this is a TradingView-originated signal (instant forwarding)
+	if signal.Decision.TradingViewSignalID != "" {
+		sb.WriteString(fmt.Sprintf("⚡ Signal Source: TradingView Alert (Alert ID: %s) - Instant Forwarding\n", signal.Decision.TradingViewSignalID))
+		sb.WriteString("This signal was forwarded instantly from a TradingView alert. The parent trader may still be processing the same alert.\n")
+	} else {
+		sb.WriteString("Signal Source: Parent Trader AI Decision (Post-Execution Replication)\n")
+	}
+	sb.WriteString("\n")
 
 	sb.WriteString("## Parent's Trade Decision\n\n")
 	sb.WriteString(fmt.Sprintf("- Symbol: %s\n", signal.Decision.Symbol))
