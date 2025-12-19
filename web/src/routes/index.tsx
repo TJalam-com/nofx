@@ -25,17 +25,56 @@ import { ConfirmDialogProvider } from '../components/ConfirmDialog'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 
 // Lazy load non-critical routes for code splitting
-const FAQPage = lazy(() => import('../pages/FAQPage').then(m => ({ default: m.FAQPage })))
-const FollowersPage = lazy(() => import('../pages/FollowersPage'))
-const StatsPage = lazy(() => import('../pages/StatsPage'))
-const BacktestPage = lazy(() => import('../components/BacktestPage').then(m => ({ default: m.BacktestPage })))
-const WebhookPage = lazy(() => import('../pages/WebhookPage'))
-const TraderApplicationPage = lazy(() => import('../pages/TraderApplicationPage'))
-const AdminTraderApplicationsPage = lazy(() => import('../pages/AdminTraderApplicationsPage'))
-const AdminArticlesPage = lazy(() => import('../pages/AdminArticlesPage'))
-const StrategyStudioPage = lazy(() => import('../pages/StrategyStudioPage').then(m => ({ default: m.StrategyStudioPage })))
-const BlogPage = lazy(() => import('../pages/BlogPage').then(m => ({ default: m.BlogPage })))
-const ArticlePage = lazy(() => import('../pages/ArticlePage').then(m => ({ default: m.ArticlePage })))
+// Add error handling for failed dynamic imports to prevent app crashes
+const lazyWithErrorHandling = <T extends React.ComponentType<any>>(
+  importFn: () => Promise<{ default: T } | { [key: string]: T }>
+) => {
+  return lazy(async () => {
+    try {
+      const module = await importFn()
+      // Normalize the module to always have a default export
+      if ('default' in module) {
+        return { default: module.default }
+      }
+      // If no default export, try to get the first named export or create a fallback
+      const firstKey = Object.keys(module)[0]
+      if (firstKey) {
+        return { default: (module as { [key: string]: T })[firstKey] }
+      }
+      throw new Error('No export found in module')
+    } catch (error) {
+      console.error('Failed to load module:', error)
+      // Return a fallback component that shows an error message
+      const FallbackComponent: React.ComponentType = () => (
+        <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--navy-primary)' }}>
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Failed to load page</h2>
+            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>Please refresh the page or try again later.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      )
+      return { default: FallbackComponent as T }
+    }
+  })
+}
+
+const FAQPage = lazyWithErrorHandling(() => import('../pages/FAQPage').then(m => ({ default: m.FAQPage })))
+const FollowersPage = lazyWithErrorHandling(() => import('../pages/FollowersPage'))
+const StatsPage = lazyWithErrorHandling(() => import('../pages/StatsPage'))
+const BacktestPage = lazyWithErrorHandling(() => import('../components/BacktestPage').then(m => ({ default: m.BacktestPage })))
+const WebhookPage = lazyWithErrorHandling(() => import('../pages/WebhookPage'))
+const TraderApplicationPage = lazyWithErrorHandling(() => import('../pages/TraderApplicationPage'))
+const AdminTraderApplicationsPage = lazyWithErrorHandling(() => import('../pages/AdminTraderApplicationsPage'))
+const AdminArticlesPage = lazyWithErrorHandling(() => import('../pages/AdminArticlesPage'))
+const StrategyStudioPage = lazyWithErrorHandling(() => import('../pages/StrategyStudioPage').then(m => ({ default: m.StrategyStudioPage })))
+const BlogPage = lazyWithErrorHandling(() => import('../pages/BlogPage').then(m => ({ default: m.BlogPage })))
+const ArticlePage = lazyWithErrorHandling(() => import('../pages/ArticlePage').then(m => ({ default: m.ArticlePage })))
 
 // Loading fallback component
 function RouteLoadingFallback() {

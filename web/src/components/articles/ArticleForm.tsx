@@ -58,17 +58,17 @@ export function ArticleForm({ article, onSubmit, onCancel, isLoading = false }: 
     } else {
       // Create case - title is required
       const createData: CreateArticleRequest = {
-        title,
-        content,
-        excerpt,
-        featured_image_url: featuredImageUrl,
-        status,
-        meta_title: metaTitle || undefined,
-        meta_description: metaDescription,
-        meta_keywords: metaKeywords || undefined,
-        og_image_url: ogImageUrl || undefined,
+      title,
+      content,
+      excerpt,
+      featured_image_url: featuredImageUrl,
+      status,
+      meta_title: metaTitle || undefined,
+      meta_description: metaDescription,
+      meta_keywords: metaKeywords || undefined,
+      og_image_url: ogImageUrl || undefined,
         slug: slug || undefined,
-      }
+    }
       await onSubmit(createData)
     }
   }
