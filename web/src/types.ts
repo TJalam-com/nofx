@@ -9,6 +9,7 @@ export type Page =
   | 'faq'
   | 'stats'
   | 'applications'
+  | 'articles'
   | 'strategy-studio'
   | 'login'
   | 'register'
@@ -68,6 +69,9 @@ export interface DecisionAction {
   reasoning?: string
   parent_signal_id?: string
   signal_decision?: string // "accept", "reject", "modify"
+  stop_loss?: number
+  take_profit?: number
+  confidence?: number
 }
 
 export interface AccountSnapshot {
@@ -150,11 +154,12 @@ export interface Exchange {
   asterUser?: string
   asterSigner?: string
   asterPrivateKey?: string
-  // LIGHTER 特定字段
+  // LIGHTER specific fields
   lighterWalletAddr?: string
   lighterPrivateKey?: string
-  lighterApiKeyPrivateKey?: string
-  // OKX 特定字段
+  lighterAPIKeyPrivateKey?: string
+  lighterAPIKeyIndex?: number
+  // OKX specific fields
   okxPassphrase?: string
 }
 
@@ -358,6 +363,8 @@ export interface FollowerWithActivities {
   trader_id: string
   trader_name: string
   user_id: string
+  user_email?: string
+  user_name?: string
   is_running: boolean
   account: AccountInfo | { error?: string }
   latest_decisions: Array<{
@@ -616,4 +623,54 @@ export interface UpdateStrategyRequest {
   enable_funding?: boolean
   indicator_timeframe?: string
   quant_data_url?: string
+}
+
+// Article types
+export interface Article {
+  id: string
+  slug: string
+  title: string
+  content: string
+  excerpt: string
+  featured_image_url: string
+  author_id: string
+  author_email?: string
+  status: 'draft' | 'published'
+  meta_title?: string
+  meta_description: string
+  meta_keywords?: string
+  og_image_url?: string
+  published_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateArticleRequest {
+  title: string
+  content: string
+  excerpt?: string
+  featured_image_url?: string
+  status?: 'draft' | 'published'
+  meta_title?: string
+  meta_description?: string
+  meta_keywords?: string
+  og_image_url?: string
+  slug?: string
+}
+
+export interface UpdateArticleRequest {
+  title?: string
+  content?: string
+  excerpt?: string
+  featured_image_url?: string
+  status?: 'draft' | 'published'
+  meta_title?: string
+  meta_description?: string
+  meta_keywords?: string
+  og_image_url?: string
+  slug?: string
+}
+
+export interface ArticlesResponse {
+  articles: Article[]
 }

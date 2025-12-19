@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"nofx/decision"
+	"nofx/trader"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // extractTraderIDs extracts and normalizes trader IDs from payload
@@ -28,7 +31,7 @@ func (s *Server) extractTraderIDs(payload map[string]interface{}, userID string)
 	// Handle both []interface{} and []string types from JSON unmarshaling
 	if traderIDsRaw, exists := payload["trader_ids"]; exists {
 		log.Printf("🔍 extractTraderIDs: Found trader_ids field, type=%T", traderIDsRaw)
-		
+
 		// Try []interface{} first (common case)
 		if traderIDsArray, ok := traderIDsRaw.([]interface{}); ok && len(traderIDsArray) > 0 {
 			log.Printf("🔍 extractTraderIDs: Successfully parsed trader_ids as []interface{}, count=%d", len(traderIDsArray))
@@ -79,7 +82,7 @@ func (s *Server) extractTraderIDs(payload map[string]interface{}, userID string)
 		_, _, _, err := s.database.GetTraderConfig(userID, tid)
 		if err != nil {
 			log.Printf("⚠️ Trader %s does not belong to user %s", tid, userID)
-			return nil, fmt.Errorf("Invalid trader_id")
+			return nil, fmt.Errorf("invalid trader_id")
 		}
 		return []string{tid}, nil
 	}
@@ -89,17 +92,205 @@ func (s *Server) extractTraderIDs(payload map[string]interface{}, userID string)
 	traders, err := s.database.GetTradersWithTradingViewEnabled(userID)
 	if err != nil || len(traders) == 0 {
 		log.Printf("⚠️ User %s has no traders with TradingView enabled", userID)
-		return nil, fmt.Errorf("No trader with TradingView enabled found, please specify trader_id or trader_ids in webhook or enable TradingView signal in trader config")
+		return nil, fmt.Errorf("no trader with TradingView enabled found, please specify trader_id or trader_ids in webhook or enable TradingView signal in trader config")
 	}
 	traderIDs = []string{traders[0].ID}
 	log.Printf("📌 Auto-assigned trader: %s", traders[0].ID)
 	return traderIDs, nil
 }
 
+// forwardTradingViewAlertToFollowers forwards TradingView alert immediately to all running followers
+// This provides instant signal propagation before parent AI processing completes.
+// IMPORTANT: We reuse the parsed TradingViewAlert from the database so the child
+// receives the same structured information (symbol, side, entry, SL/TP, size)
+// that the parent sees, instead of relying on raw JSON field names.
+func (s *Server) forwardTradingViewAlertToFollowers(traderID, alertID string, payload map[string]interface{}, symbol, action string) {
+	// Get all follower traders from database
+	followerRecords, err := s.database.GetFollowerTraders(traderID)
+	if err != nil {
+		log.Printf("⚠️ [%s] Failed to get follower list for instant forwarding: %v", traderID, err)
+		return
+	}
+
+	if len(followerRecords) == 0 {
+		return // No followers
+	}
+
+	// Load the normalized TradingView alert from database so we can use the same
+	// parsed values (entry, quantity, position_size, SL, TP, action) that the
+	// parent trader uses.
+	alert, err := s.database.GetTradingViewAlertByID(alertID)
+	if err != nil {
+		log.Printf("⚠️ [%s] Failed to load TradingView alert %s for instant forwarding: %v", traderID, alertID, err)
+		return
+	}
+
+	// Prefer alert's own symbol/action for logging (they are already normalized)
+	log.Printf("⚡ [%s] Instant forwarding TradingView alert to %d followers (alertID=%s, symbol=%s, action=%s)",
+		traderID, len(followerRecords), alertID, alert.Symbol, alert.Action)
+
+	// Get parent trader instance for context
+	parentTrader, err := s.traderManager.GetTrader(traderID)
+	if err != nil {
+		log.Printf("⚠️ [%s] Parent trader not in memory for instant forwarding: %v", traderID, err)
+		return
+	}
+
+	// Get parent trader account info (for context in signal)
+	parentAccount, err := parentTrader.GetAccountInfo()
+	parentEquity := 0.0
+	parentInitialBalance := 0.0
+	if err == nil {
+		if equity, ok := parentAccount["total_equity"].(float64); ok {
+			parentEquity = equity
+		}
+		// Get parent initial balance from database
+		if allUserIDs, err := s.database.GetAllUsers(); err == nil {
+			for _, uid := range allUserIDs {
+				traders, err := s.database.GetTraders(uid)
+				if err != nil {
+					continue
+				}
+				for _, traderCfg := range traders {
+					if traderCfg.ID == traderID {
+						parentInitialBalance = traderCfg.InitialBalance
+						break
+					}
+				}
+				if parentInitialBalance > 0 {
+					break
+				}
+			}
+		}
+	}
+
+	// Map TradingView action ("buy"/"sell") to internal action format used by traders.
+	internalAction := "open_long"
+	switch strings.ToLower(alert.Action) {
+	case "buy":
+		internalAction = "open_long"
+	case "sell":
+		internalAction = "open_short"
+	default:
+		log.Printf("⚠️ [%s] Unknown TradingView alert action '%s' for alert %s, skipping instant forwarding",
+			traderID, alert.Action, alertID)
+		return
+	}
+
+	// Determine effective quantity, mirroring the parent's logic:
+	// prefer position_size, fall back to quantity.
+	quantity := alert.PositionSize
+	if quantity == 0 {
+		quantity = alert.Quantity
+	}
+	if quantity == 0 {
+		log.Printf("⚠️ [%s] TradingView alert %s has zero quantity/position_size, skipping instant forwarding",
+			traderID, alertID)
+		return
+	}
+
+	// Calculate approximate notional size in USD from the alert's own entry price.
+	positionSizeUSD := quantity * alert.Entry
+
+	// Use SL/TP from the normalized alert.
+	stopLoss := alert.SL
+	takeProfit := alert.TP
+
+	// For followers, we let their own AI decide leverage; we mainly want to pass
+	// through the parent's exact alert context (direction, size, entry, SL/TP).
+	leverage := 0
+
+	// Build a rich reasoning string that encodes the original alert details so
+	// follower AI can fully understand the parent's intent.
+	reasoning := fmt.Sprintf(
+		"TradingView alert from parent: action=%s symbol=%s entry=%.4f sl=%.4f tp=%.4f quantity=%.6f (position_size) exchange=%s pricetype=%s",
+		alert.Action, alert.Symbol, alert.Entry, alert.SL, alert.TP, alert.PositionSize, alert.Exchange, alert.PriceType,
+	)
+
+	// Build decision from TradingView alert (this is what followers see as the
+	// parent signal). Their own AI can accept/modify/reject it.
+	tvDecision := &decision.Decision{
+		Symbol:              alert.Symbol,
+		Action:              internalAction,
+		Leverage:            leverage,
+		PositionSizeUSD:     positionSizeUSD,
+		StopLoss:            stopLoss,
+		TakeProfit:          takeProfit,
+		Reasoning:           reasoning,
+		Confidence:          85, // Default confidence for TradingView signals
+		TradingViewSignalID: alertID,
+	}
+
+	// Send signal to each follower trader
+	successCount := 0
+	skipCount := 0
+	errorCount := 0
+
+	for _, followerRecord := range followerRecords {
+		followerTrader, err := s.traderManager.GetTrader(followerRecord.ID)
+		if err != nil {
+			log.Printf("⚠️ [%s] Follower %s (%s) not in memory for instant forwarding, skipping: %v",
+				traderID, followerRecord.Name, followerRecord.ID, err)
+			skipCount++
+			continue
+		}
+
+		// Check if follower is running
+		status := followerTrader.GetStatus()
+		if isRunning, ok := status["is_running"].(bool); !ok || !isRunning {
+			log.Printf("⚠️ [%s] Follower %s (%s) not running for instant forwarding, skipping",
+				traderID, followerRecord.Name, followerRecord.ID)
+			skipCount++
+			continue
+		}
+
+		// Create unique signal ID for each follower
+		signalID := uuid.New().String()
+
+		// Deep copy decision for each follower
+		decisionCopy := &decision.Decision{
+			Symbol:              tvDecision.Symbol,
+			Action:              tvDecision.Action,
+			Leverage:            tvDecision.Leverage,
+			PositionSizeUSD:     tvDecision.PositionSizeUSD,
+			StopLoss:            tvDecision.StopLoss,
+			TakeProfit:          tvDecision.TakeProfit,
+			Reasoning:           tvDecision.Reasoning,
+			Confidence:          tvDecision.Confidence,
+			TradingViewSignalID: tvDecision.TradingViewSignalID,
+		}
+
+		// Build ParentTradeSignal
+		signal := &trader.ParentTradeSignal{
+			ParentTraderID:       traderID,
+			ParentTraderName:     parentTrader.GetName(),
+			SignalID:             signalID,
+			Timestamp:            time.Now(),
+			Decision:             decisionCopy,
+			ParentEquity:         parentEquity,
+			ParentInitialBalance: parentInitialBalance,
+		}
+
+		// Send signal to follower (non-blocking)
+		if err := followerTrader.TriggerParentTradeSignal(signal); err != nil {
+			log.Printf("❌ [%s] Failed to send instant TradingView signal to follower %s (%s): %v",
+				traderID, followerRecord.Name, followerRecord.ID, err)
+			errorCount++
+		} else {
+			log.Printf("✓ [%s] Instant TradingView signal sent to follower %s (%s) (signal_id=%s)",
+				traderID, followerRecord.Name, followerRecord.ID, signalID)
+			successCount++
+		}
+	}
+
+	log.Printf("⚡ [%s] Instant forwarding complete: success=%d, skipped=%d, failed=%d, total=%d",
+		traderID, successCount, skipCount, errorCount, len(followerRecords))
+}
+
 // processTraderWebhook processes webhook for a single trader
 func (s *Server) processTraderWebhook(userID, traderID string, payload map[string]interface{}, symbol, action string) gin.H {
 	log.Printf("🔄 Processing webhook for trader: %s (symbol=%s, action=%s)", traderID, symbol, action)
-	
+
 	// Create alert record with retry logic for UNIQUE constraint errors
 	var alertID string
 	var err error
@@ -109,7 +300,7 @@ func (s *Server) processTraderWebhook(userID, traderID string, payload map[strin
 		if err == nil {
 			break // Success
 		}
-		
+
 		// Check if it's a UNIQUE constraint error (collision)
 		errStr := err.Error()
 		if strings.Contains(errStr, "UNIQUE constraint") || strings.Contains(errStr, "constraint failed") {
@@ -125,7 +316,7 @@ func (s *Server) processTraderWebhook(userID, traderID string, payload map[strin
 			break
 		}
 	}
-	
+
 	if err != nil {
 		return gin.H{
 			"trader_id": traderID,
@@ -136,6 +327,10 @@ func (s *Server) processTraderWebhook(userID, traderID string, payload map[strin
 
 	log.Printf("✅ TradingView alert received: user=%s, trader=%s, symbol=%s, action=%s, alertID=%s", userID, traderID, symbol, action, alertID)
 	log.Printf("INFO: Webhook received (trader=%s, symbol=%s, action=%s, alertID=%s)", traderID, symbol, action, alertID)
+
+	// ⚡ INSTANT FORWARDING: Forward alert immediately to followers (before parent AI processing)
+	// This allows followers to react instantly using their own AI prompts/models
+	go s.forwardTradingViewAlertToFollowers(traderID, alertID, payload, symbol, action)
 
 	// Build response object
 	response := gin.H{

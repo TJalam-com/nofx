@@ -2,11 +2,12 @@ package api
 
 import (
 	"encoding/json"
+	"os"
 )
 
 // PromptSectionsConfig Configuration for prompt sections
 type PromptSectionsConfig struct {
-	RoleDefinition  string `json:"role_definition"`
+	RoleDefinition   string `json:"role_definition"`
 	TradingFrequency string `json:"trading_frequency"`
 	EntryStandards   string `json:"entry_standards"`
 	DecisionProcess  string `json:"decision_process"`
@@ -15,14 +16,26 @@ type PromptSectionsConfig struct {
 // DefaultStrategyConfigResponse Response structure for default strategy configuration
 type DefaultStrategyConfigResponse struct {
 	PromptTemplate string `json:"prompt_template"` // Always "default"
-	CustomPrompt   string `json:"custom_prompt"`    // JSON string of PromptSectionsConfig
-	OITopAPIURL    string `json:"oi_top_api_url"`   // Default OI Top API URL
+	CustomPrompt   string `json:"custom_prompt"`   // JSON string of PromptSectionsConfig
+	OITopAPIURL    string `json:"oi_top_api_url"`  // Default OI Top API URL
+}
+
+// getDefaultOITopAPIURL returns the default OI Top API URL from environment variable or default value
+func getDefaultOITopAPIURL() string {
+	url := os.Getenv("OI_TOP_API_URL")
+	if url == "" {
+		url = "http://nofxaios.com:30006/api/oi/top"
+	}
+	return url
 }
 
 // GetDefaultStrategyConfig returns default strategy configuration based on language
 // Supports "zh" (Chinese) and "en" (English, default)
 func GetDefaultStrategyConfig(lang string) DefaultStrategyConfigResponse {
 	var config PromptSectionsConfig
+
+	// Get OI Top API URL from environment variable or use default
+	oiTopURL := getDefaultOITopAPIURL()
 
 	if lang == "zh" {
 		// Chinese prompt templates
@@ -75,13 +88,13 @@ Only enter positions when multiple signals resonate. Freely use any effective an
 		return DefaultStrategyConfigResponse{
 			PromptTemplate: "default",
 			CustomPrompt:   "",
-			OITopAPIURL:    "http://nofxaios.com:30006/api/oi/top",
+			OITopAPIURL:    oiTopURL,
 		}
 	}
 
 	return DefaultStrategyConfigResponse{
 		PromptTemplate: "default",
 		CustomPrompt:   string(configJSON),
-		OITopAPIURL:    "http://nofxaios.com:30006/api/oi/top",
+		OITopAPIURL:    oiTopURL,
 	}
 }

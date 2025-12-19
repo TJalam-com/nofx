@@ -468,7 +468,7 @@ docs: update Docker deployment guide
 ## 📚 其他资源
 
 - [项目路线图](../../roadmap/README.zh-CN.md)
-- [架构文档](../../architecture/README.zh-CN.md)
+- [架构文档](../../architecture/README.md) (English only)
 - [API 文档](../../api/README.md)
 - [部署指南](../../getting-started/docker-deploy.zh-CN.md)
 

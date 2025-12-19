@@ -8,6 +8,8 @@ import { useAuth, isFollower } from '../contexts/AuthContext'
 import { useTradersConfigStore, useTradersModalStore } from '../stores'
 import { useTraderActions } from '../hooks/useTraderActions'
 import { TraderConfigModal } from '../components/TraderConfigModal'
+import { generateTraderSlug } from '../lib/utils'
+import type { TraderInfo } from '../types'
 import {
   SignalSourceModal,
   ModelConfigModal,
@@ -246,12 +248,20 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     !userSignalSource.coinPoolUrl &&
     !userSignalSource.oiTopUrl
 
-  // 处理交易员查看
+  // Handle trader selection
   const handleTraderSelect = (traderId: string) => {
     if (onTraderSelect) {
       onTraderSelect(traderId)
     } else {
-      navigate(`/dashboard?trader=${traderId}`)
+      // Find trader to generate slug
+      const trader = traders?.find((t) => t.trader_id === traderId)
+      if (trader) {
+        const slug = generateTraderSlug(trader.trader_name, trader.trader_id)
+        navigate(`/dashboard/${slug}`)
+      } else {
+        // Fallback to query parameter if trader not found
+        navigate(`/dashboard?trader=${traderId}`)
+      }
     }
   }
 

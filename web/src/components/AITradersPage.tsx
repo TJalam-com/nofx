@@ -15,6 +15,7 @@ import { getExchangeIcon } from './ExchangeIcons'
 import { getModelIcon } from './ModelIcons'
 import { TraderConfigModal } from './TraderConfigModal'
 import { ReplicationStatusPanel } from './ReplicationStatusPanel'
+import { WalletAddressDisplay } from './WalletAddressDisplay'
 import {
   TwoStageKeyModal,
   type TwoStageKeyModalResult,
@@ -42,6 +43,7 @@ import {
 } from 'lucide-react'
 import { confirmToast } from '../lib/notify'
 import { toast } from 'sonner'
+import { generateTraderSlug } from '../lib/utils'
 
 // Get friendly AI model name
 function getModelDisplayName(modelId: string): string {
@@ -1148,11 +1150,11 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                   style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
                   onClick={() => handleExchangeClick(exchange.id)}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
+                  <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
                     <div className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center flex-shrink-0">
                       {getExchangeIcon(exchange.id, { width: 28, height: 28 })}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div
                         className="font-semibold text-sm md:text-base truncate"
                         style={{ color: '#EAECEF' }}
@@ -1167,6 +1169,39 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                             ? t('enabled', language)
                             : t('configured', language)}
                       </div>
+                      {/* Display wallet addresses for perp-dex exchanges */}
+                      {exchange.type === 'dex' && (
+                        <div className="mt-1">
+                          {exchange.id === 'hyperliquid' && exchange.hyperliquidWalletAddr && (
+                            <WalletAddressDisplay
+                              address={exchange.hyperliquidWalletAddr}
+                              language={language}
+                            />
+                          )}
+                          {exchange.id === 'aster' && (
+                            <>
+                              {exchange.asterUser && (
+                                <WalletAddressDisplay
+                                  address={exchange.asterUser}
+                                  language={language}
+                                />
+                              )}
+                              {exchange.asterSigner && (
+                                <WalletAddressDisplay
+                                  address={exchange.asterSigner}
+                                  language={language}
+                                />
+                              )}
+                            </>
+                          )}
+                          {exchange.id === 'lighter' && exchange.lighterWalletAddr && (
+                            <WalletAddressDisplay
+                              address={exchange.lighterWalletAddr}
+                              language={language}
+                            />
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div
@@ -1308,7 +1343,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                         if (onTraderSelect) {
                           onTraderSelect(trader.trader_id)
                         } else {
-                          navigate(`/dashboard?trader=${trader.trader_id}`)
+                          const slug = generateTraderSlug(trader.trader_name, trader.trader_id)
+                          navigate(`/dashboard/${slug}`)
                         }
                       }}
                       className="px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 whitespace-nowrap"

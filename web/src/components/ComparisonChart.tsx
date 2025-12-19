@@ -59,6 +59,13 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
     return allTraderHistories.map((data) => ({ data }))
   }, [allTraderHistories, traders.length])
 
+  // Helper function to normalize timestamp to nearest minute boundary
+  const normalizeTimestampToMinute = (timestamp: string): string => {
+    const date = new Date(timestamp)
+    date.setSeconds(0, 0) // Round down to minute boundary
+    return date.toISOString()
+  }
+
   // Use useMemo to automatically process data merging, directly use data object as dependency
   const combinedData = useMemo(() => {
     // Wait for all data to load
@@ -67,8 +74,8 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
     console.log(`[${new Date().toISOString()}] Recalculating chart data...`)
 
-    // New approach: group by timestamp, no longer rely on cycle_number (because backend resets it)
-    // Collect all timestamps
+    // New approach: group by normalized timestamp (nearest minute) for proper alignment
+    // Collect all timestamps normalized to minute boundaries
     const timestampMap = new Map<
       string,
       {
@@ -101,10 +108,12 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
       )
 
       history.data.forEach((point: any) => {
-        const ts = point.timestamp
-        const dateObj = new Date(ts)
+        const originalTs = point.timestamp
+        // Normalize timestamp to nearest minute boundary
+        const normalizedTs = normalizeTimestampToMinute(originalTs)
+        const dateObj = new Date(normalizedTs)
 
-        if (!timestampMap.has(ts)) {
+        if (!timestampMap.has(normalizedTs)) {
           const date = dateObj.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -113,8 +122,8 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
             hour: '2-digit',
             minute: '2-digit',
           })
-          timestampMap.set(ts, {
-            timestamp: ts,
+          timestampMap.set(normalizedTs, {
+            timestamp: normalizedTs,
             date,
             time,
             traders: new Map(),
@@ -144,10 +153,14 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
           }
         }
 
-        timestampMap.get(ts)!.traders.set(trader.trader_id, {
-          pnl_pct: pnlPct,
-          equity: point.total_equity || 0,
-        })
+        // If multiple data points map to same normalized timestamp, use the latest one
+        const existingData = timestampMap.get(normalizedTs)!.traders.get(trader.trader_id)
+        if (!existingData || new Date(originalTs).getTime() > new Date(normalizedTs).getTime()) {
+          timestampMap.get(normalizedTs)!.traders.set(trader.trader_id, {
+            pnl_pct: pnlPct,
+            equity: point.total_equity || 0,
+          })
+        }
       })
     })
 
@@ -173,14 +186,42 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
         return entry
       })
 
-    if (combined.length > 0) {
-      const lastPoint = combined[combined.length - 1]
+    // Forward-fill missing values to ensure continuous lines
+    const lastKnownValues = new Map<string, { pnl_pct: number; equity: number }>()
+    const forwardFilled = combined.map((point) => {
+      const filledPoint = { ...point }
+      
+      traders.forEach((trader) => {
+        const pnlKey = `${trader.trader_id}_pnl_pct`
+        const equityKey = `${trader.trader_id}_equity`
+        
+        if (filledPoint[pnlKey] !== undefined && filledPoint[pnlKey] !== null) {
+          // Update last known value
+          lastKnownValues.set(trader.trader_id, {
+            pnl_pct: filledPoint[pnlKey],
+            equity: filledPoint[equityKey] || 0,
+          })
+        } else {
+          // Forward-fill from last known value
+          const lastKnown = lastKnownValues.get(trader.trader_id)
+          if (lastKnown) {
+            filledPoint[pnlKey] = lastKnown.pnl_pct
+            filledPoint[equityKey] = lastKnown.equity
+          }
+        }
+      })
+      
+      return filledPoint
+    })
+
+    if (forwardFilled.length > 0) {
+      const lastPoint = forwardFilled[forwardFilled.length - 1]
       console.log(
-        `Chart: ${combined.length} data points, last time: ${lastPoint.time}, timestamp: ${lastPoint.timestamp}`
+        `Chart: ${forwardFilled.length} data points, last time: ${lastPoint.time}, timestamp: ${lastPoint.timestamp}`
       )
     }
 
-    return combined
+    return forwardFilled
   }, [allTraderHistories, traders])
 
   // Calculate current PnL for each trader (for mini stats bar)
@@ -242,13 +283,13 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
       ? combinedData.slice(-MAX_DISPLAY_POINTS)
       : combinedData
 
-  // Calculate Y-axis range ensuring zero is visible
+  // Calculate Y-axis range based on actual data values
   const calculateYDomain = () => {
     const allValues: number[] = []
     displayData.forEach((point) => {
       traders.forEach((trader) => {
         const value = point[`${trader.trader_id}_pnl_pct`]
-        if (value !== undefined) {
+        if (value !== undefined && value !== null && !isNaN(value)) {
           allValues.push(value)
         }
       })
@@ -258,12 +299,14 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
     const minVal = Math.min(...allValues)
     const maxVal = Math.max(...allValues)
-    const range = Math.max(Math.abs(maxVal), Math.abs(minVal))
-    const padding = Math.max(range * 0.2, 1) // At least 1% margin
-
-    // Ensure zero is visible
-    const domainMin = Math.min(0, Math.floor(minVal - padding))
-    const domainMax = Math.max(0, Math.ceil(maxVal + padding))
+    const range = maxVal - minVal
+    
+    // Add padding (10% of range, minimum 1% for small ranges)
+    const padding = Math.max(range * 0.1, 1)
+    
+    // Use actual data range with padding, don't force zero
+    const domainMin = Math.floor(minVal - padding)
+    const domainMax = Math.ceil(maxVal + padding)
 
     return [domainMin, domainMax]
   }

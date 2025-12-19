@@ -282,7 +282,7 @@ NOFX 的使命是成为所有金融市场的**通用 AI 交易操作系统**。�
 
 ## 📚 相关文档
 
-- [架构文档](../architecture/README.zh-CN.md) - 技术架构详情
+- [架构文档](../architecture/README.md) - 技术架构详情 (English only)
 - [快速开始](../getting-started/README.zh-CN.md) - 设置和部署
 - [贡献指南](../../CONTRIBUTING.md) - 如何贡献
 - [更新日志](../../CHANGELOG.zh-CN.md) - 版本历史

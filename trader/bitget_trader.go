@@ -185,7 +185,7 @@ func (t *BitgetTrader) doRequest(method, path string, body interface{}) ([]byte,
 
 	// code=00000 means success
 	if bitgetResp.Code != "00000" {
-		return nil, fmt.Errorf("Bitget API error: code=%s, msg=%s", bitgetResp.Code, bitgetResp.Msg)
+		return nil, fmt.Errorf("bitget API error: code=%s, msg=%s", bitgetResp.Code, bitgetResp.Msg)
 	}
 
 	return bitgetResp.Data, nil

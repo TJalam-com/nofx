@@ -6,6 +6,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isFollower } from '../contexts/AuthContext'
 import { t, type Language } from '../i18n/translations'
 import type { UserFollowersResponse, FollowerWithActivities } from '../types'
+import { generateTraderSlug } from '../lib/utils'
 import {
   Users,
   ChevronDown,
@@ -338,6 +339,7 @@ export default function FollowersPage() {
                       follower={follower}
                       language={language}
                       parentTraderId={parent.trader_id}
+                      parentTraderName={parent.trader_name}
                     />
                   ))}
                 </div>
@@ -354,16 +356,18 @@ interface FollowerCardProps {
   follower: FollowerWithActivities
   language: Language
   parentTraderId: string
+  parentTraderName: string
 }
 
-function FollowerCard({ follower, language, parentTraderId }: FollowerCardProps) {
+function FollowerCard({ follower, language, parentTraderId, parentTraderName }: FollowerCardProps) {
   const account = follower.account as any
   const hasError = 'error' in follower.account
+  const navigate = useNavigate()
 
   const handleViewDashboard = () => {
-    // Use window.location.href for reliable navigation (works with both routing systems)
-    // Navigate to parent trader's dashboard (the original trader being copied)
-    window.location.href = `/dashboard?trader=${parentTraderId}`
+    // Navigate to parent trader's dashboard using slug format
+    const slug = generateTraderSlug(parentTraderName, parentTraderId)
+    navigate(`/dashboard/${slug}`)
   }
 
   return (
@@ -409,8 +413,20 @@ function FollowerCard({ follower, language, parentTraderId }: FollowerCardProps)
               </span>
             )}
           </div>
-          <div className="text-sm" style={{ color: '#848E9C' }}>
-            {t('owner', language) || 'Owner'}: {follower.user_id}
+          <div className="text-sm space-y-1" style={{ color: '#848E9C' }}>
+            <div className="font-semibold" style={{ color: '#EAECEF' }}>
+              {follower.user_email || follower.user_id}
+            </div>
+            {follower.user_email && follower.user_email !== follower.user_id && (
+              <div className="text-xs">
+                {t('userID', language) || 'User ID'}: {follower.user_id}
+              </div>
+            )}
+            {follower.user_name && follower.user_name !== follower.user_email && (
+              <div className="text-xs">
+                {t('name', language) || 'Name'}: {follower.user_name}
+              </div>
+            )}
           </div>
         </div>
         <button

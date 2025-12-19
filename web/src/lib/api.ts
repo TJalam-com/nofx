@@ -32,6 +32,10 @@ import type {
   Strategy,
   CreateStrategyRequest,
   UpdateStrategyRequest,
+  Article,
+  CreateArticleRequest,
+  UpdateArticleRequest,
+  ArticlesResponse,
 } from '../types'
 import { CryptoService } from './crypto'
 import { httpClient } from './httpClient'
@@ -934,5 +938,89 @@ export const api = {
     if (!result.success) {
       throw new Error(result.message || '拒绝申请失败')
     }
+  },
+
+  // Article APIs (Admin)
+  async getArticles(status?: string, limit?: number, offset?: number): Promise<Article[]> {
+    const params = new URLSearchParams()
+    if (status) params.append('status', status)
+    if (limit) params.append('limit', limit.toString())
+    if (offset) params.append('offset', offset.toString())
+    const query = params.toString()
+    const url = query ? `${API_BASE}/admin/articles?${query}` : `${API_BASE}/admin/articles`
+    const result = await httpClient.get<ArticlesResponse>(url)
+    if (!result.success) {
+      throw new Error(result.message || '获取文章列表失败')
+    }
+    return result.data!.articles
+  },
+
+  async getArticle(id: string): Promise<Article> {
+    const result = await httpClient.get<Article>(`${API_BASE}/admin/articles/${id}`)
+    if (!result.success) {
+      throw new Error(result.message || '获取文章失败')
+    }
+    return result.data!
+  },
+
+  async createArticle(article: CreateArticleRequest): Promise<Article> {
+    const result = await httpClient.post<Article>(`${API_BASE}/admin/articles`, article)
+    if (!result.success) {
+      throw new Error(result.message || '创建文章失败')
+    }
+    return result.data!
+  },
+
+  async updateArticle(id: string, article: UpdateArticleRequest): Promise<Article> {
+    const result = await httpClient.put<Article>(`${API_BASE}/admin/articles/${id}`, article)
+    if (!result.success) {
+      throw new Error(result.message || '更新文章失败')
+    }
+    return result.data!
+  },
+
+  async deleteArticle(id: string): Promise<void> {
+    const result = await httpClient.delete(`${API_BASE}/admin/articles/${id}`)
+    if (!result.success) {
+      throw new Error(result.message || '删除文章失败')
+    }
+  },
+
+  async publishArticle(id: string): Promise<Article> {
+    const result = await httpClient.post<Article>(`${API_BASE}/admin/articles/${id}/publish`, {})
+    if (!result.success) {
+      throw new Error(result.message || '发布文章失败')
+    }
+    return result.data!
+  },
+
+  async unpublishArticle(id: string): Promise<Article> {
+    const result = await httpClient.post<Article>(`${API_BASE}/admin/articles/${id}/unpublish`, {})
+    if (!result.success) {
+      throw new Error(result.message || '取消发布文章失败')
+    }
+    return result.data!
+  },
+
+  // Public Article APIs
+  async getPublishedArticles(limit?: number, offset?: number): Promise<Article[]> {
+    const params = new URLSearchParams()
+    if (limit) params.append('limit', limit.toString())
+    if (offset) params.append('offset', offset.toString())
+    const query = params.toString()
+    const url = query ? `${API_BASE}/articles?${query}` : `${API_BASE}/articles`
+    const result = await httpClient.get<ArticlesResponse>(url)
+    if (!result.success) {
+      throw new Error(result.message || '获取文章列表失败')
+    }
+    return result.data!.articles
+  },
+
+  async getArticleBySlug(slug: string): Promise<Article> {
+    const result = await httpClient.get<Article>(`${API_BASE}/articles/${slug}`)
+    if (!result.success) {
+      throw new Error(result.message || '获取文章失败')
+    }
+    return result.data!
   },
 }

@@ -334,6 +334,46 @@ export default function HeaderBar({
 
                       Applications
                     </button>
+                    <button
+                      key="articles-tab"
+                      onClick={() => {
+                        if (onPageChange) {
+                          onPageChange('articles')
+                        }
+                        navigate('/admin/articles')
+                      }}
+                      className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
+                      style={{
+                        color:
+                          currentPage === 'articles'
+                            ? 'var(--brand-yellow)'
+                            : 'var(--brand-light-gray)',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        position: 'relative',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== 'articles') {
+                          e.currentTarget.style.color = 'var(--brand-yellow)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== 'articles') {
+                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                        }
+                      }}
+                    >
+                      <span
+                        className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                        style={{
+                          background: 'rgba(0, 51, 102, 0.3)',
+                          zIndex: -1,
+                          opacity: currentPage === 'articles' ? 1 : 0,
+                          pointerEvents: 'none',
+                        }}
+                      />
+                      Articles
+                    </button>
                   </>
                 )}
 
@@ -492,7 +532,35 @@ export default function HeaderBar({
                   </>
                 )}
               </>
-            ) : null}
+            ) : (
+              // Show Live button for logged-out users on landing page
+              isHomePage && (
+                <button
+                  key="live-tab-logged-out"
+                  onClick={() => {
+                    if (onPageChange) {
+                      onPageChange('competition')
+                    }
+                    navigate('/competition')
+                  }}
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
+                  style={{
+                    color: 'var(--brand-yellow)',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    position: 'relative',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--brand-yellow)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--brand-yellow)'
+                  }}
+                >
+                  {t('realtimeNav', language)}
+                </button>
+              )
+            )}
           </div>
 
           {/* Right Side - Original Navigation Items and Login */}
@@ -912,6 +980,39 @@ export default function HeaderBar({
                       }}
                     />
                     Applications
+                  </button>
+                  <button
+                    key="mobile-articles-tab"
+                    onClick={() => {
+                      if (onPageChange) {
+                        onPageChange('articles')
+                      }
+                      navigate('/admin/articles')
+                      setMobileMenuOpen(false)
+                    }}
+                    className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500 hover:text-green-500"
+                    style={{
+                      color:
+                        currentPage === 'articles'
+                          ? 'var(--brand-yellow)'
+                          : 'var(--brand-light-gray)',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      position: 'relative',
+                      width: '100%',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <span
+                      className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                      style={{
+                        background: 'rgba(0, 51, 102, 0.3)',
+                        zIndex: -1,
+                        opacity: currentPage === 'articles' ? 1 : 0,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    Articles
                   </button>
                 </>
               )}

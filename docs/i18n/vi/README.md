@@ -234,9 +234,7 @@ NOFX được xây dựng với kiến trúc hiện đại, modular:
 - 🤖 Chế độ cạnh tranh đa AI với so sánh trực tiếp
 - 🔌 API RESTful cho tất cả cấu hình và giám sát
 
-📖 **Để biết tài liệu kiến trúc chi tiết, xem:**
-- **English:** [Tài Liệu Kiến Trúc](docs/architecture/README.md)
-- **中文:** [架构文档](docs/architecture/README.zh-CN.md)
+📖 **Để biết tài liệu kiến trúc chi tiết, xem:** [Architecture Documentation](docs/architecture/README.md)
 
 ---
 

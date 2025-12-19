@@ -52,10 +52,38 @@ type SymbolPrecision struct {
 // signer: API钱包地址 (从 https://www.asterdex.com/en/api-wallet 获取)
 // privateKey: API钱包私钥 (从 https://www.asterdex.com/en/api-wallet 获取)
 func NewAsterTrader(user, signer, privateKeyHex string) (*AsterTrader, error) {
+	// 验证必需参数
+	if user == "" {
+		return nil, fmt.Errorf("main wallet address (user) is required. Please provide your main wallet address used to log in to AsterDEX")
+	}
+	if signer == "" {
+		return nil, fmt.Errorf("API wallet address (signer) is required. Please create an API wallet at https://www.asterdex.com/en/api-wallet")
+	}
+	if privateKeyHex == "" {
+		return nil, fmt.Errorf("API wallet private key is required. Please get the private key from https://www.asterdex.com/en/api-wallet")
+	}
+
+	// 验证地址格式（基本检查）
+	if !strings.HasPrefix(strings.ToLower(user), "0x") || len(user) != 42 {
+		return nil, fmt.Errorf("invalid main wallet address format. Expected Ethereum address (0x...), got: %s (length: %d). Please provide your main wallet address used to log in to AsterDEX", user, len(user))
+	}
+	if !strings.HasPrefix(strings.ToLower(signer), "0x") || len(signer) != 42 {
+		// 检测常见错误：私钥被误输入到signer字段
+		if len(signer) == 64 || (len(signer) == 66 && strings.HasPrefix(strings.ToLower(signer), "0x")) {
+			return nil, fmt.Errorf("invalid API wallet address format. The value provided appears to be a private key (%d characters) instead of an Ethereum address (42 characters).\n"+
+				"Please ensure:\n"+
+				"1. API wallet address (signer) should be an Ethereum address starting with 0x (42 characters total)\n"+
+				"2. API wallet private key should be a 64-character hex string (without 0x prefix)\n"+
+				"3. You can find both values at https://www.asterdex.com/en/api-wallet\n"+
+				"Got: %s", len(signer), signer)
+		}
+		return nil, fmt.Errorf("invalid API wallet address format. Expected Ethereum address (0x..., 42 characters), got: %s (length: %d). Please provide the API wallet address from https://www.asterdex.com/en/api-wallet", signer, len(signer))
+	}
+
 	// 解析私钥
 	privKey, err := crypto.HexToECDSA(strings.TrimPrefix(privateKeyHex, "0x"))
 	if err != nil {
-		return nil, fmt.Errorf("解析私钥失败: %w", err)
+		return nil, fmt.Errorf("failed to parse private key: %w. Please ensure the private key is a valid 64-character hex string (with or without 0x prefix)", err)
 	}
 	client := &http.Client{
 		Timeout: 30 * time.Second, // 增加到30秒
@@ -370,6 +398,40 @@ func (t *AsterTrader) request(method, endpoint string, params map[string]interfa
 	return nil, fmt.Errorf("请求失败（已重试%d次）: %w", maxRetries, lastErr)
 }
 
+// parseAsterError 解析Aster API错误响应
+func parseAsterError(body []byte) error {
+	var errResp struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	if err := json.Unmarshal(body, &errResp); err == nil {
+		// 根据错误码提供更友好的错误信息
+		switch errResp.Code {
+		case -1000:
+			if strings.Contains(errResp.Msg, "No agent found") || strings.Contains(errResp.Msg, "agent found") {
+				return fmt.Errorf("API wallet not found or not properly configured. Please ensure:\n"+
+					"1. The API wallet (signer) address is correct\n"+
+					"2. The API wallet has been created and activated on AsterDEX\n"+
+					"3. The main wallet (user) is properly linked to the API wallet\n"+
+					"4. Visit https://www.asterdex.com/en/api-wallet to create/verify your API wallet\n"+
+					"Original error: HTTP 400: code=%d, msg=%s", errResp.Code, errResp.Msg)
+			}
+			return fmt.Errorf("HTTP 400: code=%d, msg=%s", errResp.Code, errResp.Msg)
+		case -1022:
+			return fmt.Errorf("Invalid signature. Please verify:\n"+
+				"1. The API wallet private key is correct\n"+
+				"2. The private key matches the API wallet address (signer)\n"+
+				"Original error: HTTP 400: code=%d, msg=%s", errResp.Code, errResp.Msg)
+		case -2010:
+			return fmt.Errorf("Invalid API wallet address. Please verify the signer address is correct. Original error: HTTP 400: code=%d, msg=%s", errResp.Code, errResp.Msg)
+		default:
+			return fmt.Errorf("HTTP 400: code=%d, msg=%s", errResp.Code, errResp.Msg)
+		}
+	}
+	// 如果无法解析JSON，返回原始错误
+	return fmt.Errorf("HTTP error: %s", string(body))
+}
+
 // doRequest 执行实际的HTTP请求
 func (t *AsterTrader) doRequest(method, endpoint string, params map[string]interface{}) ([]byte, error) {
 	fullURL := t.baseURL + endpoint
@@ -396,7 +458,7 @@ func (t *AsterTrader) doRequest(method, endpoint string, params map[string]inter
 
 		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+			return nil, parseAsterError(body)
 		}
 		return body, nil
 
@@ -422,7 +484,7 @@ func (t *AsterTrader) doRequest(method, endpoint string, params map[string]inter
 
 		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+			return nil, parseAsterError(body)
 		}
 		return body, nil
 
@@ -1254,13 +1316,14 @@ func (t *AsterTrader) GetOrderStatus(symbol string, orderID string) (map[string]
 	status, _ := order["status"].(string)
 
 	// Map Aster/Binance status to standard status
-	if status == "FILLED" {
+	switch status {
+	case "FILLED":
 		status = "FILLED"
-	} else if status == "PARTIALLY_FILLED" {
+	case "PARTIALLY_FILLED":
 		status = "PARTIALLY_FILLED"
-	} else if status == "NEW" {
+	case "NEW":
 		status = "NEW"
-	} else if status == "CANCELED" {
+	case "CANCELED":
 		status = "CANCELED"
 	}
 

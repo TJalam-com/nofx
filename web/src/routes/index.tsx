@@ -32,7 +32,10 @@ const BacktestPage = lazy(() => import('../components/BacktestPage').then(m => (
 const WebhookPage = lazy(() => import('../pages/WebhookPage'))
 const TraderApplicationPage = lazy(() => import('../pages/TraderApplicationPage'))
 const AdminTraderApplicationsPage = lazy(() => import('../pages/AdminTraderApplicationsPage'))
+const AdminArticlesPage = lazy(() => import('../pages/AdminArticlesPage'))
 const StrategyStudioPage = lazy(() => import('../pages/StrategyStudioPage').then(m => ({ default: m.StrategyStudioPage })))
+const BlogPage = lazy(() => import('../pages/BlogPage').then(m => ({ default: m.BlogPage })))
+const ArticlePage = lazy(() => import('../pages/ArticlePage').then(m => ({ default: m.ArticlePage })))
 
 // Loading fallback component
 function RouteLoadingFallback() {
@@ -176,6 +179,10 @@ export const router = createBrowserRouter([
             element: <TraderDashboard />,
           },
           {
+            path: '/dashboard/:slug',
+            element: <TraderDashboard />,
+          },
+          {
             path: '/followers',
             element: (
               <Suspense fallback={<RouteLoadingFallback />}>
@@ -220,6 +227,30 @@ export const router = createBrowserRouter([
             element: (
               <Suspense fallback={<RouteLoadingFallback />}>
                 <AdminProtectedRoute><AdminTraderApplicationsPage /></AdminProtectedRoute>
+              </Suspense>
+            ),
+          },
+          {
+            path: '/admin/articles',
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <AdminProtectedRoute><AdminArticlesPage /></AdminProtectedRoute>
+              </Suspense>
+            ),
+          },
+          {
+            path: '/blog',
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <BlogPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: '/blog/:slug',
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <ArticlePage />
               </Suspense>
             ),
           },

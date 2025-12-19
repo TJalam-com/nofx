@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"nofx/logger"
 	"net/http"
+	"nofx/logger"
 	"strconv"
 	"strings"
 	"sync"
@@ -139,7 +139,7 @@ func (t *BybitTrader) GetBalance() (map[string]interface{}, error) {
 	balance := map[string]interface{}{
 		"totalEquity":           totalEquity,
 		"totalWalletBalance":    totalWalletBalance,
-		"availableBalance":     availableBalance,
+		"availableBalance":      availableBalance,
 		"totalUnrealizedProfit": totalPerpUPL,
 		"balance":               totalEquity, // Compatible with other exchange formats
 	}
@@ -254,6 +254,11 @@ func (t *BybitTrader) GetPositions() ([]map[string]interface{}, error) {
 
 // OpenLong open long position
 func (t *BybitTrader) OpenLong(symbol string, quantity float64, leverage int) (map[string]interface{}, error) {
+	// Cancel all pending orders for this symbol before opening position
+	if err := t.CancelAllOrders(symbol); err != nil {
+		logger.Infof("⚠️ [Bybit] Failed to cancel old orders (may not exist): %v", err)
+	}
+
 	// Set leverage first
 	if err := t.SetLeverage(symbol, leverage); err != nil {
 		logger.Infof("⚠️ [Bybit] Failed to set leverage: %v", err)
@@ -283,6 +288,11 @@ func (t *BybitTrader) OpenLong(symbol string, quantity float64, leverage int) (m
 
 // OpenShort open short position
 func (t *BybitTrader) OpenShort(symbol string, quantity float64, leverage int) (map[string]interface{}, error) {
+	// Cancel all pending orders for this symbol before opening position
+	if err := t.CancelAllOrders(symbol); err != nil {
+		logger.Infof("⚠️ [Bybit] Failed to cancel old orders (may not exist): %v", err)
+	}
+
 	// Set leverage first
 	if err := t.SetLeverage(symbol, leverage); err != nil {
 		logger.Infof("⚠️ [Bybit] Failed to set leverage: %v", err)
@@ -739,13 +749,14 @@ func (t *BybitTrader) GetOrderStatus(symbol string, orderID string) (map[string]
 
 	// Map Bybit status to standard status
 	status := orderStatus
-	if status == "Filled" {
+	switch status {
+	case "Filled":
 		status = "FILLED"
-	} else if status == "PartiallyFilled" {
+	case "PartiallyFilled":
 		status = "PARTIALLY_FILLED"
-	} else if status == "New" {
+	case "New":
 		status = "NEW"
-	} else if status == "Cancelled" {
+	case "Cancelled":
 		status = "CANCELED"
 	}
 

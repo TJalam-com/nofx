@@ -30,7 +30,7 @@ type DatabaseInterface interface {
 	GetAIModels(userID string) ([]*AIModelConfig, error)
 	UpdateAIModel(userID, id string, enabled bool, apiKey, customAPIURL, customModelName string) error
 	GetExchanges(userID string) ([]*ExchangeConfig, error)
-	UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, lighterWalletAddr, lighterPrivateKey, lighterAPIKeyPrivateKey, okxPassphrase string) error
+	UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, lighterWalletAddr, lighterPrivateKey, lighterAPIKeyPrivateKey string, lighterAPIKeyIndex int, okxPassphrase string) error
 	CreateAIModel(userID, id, name, provider string, enabled bool, apiKey, customAPIURL string) error
 	CreateExchange(userID, id, name, typ string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey string) error
 	CreateTrader(trader *TraderRecord) error
@@ -199,6 +199,7 @@ func (d *Database) createTables() error {
 			lighter_wallet_addr TEXT DEFAULT '',
 			lighter_private_key TEXT DEFAULT '',
 			lighter_api_key_private_key TEXT DEFAULT '',
+			lighter_api_key_index INTEGER DEFAULT 0,
 			-- OKX specific fields
 			okx_passphrase TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -518,6 +519,26 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (trader_id) REFERENCES traders(id) ON DELETE CASCADE
 		)`,
 
+		// Articles table
+		`CREATE TABLE IF NOT EXISTS articles (
+			id TEXT PRIMARY KEY,
+			slug TEXT UNIQUE NOT NULL,
+			title TEXT NOT NULL,
+			content TEXT NOT NULL,
+			excerpt TEXT DEFAULT '',
+			featured_image_url TEXT DEFAULT '',
+			author_id TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'draft',
+			meta_title TEXT DEFAULT '',
+			meta_description TEXT DEFAULT '',
+			meta_keywords TEXT DEFAULT '',
+			og_image_url TEXT DEFAULT '',
+			published_at DATETIME,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+
 		// Indexes
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_user ON tradingview_alerts(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tradingview_alerts_trader ON tradingview_alerts(trader_id)`,
@@ -527,6 +548,9 @@ func (d *Database) createTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_trader ON trader_positions(trader_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_symbol ON trader_positions(symbol)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_closed_at ON trader_positions(closed_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(slug)`,
+		`CREATE INDEX IF NOT EXISTS idx_articles_status_published ON articles(status, published_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_articles_author ON articles(author_id)`,
 
 		// Trigger: automatically update webhook_api_keys updated_at
 		`CREATE TRIGGER IF NOT EXISTS update_webhook_api_keys_updated_at
@@ -556,6 +580,7 @@ func (d *Database) createTables() error {
 		{"exchanges", "lighter_wallet_addr", `ALTER TABLE exchanges ADD COLUMN lighter_wallet_addr TEXT DEFAULT ''`},
 		{"exchanges", "lighter_private_key", `ALTER TABLE exchanges ADD COLUMN lighter_private_key TEXT DEFAULT ''`},
 		{"exchanges", "lighter_api_key_private_key", `ALTER TABLE exchanges ADD COLUMN lighter_api_key_private_key TEXT DEFAULT ''`},
+		{"exchanges", "lighter_api_key_index", `ALTER TABLE exchanges ADD COLUMN lighter_api_key_index INTEGER DEFAULT 0`},
 		{"exchanges", "okx_passphrase", `ALTER TABLE exchanges ADD COLUMN okx_passphrase TEXT DEFAULT ''`},
 		{"traders", "custom_prompt", `ALTER TABLE traders ADD COLUMN custom_prompt TEXT DEFAULT ''`},
 		{"traders", "override_base_prompt", `ALTER TABLE traders ADD COLUMN override_base_prompt BOOLEAN DEFAULT 0`},
@@ -749,11 +774,11 @@ func (d *Database) migrateExchangesTable() error {
 			_, err = d.db.Exec(`
 				INSERT OR IGNORE INTO exchanges_new (id, user_id, name, type, enabled, api_key, secret_key, testnet,
 				                           hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
-				                           lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, okx_passphrase, created_at, updated_at)
+				                           lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, lighter_api_key_index, okx_passphrase, created_at, updated_at)
 				SELECT id, COALESCE(user_id, 'default'), name, type, enabled, api_key, secret_key, testnet,
 				       COALESCE(hyperliquid_wallet_addr, ''), COALESCE(aster_user, ''), COALESCE(aster_signer, ''),
 				       COALESCE(aster_private_key, ''), COALESCE(lighter_wallet_addr, ''), COALESCE(lighter_private_key, ''),
-				       COALESCE(lighter_api_key_private_key, ''), COALESCE(okx_passphrase, ''),
+				       COALESCE(lighter_api_key_private_key, ''), COALESCE(lighter_api_key_index, 0), COALESCE(okx_passphrase, ''),
 				       COALESCE(created_at, datetime('now')), COALESCE(updated_at, datetime('now'))
 				FROM exchanges
 			`)
@@ -861,6 +886,7 @@ func (d *Database) migrateExchangesTable() error {
 			lighter_wallet_addr TEXT DEFAULT '',
 			lighter_private_key TEXT DEFAULT '',
 			lighter_api_key_private_key TEXT DEFAULT '',
+			lighter_api_key_index INTEGER DEFAULT 0,
 			okx_passphrase TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -881,11 +907,11 @@ func (d *Database) migrateExchangesTable() error {
 		result, err := d.db.Exec(`
 			INSERT INTO exchanges_new (id, user_id, name, type, enabled, api_key, secret_key, testnet,
 			                           hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
-			                           lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, okx_passphrase, created_at, updated_at)
+			                           lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, lighter_api_key_index, okx_passphrase, created_at, updated_at)
 			SELECT id, COALESCE(user_id, 'default'), name, type, enabled, api_key, secret_key, testnet,
 			       COALESCE(hyperliquid_wallet_addr, ''), COALESCE(aster_user, ''), COALESCE(aster_signer, ''),
 			       COALESCE(aster_private_key, ''), COALESCE(lighter_wallet_addr, ''), COALESCE(lighter_private_key, ''),
-			       COALESCE(lighter_api_key_private_key, ''), COALESCE(okx_passphrase, ''),
+			       COALESCE(lighter_api_key_private_key, ''), COALESCE(lighter_api_key_index, 0), COALESCE(okx_passphrase, ''),
 			       COALESCE(created_at, datetime('now')), COALESCE(updated_at, datetime('now'))
 			FROM exchanges
 		`)
@@ -1158,6 +1184,26 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// Article article/blog post
+type Article struct {
+	ID               string     `json:"id"`
+	Slug             string     `json:"slug"`
+	Title            string     `json:"title"`
+	Content          string     `json:"content"`
+	Excerpt          string     `json:"excerpt"`
+	FeaturedImageURL string     `json:"featured_image_url"`
+	AuthorID         string     `json:"author_id"`
+	AuthorEmail      string     `json:"author_email,omitempty"` // Populated by API handlers
+	Status           string     `json:"status"`                 // "draft" or "published"
+	MetaTitle        string     `json:"meta_title"`
+	MetaDescription  string     `json:"meta_description"`
+	MetaKeywords     string     `json:"meta_keywords"`
+	OGImageURL       string     `json:"og_image_url"`
+	PublishedAt      *time.Time `json:"published_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
 // AIModelConfig AI model configuration
 type AIModelConfig struct {
 	ID              string    `json:"id"`
@@ -1193,6 +1239,7 @@ type ExchangeConfig struct {
 	LighterWalletAddr       string `json:"lighterWalletAddr"`       // Ethereum wallet address (L1)
 	LighterPrivateKey       string `json:"lighterPrivateKey"`       // L1 private key (for account identification)
 	LighterAPIKeyPrivateKey string `json:"lighterAPIKeyPrivateKey"` // API Key private key (40 bytes, for signing transactions)
+	LighterAPIKeyIndex      int    `json:"lighterAPIKeyIndex"`      // API Key index (default 0)
 	// OKX specific fields
 	OkxPassphrase string    `json:"okxPassphrase"` // OKX passphrase (required for OKX)
 	CreatedAt     time.Time `json:"created_at"`
@@ -1636,6 +1683,252 @@ func (d *Database) UpdateTraderApplicationStatus(id string, status string, admin
 	return err
 }
 
+// parseArticleTimestamp parses article timestamp with multiple format fallbacks
+func parseArticleTimestamp(dateStr string, fieldName string, articleID string) time.Time {
+	if dateStr == "" {
+		log.Printf("⚠️  parseArticleTimestamp: empty %s for article %s, using current time", fieldName, articleID)
+		return time.Now().UTC()
+	}
+
+	// Try standard SQLite format first
+	if parsed, err := time.ParseInLocation("2006-01-02 15:04:05", dateStr, time.UTC); err == nil {
+		return parsed
+	}
+
+	// Try with microseconds
+	if parsed, err := time.ParseInLocation("2006-01-02 15:04:05.000000", dateStr, time.UTC); err == nil {
+		return parsed
+	}
+
+	// Try RFC3339 format (ISO 8601)
+	if parsed, err := time.Parse(time.RFC3339, dateStr); err == nil {
+		return parsed.UTC()
+	}
+
+	// Try RFC3339Nano
+	if parsed, err := time.Parse(time.RFC3339Nano, dateStr); err == nil {
+		return parsed.UTC()
+	}
+
+	log.Printf("⚠️  parseArticleTimestamp: unable to parse %s '%s' for article %s, using current time", fieldName, dateStr, articleID)
+	return time.Now().UTC()
+}
+
+// CreateArticle create article
+func (d *Database) CreateArticle(article *Article) error {
+	var publishedAt interface{}
+	if article.PublishedAt != nil {
+		publishedAt = article.PublishedAt.Format("2006-01-02 15:04:05")
+	}
+	_, err := d.db.Exec(`
+		INSERT INTO articles (id, slug, title, content, excerpt, featured_image_url, author_id, status, 
+			meta_title, meta_description, meta_keywords, og_image_url, published_at, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, article.ID, article.Slug, article.Title, article.Content, article.Excerpt, article.FeaturedImageURL,
+		article.AuthorID, article.Status, article.MetaTitle, article.MetaDescription, article.MetaKeywords,
+		article.OGImageURL, publishedAt)
+	return err
+}
+
+// GetArticleByID get article by ID
+func (d *Database) GetArticleByID(id string) (*Article, error) {
+	var article Article
+	var createdAt, updatedAt string
+	var publishedAtStr sql.NullString
+
+	err := d.db.QueryRow(`
+		SELECT id, slug, title, content, excerpt, featured_image_url, author_id, status,
+			meta_title, meta_description, meta_keywords, og_image_url, published_at, created_at, updated_at
+		FROM articles WHERE id = ?
+	`, id).Scan(
+		&article.ID, &article.Slug, &article.Title, &article.Content, &article.Excerpt,
+		&article.FeaturedImageURL, &article.AuthorID, &article.Status,
+		&article.MetaTitle, &article.MetaDescription, &article.MetaKeywords, &article.OGImageURL,
+		&publishedAtStr, &createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if publishedAtStr.Valid {
+		publishedAt, err := time.ParseInLocation("2006-01-02 15:04:05", publishedAtStr.String, time.UTC)
+		if err == nil {
+			article.PublishedAt = &publishedAt
+		}
+	}
+	article.CreatedAt = parseArticleTimestamp(createdAt, "created_at", article.ID)
+	article.UpdatedAt = parseArticleTimestamp(updatedAt, "updated_at", article.ID)
+
+	return &article, nil
+}
+
+// GetArticleBySlug get article by slug
+func (d *Database) GetArticleBySlug(slug string) (*Article, error) {
+	var article Article
+	var createdAt, updatedAt string
+	var publishedAtStr sql.NullString
+
+	err := d.db.QueryRow(`
+		SELECT id, slug, title, content, excerpt, featured_image_url, author_id, status,
+			meta_title, meta_description, meta_keywords, og_image_url, published_at, created_at, updated_at
+		FROM articles WHERE slug = ?
+	`, slug).Scan(
+		&article.ID, &article.Slug, &article.Title, &article.Content, &article.Excerpt,
+		&article.FeaturedImageURL, &article.AuthorID, &article.Status,
+		&article.MetaTitle, &article.MetaDescription, &article.MetaKeywords, &article.OGImageURL,
+		&publishedAtStr, &createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if publishedAtStr.Valid {
+		publishedAt, err := time.ParseInLocation("2006-01-02 15:04:05", publishedAtStr.String, time.UTC)
+		if err == nil {
+			article.PublishedAt = &publishedAt
+		}
+	}
+	article.CreatedAt = parseArticleTimestamp(createdAt, "created_at", article.ID)
+	article.UpdatedAt = parseArticleTimestamp(updatedAt, "updated_at", article.ID)
+
+	return &article, nil
+}
+
+// GetArticles get articles with optional status filter and pagination
+func (d *Database) GetArticles(status string, limit, offset int) ([]*Article, error) {
+	var rows *sql.Rows
+	var err error
+
+	if status != "" {
+		rows, err = d.db.Query(`
+			SELECT id, slug, title, content, excerpt, featured_image_url, author_id, status,
+				meta_title, meta_description, meta_keywords, og_image_url, published_at, created_at, updated_at
+			FROM articles WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?
+		`, status, limit, offset)
+	} else {
+		rows, err = d.db.Query(`
+			SELECT id, slug, title, content, excerpt, featured_image_url, author_id, status,
+				meta_title, meta_description, meta_keywords, og_image_url, published_at, created_at, updated_at
+			FROM articles ORDER BY created_at DESC LIMIT ? OFFSET ?
+		`, limit, offset)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var articles []*Article
+	for rows.Next() {
+		var article Article
+		var createdAt, updatedAt string
+		var publishedAtStr sql.NullString
+
+		err := rows.Scan(
+			&article.ID, &article.Slug, &article.Title, &article.Content, &article.Excerpt,
+			&article.FeaturedImageURL, &article.AuthorID, &article.Status,
+			&article.MetaTitle, &article.MetaDescription, &article.MetaKeywords, &article.OGImageURL,
+			&publishedAtStr, &createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if publishedAtStr.Valid {
+			publishedAt, err := time.ParseInLocation("2006-01-02 15:04:05", publishedAtStr.String, time.UTC)
+			if err == nil {
+				article.PublishedAt = &publishedAt
+			}
+		}
+		article.CreatedAt = parseArticleTimestamp(createdAt, "created_at", article.ID)
+		article.UpdatedAt = parseArticleTimestamp(updatedAt, "updated_at", article.ID)
+
+		articles = append(articles, &article)
+	}
+
+	return articles, rows.Err()
+}
+
+// GetPublishedArticles get published articles with pagination
+func (d *Database) GetPublishedArticles(limit, offset int) ([]*Article, error) {
+	rows, err := d.db.Query(`
+		SELECT id, slug, title, content, excerpt, featured_image_url, author_id, status,
+			meta_title, meta_description, meta_keywords, og_image_url, published_at, created_at, updated_at
+		FROM articles WHERE status = 'published' ORDER BY published_at DESC LIMIT ? OFFSET ?
+	`, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var articles []*Article
+	for rows.Next() {
+		var article Article
+		var createdAt, updatedAt string
+		var publishedAtStr sql.NullString
+
+		err := rows.Scan(
+			&article.ID, &article.Slug, &article.Title, &article.Content, &article.Excerpt,
+			&article.FeaturedImageURL, &article.AuthorID, &article.Status,
+			&article.MetaTitle, &article.MetaDescription, &article.MetaKeywords, &article.OGImageURL,
+			&publishedAtStr, &createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if publishedAtStr.Valid {
+			publishedAt, err := time.ParseInLocation("2006-01-02 15:04:05", publishedAtStr.String, time.UTC)
+			if err == nil {
+				article.PublishedAt = &publishedAt
+			}
+		}
+		article.CreatedAt = parseArticleTimestamp(createdAt, "created_at", article.ID)
+		article.UpdatedAt = parseArticleTimestamp(updatedAt, "updated_at", article.ID)
+
+		articles = append(articles, &article)
+	}
+
+	return articles, rows.Err()
+}
+
+// UpdateArticle update article
+func (d *Database) UpdateArticle(article *Article) error {
+	var publishedAt interface{}
+	if article.PublishedAt != nil {
+		publishedAt = article.PublishedAt.Format("2006-01-02 15:04:05")
+	}
+	_, err := d.db.Exec(`
+		UPDATE articles SET slug = ?, title = ?, content = ?, excerpt = ?, featured_image_url = ?,
+			status = ?, meta_title = ?, meta_description = ?, meta_keywords = ?, og_image_url = ?,
+			published_at = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, article.Slug, article.Title, article.Content, article.Excerpt, article.FeaturedImageURL,
+		article.Status, article.MetaTitle, article.MetaDescription, article.MetaKeywords,
+		article.OGImageURL, publishedAt, article.ID)
+	return err
+}
+
+// DeleteArticle delete article
+func (d *Database) DeleteArticle(id string) error {
+	_, err := d.db.Exec(`DELETE FROM articles WHERE id = ?`, id)
+	return err
+}
+
+// CheckSlugExists check if slug exists (excluding given article ID)
+func (d *Database) CheckSlugExists(slug string, excludeID string) (bool, error) {
+	var count int
+	var err error
+	if excludeID != "" {
+		err = d.db.QueryRow(`SELECT COUNT(*) FROM articles WHERE slug = ? AND id != ?`, slug, excludeID).Scan(&count)
+	} else {
+		err = d.db.QueryRow(`SELECT COUNT(*) FROM articles WHERE slug = ?`, slug).Scan(&count)
+	}
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // GetAllTraders get all traders (for admin use)
 func (d *Database) GetAllTraders() ([]*TraderRecord, error) {
 	rows, err := d.db.Query(`
@@ -1982,6 +2275,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 		       COALESCE(lighter_wallet_addr, '') as lighter_wallet_addr,
 		       COALESCE(lighter_private_key, '') as lighter_private_key,
 		       COALESCE(lighter_api_key_private_key, '') as lighter_api_key_private_key,
+		       COALESCE(lighter_api_key_index, 0) as lighter_api_key_index,
 		       COALESCE(okx_passphrase, '') as okx_passphrase,
 		       created_at, updated_at
 		FROM exchanges WHERE user_id = ? ORDER BY id
@@ -2002,7 +2296,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 			&exchange.HyperliquidWalletAddr, &exchange.AsterUser,
 			&exchange.AsterSigner, &exchange.AsterPrivateKey,
 			&exchange.LighterWalletAddr, &exchange.LighterPrivateKey,
-			&exchange.LighterAPIKeyPrivateKey, &exchange.OkxPassphrase,
+			&exchange.LighterAPIKeyPrivateKey, &exchange.LighterAPIKeyIndex, &exchange.OkxPassphrase,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
@@ -2029,7 +2323,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 
 // UpdateExchange update exchange configuration, create user-specific configuration if it doesn't exist
 // 🔒 Security feature: empty values will not overwrite existing sensitive fields (api_key, secret_key, aster_private_key, lighter_private_key, lighter_api_key_private_key, okx_passphrase)
-func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, lighterWalletAddr, lighterPrivateKey, lighterAPIKeyPrivateKey, okxPassphrase string) error {
+func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, lighterWalletAddr, lighterPrivateKey, lighterAPIKeyPrivateKey string, lighterAPIKeyIndex int, okxPassphrase string) error {
 	log.Printf("🔧 UpdateExchange: userID=%s, id=%s, enabled=%v", userID, id, enabled)
 
 	// Build dynamic UPDATE SET clause
@@ -2041,9 +2335,10 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		"aster_user = ?",
 		"aster_signer = ?",
 		"lighter_wallet_addr = ?",
+		"lighter_api_key_index = ?",
 		"updated_at = datetime('now')",
 	}
-	args := []interface{}{enabled, testnet, hyperliquidWalletAddr, asterUser, asterSigner, lighterWalletAddr}
+	args := []interface{}{enabled, testnet, hyperliquidWalletAddr, asterUser, asterSigner, lighterWalletAddr, lighterAPIKeyIndex}
 
 	// 🔒 Sensitive fields: only update when non-empty (protect existing data)
 	if apiKey != "" {
@@ -2170,6 +2465,36 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 			}
 		}
 
+		// Ensure lighter_api_key_private_key column exists before INSERT (defensive check)
+		exists, err = d.columnExists("exchanges", "lighter_api_key_private_key")
+		if err != nil {
+			log.Printf("⚠️  Error checking if lighter_api_key_private_key column exists: %v", err)
+		} else if !exists {
+			log.Printf("🔄 Adding missing lighter_api_key_private_key column to exchanges table (defensive check)...")
+			_, err = d.db.Exec(`ALTER TABLE exchanges ADD COLUMN lighter_api_key_private_key TEXT DEFAULT ''`)
+			if err != nil {
+				log.Printf("⚠️  Failed to add lighter_api_key_private_key column: %v", err)
+				// Continue anyway, will fail on INSERT if column truly missing
+			} else {
+				log.Printf("✅ Successfully added lighter_api_key_private_key column")
+			}
+		}
+
+		// Ensure lighter_api_key_index column exists before INSERT (defensive check)
+		exists, err = d.columnExists("exchanges", "lighter_api_key_index")
+		if err != nil {
+			log.Printf("⚠️  Error checking if lighter_api_key_index column exists: %v", err)
+		} else if !exists {
+			log.Printf("🔄 Adding missing lighter_api_key_index column to exchanges table (defensive check)...")
+			_, err = d.db.Exec(`ALTER TABLE exchanges ADD COLUMN lighter_api_key_index INTEGER DEFAULT 0`)
+			if err != nil {
+				log.Printf("⚠️  Failed to add lighter_api_key_index column: %v", err)
+				// Continue anyway, will fail on INSERT if column truly missing
+			} else {
+				log.Printf("✅ Successfully added lighter_api_key_index column")
+			}
+		}
+
 		// Encrypt sensitive fields
 		encryptedAPIKey := d.encryptSensitiveData(apiKey)
 		encryptedSecretKey := d.encryptSensitiveData(secretKey)
@@ -2183,8 +2508,8 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		insertQuery := `
 			INSERT INTO exchanges (id, user_id, name, type, enabled, api_key, secret_key, testnet,
 			                       hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
-			                       lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, okx_passphrase, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+			                       lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, lighter_api_key_index, okx_passphrase, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
 		`
 
 		// For old structure (single PRIMARY KEY), use INSERT OR IGNORE to handle conflicts
@@ -2192,7 +2517,7 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 			insertQuery = strings.Replace(insertQuery, "INSERT INTO", "INSERT OR IGNORE INTO", 1)
 		}
 
-		_, err = d.db.Exec(insertQuery, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey, encryptedLighterAPIKeyPrivateKey, encryptedOkxPassphrase)
+		_, err = d.db.Exec(insertQuery, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey, encryptedLighterAPIKeyPrivateKey, lighterAPIKeyIndex, encryptedOkxPassphrase)
 
 		if err != nil {
 			log.Printf("❌ UpdateExchange: failed to create record: %v", err)
@@ -2250,9 +2575,9 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 				_, retryErr := d.db.Exec(`
 					INSERT INTO exchanges (id, user_id, name, type, enabled, api_key, secret_key, testnet,
 					                       hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key,
-					                       lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, okx_passphrase, created_at, updated_at)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-				`, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey, encryptedLighterAPIKeyPrivateKey, encryptedOkxPassphrase)
+					                       lighter_wallet_addr, lighter_private_key, lighter_api_key_private_key, lighter_api_key_index, okx_passphrase, created_at, updated_at)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+				`, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, lighterWalletAddr, encryptedLighterPrivateKey, encryptedLighterAPIKeyPrivateKey, lighterAPIKeyIndex, encryptedOkxPassphrase)
 
 				if retryErr != nil {
 					return fmt.Errorf("failed to create record after migration: %v", retryErr)
@@ -2331,6 +2656,7 @@ func (d *Database) GetExchangeByID(userID, exchangeID string) (*ExchangeConfig, 
 		       COALESCE(lighter_wallet_addr, '') as lighter_wallet_addr,
 		       COALESCE(lighter_private_key, '') as lighter_private_key,
 		       COALESCE(lighter_api_key_private_key, '') as lighter_api_key_private_key,
+		       COALESCE(lighter_api_key_index, 0) as lighter_api_key_index,
 		       COALESCE(okx_passphrase, '') as okx_passphrase,
 		       created_at, updated_at
 		FROM exchanges
@@ -2342,7 +2668,7 @@ func (d *Database) GetExchangeByID(userID, exchangeID string) (*ExchangeConfig, 
 		&exchange.HyperliquidWalletAddr, &exchange.AsterUser,
 		&exchange.AsterSigner, &exchange.AsterPrivateKey,
 		&exchange.LighterWalletAddr, &exchange.LighterPrivateKey,
-		&exchange.LighterAPIKeyPrivateKey, &exchange.OkxPassphrase,
+		&exchange.LighterAPIKeyPrivateKey, &exchange.LighterAPIKeyIndex, &exchange.OkxPassphrase,
 		&createdAt, &updatedAt,
 	)
 	if err != nil {
@@ -3149,6 +3475,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 			COALESCE(e.lighter_wallet_addr, '') as lighter_wallet_addr,
 			COALESCE(e.lighter_private_key, '') as lighter_private_key,
 			COALESCE(e.lighter_api_key_private_key, '') as lighter_api_key_private_key,
+			COALESCE(e.lighter_api_key_index, 0) as lighter_api_key_index,
 			COALESCE(e.okx_passphrase, '') as okx_passphrase,
 			e.created_at, e.updated_at
 		FROM traders t
@@ -3174,7 +3501,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 		&exchange.ID, &exchange.UserID, &exchange.Name, &exchange.Type, &exchange.Enabled,
 		&exchange.APIKey, &exchange.SecretKey, &exchange.Testnet,
 		&exchange.HyperliquidWalletAddr, &exchange.AsterUser, &exchange.AsterSigner, &exchange.AsterPrivateKey,
-		&exchange.LighterWalletAddr, &exchange.LighterPrivateKey, &exchange.LighterAPIKeyPrivateKey,
+		&exchange.LighterWalletAddr, &exchange.LighterPrivateKey, &exchange.LighterAPIKeyPrivateKey, &exchange.LighterAPIKeyIndex,
 		&exchange.OkxPassphrase,
 		&exchangeCreatedAt, &exchangeUpdatedAt,
 	)

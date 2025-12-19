@@ -79,6 +79,7 @@ export function ExchangeConfigModal({
   const [lighterWalletAddr, setLighterWalletAddr] = useState('')
   const [lighterPrivateKey, setLighterPrivateKey] = useState('')
   const [lighterApiKeyPrivateKey, setLighterApiKeyPrivateKey] = useState('')
+  const [lighterApiKeyIndex, setLighterApiKeyIndex] = useState(0)
 
   // Secure input state
   const [secureInputTarget, setSecureInputTarget] = useState<
@@ -110,6 +111,7 @@ export function ExchangeConfigModal({
       setLighterWalletAddr(selectedExchange.lighterWalletAddr || '')
       setLighterPrivateKey('') // Don't load existing private key for security
       setLighterApiKeyPrivateKey('') // Don't load existing API key for security
+      setLighterApiKeyIndex(selectedExchange.lighterAPIKeyIndex || 0)
     }
   }, [editingExchangeId, selectedExchange])
 
@@ -273,7 +275,8 @@ export function ExchangeConfigModal({
           undefined,
           lighterWalletAddr.trim(),
           lighterPrivateKey.trim(),
-          lighterApiKeyPrivateKey.trim()
+          lighterApiKeyPrivateKey.trim(),
+          lighterApiKeyIndex
         )
       } else if (selectedExchange?.id === 'okx') {
         if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) {
@@ -989,23 +992,29 @@ export function ExchangeConfigModal({
                       </div>
                     </div>
 
-                    {/* V1/V2 Status Display */}
-                    <div className="mb-4 p-3 rounded" style={{
-                      background: lighterApiKeyPrivateKey ? '#0F3F2E' : '#3F2E0F',
-                      border: '1px solid ' + (lighterApiKeyPrivateKey ? '#10B981' : '#F59E0B')
-                    }}>
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm font-semibold" style={{
-                          color: lighterApiKeyPrivateKey ? '#10B981' : '#F59E0B'
-                        }}>
-                          {lighterApiKeyPrivateKey ? '✅ LIGHTER V2' : '⚠️ LIGHTER V1'}
-                        </div>
-                      </div>
+                    {/* API Key Index */}
+                    <div className="mb-4">
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: '#EAECEF' }}
+                      >
+                        {t('lighterApiKeyIndex', language) || 'API Key Index'}
+                      </label>
+                      <input
+                        type="number"
+                        value={lighterApiKeyIndex}
+                        onChange={(e) => setLighterApiKeyIndex(parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
+                          color: '#EAECEF',
+                        }}
+                      />
                       <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                        {lighterApiKeyPrivateKey
-                          ? t('lighterV2Description', language)
-                          : t('lighterV1Description', language)
-                        }
+                        {t('lighterApiKeyIndexDesc', language) || 'API Key index (default: 0)'}
                       </div>
                     </div>
                   </>

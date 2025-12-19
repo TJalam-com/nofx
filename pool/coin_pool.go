@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"nofx/security"
 	"os"
 	"path/filepath"
 	"strings"
@@ -148,11 +149,8 @@ func GetCoinPool() ([]CoinInfo, error) {
 func fetchCoinPool() ([]CoinInfo, error) {
 	log.Printf("🔄 Requesting AI500 coin pool...")
 
-	client := &http.Client{
-		Timeout: coinPoolConfig.Timeout,
-	}
-
-	resp, err := client.Get(coinPoolConfig.APIURL)
+	// SSRF Protection: Validate URL before making request
+	resp, err := security.SafeGet(coinPoolConfig.APIURL, coinPoolConfig.Timeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to request coin pool API: %w", err)
 	}
@@ -399,8 +397,8 @@ type OITopAPIResponse struct {
 		Exchange       string       `json:"exchange"`
 		TimeRange      string       `json:"time_range"`
 		TimeRangeParam string       `json:"time_range_param"` // Time range parameter value (e.g., "4h", "1h")
-		RankType       string       `json:"rank_type"`       // Rank type: "top" (increase) or "low" (decrease)
-		Limit          int          `json:"limit"`           // Requested limit
+		RankType       string       `json:"rank_type"`        // Rank type: "top" (increase) or "low" (decrease)
+		Limit          int          `json:"limit"`            // Requested limit
 	} `json:"data"`
 }
 
@@ -472,11 +470,8 @@ func GetOITopPositions() ([]OIPosition, error) {
 func fetchOITop() ([]OIPosition, error) {
 	log.Printf("🔄 Requesting OI Top data...")
 
-	client := &http.Client{
-		Timeout: oiTopConfig.Timeout,
-	}
-
-	resp, err := client.Get(oiTopConfig.APIURL)
+	// SSRF Protection: Validate URL before making request
+	resp, err := security.SafeGet(oiTopConfig.APIURL, oiTopConfig.Timeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to request OI Top API: %w", err)
 	}
@@ -662,11 +657,8 @@ func FetchQuantData(apiURL string, symbol string) ([]byte, error) {
 	// Replace {symbol} placeholder with actual symbol
 	url := strings.ReplaceAll(apiURL, "{symbol}", symbol)
 
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	resp, err := client.Get(url)
+	// SSRF Protection: Validate URL before making request
+	resp, err := security.SafeGet(url, 30*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to request quant data API: %w", err)
 	}

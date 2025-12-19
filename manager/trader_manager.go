@@ -28,6 +28,7 @@ type CompetitionCache struct {
 // TraderManager manages multiple trader instances
 type TraderManager struct {
 	traders          map[string]*trader.AutoTrader // key: trader ID
+	loadErrors       map[string]error              // key: trader ID, stores last load error
 	competitionCache *CompetitionCache
 	mu               sync.RWMutex
 }
@@ -35,11 +36,19 @@ type TraderManager struct {
 // NewTraderManager creates a trader manager
 func NewTraderManager() *TraderManager {
 	return &TraderManager{
-		traders: make(map[string]*trader.AutoTrader),
+		traders:    make(map[string]*trader.AutoTrader),
+		loadErrors: make(map[string]error),
 		competitionCache: &CompetitionCache{
 			data: make(map[string]interface{}),
 		},
 	}
+}
+
+// GetLoadError returns the last load error for a trader
+func (tm *TraderManager) GetLoadError(traderID string) error {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	return tm.loadErrors[traderID]
 }
 
 // LoadTradersFromDatabase loads all traders from database to memory
@@ -284,7 +293,8 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
 		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
 		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
-		traderConfig.LighterTestnet = exchangeCfg.Testnet
+		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
+		traderConfig.LighterTestnet = false // Always mainnet for Lighter
 	}
 
 	// Set API keys based on AI model
@@ -428,7 +438,8 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
 		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
 		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
-		traderConfig.LighterTestnet = exchangeCfg.Testnet
+		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
+		traderConfig.LighterTestnet = false // Always mainnet for Lighter
 	}
 
 	// Set API keys based on AI model
@@ -1091,6 +1102,7 @@ func (tm *TraderManager) LoadUserTraders(database *config.Database, userID strin
 		err = tm.loadSingleTrader(traderCfg, aiModelCfg, exchangeCfg, coinPoolURL, oiTopURL, maxDailyLoss, maxDrawdown, stopTradingMinutes, defaultCoins, database, userID)
 		if err != nil {
 			log.Printf("⚠️ Failed to load trader %s: %v", traderCfg.Name, err)
+			// Error is already stored in loadErrors by addTraderFromDB
 		}
 	}
 
@@ -1406,7 +1418,8 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
 		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
 		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
-		traderConfig.LighterTestnet = exchangeCfg.Testnet
+		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
+		traderConfig.LighterTestnet = false // Always mainnet for Lighter
 	}
 
 	// Set API keys based on AI model

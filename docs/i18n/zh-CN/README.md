@@ -216,9 +216,7 @@ NOFX 采用现代化的模块化架构：
 - 🤖 多 AI 竞赛模式，实时对比
 - 🔌 RESTful API，完整的配置和监控
 
-📖 **详细架构文档，请查看：**
-- **中文版：** [架构文档](../../architecture/README.zh-CN.md)
-- **English:** [Architecture Documentation](../../architecture/README.md)
+📖 **详细架构文档，请查看：** [Architecture Documentation](../../architecture/README.md)
 
 ---
 
@@ -254,7 +252,7 @@ docker compose up -d --build
 ```
 
 #### 步骤3：访问控制台
-在浏览器中打开：**http://localhost:3000**
+在浏览器中打开：**http://127.0.0.1:3000**
 
 **就是这么简单！🎉** 你的AI交易系统已经运行起来了！
 
@@ -669,7 +667,7 @@ VITE v5.x.x  ready in xxx ms
 ```
 
 **✅ 前端运行正常的标志：**
-- "Local: http://localhost:3000/"消息
+- "Local: http://localhost:3000/"消息（注意：请使用 http://127.0.0.1:3000 访问）
 - 无错误信息
 - 也保持此终端窗口打开！
 
@@ -679,7 +677,7 @@ VITE v5.x.x  ready in xxx ms
 
 在Web浏览器中访问：
 
-**🌐 http://localhost:3000**
+**🌐 http://127.0.0.1:3000**
 
 **您将看到：**
 - 📊 实时账户余额

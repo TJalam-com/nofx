@@ -54,15 +54,18 @@ type PositionSnapshot struct {
 
 // DecisionAction Decision action
 type DecisionAction struct {
-	Action    string    `json:"action"`    // open_long, open_short, close_long, close_short, update_stop_loss, update_take_profit, partial_close
-	Symbol    string    `json:"symbol"`    // Trading symbol
-	Quantity  float64   `json:"quantity"`  // Quantity (used for partial close)
-	Leverage  int       `json:"leverage"`  // Leverage (when opening position)
-	Price     float64   `json:"price"`     // Execution price
-	OrderID   int64     `json:"order_id"`  // Order ID
-	Timestamp time.Time `json:"timestamp"` // Execution timestamp
-	Success   bool      `json:"success"`   // Whether successful
-	Error     string    `json:"error"`     // Error message
+	Action     string    `json:"action"`                // open_long, open_short, close_long, close_short, update_stop_loss, update_take_profit, partial_close
+	Symbol     string    `json:"symbol"`                // Trading symbol
+	Quantity   float64   `json:"quantity"`              // Quantity (used for partial close)
+	Leverage   int       `json:"leverage"`              // Leverage (when opening position)
+	Price      float64   `json:"price"`                 // Execution price
+	OrderID    int64     `json:"order_id"`              // Order ID
+	Timestamp  time.Time `json:"timestamp"`             // Execution timestamp
+	Success    bool      `json:"success"`               // Whether successful
+	Error      string    `json:"error"`                 // Error message
+	StopLoss   float64   `json:"stop_loss,omitempty"`   // Stop loss price
+	TakeProfit float64   `json:"take_profit,omitempty"` // Take profit price
+	Confidence int       `json:"confidence,omitempty"`  // Confidence level (0-100)
 }
 
 // IDecisionLogger Decision logger interface

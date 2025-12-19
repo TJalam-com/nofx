@@ -510,6 +510,7 @@ export function useTraderActions({
     lighterWalletAddr?: string,
     lighterPrivateKey?: string,
     lighterApiKeyPrivateKey?: string,
+    lighterApiKeyIndex?: number,
     okxPassphrase?: string
   ) => {
     try {
@@ -583,7 +584,8 @@ export function useTraderActions({
               aster_private_key: exchange.asterPrivateKey || '',
               lighter_wallet_addr: exchange.lighterWalletAddr || '',
               lighter_private_key: exchange.lighterPrivateKey || '',
-              lighter_api_key_private_key: exchange.lighterApiKeyPrivateKey || '',
+              lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
+              lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
               okx_passphrase: exchange.okxPassphrase || '',
             },
           ])
