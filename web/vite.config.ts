@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  base: '/', // Ensure base path is set correctly
   build: {
     // Let Vite handle chunk splitting automatically to avoid circular dependency issues
     rollupOptions: {
@@ -11,6 +12,8 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
+        // Ensure proper module format for dynamic imports
+        format: 'es',
       },
     },
     // Enable CSS code splitting
