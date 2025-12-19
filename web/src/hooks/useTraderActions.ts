@@ -510,7 +510,7 @@ export function useTraderActions({
     lighterWalletAddr?: string,
     lighterPrivateKey?: string,
     lighterApiKeyPrivateKey?: string,
-    lighterApiKeyIndex?: number,
+    _lighterApiKeyIndex?: number,
     okxPassphrase?: string
   ) => {
     try {

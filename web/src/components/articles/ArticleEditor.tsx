@@ -11,7 +11,7 @@ interface ArticleEditorProps {
   placeholder?: string
 }
 
-export function ArticleEditor({ content, onChange, placeholder = 'Start writing your article...' }: ArticleEditorProps) {
+export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
   const [showImageDialog, setShowImageDialog] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [showLinkDialog, setShowLinkDialog] = useState(false)

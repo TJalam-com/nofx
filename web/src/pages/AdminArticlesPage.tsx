@@ -114,14 +114,14 @@ export default function AdminArticlesPage() {
 
   const handlePublish = async (id: string) => {
     try {
-      const updatedArticle = await api.publishArticle(id)
+      await api.publishArticle(id)
       toast.success('Article published successfully')
       // Force revalidation to get updated data
       await mutateArticles()
       // Also update the specific article in the cache if it exists
       if (articles) {
         const updatedArticles = articles.map(a => 
-          a.id === id ? { ...a, status: 'published', published_at: updatedArticle.published_at } : a
+          a.id === id ? { ...a, status: 'published' as const, published_at: new Date().toISOString() } : a
         )
         mutateArticles(updatedArticles, false)
       }
@@ -132,14 +132,14 @@ export default function AdminArticlesPage() {
 
   const handleUnpublish = async (id: string) => {
     try {
-      const updatedArticle = await api.unpublishArticle(id)
+      await api.unpublishArticle(id)
       toast.success('Article unpublished successfully')
       // Force revalidation to get updated data
       await mutateArticles()
       // Also update the specific article in the cache if it exists
       if (articles) {
         const updatedArticles = articles.map(a => 
-          a.id === id ? { ...a, status: 'draft', published_at: undefined } : a
+          a.id === id ? { ...a, status: 'draft' as const, published_at: undefined } : a
         )
         mutateArticles(updatedArticles, false)
       }
@@ -225,7 +225,7 @@ export default function AdminArticlesPage() {
             </h2>
             <ArticleForm
               article={editingArticle || undefined}
-              onSubmit={editingArticle ? handleUpdate : handleCreate}
+              onSubmit={editingArticle ? (data) => handleUpdate(data as UpdateArticleRequest) : (data) => handleCreate(data as CreateArticleRequest)}
               onCancel={() => {
                 setShowCreateForm(false)
                 setEditingArticle(null)

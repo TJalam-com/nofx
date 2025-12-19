@@ -31,6 +31,7 @@ interface ExchangeConfigModalProps {
     lighterWalletAddr?: string,
     lighterPrivateKey?: string,
     lighterApiKeyPrivateKey?: string,
+    lighterApiKeyIndex?: number,
     okxPassphrase?: string
   ) => Promise<void>
   onDelete: (exchangeId: string) => void
@@ -231,7 +232,7 @@ export function ExchangeConfigModal({
           setIsLoading(false)
           return
         }
-        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
+        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined)
       } else if (selectedExchange?.id === 'hyperliquid') {
         if (!apiKey.trim() || !hyperliquidWalletAddr.trim()) {
           setIsLoading(false)
@@ -242,7 +243,15 @@ export function ExchangeConfigModal({
           apiKey.trim(),
           '',
           testnet,
-          hyperliquidWalletAddr.trim()
+          hyperliquidWalletAddr.trim(),
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined
         )
       } else if (selectedExchange?.id === 'aster') {
         if (!asterUser.trim() || !asterSigner.trim() || !asterPrivateKey.trim()) {
@@ -257,7 +266,12 @@ export function ExchangeConfigModal({
           undefined,
           asterUser.trim(),
           asterSigner.trim(),
-          asterPrivateKey.trim()
+          asterPrivateKey.trim(),
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined
         )
       } else if (selectedExchange?.id === 'lighter') {
         if (!lighterWalletAddr.trim() || !lighterPrivateKey.trim()) {
@@ -276,27 +290,28 @@ export function ExchangeConfigModal({
           lighterWalletAddr.trim(),
           lighterPrivateKey.trim(),
           lighterApiKeyPrivateKey.trim(),
-          lighterApiKeyIndex
+          lighterApiKeyIndex,
+          undefined
         )
       } else if (selectedExchange?.id === 'okx') {
         if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) {
           setIsLoading(false)
           return
         }
-        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, passphrase.trim())
+        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, passphrase.trim())
       } else if (selectedExchange?.id === 'bitget') {
         if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) {
           setIsLoading(false)
           return
         }
-        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, passphrase.trim())
+        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, passphrase.trim())
       } else {
         // Default case (other CEX exchanges)
         if (!apiKey.trim() || !secretKey.trim()) {
           setIsLoading(false)
           return
         }
-        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
+        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined)
       }
     } catch (error) {
       // Error handling is done in parent component
