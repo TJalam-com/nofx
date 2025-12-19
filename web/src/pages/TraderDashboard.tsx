@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom'
 import useSWR, { mutate } from 'swr'
 import { api } from '../lib/api'
-import { EquityChart } from '../components/EquityChart'
 import { ChartTabs } from '../components/ChartTabs'
 import AILearning from '../components/AILearning'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -52,7 +51,7 @@ export default function TraderDashboard() {
   const { user, token } = useAuth()
   const navigate = useNavigate()
   const { slug } = useParams<{ slug?: string }>()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [selectedTraderId, setSelectedTraderId] = useState<string | undefined>(undefined)
   const [lastUpdate, setLastUpdate] = useState<string>('--:--:--')
   const [closingPositions, setClosingPositions] = useState<Set<string>>(new Set())

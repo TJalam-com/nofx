@@ -9,7 +9,6 @@ import { useTradersConfigStore, useTradersModalStore } from '../stores'
 import { useTraderActions } from '../hooks/useTraderActions'
 import { TraderConfigModal } from '../components/TraderConfigModal'
 import { generateTraderSlug } from '../lib/utils'
-import type { TraderInfo } from '../types'
 import {
   SignalSourceModal,
   ModelConfigModal,

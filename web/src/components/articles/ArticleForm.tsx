@@ -40,23 +40,37 @@ export function ArticleForm({ article, onSubmit, onCancel, isLoading = false }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    const formData: CreateArticleRequest | UpdateArticleRequest = {
-      title,
-      content,
-      excerpt,
-      featured_image_url: featuredImageUrl,
-      status,
-      meta_title: metaTitle || undefined,
-      meta_description: metaDescription,
-      meta_keywords: metaKeywords || undefined,
-      og_image_url: ogImageUrl || undefined,
+    if (article) {
+      // Update case - all fields are optional
+      const updateData: UpdateArticleRequest = {
+        title,
+        content,
+        excerpt,
+        featured_image_url: featuredImageUrl,
+        status,
+        meta_title: metaTitle || undefined,
+        meta_description: metaDescription,
+        meta_keywords: metaKeywords || undefined,
+        og_image_url: ogImageUrl || undefined,
+        slug: slug || undefined,
+      }
+      await onSubmit(updateData)
+    } else {
+      // Create case - title is required
+      const createData: CreateArticleRequest = {
+        title,
+        content,
+        excerpt,
+        featured_image_url: featuredImageUrl,
+        status,
+        meta_title: metaTitle || undefined,
+        meta_description: metaDescription,
+        meta_keywords: metaKeywords || undefined,
+        og_image_url: ogImageUrl || undefined,
+        slug: slug || undefined,
+      }
+      await onSubmit(createData)
     }
-
-    if (slug) {
-      (formData as UpdateArticleRequest).slug = slug
-    }
-
-    await onSubmit(formData)
   }
 
   return (

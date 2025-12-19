@@ -1,7 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { api } from '../lib/api'
-import { useSEO } from '../hooks/useSEO'
 import { getArticleSEOConfig } from '../config/seo'
 import { useLanguage } from '../contexts/LanguageContext'
 import { Helmet } from 'react-helmet-async'
@@ -28,7 +27,17 @@ export function ArticlePage() {
   const articleUrl = `${baseUrl}/blog/${slug}`
 
   // SEO configuration
-  const seoConfig = article ? getArticleSEOConfig(article, language) : null
+  const seoConfig = article ? getArticleSEOConfig({
+    title: article.title,
+    metaTitle: article.meta_title,
+    metaDescription: article.meta_description || '',
+    metaKeywords: article.meta_keywords,
+    ogImageUrl: article.og_image_url,
+    featuredImageUrl: article.featured_image_url || '',
+    slug: article.slug,
+    publishedAt: article.published_at,
+    authorId: article.author_id,
+  }, language) : null
 
   if (isLoading) {
     return (
