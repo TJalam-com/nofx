@@ -158,6 +158,23 @@ setup_config() {
     fi
 }
 
+# Get server IP for display
+get_server_ip() {
+    # Try to get public IP first
+    local public_ip=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || curl -s --max-time 3 icanhazip.com 2>/dev/null || echo "")
+    
+    # If no public IP, try local IP
+    if [ -z "$public_ip" ]; then
+        if command -v ip &> /dev/null; then
+            public_ip=$(ip route get 1 2>/dev/null | awk '{print $7}' | head -1)
+        elif command -v hostname &> /dev/null; then
+            public_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+        fi
+    fi
+    
+    echo "${public_ip:-127.0.0.1}"
+}
+
 # Main installation
 main() {
     echo ""
@@ -175,12 +192,19 @@ main() {
     echo ""
     print_success "Installation completed!"
     echo ""
+    
+    local SERVER_IP=$(get_server_ip)
+    
     print_info "Next steps:"
     echo "  1. Edit config.json if needed (optional)"
     echo "  2. Edit .env if you want to change ports or timezone"
     echo "  3. Run: ./start.sh start --build"
-    echo "  4. Access web interface at http://localhost:3000"
+    echo "  4. Access web interface at http://${SERVER_IP}:3000"
     echo ""
+    if [ "$SERVER_IP" != "127.0.0.1" ]; then
+        echo "  Note: If accessing from local machine, use http://127.0.0.1:3000"
+        echo ""
+    fi
     print_info "For production deployment, use:"
     echo "  docker compose -f docker-compose.prod.yml up -d --build"
     echo ""

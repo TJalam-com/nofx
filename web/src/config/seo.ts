@@ -344,6 +344,21 @@ export const seoConfig: Record<string, (lang: Language) => SEOConfig> = {
     ogType: 'website',
     canonical: `${BASE_URL}/contact`,
   }),
+
+  '/blog': (lang: Language) => ({
+    title: lang === 'en'
+      ? 'Blog - AI Trading 24x7 | Trading Articles & Guides'
+      : '博客 - AI Trading 24x7 | 交易文章与指南',
+    description: lang === 'en'
+      ? 'Read the latest articles about AI trading, cryptocurrency, trading strategies, and automated trading on AI Trading 24x7 blog.'
+      : '在AI Trading 24x7博客上阅读关于AI交易、加密货币、交易策略和自动化交易的最新文章。',
+    keywords: lang === 'en'
+      ? 'AI trading blog, cryptocurrency articles, trading guides, trading strategies, automated trading blog'
+      : 'AI交易博客, 加密货币文章, 交易指南, 交易策略, 自动化交易博客',
+    ogImage: DEFAULT_OG_IMAGE,
+    ogType: 'website',
+    canonical: `${BASE_URL}/blog`,
+  }),
 }
 
 export function getSEOConfig(pathname: string, lang: Language): SEOConfig {
@@ -352,5 +367,37 @@ export function getSEOConfig(pathname: string, lang: Language): SEOConfig {
     return configFn(lang)
   }
   return defaultSEO
+}
+
+// Get SEO config for article page (dynamic)
+export function getArticleSEOConfig(article: {
+  title: string
+  metaTitle?: string
+  metaDescription: string
+  metaKeywords?: string
+  ogImageUrl?: string
+  featuredImageUrl: string
+  slug: string
+  publishedAt?: string
+  authorId?: string
+}, lang: Language): SEOConfig {
+  const title = article.metaTitle || article.title
+  const description = article.metaDescription || ''
+  const image = article.ogImageUrl || article.featuredImageUrl || DEFAULT_OG_IMAGE
+
+  return {
+    title: lang === 'en'
+      ? `${title} | AI Trading 24x7 Blog`
+      : `${title} | AI Trading 24x7 博客`,
+    description: description || (lang === 'en'
+      ? `Read ${article.title} on AI Trading 24x7 blog. Learn about AI trading, cryptocurrency, and automated trading strategies.`
+      : `在AI Trading 24x7博客上阅读《${article.title}》。了解AI交易、加密货币和自动化交易策略。`),
+    keywords: article.metaKeywords || (lang === 'en'
+      ? 'AI trading, cryptocurrency, trading blog, trading strategies, automated trading'
+      : 'AI交易, 加密货币, 交易博客, 交易策略, 自动化交易'),
+    ogImage: image,
+    ogType: 'article',
+    canonical: `${BASE_URL}/blog/${article.slug}`,
+  }
 }
 

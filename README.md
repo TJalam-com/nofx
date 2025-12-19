@@ -1,4 +1,4 @@
-# 🤖 NOFX - Agentic Trading OS
+# 🤖 AI Trading 24x7 - Agentic Trading OS
 
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat&logo=react)](https://reactjs.org/)
@@ -17,11 +17,24 @@
 
 ---
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| **[Architecture Overview](docs/architecture/README.md)** | System design and module index |
+| **[Strategy Module](docs/architecture/STRATEGY_MODULE.md)** | Coin selection, data assembly, AI prompts, execution |
+| **[Backtest Module](docs/architecture/BACKTEST_MODULE.md)** | Historical simulation, metrics, checkpoint/resume |
+| **[Debate Module](docs/architecture/DEBATE_MODULE.md)** | Multi-AI debate, voting consensus, auto-execution |
+| **[FAQ](docs/guides/faq.en.md)** | Frequently asked questions |
+| **[Getting Started](docs/getting-started/README.md)** | Deployment guide |
+
+---
+
 ## ⚠️ Modified Version Notice
 
-**This software is a modified version of NOFX, originally developed by NoFxAiOS.**
+**This software is a modified version of NOFX (now branded as AI Trading 24x7), originally developed by NoFxAiOS.**
 
-This is a **modified version** of the NOFX software, originally developed by [NoFxAiOS](https://github.com/NoFxAiOS/nofx).
+This is a **modified version** of the NOFX software (rebranded as AI Trading 24x7), originally developed by [NoFxAiOS](https://github.com/NoFxAiOS/nofx).
 
 - **Original Repository:** [https://github.com/NoFxAiOS/nofx](https://github.com/NoFxAiOS/nofx)
 - **Original License:** GNU Affero General Public License v3.0 (AGPL-3.0)
@@ -62,7 +75,7 @@ This modified version includes rebranding, customizations, and additional featur
 
 ## 🚀 Universal AI Trading Operating System
 
-**NOFX** is a **universal Agentic Trading OS** built on a unified architecture. We've successfully closed the loop in crypto markets: **"Multi-Agent Decision → Unified Risk Control → Low-Latency Execution → Live/Paper Account Backtesting"**, and are now expanding this same technology stack to **stocks, futures, options, forex, and all financial markets**.
+**AI Trading 24x7** is a **universal Agentic Trading OS** built on a unified architecture. We've successfully closed the loop in crypto markets: **"Multi-Agent Decision → Unified Risk Control → Low-Latency Execution → Live/Paper Account Backtesting"**, and are now expanding this same technology stack to **stocks, futures, options, forex, and all financial markets**.
 
 ### 🎯 Core Features
 
@@ -91,7 +104,7 @@ We are currently raising our **seed round**.
 
 Join our Telegram developer community to discuss, share ideas, and get support:
 
-**💬 [NOFX Developer Community](https://t.me/nofx_dev_community)**
+**💬 [AI Trading 24x7 Developer Community](https://t.me/nofx_dev_community)**
 
 ---
 
@@ -143,7 +156,7 @@ Join our Telegram developer community to discuss, share ideas, and get support:
 
 ## ✨ Current Implementation - Crypto Markets
 
-NOFX is currently **fully operational in cryptocurrency markets** with the following proven capabilities:
+AI Trading 24x7 is currently **fully operational in cryptocurrency markets** with the following proven capabilities:
 
 ### 🏆 Multi-Agent Competition Framework
 - **Live Agent Battle**: Qwen vs DeepSeek models compete in real-time trading
@@ -191,7 +204,7 @@ NOFX is currently **fully operational in cryptocurrency markets** with the follo
 
 ## 🔮 Roadmap - Universal Market Expansion
 
-NOFX is on a mission to become the **Universal AI Trading Operating System** for all financial markets.
+AI Trading 24x7 is on a mission to become the **Universal AI Trading Operating System** for all financial markets.
 
 **Vision:** Same architecture. Same agent framework. All markets.
 
@@ -216,7 +229,7 @@ NOFX is on a mission to become the **Universal AI Trading Operating System** for
 
 ## 🏗️ Technical Architecture
 
-NOFX is built with a modern, modular architecture:
+AI Trading 24x7 is built with a modern, modular architecture:
 
 - **Backend:** Go with Gin framework, SQLite database
 - **Frontend:** React 18 + TypeScript + Vite + TailwindCSS
@@ -232,9 +245,7 @@ NOFX is built with a modern, modular architecture:
 - 🤖 Multi-AI competition mode with live comparison
 - 🔌 RESTful API for all configuration and monitoring
 
-📖 **For detailed architecture documentation, see:**
-- **English:** [Architecture Documentation](docs/architecture/README.md)
-- **中文:** [架构文档](docs/architecture/README.zh-CN.md)
+📖 **For detailed architecture documentation, see:** [Architecture Documentation](docs/architecture/README.md)
 
 ---
 
@@ -274,7 +285,7 @@ docker compose up -d --build
 ```
 
 #### Step 2: Access Web Interface
-Open your browser and visit: **http://localhost:3000**
+Open your browser and visit: **http://127.0.0.1:3000**
 
 **That's it! 🎉** Your AI trading platform is now running!
 
@@ -423,7 +434,7 @@ npm run dev
 
 #### **Step 3: Access the Web Interface**
 
-Open your browser and visit: **🌐 http://localhost:3000**
+Open your browser and visit: **🌐 http://127.0.0.1:3000**
 
 ### 6. Configure Through Web Interface
 
@@ -700,7 +711,7 @@ VITE v5.x.x  ready in xxx ms
 ```
 
 **✅ Frontend is running when you see:**
-- "Local: http://localhost:3000/" message
+- "Local: http://localhost:3000/" message (Note: Use http://127.0.0.1:3000 to access)
 - No error messages
 - Keep this terminal window open too!
 
@@ -716,7 +727,7 @@ VITE v5.x.x  ready in xxx ms
 
 Open your web browser and visit:
 
-**🌐 http://localhost:3000**
+**🌐 http://127.0.0.1:3000**
 
 **What you'll see:**
 - 📊 Real-time account balance
@@ -957,7 +968,7 @@ Each decision cycle (default 3 minutes), the system executes the following intel
 
 ## 🔐 Deployment Modes
 
-NOFX supports two deployment modes for different use cases:
+AI Trading 24x7 supports two deployment modes for different use cases:
 
 ### Secure Mode (TRANSPORT_ENCRYPTION=true)
 

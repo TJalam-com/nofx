@@ -117,7 +117,7 @@ export function SignalSourceModal({
                   className="block text-sm font-semibold mb-2"
                   style={{ color: '#EAECEF' }}
                 >
-                  Select Trader to Follow
+                  Select Trader to Follow (Copy Trading Required)
                 </label>
                 {loading ? (
                   <div className="text-sm" style={{ color: '#848E9C' }}>
@@ -146,9 +146,16 @@ export function SignalSourceModal({
                     ))}
                   </select>
                 )}
-                <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                  Select a running trader from any user to copy their trades.
-                  Click "Create Trader" to open the trader configuration with this trader's settings.
+                <div className="text-xs mt-1 space-y-1" style={{ color: '#848E9C' }}>
+                  <div>
+                    <strong>Important:</strong> Followers cannot create independent traders. You must use copy trading to follow a parent trader.
+                  </div>
+                  <div>
+                    Select a running trader to copy their trades. If the parent trader has TradingView enabled, you will receive <strong>instant signals</strong> using your configured AI prompt and model settings.
+                  </div>
+                  <div>
+                    Click "Create Trader" to open the trader configuration with this trader's settings.
+                  </div>
                 </div>
                 {userIsFollower && (!hasConfiguredModels || !hasConfiguredExchanges) && (
                   <div
@@ -172,7 +179,7 @@ export function SignalSourceModal({
                         <div>• Please configure at least one exchange with API keys</div>
                       )}
                       <div className="mt-2">
-                        You must configure both before selecting a trader to follow.
+                        You must configure both before selecting a trader to follow. Your selected AI prompt and model will be used to process instant TradingView signals from the parent trader.
                       </div>
                     </div>
                   </div>

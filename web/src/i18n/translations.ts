@@ -737,6 +737,12 @@ export const translations = {
     lighterPrivateKeyDesc: 'L1 private key for account identification (32-byte ECDSA key)',
     lighterApiKeyPrivateKeyDesc: 'API Key private key for transaction signing (40-byte Poseidon2 key)',
     lighterApiKeyOptionalNote: 'Without API Key, system will use limited V1 mode',
+
+    // Wallet Address Display
+    showAddress: 'Show full address',
+    hideAddress: 'Hide address',
+    copyAddress: 'Copy address',
+    copiedToClipboard: 'Copied to clipboard',
     lighterV1Description: 'Basic Mode - Limited functionality, testing framework only',
     lighterV2Description: 'Full Mode - Supports Poseidon2 signing and real trading',
     lighterPrivateKeyImported: 'LIGHTER private key imported',
@@ -1115,7 +1121,6 @@ export const translations = {
     betaCodeDescription: 'Beta code consists of 6 alphanumeric characters, case-sensitive',
     hidePassword: 'Hide password',
     showPassword: 'Show password',
-    copiedToClipboard: 'Copied to clipboard',
     copyFailed: 'Copy failed, please copy manually',
     copied: '✓ Copied',
     yes: 'Yes',
@@ -1211,7 +1216,7 @@ export const translations = {
     fullControlDesc: 'Complete control over AI prompts, trading strategies, and your funds',
     startupMessages1: 'Starting automated trading system...',
     startupMessages2: 'API server started on port 8080',
-    startupMessages3: 'Web console http://localhost:3000',
+    startupMessages3: 'Web console http://127.0.0.1:3000',
 
     // How It Works Section
     howToStart: 'How to Get Started with AI Trading 24x7',
@@ -2549,6 +2554,9 @@ export const translations = {
     showPassword: '显示密码',
     copiedToClipboard: '已复制到剪贴板',
     copyFailed: '复制失败，请手动复制',
+    showAddress: '显示完整地址',
+    hideAddress: '隐藏地址',
+    copyAddress: '复制地址',
     copied: '✓ 已复制',
     yes: '是',
     no: '否',
@@ -2730,7 +2738,7 @@ export const translations = {
     fullControlDesc: '完全掌控 AI 提示词、交易策略和资金',
     startupMessages1: '启动自动交易系统...',
     startupMessages2: 'API服务器启动在端口 8080',
-    startupMessages3: 'Web 控制台 http://localhost:3000',
+    startupMessages3: 'Web 控制台 http://127.0.0.1:3000',
 
     // How It Works Section
     howToStart: '如何开始使用 AI Trading 24x7',

@@ -68,6 +68,9 @@ function TradingViewChartComponent({
 
   // When defaultSymbol changes, update local symbol
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:70',message:'Default symbol effect',data:{defaultSymbol,currentSymbol:symbol,willUpdate:defaultSymbol && defaultSymbol !== symbol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     if (defaultSymbol && defaultSymbol !== symbol) {
       setSymbol(defaultSymbol)
     }
@@ -88,11 +91,18 @@ function TradingViewChartComponent({
     const exchangeInfo = EXCHANGES.find((e) => e.id === exchange)
     const prefix = exchangeInfo?.prefix || 'BINANCE:'
     const suffix = exchangeInfo?.suffix || '.P'
-    return `${prefix}${symbol}${suffix}`
+    const fullSymbol = `${prefix}${symbol}${suffix}`
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:91',message:'Full symbol generated',data:{symbol,exchange,prefix,suffix,fullSymbol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    return fullSymbol
   }
 
   // Load TradingView Widget
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:95',message:'Widget useEffect triggered',data:{symbol,exchange,timeInterval,hasContainer:!!containerRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     if (!containerRef.current) return
 
     // Clear container
@@ -118,10 +128,12 @@ function TradingViewChartComponent({
       'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
     script.type = 'text/javascript'
     script.async = true
-    script.innerHTML = JSON.stringify({
+    
+    const fullSymbol = getFullSymbol()
+    const widgetConfig = {
       width: '100%',
       height: '100%',
-      symbol: getFullSymbol(),
+      symbol: fullSymbol,
       interval: timeInterval,
       timezone: 'Etc/UTC',
       theme: 'dark',
@@ -136,7 +148,44 @@ function TradingViewChartComponent({
       calendar: false,
       hide_volume: false,
       support_host: 'https://www.tradingview.com',
-    })
+    }
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:142',message:'Widget config created',data:{widgetConfig,fullSymbol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    script.innerHTML = JSON.stringify(widgetConfig)
+    
+    // Add error handling
+    script.onerror = () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:145',message:'Script onerror fired',data:{fullSymbol,scriptSrc:script.src},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      console.error('Failed to load TradingView widget script')
+      if (containerRef.current) {
+        containerRef.current.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #848E9C; flex-direction: column; gap: 8px; padding: 20px;">
+            <div style="font-size: 14px;">⚠️ Failed to load TradingView chart</div>
+            <div style="font-size: 12px; text-align: center;">Please check your internet connection or try refreshing the page</div>
+          </div>
+        `
+      }
+    }
+
+    // Monitor widget initialization
+    script.onload = () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:157',message:'Script onload fired',data:{fullSymbol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      // Check if widget rendered after a delay
+      setTimeout(() => {
+        const widgetElement = containerRef.current?.querySelector('.tradingview-widget-container__widget')
+        const hasContent = widgetElement && widgetElement.children.length > 0
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:161',message:'Widget render check',data:{fullSymbol,hasContent,childrenCount:widgetElement?.children.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+      }, 2000)
+    }
 
     widgetContainer.appendChild(script)
 
@@ -149,12 +198,19 @@ function TradingViewChartComponent({
 
   // Handle custom symbol input
   const handleCustomSymbolSubmit = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:167',message:'Custom symbol submit called',data:{customSymbol:customSymbol.trim(),exchange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     if (customSymbol.trim()) {
       let sym = customSymbol.trim().toUpperCase()
+      const originalSym = sym
       // If no USDT suffix, add automatically
       if (!sym.endsWith('USDT')) {
         sym = sym + 'USDT'
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:174',message:'Symbol transformed',data:{originalSym,transformedSym:sym,exchange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       setSymbol(sym)
       setCustomSymbol('')
       setShowSymbolDropdown(false)

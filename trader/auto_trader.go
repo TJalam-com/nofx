@@ -1190,12 +1190,50 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 			}
 		}
 
-		// Verify order was actually filled
-		if finalOrderStatus != "FILLED" && finalOrderStatus != "PARTIALLY_FILLED" {
-			return fmt.Errorf("order not filled: status=%s, orderId=%s. Order may have been rejected, canceled, or expired", finalOrderStatus, orderIDStr)
+		// Verify order was actually filled - use multiple fallback methods
+		orderFilled := false
+
+		// Method 1: Check status
+		if finalOrderStatus == "FILLED" || finalOrderStatus == "PARTIALLY_FILLED" {
+			orderFilled = true
+			log.Printf("  ✓ Order status confirmed: %s", finalOrderStatus)
 		}
 
-		// Verify executed quantity is greater than 0
+		// Method 2: Check executed quantity (even if status is empty, executedQty > 0 means filled)
+		if actualExecutedQty > 0 {
+			orderFilled = true
+			log.Printf("  ✓ Order executed quantity confirmed: %.4f", actualExecutedQty)
+		}
+
+		// Method 3: Fallback - check if position exists in Binance
+		if !orderFilled {
+			log.Printf("  🔍 Status check inconclusive (status=%s, execQty=%.4f), checking position as fallback...", finalOrderStatus, actualExecutedQty)
+			positions, err := at.trader.GetPositions()
+			if err == nil {
+				for _, pos := range positions {
+					if pos["symbol"] == decision.Symbol && pos["side"] == "long" {
+						posAmt, _ := pos["positionAmt"].(float64)
+						if posAmt > 0 {
+							orderFilled = true
+							actualExecutedQty = posAmt
+							if entryPrice, ok := pos["entryPrice"].(float64); ok && entryPrice > 0 {
+								actualFillPrice = entryPrice
+								actionRecord.Price = entryPrice
+							}
+							log.Printf("  ✓ Position verified in Binance: quantity=%.4f, entryPrice=%.4f", posAmt, actualFillPrice)
+							break
+						}
+					}
+				}
+			}
+		}
+
+		// Final verification - fail only if all methods indicate order not filled
+		if !orderFilled {
+			return fmt.Errorf("order not filled: status=%s, orderId=%s, execQty=%.4f. Order may have been rejected, canceled, or expired", finalOrderStatus, orderIDStr, actualExecutedQty)
+		}
+
+		// Verify executed quantity is greater than 0 (final check)
 		if actualExecutedQty <= 0 {
 			return fmt.Errorf("order executed quantity is 0: status=%s, orderId=%s. Order was not filled", finalOrderStatus, orderIDStr)
 		}
@@ -1351,12 +1389,50 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 			}
 		}
 
-		// Verify order was actually filled
-		if finalOrderStatus != "FILLED" && finalOrderStatus != "PARTIALLY_FILLED" {
-			return fmt.Errorf("order not filled: status=%s, orderId=%s. Order may have been rejected, canceled, or expired", finalOrderStatus, orderIDStr)
+		// Verify order was actually filled - use multiple fallback methods
+		orderFilled := false
+
+		// Method 1: Check status
+		if finalOrderStatus == "FILLED" || finalOrderStatus == "PARTIALLY_FILLED" {
+			orderFilled = true
+			log.Printf("  ✓ Order status confirmed: %s", finalOrderStatus)
 		}
 
-		// Verify executed quantity is greater than 0
+		// Method 2: Check executed quantity (even if status is empty, executedQty > 0 means filled)
+		if actualExecutedQty > 0 {
+			orderFilled = true
+			log.Printf("  ✓ Order executed quantity confirmed: %.4f", actualExecutedQty)
+		}
+
+		// Method 3: Fallback - check if position exists in Binance
+		if !orderFilled {
+			log.Printf("  🔍 Status check inconclusive (status=%s, execQty=%.4f), checking position as fallback...", finalOrderStatus, actualExecutedQty)
+			positions, err := at.trader.GetPositions()
+			if err == nil {
+				for _, pos := range positions {
+					if pos["symbol"] == decision.Symbol && pos["side"] == "short" {
+						posAmt, _ := pos["positionAmt"].(float64)
+						if posAmt < 0 { // Short positions have negative amount
+							orderFilled = true
+							actualExecutedQty = -posAmt // Convert to positive
+							if entryPrice, ok := pos["entryPrice"].(float64); ok && entryPrice > 0 {
+								actualFillPrice = entryPrice
+								actionRecord.Price = entryPrice
+							}
+							log.Printf("  ✓ Position verified in Binance: quantity=%.4f, entryPrice=%.4f", actualExecutedQty, actualFillPrice)
+							break
+						}
+					}
+				}
+			}
+		}
+
+		// Final verification - fail only if all methods indicate order not filled
+		if !orderFilled {
+			return fmt.Errorf("order not filled: status=%s, orderId=%s, execQty=%.4f. Order may have been rejected, canceled, or expired", finalOrderStatus, orderIDStr, actualExecutedQty)
+		}
+
+		// Verify executed quantity is greater than 0 (final check)
 		if actualExecutedQty <= 0 {
 			return fmt.Errorf("order executed quantity is 0: status=%s, orderId=%s. Order was not filled", finalOrderStatus, orderIDStr)
 		}

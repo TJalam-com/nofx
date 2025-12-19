@@ -1,12 +1,10 @@
-# 🏗️ NOFX Architecture Documentation
-
-**Language:** [English](README.md) | [中文](README.zh-CN.md)
+# NOFX Architecture Documentation
 
 Technical documentation for developers who want to understand NOFX internals.
 
 ---
 
-## 📋 Overview
+## Overview
 
 NOFX is a full-stack AI trading platform with:
 - **Backend:** Go (Gin framework, SQLite)
@@ -15,114 +13,111 @@ NOFX is a full-stack AI trading platform with:
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 nofx/
 ├── main.go                          # Program entry (multi-trader manager)
-├── config.json                      # ~~Multi-trader config~~ (Now via web interface)
-├── trading.db                       # SQLite database (traders, models, exchanges)
+├── config.json                      # Configuration (now via web interface)
+├── trading.db                       # SQLite database
 │
 ├── api/                            # HTTP API service
-│   └── server.go                   # Gin framework, RESTful API
+│   ├── server.go                   # Gin framework RESTful API
+│   ├── strategy.go                 # Strategy management endpoints
+│   ├── webhook.go                  # Webhook handling
+│   └── backtest.go                 # Backtest API endpoints
 │
-├── trader/                         # Trading core
-│   ├── auto_trader.go              # Auto trading main controller
+├── trader/                         # Trading execution layer
+│   ├── auto_trader.go              # Main trading orchestrator
 │   ├── interface.go                # Unified trader interface
 │   ├── binance_futures.go          # Binance API wrapper
+│   ├── bybit_trader.go             # Bybit API wrapper
+│   ├── okx_trader.go               # OKX API wrapper
 │   ├── hyperliquid_trader.go       # Hyperliquid DEX wrapper
-│   └── aster_trader.go             # Aster DEX wrapper
+│   ├── aster_trader.go             # Aster DEX wrapper
+│   ├── lighter_trader_v2.go        # Lighter DEX wrapper (V2)
+│   └── position.go                 # Position management
 │
 ├── manager/                        # Multi-trader management
 │   └── trader_manager.go           # Manages multiple trader instances
-│
-├── config/                         # Configuration & database
-│   └── database.go                 # SQLite operations and schema
-│
-├── auth/                           # Authentication
-│   └── jwt.go                      # JWT token management & 2FA
-│
-├── mcp/                            # Model Context Protocol - AI communication
-│   └── client.go                   # AI API client (DeepSeek/Qwen/Custom)
 │
 ├── decision/                       # AI decision engine
 │   ├── engine.go                   # Decision logic with historical feedback
 │   └── prompt_manager.go           # Prompt template system
 │
-├── market/                         # Market data fetching
-│   └── data.go                     # Market data & technical indicators (TA-Lib)
-│   └── api_client.go               # Market data acquisition API
-│   └── websocket_client.go         # Market data acquisition WebSocket interface
-│   └── combined_streams.go         # Market data acquisition: Combined streaming (single link to subscribe to multiple cryptocurrencies)
+├── market/                         # Market data system
+│   ├── data.go                     # Market data & technical indicators
+│   ├── api_client.go               # Market data API client
+│   ├── websocket_client.go         # WebSocket data streaming
+│   ├── combined_streams.go         # Combined streaming interface
 │   └── monitor.go                  # Market data cache
-│   └── types.go                    # market structure
-
+│
+├── mcp/                            # Model Context Protocol - AI communication
+│   ├── client.go                   # AI API client interface
+│   ├── deepseek_client.go          # DeepSeek client
+│   ├── qwen_client.go              # Qwen client
+│   ├── openai_client.go            # OpenAI client
+│   ├── claude_client.go            # Claude client
+│   ├── gemini_client.go            # Gemini client
+│   ├── grok_client.go              # Grok client
+│   └── kimi_client.go              # Kimi client
+│
+├── config/                         # Configuration & database
+│   ├── database.go                 # SQLite operations and schema
+│   └── config.go                  # Configuration management
+│
+├── auth/                           # Authentication
+│   └── auth.go                     # JWT token management & 2FA
+│
+├── backtest/                       # Backtesting system
+│   ├── runner.go                   # Backtest execution engine
+│   ├── manager.go                  # Backtest lifecycle management
+│   ├── storage.go                  # Backtest data storage
+│   └── metrics.go                  # Performance metrics calculation
+│
+├── bootstrap/                      # Module initialization framework
+│   ├── bootstrap.go                # Bootstrap system
+│   └── context.go                  # Initialization context
+│
+├── crypto/                         # Cryptography & encryption
+│   ├── encryption.go               # Data encryption utilities
+│   └── secure_storage.go           # Secure storage interface
+│
+├── hook/                           # Event hooks system
+│   ├── hooks.go                    # Hook registry
+│   ├── trader_hook.go              # Trader lifecycle hooks
+│   └── http_client_hook.go         # HTTP client hooks
+│
+├── logger/                         # Logging system
+│   ├── logger.go                   # Logger interface
+│   ├── decision_logger.go          # Decision recording
+│   └── telegram_hook.go            # Telegram notification hooks
+│
 ├── pool/                           # Coin pool management
 │   └── coin_pool.go                # AI500 + OI Top merged pool
 │
-├── logger/                         # Logging system
-│   └── decision_logger.go          # Decision recording + performance analysis
-│
-├── decision_logs/                  # Decision log storage (JSON files)
-│   ├── {trader_id}/                # Per-trader logs
-│   └── {timestamp}.json            # Individual decisions
+├── security/                       # Security utilities
+│   └── url_validator.go            # URL validation
 │
 └── web/                            # React frontend
     ├── src/
     │   ├── components/             # React components
-    │   │   ├── EquityChart.tsx     # Equity curve chart
-    │   │   ├── ComparisonChart.tsx # Multi-AI comparison chart
-    │   │   └── CompetitionPage.tsx # Competition leaderboard
-    │   ├── lib/api.ts              # API call wrapper
-    │   ├── types/index.ts          # TypeScript types
+    │   ├── lib/api.ts              # API client
     │   ├── stores/                 # Zustand state management
-    │   ├── index.css               # Binance-style CSS
     │   └── App.tsx                 # Main app
-    ├── package.json                # Frontend dependencies
-    └── vite.config.ts              # Vite configuration
+    └── package.json                # Frontend dependencies
 ```
 
 ---
 
-## 🔧 Core Dependencies
-
-### Backend (Go)
-
-| Package | Purpose | Version |
-|---------|---------|---------|
-| `github.com/gin-gonic/gin` | HTTP API framework | v1.9+ |
-| `github.com/adshao/go-binance/v2` | Binance API client | v2.4+ |
-| `github.com/markcheno/go-talib` | Technical indicators (TA-Lib) | Latest |
-| `github.com/lib/pq` | PostgreSQL database driver | v1.10+ |
-| `github.com/golang-jwt/jwt/v5` | JWT authentication | v5.0+ |
-| `github.com/pquerna/otp` | 2FA/TOTP support | v1.4+ |
-| `golang.org/x/crypto` | Password hashing (bcrypt) | Latest |
-
-### Frontend (React + TypeScript)
-
-| Package | Purpose | Version |
-|---------|---------|---------|
-| `react` + `react-dom` | UI framework | 18.3+ |
-| `typescript` | Type safety | 5.8+ |
-| `vite` | Build tool | 6.0+ |
-| `recharts` | Charts (equity, comparison) | 2.15+ |
-| `swr` | Data fetching & caching | 2.2+ |
-| `zustand` | State management | 5.0+ |
-| `tailwindcss` | CSS framework | 3.4+ |
-| `lucide-react` | Icon library | Latest |
-
----
-
-## 🗂️ System Architecture
-
-### High-Level Overview
+## System Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                      PRESENTATION LAYER                          │
 │    React SPA (Vite + TypeScript + TailwindCSS)                  │
 │    - Competition dashboard, trader management UI                 │
-│    - Real-time charts (Recharts), authentication pages           │
+│    - Real-time charts, authentication pages                      │
 └──────────────────────────────────────────────────────────────────┘
                              ↓ HTTP/JSON API
 ┌──────────────────────────────────────────────────────────────────┐
@@ -146,45 +141,31 @@ nofx/
 │  │ SQLite DB    │  │ File Logger  │  │ External APIs      │     │
 │  │ - Traders    │  │ - Decisions  │  │ - Binance          │     │
 │  │ - Models     │  │ - Performance│  │ - Hyperliquid      │     │
-│  │ - Exchanges  │  │   analysis   │  │ - Aster            │     │
+│  │ - Exchanges  │  │   analysis   │  │ - Aster/Lighter    │     │
 │  └──────────────┘  └──────────────┘  └────────────────────┘     │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### Component Diagram
-
-*(Coming soon: detailed component interaction diagram)*
-
 ---
 
-## 📚 Core Modules
+## Core Modules
 
-### 1. Trader System (`trader/`)
+### Trader System (`trader/`)
 
 **Purpose:** Trading execution layer with multi-exchange support
 
 **Key Files:**
-- `auto_trader.go` - Main trading orchestrator (100+ lines)
+- `auto_trader.go` - Main trading orchestrator
 - `interface.go` - Unified trader interface
-- `binance_futures.go` - Binance API wrapper
-- `hyperliquid_trader.go` - Hyperliquid DEX wrapper
-- `aster_trader.go` - Aster DEX wrapper
+- `binance_futures.go`, `bybit_trader.go`, `okx_trader.go` - CEX wrappers
+- `hyperliquid_trader.go`, `aster_trader.go`, `lighter_trader_v2.go` - DEX wrappers
+- `position.go` - Position management
 
 **Design Pattern:** Strategy pattern with interface-based abstraction
 
-**Example:**
-```go
-type ExchangeClient interface {
-    GetAccount() (*AccountInfo, error)
-    GetPositions() ([]*Position, error)
-    CreateOrder(*OrderParams) (*Order, error)
-    // ... more methods
-}
-```
-
 ---
 
-### 2. Decision Engine (`decision/`)
+### Decision Engine (`decision/`)
 
 **Purpose:** AI-powered trading decision making
 
@@ -196,35 +177,72 @@ type ExchangeClient interface {
 - Chain-of-Thought reasoning
 - Historical performance analysis
 - Risk-aware decision making
-- Multi-model support (DeepSeek, Qwen, custom)
+- Multi-model support
 
-**Flow:**
-```
-Historical Data → Prompt Generation → AI API Call →
-Decision Parsing → Risk Validation → Execution
-```
+**Documentation:** See [Strategy Module Technical Documentation](STRATEGY_MODULE.md) for complete data flow, prompt construction, AI response parsing, and risk control enforcement.
 
 ---
 
-### 3. Market Data System (`market/`)
+### Market Data System (`market/`)
 
 **Purpose:** Fetch and analyze market data
 
 **Key Files:**
 - `data.go` - Market data fetching and technical indicators
+- `api_client.go` - Market data API client
+- `websocket_client.go` - WebSocket streaming
+- `combined_streams.go` - Combined streaming interface
+- `monitor.go` - Market data cache
 
 **Features:**
-- Multi-timeframe K-line data (3min, 4hour)
-- Technical indicators via TA-Lib:
-  - EMA (20, 50)
-  - MACD
-  - RSI (7, 14)
-  - ATR (volatility)
+- Multi-timeframe K-line data
+- Technical indicators (EMA, MACD, RSI, ATR)
 - Open Interest tracking
+- Real-time data streaming
 
 ---
 
-### 4. Manager (`manager/`)
+### MCP Client (`mcp/`)
+
+**Purpose:** AI model communication layer
+
+**Key Files:**
+- `client.go` - AI API client interface
+- `deepseek_client.go`, `qwen_client.go` - Primary AI clients
+- `openai_client.go`, `claude_client.go`, `gemini_client.go` - Additional AI clients
+- `grok_client.go`, `kimi_client.go` - Extended AI clients
+
+**Supported Models:** DeepSeek, Qwen, OpenAI, Claude, Gemini, Grok, Kimi
+
+---
+
+### API Server (`api/`)
+
+**Purpose:** HTTP API for frontend communication
+
+**Key Files:**
+- `server.go` - Gin framework RESTful API
+- `strategy.go` - Strategy management endpoints
+- `webhook.go` - Webhook handling
+- `backtest.go` - Backtest API endpoints
+
+**Endpoints:** `/api/traders`, `/api/status`, `/api/positions`, `/api/decisions`, `/api/strategies`, `/api/backtests`
+
+---
+
+### Database Layer (`config/`)
+
+**Purpose:** SQLite data persistence
+
+**Key Files:**
+- `database.go` - Database operations and schema
+- `config.go` - Configuration management
+
+**Tables:** `users`, `ai_models`, `exchanges`, `traders`, `strategies`, `equity_history`, `decision_logs`, `backtest_runs`
+
+---
+
+### Manager (`manager/`)
 
 **Purpose:** Multi-trader orchestration
 
@@ -238,75 +256,137 @@ Decision Parsing → Risk Validation → Execution
 
 ---
 
-### 5. API Server (`api/`)
-
-**Purpose:** HTTP API for frontend communication
-
-**Key Files:**
-- `server.go` - Gin framework RESTful API
-
-**Endpoints:**
-```
-GET  /api/traders           # List all traders
-POST /api/traders           # Create trader
-POST /api/traders/:id/start # Start trader
-GET  /api/status            # System status
-GET  /api/positions         # Current positions
-GET  /api/decisions/latest  # Recent decisions
-```
-
----
-
-### 6. Database Layer (`config/`)
-
-**Purpose:** SQLite data persistence
-
-**Key Files:**
-- `database.go` - Database operations and schema
-
-**Tables:**
-- `users` - User accounts (with 2FA support)
-- `ai_models` - AI model configurations
-- `exchanges` - Exchange credentials
-- `traders` - Trader instances
-- `equity_history` - Performance tracking
-- `system_config` - Application settings
-
----
-
-### 7. Authentication (`auth/`)
+### Authentication (`auth/`)
 
 **Purpose:** User authentication and authorization
+
+**Key Files:**
+- `auth.go` - JWT token management & 2FA
 
 **Features:**
 - JWT token-based auth
 - 2FA with TOTP (Google Authenticator)
 - Bcrypt password hashing
-- Admin mode (simplified single-user)
+- Role-based access control
 
 ---
 
-## 🔄 Request Flow Examples
+### Backtest System (`backtest/`)
 
-### Example 1: Create New Trader
+**Purpose:** Historical strategy backtesting
 
-```
-User Action (Frontend)
-    ↓
-POST /api/traders
-    ↓
-API Server (auth middleware)
-    ↓
-Database.CreateTrader()
-    ↓
-TraderManager.StartTrader()
-    ↓
-AutoTrader.Run() → goroutine
-    ↓
-Response: {trader_id, status}
-```
+**Key Files:**
+- `runner.go` - Backtest execution engine
+- `manager.go` - Backtest lifecycle management
+- `storage.go` - Backtest data storage
+- `metrics.go` - Performance metrics calculation
 
-### Example 2: Trading Decision Cycle
+**Features:**
+- Historical data replay
+- Strategy performance analysis
+- Equity curve generation
+- Trade-by-trade analysis
+
+---
+
+### Bootstrap (`bootstrap/`)
+
+**Purpose:** Module initialization framework
+
+**Key Files:**
+- `bootstrap.go` - Bootstrap system
+- `context.go` - Initialization context
+- `hook_builder.go` - Hook registration
+
+**Features:**
+- Priority-based initialization
+- Hook system for module dependencies
+- Context sharing between modules
+
+**Documentation:** See `bootstrap/README.md` for detailed usage.
+
+---
+
+### Cryptography (`crypto/`)
+
+**Purpose:** Data encryption and secure storage
+
+**Key Files:**
+- `encryption.go` - Data encryption utilities
+- `secure_storage.go` - Secure storage interface
+
+**Features:**
+- AES-256 encryption
+- RSA key management
+- Secure credential storage
+
+---
+
+### Hook System (`hook/`)
+
+**Purpose:** Event hooks for extensibility
+
+**Key Files:**
+- `hooks.go` - Hook registry
+- `trader_hook.go` - Trader lifecycle hooks
+- `http_client_hook.go` - HTTP client hooks
+
+**Features:**
+- Trader lifecycle events
+- HTTP request/response hooks
+- IP validation hooks
+
+**Documentation:** See `hook/README.md` for detailed usage.
+
+---
+
+### Logger (`logger/`)
+
+**Purpose:** Logging and notification system
+
+**Key Files:**
+- `logger.go` - Logger interface
+- `decision_logger.go` - Decision recording
+- `telegram_hook.go` - Telegram notifications
+
+**Features:**
+- Structured logging
+- Decision log persistence
+- Telegram notifications
+- Performance tracking
+
+---
+
+### Coin Pool (`pool/`)
+
+**Purpose:** Coin selection and pool management
+
+**Key Files:**
+- `coin_pool.go` - AI500 + OI Top merged pool
+
+**Features:**
+- AI500 coin pool integration
+- OI Top ranking integration
+- Coin deduplication and merging
+
+---
+
+### Security (`security/`)
+
+**Purpose:** Security utilities and validation
+
+**Key Files:**
+- `url_validator.go` - URL validation
+
+**Features:**
+- URL validation
+- Security policy enforcement
+
+---
+
+## Request Flow
+
+### Trading Decision Cycle
 
 ```
 AutoTrader (every 3-5 min)
@@ -315,243 +395,99 @@ AutoTrader (every 3-5 min)
     ↓
 2. GetOpenPositions()
     ↓
-3. FetchMarketData() → TA-Lib indicators
+3. FetchMarketData() → Technical indicators
     ↓
-4. AnalyzeHistory() → last 20 trades
+4. AnalyzeHistory() → Last 20 trades
     ↓
-5. GeneratePrompt() → full context
+5. GeneratePrompt() → Full context
     ↓
-6. CallAI() → DeepSeek/Qwen
+6. CallAI() → DeepSeek/Qwen/Claude/etc
     ↓
-7. ParseDecision() → structured output
+7. ParseDecision() → Structured output
     ↓
-8. ValidateRisk() → position limits, margin
+8. ValidateRisk() → Position limits, margin
     ↓
-9. ExecuteOrders() → exchange API
+9. ExecuteOrders() → Exchange API
     ↓
-10. LogDecision() → JSON file + database
+10. LogDecision() → Database + JSON files
 ```
+
+**Documentation:** See [Strategy Module Documentation](STRATEGY_MODULE.md#7-decision-execution-execution) for complete execution flow, risk control enforcement, and order processing details.
 
 ---
 
-## 📊 Data Flow
+## Related Documentation
 
-### Market Data Flow
+### Architecture Documentation
 
-```
-Exchange API
-    ↓
-market.FetchKlines()
-    ↓
-TA-Lib.Calculate(EMA, MACD, RSI)
-    ↓
-DecisionEngine (as context)
-    ↓
-AI Model (reasoning)
-```
+- **[Strategy Module](STRATEGY_MODULE.md)** - Complete strategy module technical documentation
+  - Data flow from coin selection to execution
+  - System/user prompt construction details
+  - AI response parsing and validation
+  - Risk control enforcement
+  - Code file references with line numbers
 
-### Decision Logging Flow
+### Module-Specific Documentation
 
-```
-AI Response
-    ↓
-decision_logger.go
-    ↓
-JSON file: decision_logs/{trader_id}/{timestamp}.json
-    ↓
-Database: performance tracking
-    ↓
-Frontend: /api/decisions/latest
-```
+- **Bootstrap:** `bootstrap/README.md` - Module initialization framework
+- **Hook System:** `hook/README.md` - Event hooks and extensibility
+- **MCP Client:** `mcp/intro/README.md` - Model Context Protocol implementation
+
+### Other Documentation
+
+- [Getting Started](../getting-started/README.md) - Setup and deployment
+- [Contributing](../../CONTRIBUTING.md) - How to contribute
+- [Community](../community/README.md) - Bounties and recognition
+- [Prompt Guide](../prompt-guide.md) - AI prompt writing guide
 
 ---
 
-## 🗄️ Database Schema
+## Dependencies
 
-### Core Tables
+**Backend:** See `go.mod` for complete dependency list
 
-**users**
-```sql
-- id (INTEGER PRIMARY KEY)
-- username (TEXT UNIQUE)
-- password_hash (TEXT)
-- totp_secret (TEXT)
-- is_admin (BOOLEAN)
-- created_at (DATETIME)
-```
+**Key Packages:**
+- `github.com/gin-gonic/gin` - HTTP API framework
+- `github.com/adshao/go-binance/v2` - Binance API client
+- `modernc.org/sqlite` - SQLite database driver
+- `github.com/golang-jwt/jwt/v5` - JWT authentication
+- `github.com/sonirico/go-hyperliquid` - Hyperliquid DEX client
 
-**ai_models**
-```sql
-- id (INTEGER PRIMARY KEY)
-- name (TEXT)
-- model_type (TEXT) -- deepseek, qwen, custom
-- api_key (TEXT)
-- api_url (TEXT)
-- enabled (BOOLEAN)
-```
+**Frontend:** See `web/package.json` for complete dependency list
 
-**traders**
-```sql
-- id (TEXT PRIMARY KEY)
-- name (TEXT)
-- ai_model_id (INTEGER FK)
-- exchange_id (INTEGER FK)
-- initial_balance (REAL)
-- current_equity (REAL)
-- status (TEXT) -- running, stopped
-- created_at (DATETIME)
-```
-
-*(More details: database-schema.md - coming soon)*
+**Key Packages:**
+- `react` + `react-dom` - UI framework
+- `vite` - Build tool
+- `recharts` - Charts library
+- `swr` - Data fetching & caching
+- `zustand` - State management
 
 ---
 
-## 🔌 API Reference
+## Development
 
-### Authentication
-
-**POST /api/auth/login**
-```json
-Request: {
-  "username": "string",
-  "password": "string",
-  "totp_code": "string" // optional
-}
-
-Response: {
-  "token": "jwt_token",
-  "user": {...}
-}
-```
-
-### Trader Management
-
-**GET /api/traders**
-```json
-Response: {
-  "traders": [
-    {
-      "id": "string",
-      "name": "string",
-      "status": "running|stopped",
-      "balance": 1000.0,
-      "roi": 5.2
-    }
-  ]
-}
-```
-
-*(Full API reference: api-reference.md - coming soon)*
-
----
-
-## 🧪 Testing Architecture
-
-### Current State
-- ⚠️ No unit tests yet
-- ⚠️ Manual testing only
-- ⚠️ Testnet verification
-
-### Planned Testing Strategy
-
-**Unit Tests (Priority 1)**
-```
-trader/binance_futures_test.go
-- Mock API responses
-- Test precision handling
-- Validate order construction
-```
-
-**Integration Tests (Priority 2)**
-```
-- End-to-end trading flow (testnet)
-- Multi-trader scenarios
-- Database operations
-```
-
-**Frontend Tests (Priority 3)**
-```
-- Component tests (Vitest + React Testing Library)
-- API integration tests
-- E2E tests (Playwright)
-```
-
-*(Testing guide: testing-guide.md - coming soon)*
-
----
-
-## 🔧 Development Tools
-
-### Build & Run
-
+**Build & Run:**
 ```bash
 # Backend
 go build -o nofx
 ./nofx
 
 # Frontend
-cd web
-npm run dev
+cd web && npm run dev
 
 # Docker
 docker compose up --build
 ```
 
-### Code Quality
-
+**Code Quality:**
 ```bash
-# Format Go code
 go fmt ./...
-
-# Lint (if configured)
-golangci-lint run
-
-# Type check TypeScript
 cd web && npm run build
 ```
 
 ---
 
-## 📈 Performance Considerations
-
-### Backend
-- **Concurrency:** Each trader runs in separate goroutine
-- **Database:** SQLite (good for <100 traders)
-- **API Rate Limits:** Handled per exchange
-- **Memory:** ~50-100MB per trader
-
-### Frontend
-- **Data Fetching:** SWR with 5-10s polling
-- **State:** Zustand (lightweight)
-- **Bundle Size:** ~500KB (gzipped)
-
----
-
-## 🔮 Future Architecture Plans
-
-### Planned Improvements
-
-1. **Microservices Split** (if scaling needed)
-   - Separate decision engine service
-   - Market data service
-   - Execution service
-
-2. **Database Migration**
-   - Mysql for production (>100 traders)
-   - Redis for caching
-
-3. **Event-Driven Architecture**
-   - WebSocket for real-time updates
-   - Message queue (RabbitMQ/NATS)
-
-4. **Kubernetes Deployment**
-   - Helm charts
-   - Auto-scaling
-   - High availability
-
----
-
-## 🆘 For Developers
+## For Developers
 
 **Want to contribute?**
 - Read [Contributing Guide](../../CONTRIBUTING.md)
@@ -561,14 +497,6 @@ cd web && npm run build
 **Need clarification?**
 - Open a [GitHub Discussion](https://github.com/tinkle-community/nofx/discussions)
 - Ask in Telegram
-
----
-
-## 📚 Related Documentation
-
-- [Getting Started](../getting-started/README.md) - Setup and deployment
-- [Contributing](../../CONTRIBUTING.md) - How to contribute
-- [Community](../community/README.md) - Bounties and recognition
 
 ---
 

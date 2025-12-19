@@ -99,9 +99,8 @@ func (s *Server) setupRoutes() {
 		if _, err := os.Stat("./web/dist/robots.txt"); err == nil {
 			s.router.StaticFile("/robots.txt", "./web/dist/robots.txt")
 		}
-		if _, err := os.Stat("./web/dist/sitemap.xml"); err == nil {
-			s.router.StaticFile("/sitemap.xml", "./web/dist/sitemap.xml")
-		}
+		// Dynamic sitemap generation (takes precedence over static file)
+		s.router.GET("/sitemap.xml", s.handleSitemap)
 
 		// Serve index.html for root and other non-API, non-asset routes (SPA routing)
 		s.router.NoRoute(func(c *gin.Context) {
@@ -158,6 +157,10 @@ func (s *Server) setupRoutes() {
 		api.GET("/equity-history", s.handleEquityHistory)
 		api.POST("/equity-history-batch", s.handleEquityHistoryBatch)
 		api.GET("/traders/:id/public-config", s.handleGetPublicTraderConfig)
+
+		// Public article routes (no authentication required)
+		api.GET("/articles", s.handleGetPublishedArticles)
+		api.GET("/articles/:slug", s.handleGetArticleBySlug)
 
 		// Authentication related routes (no authentication required)
 		api.POST("/register", s.handleRegister)
@@ -247,6 +250,14 @@ func (s *Server) setupRoutes() {
 				adminGroup.GET("/trader-applications", s.handleGetAllTraderApplications)
 				adminGroup.PUT("/trader-applications/:id/approve", s.handleApproveTraderApplication)
 				adminGroup.PUT("/trader-applications/:id/reject", s.handleRejectTraderApplication)
+				// Article management
+				adminGroup.GET("/articles", s.handleGetArticles)
+				adminGroup.GET("/articles/:id", s.handleGetArticle)
+				adminGroup.POST("/articles", s.handleCreateArticle)
+				adminGroup.PUT("/articles/:id", s.handleUpdateArticle)
+				adminGroup.DELETE("/articles/:id", s.handleDeleteArticle)
+				adminGroup.POST("/articles/:id/publish", s.handlePublishArticle)
+				adminGroup.POST("/articles/:id/unpublish", s.handleUnpublishArticle)
 			}
 			log.Println("✅ Backtest routes registered: /api/backtest/* (non-follower users only)")
 
@@ -609,6 +620,7 @@ type SafeExchangeConfig struct {
 	HyperliquidWalletAddr string `json:"hyperliquidWalletAddr"` // Hyperliquid wallet address (not sensitive)
 	AsterUser             string `json:"asterUser"`             // Aster username (not sensitive)
 	AsterSigner           string `json:"asterSigner"`           // Aster signer (not sensitive)
+	LighterWalletAddr     string `json:"lighterWalletAddr"`     // LIGHTER wallet address (not sensitive)
 }
 
 type UpdateModelConfigRequest struct {
@@ -633,6 +645,7 @@ type UpdateExchangeConfigRequest struct {
 		LighterWalletAddr       string `json:"lighter_wallet_addr"`
 		LighterPrivateKey       string `json:"lighter_private_key"`
 		LighterAPIKeyPrivateKey string `json:"lighter_api_key_private_key"`
+		LighterAPIKeyIndex      int    `json:"lighter_api_key_index"`
 		OkxPassphrase           string `json:"okx_passphrase"`
 	} `json:"exchanges"`
 }
@@ -1016,6 +1029,11 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 				exchangeCfg.Testnet,
 			)
 		case "aster":
+			// Debug logging for Aster configuration
+			log.Printf("🔍 [Aster] Creating trader with config: user=%s (len=%d), signer=%s (len=%d), privateKey=*** (len=%d)",
+				exchangeCfg.AsterUser, len(exchangeCfg.AsterUser),
+				exchangeCfg.AsterSigner, len(exchangeCfg.AsterSigner),
+				len(exchangeCfg.AsterPrivateKey))
 			tempTrader, createErr = trader.NewAsterTrader(
 				exchangeCfg.AsterUser,
 				exchangeCfg.AsterSigner,
@@ -1923,6 +1941,11 @@ func (s *Server) handleSyncBalance(c *gin.Context) {
 			exchangeCfg.Testnet,
 		)
 	case "aster":
+		// Debug logging for Aster configuration
+		log.Printf("🔍 [Aster] Syncing balance with config: user=%s (len=%d), signer=%s (len=%d), privateKey=*** (len=%d)",
+			exchangeCfg.AsterUser, len(exchangeCfg.AsterUser),
+			exchangeCfg.AsterSigner, len(exchangeCfg.AsterSigner),
+			len(exchangeCfg.AsterPrivateKey))
 		tempTrader, createErr = trader.NewAsterTrader(
 			exchangeCfg.AsterUser,
 			exchangeCfg.AsterSigner,
@@ -1933,6 +1956,17 @@ func (s *Server) handleSyncBalance(c *gin.Context) {
 			exchangeCfg.APIKey,
 			exchangeCfg.SecretKey,
 		)
+	case "lighter":
+		if exchangeCfg.LighterWalletAddr != "" && exchangeCfg.LighterAPIKeyPrivateKey != "" {
+			// Lighter only supports mainnet
+			tempTrader, createErr = trader.NewLighterTraderV2(
+				exchangeCfg.LighterWalletAddr,
+				exchangeCfg.LighterAPIKeyPrivateKey,
+				exchangeCfg.LighterAPIKeyIndex,
+			)
+		} else {
+			createErr = fmt.Errorf("Lighter requires wallet address and API Key private key")
+		}
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported exchange type"})
 		return
@@ -2146,13 +2180,13 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 	if len(exchanges) == 0 {
 		log.Printf("📋 Database is empty, returning default exchanges")
 		defaultExchanges := []SafeExchangeConfig{
-			{ID: "binance", Name: "Binance Futures", Type: "binance", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-			{ID: "bybit", Name: "Bybit Futures", Type: "bybit", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-			{ID: "okx", Name: "OKX Futures", Type: "okx", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-			{ID: "bitget", Name: "Bitget Futures", Type: "bitget", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-			{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-			{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-			{ID: "lighter", Name: "LIGHTER DEX", Type: "lighter", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+			{ID: "binance", Name: "Binance Futures", Type: "binance", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+			{ID: "bybit", Name: "Bybit Futures", Type: "bybit", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+			{ID: "okx", Name: "OKX Futures", Type: "okx", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+			{ID: "bitget", Name: "Bitget Futures", Type: "bitget", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+			{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+			{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+			{ID: "lighter", Name: "LIGHTER DEX", Type: "lighter", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
 		}
 		c.JSON(http.StatusOK, defaultExchanges)
 		return
@@ -2183,6 +2217,7 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 			HyperliquidWalletAddr: exchange.HyperliquidWalletAddr,
 			AsterUser:             exchange.AsterUser,
 			AsterSigner:           exchange.AsterSigner,
+			LighterWalletAddr:     exchange.LighterWalletAddr,
 		}
 	}
 
@@ -2252,7 +2287,7 @@ func (s *Server) handleUpdateExchangeConfigs(c *gin.Context) {
 
 	// Update each exchange's configuration
 	for exchangeID, exchangeData := range req.Exchanges {
-		err := s.database.UpdateExchange(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.LighterWalletAddr, exchangeData.LighterPrivateKey, exchangeData.LighterAPIKeyPrivateKey, exchangeData.OkxPassphrase)
+		err := s.database.UpdateExchange(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.LighterWalletAddr, exchangeData.LighterPrivateKey, exchangeData.LighterAPIKeyPrivateKey, exchangeData.LighterAPIKeyIndex, exchangeData.OkxPassphrase)
 		if err != nil {
 			// Provide more helpful error message
 			errorMsg := err.Error()
@@ -3489,6 +3524,20 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 
 	log.Printf("📊 DEBUG [handleGetUserFollowers]: Found %d parent traders for user '%s'", len(parentTraders), userID)
 
+	// Get all user information to return user email and name for followers
+	users, err := s.database.GetAllUsersWithRoles()
+	userMap := make(map[string]gin.H) // userID -> {email, name}
+	if err == nil {
+		for _, u := range users {
+			userMap[u.ID] = gin.H{
+				"email": u.Email,
+				"name":  u.Email, // Use email as name if no separate name field
+			}
+		}
+	} else {
+		log.Printf("⚠️ Failed to get user list for follower info: %v", err)
+	}
+
 	// Build response data
 	parentTradersList := make([]gin.H, 0, len(parentTraders))
 
@@ -3519,11 +3568,25 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 			followerTrader, err := s.traderManager.GetTrader(followerRecord.ID)
 			if err != nil {
 				log.Printf("⚠️ Follower trader %s not in memory: %v", followerRecord.ID, err)
+				// Get user email and name for this follower
+				userEmail := ""
+				userName := ""
+				if userInfo, exists := userMap[followerRecord.UserID]; exists {
+					if email, ok := userInfo["email"].(string); ok {
+						userEmail = email
+					}
+					if name, ok := userInfo["name"].(string); ok {
+						userName = name
+					}
+				}
+
 				// Still add basic info even if not in memory
 				followersList = append(followersList, gin.H{
 					"trader_id":   followerRecord.ID,
 					"trader_name": followerRecord.Name,
 					"user_id":     followerRecord.UserID,
+					"user_email":  userEmail,
+					"user_name":   userName,
 					"is_running":  false,
 					"error":       "Follower trader not found in memory",
 				})
@@ -3581,11 +3644,25 @@ func (s *Server) handleGetUserFollowers(c *gin.Context) {
 				}
 			}
 
+			// Get user email and name for this follower
+			userEmail := ""
+			userName := ""
+			if userInfo, exists := userMap[followerRecord.UserID]; exists {
+				if email, ok := userInfo["email"].(string); ok {
+					userEmail = email
+				}
+				if name, ok := userInfo["name"].(string); ok {
+					userName = name
+				}
+			}
+
 			// Build follower information
 			followerInfo := gin.H{
 				"trader_id":        followerRecord.ID,
 				"trader_name":      followerRecord.Name,
 				"user_id":          followerRecord.UserID,
+				"user_email":       userEmail,
+				"user_name":        userName,
 				"is_running":       isRunning,
 				"account":          accountInfo,
 				"latest_decisions": latestDecisions,
@@ -4117,14 +4194,35 @@ func (s *Server) handleGetDefaultStrategyConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, config)
 }
 
+// getDefaultAPIURLs returns default API URLs, reading from environment variables if set
+func getDefaultAPIURLs() map[string]string {
+	coinPoolURL := os.Getenv("COIN_POOL_API_URL")
+	if coinPoolURL == "" {
+		coinPoolURL = "http://nofxaios.com:30006/api/coinpool"
+	}
+
+	oiTopURL := os.Getenv("OI_TOP_API_URL")
+	if oiTopURL == "" {
+		oiTopURL = "http://nofxaios.com:30006/api/oi/top"
+	}
+
+	quantDataURL := os.Getenv("QUANT_DATA_API_URL")
+	if quantDataURL == "" {
+		quantDataURL = "http://nofxaios.com:30006/api/coin/{symbol}?include=netflow,oi,price"
+	}
+
+	return map[string]string{
+		"coin_pool_url":  coinPoolURL,
+		"oi_top_url":     oiTopURL,
+		"quant_data_url": quantDataURL,
+	}
+}
+
 // handleGetDefaultURLs get default URLs for data sources
 func (s *Server) handleGetDefaultURLs(c *gin.Context) {
 	// Return default URLs for Coin Pool, OI Top, and Quant Data APIs
-	defaultURLs := gin.H{
-		"coin_pool_url":  "http://nofxaios.com:30006/api/coinpool",
-		"oi_top_url":     "http://nofxaios.com:30006/api/oi/top",
-		"quant_data_url": "http://nofxaios.com:30006/api/coin/{symbol}?include=netflow,oi,price",
-	}
+	// URLs can be configured via environment variables: COIN_POOL_API_URL, OI_TOP_API_URL, QUANT_DATA_API_URL
+	defaultURLs := getDefaultAPIURLs()
 	c.JSON(http.StatusOK, defaultURLs)
 }
 

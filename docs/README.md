@@ -81,8 +81,7 @@ Welcome to the NOFX documentation! This page helps you find the right documentat
 
 | Document | Description | 描述 |
 |----------|-------------|------|
-| [Architecture Overview (EN)](architecture/README.md) | System architecture, modules, and design | 系统架构、模块和设计 |
-| [Architecture Overview (中文)](architecture/README.zh-CN.md) | 系统架构、模块和设计 | System architecture overview |
+| [Architecture Overview](architecture/README.md) | System architecture, modules, and design | 系统架构、模块和设计 |
 | API Reference *(coming soon)* | HTTP API documentation | HTTP API 文档 |
 | Database Schema *(coming soon)* | SQLite database structure | SQLite 数据库结构 |
 | Testing Guide *(coming soon)* | How to write tests | 如何编写测试 |
@@ -130,7 +129,7 @@ Welcome to the NOFX documentation! This page helps you find the right documentat
 - 💬 **Ask questions** → [Telegram Community](https://t.me/nofx_dev_community)
 
 ### I'm looking for...
-- 🏗️ **System architecture** → [Architecture (EN)](architecture/README.md) / [架构文档](architecture/README.zh-CN.md)
+- 🏗️ **System architecture** → [Architecture](architecture/README.md)
 - 🗺️ **Product roadmap** → [Roadmap (EN)](roadmap/README.md) / [路线图](roadmap/README.zh-CN.md)
 - 📊 **API documentation** → Coming soon
 - 🧪 **Testing guide** → Coming soon

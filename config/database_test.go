@@ -34,6 +34,7 @@ func TestUpdateExchange_EmptyValuesShouldNotOverwrite(t *testing.T) {
 		"", // lighter_wallet_addr
 		"", // lighter_private_key
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -70,6 +71,7 @@ func TestUpdateExchange_EmptyValuesShouldNotOverwrite(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -123,6 +125,7 @@ func TestUpdateExchange_AsterEmptyValuesShouldNotOverwrite(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -144,6 +147,7 @@ func TestUpdateExchange_AsterEmptyValuesShouldNotOverwrite(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -183,6 +187,7 @@ func TestUpdateExchange_NonEmptyValuesShouldUpdate(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -207,6 +212,7 @@ func TestUpdateExchange_NonEmptyValuesShouldUpdate(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -252,6 +258,7 @@ func TestUpdateExchange_PartialUpdateShouldWork(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -273,6 +280,7 @@ func TestUpdateExchange_PartialUpdateShouldWork(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -339,6 +347,7 @@ func TestUpdateExchange_MultipleExchangeTypes(t *testing.T) {
 				"",
 				"",
 				"", // lighter_api_key_private_key
+				0,  // lighter_api_key_index
 				"", // okx_passphrase
 			)
 			if err != nil {
@@ -397,6 +406,7 @@ func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -418,6 +428,7 @@ func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -447,6 +458,7 @@ func TestUpdateExchange_MixedSensitiveFields(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -490,6 +502,7 @@ func TestUpdateExchange_OnlyNonSensitiveFields(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -511,6 +524,7 @@ func TestUpdateExchange_OnlyNonSensitiveFields(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -566,6 +580,7 @@ func TestUpdateExchange_AllSensitiveFieldsUpdate(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -587,6 +602,7 @@ func TestUpdateExchange_AllSensitiveFieldsUpdate(t *testing.T) {
 		"",
 		"",
 		"", // lighter_api_key_private_key
+		0,  // lighter_api_key_index
 		"", // okx_passphrase
 	)
 	if err != nil {
@@ -750,6 +766,7 @@ func TestDataPersistenceAcrossReopen(t *testing.T) {
 			"",
 			"",
 			"", // lighter_api_key_private_key
+			0,  // lighter_api_key_index
 			"", // okx_passphrase
 		)
 		if err != nil {
@@ -829,6 +846,7 @@ func TestConcurrentWritesWithWAL(t *testing.T) {
 				"",
 				"",
 				"", // lighter_api_key_private_key
+				0,  // lighter_api_key_index
 				"", // okx_passphrase
 			)
 			if err != nil {
@@ -857,6 +875,7 @@ func TestConcurrentWritesWithWAL(t *testing.T) {
 				"",
 				"",
 				"", // lighter_api_key_private_key
+				0,  // lighter_api_key_index
 				"", // okx_passphrase
 			)
 			if err != nil {

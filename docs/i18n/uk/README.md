@@ -315,9 +315,7 @@ NOFX побудовано на сучасній модульній архіте�
 - 🔐 Безпечне управління облікових даних
 - 📈 Система шаблонів промптів з віддаленою аутентифікацією
 
-📖 **Детальна документація по архітектурі:**
-- **English:** [Architecture Documentation](../../architecture/README.md)
-- **中文:** [架构文档](../../architecture/README.zh-CN.md)
+📖 **Детальна документація по архітектурі:** [Architecture Documentation](../../architecture/README.md)
 
 ---
 

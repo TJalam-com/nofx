@@ -217,9 +217,7 @@ NOFX는 현대적이고 모듈화된 아키텍처로 구축되었습니다:
 - 🤖 실시간 비교가 있는 멀티 AI 경쟁 모드
 - 🔌 모든 구성 및 모니터링을 위한 RESTful API
 
-📖 **자세한 아키텍처 문서는 다음을 참조하세요:**
-- **English:** [Architecture Documentation](../../architecture/README.md)
-- **中文:** [架构文档](../../architecture/README.zh-CN.md)
+📖 **자세한 아키텍처 문서는 다음을 참조하세요:** [Architecture Documentation](../../architecture/README.md)
 
 ---
 

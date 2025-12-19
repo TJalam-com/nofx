@@ -65,6 +65,9 @@ export interface DecisionAction {
   timestamp: string
   success: boolean
   error: string
+  stop_loss?: number
+  take_profit?: number
+  confidence?: number
 }
 
 // 决策记录
