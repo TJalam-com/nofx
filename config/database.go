@@ -8,11 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"nofx/crypto"
 	"nofx/market"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -3718,23 +3720,51 @@ func (d *Database) CreateTradingViewAlert(userID, traderID string, payload map[s
 	return id, nil
 }
 
-// parseFloat helper function: parse float64 from interface{}
+// parseFloat helper function: parse float64 from interface{}, handling NaN and invalid values
 func parseFloat(v interface{}) float64 {
 	if v == nil {
 		return 0
 	}
 	switch val := v.(type) {
 	case float64:
+		// Check for NaN or Infinity
+		if math.IsNaN(val) || math.IsInf(val, 0) {
+			return 0
+		}
 		return val
 	case float32:
-		return float64(val)
-	case string:
-		var f float64
-		fmt.Sscanf(val, "%f", &f)
+		f := float64(val)
+		if math.IsNaN(f) || math.IsInf(f, 0) {
+			return 0
+		}
 		return f
+	case string:
+		// Handle string representations of NaN, null, etc.
+		val = strings.TrimSpace(strings.ToLower(val))
+		if val == "" || val == "null" || val == "nan" || val == "undefined" {
+			return 0
+		}
+		// Try to parse as float
+		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return 0
+			}
+			return f
+		}
+		// Fallback to Sscanf
+		var f float64
+		if _, err := fmt.Sscanf(val, "%f", &f); err == nil {
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return 0
+			}
+			return f
+		}
+		return 0
 	case int:
 		return float64(val)
 	case int64:
+		return float64(val)
+	case int32:
 		return float64(val)
 	default:
 		return 0
@@ -3762,16 +3792,35 @@ func (d *Database) GetPendingTradingViewAlerts(traderID string) ([]TradingViewAl
 		var alert TradingViewAlert
 		var createdAt string
 		var processedAt sql.NullString
+		// Use NullFloat64 for nullable numeric fields
+		var entry, sl, tp, quantity, positionSize sql.NullFloat64
 
 		err := rows.Scan(
 			&alert.ID, &alert.UserID, &alert.TraderID, &alert.TraderName, &alert.RawPayload,
 			&alert.Symbol, &alert.Action, &alert.Exchange,
-			&alert.Entry, &alert.SL, &alert.TP, &alert.Quantity,
-			&alert.PositionSize, &alert.PriceType, &alert.Status,
+			&entry, &sl, &tp, &quantity,
+			&positionSize, &alert.PriceType, &alert.Status,
 			&createdAt, &processedAt,
 		)
 		if err != nil {
 			continue
+		}
+
+		// Convert NullFloat64 to float64
+		if entry.Valid {
+			alert.Entry = entry.Float64
+		}
+		if sl.Valid {
+			alert.SL = sl.Float64
+		}
+		if tp.Valid {
+			alert.TP = tp.Float64
+		}
+		if quantity.Valid {
+			alert.Quantity = quantity.Float64
+		}
+		if positionSize.Valid {
+			alert.PositionSize = positionSize.Float64
 		}
 
 		alert.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
@@ -3802,6 +3851,8 @@ func (d *Database) GetTradingViewAlertByID(alertID string) (*TradingViewAlert, e
 	var alert TradingViewAlert
 	var createdAt string
 	var processedAt sql.NullString
+	// Use NullFloat64 for nullable numeric fields
+	var entry, sl, tp, quantity, positionSize sql.NullFloat64
 
 	err := d.db.QueryRow(`
 		SELECT a.id, a.user_id, a.trader_id, COALESCE(t.name, '') as trader_name, a.raw_payload, a.symbol, a.action, a.exchange,
@@ -3813,12 +3864,29 @@ func (d *Database) GetTradingViewAlertByID(alertID string) (*TradingViewAlert, e
 	`, alertID).Scan(
 		&alert.ID, &alert.UserID, &alert.TraderID, &alert.TraderName, &alert.RawPayload,
 		&alert.Symbol, &alert.Action, &alert.Exchange,
-		&alert.Entry, &alert.SL, &alert.TP, &alert.Quantity,
-		&alert.PositionSize, &alert.PriceType, &alert.Status,
+		&entry, &sl, &tp, &quantity,
+		&positionSize, &alert.PriceType, &alert.Status,
 		&createdAt, &processedAt,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	// Convert NullFloat64 to float64
+	if entry.Valid {
+		alert.Entry = entry.Float64
+	}
+	if sl.Valid {
+		alert.SL = sl.Float64
+	}
+	if tp.Valid {
+		alert.TP = tp.Float64
+	}
+	if quantity.Valid {
+		alert.Quantity = quantity.Float64
+	}
+	if positionSize.Valid {
+		alert.PositionSize = positionSize.Float64
 	}
 
 	alert.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
@@ -3861,16 +3929,35 @@ func (d *Database) GetRecentTradingViewAlerts(userID string, traderID string, li
 		var alert TradingViewAlert
 		var createdAt string
 		var processedAt sql.NullString
+		// Use NullFloat64 for nullable numeric fields
+		var entry, sl, tp, quantity, positionSize sql.NullFloat64
 
 		err := rows.Scan(
 			&alert.ID, &alert.UserID, &alert.TraderID, &alert.TraderName, &alert.RawPayload,
 			&alert.Symbol, &alert.Action, &alert.Exchange,
-			&alert.Entry, &alert.SL, &alert.TP, &alert.Quantity,
-			&alert.PositionSize, &alert.PriceType, &alert.Status,
+			&entry, &sl, &tp, &quantity,
+			&positionSize, &alert.PriceType, &alert.Status,
 			&createdAt, &processedAt,
 		)
 		if err != nil {
 			continue
+		}
+
+		// Convert NullFloat64 to float64
+		if entry.Valid {
+			alert.Entry = entry.Float64
+		}
+		if sl.Valid {
+			alert.SL = sl.Float64
+		}
+		if tp.Valid {
+			alert.TP = tp.Float64
+		}
+		if quantity.Valid {
+			alert.Quantity = quantity.Float64
+		}
+		if positionSize.Valid {
+			alert.PositionSize = positionSize.Float64
 		}
 
 		alert.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)

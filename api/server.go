@@ -171,7 +171,8 @@ func (s *Server) setupRoutes() {
 
 		// Webhook routes (no authentication required, verified via apikey)
 		api.POST("/webhook/tradingview", s.handleTradingViewWebhook)
-		log.Println("✅ Webhook routes registered: POST /api/webhook/tradingview")
+		api.GET("/webhook/tradingview", s.handleTradingViewWebhookGET)
+		log.Println("✅ Webhook routes registered: POST /api/webhook/tradingview, GET /api/webhook/tradingview")
 
 		// Routes requiring authentication
 		protected := api.Group("/", s.authMiddleware())
@@ -4536,6 +4537,8 @@ func (s *Server) Start() error {
 	log.Printf("  • GET  /api/decisions/latest?trader_id=xxx - Specified trader latest decisions")
 	log.Printf("  • GET  /api/statistics?trader_id=xxx - Specified trader statistics")
 	log.Printf("  • GET  /api/performance?trader_id=xxx - Specified trader AI learning performance analysis")
+	log.Printf("  • POST /api/webhook/tradingview      - TradingView webhook endpoint (no auth required, uses apikey)")
+	log.Printf("  • GET  /api/webhook/tradingview      - Webhook endpoint info and testing (no auth required)")
 	log.Println()
 
 	s.httpServer = &http.Server{
