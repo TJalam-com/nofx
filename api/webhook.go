@@ -3,9 +3,11 @@ package api
 import (
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"nofx/decision"
 	"nofx/trader"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -474,6 +476,148 @@ func (s *Server) processTraderWebhook(userID, traderID string, payload map[strin
 	return response
 }
 
+// sanitizeNumericValue sanitizes numeric values, handling NaN, Infinity, and invalid cases
+func sanitizeNumericValue(v interface{}) (float64, bool) {
+	if v == nil {
+		return 0, false
+	}
+
+	switch val := v.(type) {
+	case float64:
+		// Check for NaN or Infinity
+		if math.IsNaN(val) || math.IsInf(val, 0) {
+			return 0, false
+		}
+		return val, true
+	case float32:
+		f := float64(val)
+		if math.IsNaN(f) || math.IsInf(f, 0) {
+			return 0, false
+		}
+		return f, true
+	case string:
+		// Handle string representations of NaN, Infinity, null, etc.
+		val = strings.TrimSpace(strings.ToLower(val))
+		if val == "" || val == "null" || val == "nan" || val == "undefined" {
+			return 0, false
+		}
+		// Try to parse as float
+		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return 0, false
+			}
+			return f, true
+		}
+		return 0, false
+	case int:
+		return float64(val), true
+	case int64:
+		return float64(val), true
+	case int32:
+		return float64(val), true
+	default:
+		return 0, false
+	}
+}
+
+// normalizeSymbol normalizes symbol format (handles perpetuals, removes suffixes, etc.)
+func normalizeSymbol(symbol string) string {
+	if symbol == "" {
+		return symbol
+	}
+
+	// Convert to uppercase
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+
+	// Handle TradingView perpetual format (e.g., "BTCUSDT.P" or "BTCUSDT:PERP")
+	// Remove .P suffix (TradingView perpetual format)
+	if strings.HasSuffix(symbol, ".P") {
+		symbol = strings.TrimSuffix(symbol, ".P")
+	}
+
+	// Remove :PERP suffix
+	if strings.HasSuffix(symbol, ":PERP") {
+		symbol = strings.TrimSuffix(symbol, ":PERP")
+	}
+
+	// Remove :USDT:PERP format
+	if strings.Contains(symbol, ":USDT:PERP") {
+		symbol = strings.ReplaceAll(symbol, ":USDT:PERP", "USDT")
+	}
+
+	// Ensure it ends with USDT if it's a valid base symbol
+	if !strings.HasSuffix(symbol, "USDT") && len(symbol) > 0 {
+		// Check if it's a common crypto symbol (3-5 chars typically)
+		if len(symbol) <= 5 && symbol != "USDT" {
+			symbol = symbol + "USDT"
+		}
+	}
+
+	return symbol
+}
+
+// sanitizeWebhookPayload sanitizes the webhook payload, removing NaN values and normalizing data
+func sanitizeWebhookPayload(payload map[string]interface{}) map[string]interface{} {
+	sanitized := make(map[string]interface{})
+
+	for key, value := range payload {
+		// Skip API key fields (they should remain as-is)
+		if key == "apikey" || key == "api_key" || key == "apiKey" || key == "API_KEY" {
+			sanitized[key] = value
+			continue
+		}
+
+		// Handle symbol field - normalize format
+		if key == "symbol" {
+			if str, ok := value.(string); ok {
+				sanitized[key] = normalizeSymbol(str)
+			} else {
+				sanitized[key] = value
+			}
+			continue
+		}
+
+		// Handle numeric fields - sanitize NaN values
+		numericFields := []string{"entry", "sl", "tp", "stop_loss", "take_profit", "quantity", "position_size", "size"}
+		isNumericField := false
+		for _, field := range numericFields {
+			if strings.EqualFold(key, field) {
+				isNumericField = true
+				break
+			}
+		}
+
+		if isNumericField {
+			if num, valid := sanitizeNumericValue(value); valid {
+				sanitized[key] = num
+			}
+			// If invalid (NaN, etc.), skip the field (don't include it in sanitized payload)
+		} else {
+			// For non-numeric fields, keep as-is but handle nested structures
+			switch v := value.(type) {
+			case map[string]interface{}:
+				// Recursively sanitize nested maps
+				sanitized[key] = sanitizeWebhookPayload(v)
+			case []interface{}:
+				// Sanitize arrays
+				sanitizedArray := make([]interface{}, 0, len(v))
+				for _, item := range v {
+					if itemMap, ok := item.(map[string]interface{}); ok {
+						sanitizedArray = append(sanitizedArray, sanitizeWebhookPayload(itemMap))
+					} else {
+						sanitizedArray = append(sanitizedArray, item)
+					}
+				}
+				sanitized[key] = sanitizedArray
+			default:
+				sanitized[key] = value
+			}
+		}
+	}
+
+	return sanitized
+}
+
 // handleTradingViewWebhook handles TradingView webhook requests
 func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 	var payload map[string]interface{}
@@ -482,20 +626,55 @@ func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 		return
 	}
 
-	// Extract apikey
-	apikey, ok := payload["apikey"].(string)
-	if !ok || apikey == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid apikey field"})
+	// Sanitize the payload (remove NaN values, normalize symbols, etc.)
+	payload = sanitizeWebhookPayload(payload)
+	log.Printf("🧹 Webhook payload sanitized (removed NaN values, normalized symbols)")
+
+	// Extract apikey (support multiple field name variations)
+	var apikey string
+	var ok bool
+
+	// Try different field name variations (case-insensitive)
+	if apikey, ok = payload["apikey"].(string); !ok || apikey == "" {
+		if apikey, ok = payload["api_key"].(string); !ok || apikey == "" {
+			if apikey, ok = payload["apiKey"].(string); !ok || apikey == "" {
+				if apikey, ok = payload["API_KEY"].(string); !ok || apikey == "" {
+					c.JSON(http.StatusBadRequest, gin.H{
+						"error": "Missing or invalid apikey field",
+						"hint":  "The payload must contain 'apikey', 'api_key', 'apiKey', or 'API_KEY' field",
+					})
+					return
+				}
+			}
+		}
+	}
+
+	// Trim whitespace from API key
+	apikey = strings.TrimSpace(apikey)
+	if apikey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "API key cannot be empty"})
 		return
 	}
+
+	// Log API key info (first 8 chars only for security)
+	keyPreview := apikey
+	if len(keyPreview) > 8 {
+		keyPreview = keyPreview[:8] + "..."
+	}
+	log.Printf("🔑 Webhook API key received (length: %d, preview: %s)", len(apikey), keyPreview)
 
 	// Validate API key and get user
 	user, err := s.database.GetUserByWebhookAPIKey(apikey)
 	if err != nil {
-		log.Printf("⚠️ Invalid webhook API key: %s", apikey)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
+		log.Printf("⚠️ Invalid webhook API key (preview: %s, error: %v)", keyPreview, err)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Invalid API key",
+			"hint":  "Please check your API key in the webhook configuration page. Make sure you're using the correct key for your account.",
+		})
 		return
 	}
+
+	log.Printf("✅ Webhook API key validated for user: %s", user.ID)
 
 	// Extract and normalize trader_ids (support both trader_id string and trader_ids array)
 	traderIDs, err := s.extractTraderIDs(payload, user.ID)
@@ -512,6 +691,10 @@ func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid symbol field"})
 		return
 	}
+
+	// Normalize symbol (in case it wasn't normalized during sanitization)
+	symbol = normalizeSymbol(symbol)
+	payload["symbol"] = symbol
 
 	action, ok := payload["action"].(string)
 	if !ok || (action != "buy" && action != "sell") {
@@ -564,6 +747,164 @@ func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 		"successful":    successful,
 		"failed":        failed,
 		"results":       results,
+	})
+}
+
+// handleTradingViewWebhookGET handles GET requests to the webhook endpoint
+// This provides endpoint information and supports testing with query parameters
+func (s *Server) handleTradingViewWebhookGET(c *gin.Context) {
+	// Check if this is a test request with query parameters
+	apikey := strings.TrimSpace(c.Query("apikey"))
+	if apikey != "" {
+		// Try to process as a webhook with query parameters (for testing)
+		payload := make(map[string]interface{})
+		payload["apikey"] = apikey
+
+		// Extract other query parameters
+		if symbol := c.Query("symbol"); symbol != "" {
+			payload["symbol"] = symbol
+		}
+		if action := c.Query("action"); action != "" {
+			payload["action"] = action
+		}
+		if traderID := c.Query("trader_id"); traderID != "" {
+			payload["trader_id"] = traderID
+		}
+		if traderIDs := c.Query("trader_ids"); traderIDs != "" {
+			// Parse comma-separated trader IDs
+			ids := strings.Split(traderIDs, ",")
+			payload["trader_ids"] = ids
+		}
+
+		// Extract numeric fields from query parameters
+		if entry := c.Query("entry"); entry != "" {
+			payload["entry"] = entry
+		}
+		if sl := c.Query("sl"); sl != "" {
+			payload["sl"] = sl
+		}
+		if tp := c.Query("tp"); tp != "" {
+			payload["tp"] = tp
+		}
+		if quantity := c.Query("quantity"); quantity != "" {
+			payload["quantity"] = quantity
+		}
+		if positionSize := c.Query("position_size"); positionSize != "" {
+			payload["position_size"] = positionSize
+		}
+
+		// Sanitize the payload (remove NaN values, normalize symbols, etc.)
+		payload = sanitizeWebhookPayload(payload)
+		log.Printf("🧹 Webhook payload sanitized (GET, removed NaN values, normalized symbols)")
+
+		// Validate we have minimum required fields
+		if _, ok := payload["symbol"].(string); !ok {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Missing required parameter: symbol",
+				"message": "This endpoint accepts POST requests with JSON body. For GET requests, provide query parameters: apikey, symbol, action, and optionally trader_id or trader_ids",
+			})
+			return
+		}
+		if _, ok := payload["action"].(string); !ok {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Missing required parameter: action",
+				"message": "This endpoint accepts POST requests with JSON body. For GET requests, provide query parameters: apikey, symbol, action, and optionally trader_id or trader_ids",
+			})
+			return
+		}
+
+		// Process as webhook (reuse POST handler logic)
+		// Validate API key and get user
+		keyPreview := apikey
+		if len(keyPreview) > 8 {
+			keyPreview = keyPreview[:8] + "..."
+		}
+		log.Printf("🔑 Webhook API key received (GET, length: %d, preview: %s)", len(apikey), keyPreview)
+
+		user, err := s.database.GetUserByWebhookAPIKey(apikey)
+		if err != nil {
+			log.Printf("⚠️ Invalid webhook API key (GET, preview: %s, error: %v)", keyPreview, err)
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid API key",
+				"hint":  "Please check your API key in the webhook configuration page. Make sure you're using the correct key for your account.",
+			})
+			return
+		}
+
+		log.Printf("✅ Webhook API key validated (GET) for user: %s", user.ID)
+
+		// Extract and normalize trader_ids
+		traderIDs, err := s.extractTraderIDs(payload, user.ID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		symbol, _ := payload["symbol"].(string)
+		action, _ := payload["action"].(string)
+
+		log.Printf("📋 Webhook received (GET): %d trader(s) to process: %v", len(traderIDs), traderIDs)
+
+		// Process traders in parallel
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		results := []gin.H{}
+
+		for _, traderID := range traderIDs {
+			wg.Add(1)
+			go func(tid string) {
+				defer wg.Done()
+				result := s.processTraderWebhook(user.ID, tid, payload, symbol, action)
+				mu.Lock()
+				results = append(results, result)
+				mu.Unlock()
+			}(traderID)
+		}
+
+		wg.Wait()
+
+		// Build response
+		if len(traderIDs) == 1 && len(results) == 1 {
+			c.JSON(http.StatusOK, results[0])
+			return
+		}
+
+		successful := 0
+		failed := 0
+		for _, result := range results {
+			if success, ok := result["success"].(bool); ok && success {
+				successful++
+			} else {
+				failed++
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success":       true,
+			"message":       "Alerts received for multiple traders",
+			"total_traders": len(traderIDs),
+			"successful":    successful,
+			"failed":        failed,
+			"results":       results,
+		})
+		return
+	}
+
+	// No query parameters - return endpoint information
+	c.JSON(http.StatusOK, gin.H{
+		"endpoint":        "/api/webhook/tradingview",
+		"method":          "POST (recommended) or GET (for testing)",
+		"description":     "TradingView webhook endpoint for receiving trading alerts",
+		"required_fields": []string{"apikey", "symbol", "action"},
+		"optional_fields": []string{"trader_id", "trader_ids", "entry", "sl", "tp", "quantity", "position_size", "exchange", "pricetype"},
+		"example_post": gin.H{
+			"apikey":    "your_api_key",
+			"symbol":    "BTCUSDT",
+			"action":    "buy",
+			"trader_id": "optional_trader_id",
+		},
+		"example_get": "/api/webhook/tradingview?apikey=your_key&symbol=BTCUSDT&action=buy",
+		"note":        "For production use, configure TradingView to send POST requests with JSON body",
 	})
 }
 
