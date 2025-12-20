@@ -3324,6 +3324,7 @@ func (at *AutoTrader) buildTradingContextForSymbol(symbol string, _ *cfg.Trading
 	}
 
 	var positionInfos []decision.PositionInfo
+	totalMarginUsed := 0.0
 	for _, pos := range positions {
 		// Safe type assertions to prevent nil interface conversion panic
 		symbolPos, ok := pos["symbol"].(string)
@@ -3367,6 +3368,7 @@ func (at *AutoTrader) buildTradingContextForSymbol(symbol string, _ *cfg.Trading
 			leverage = int(lev)
 		}
 		marginUsed := (quantity * markPrice) / float64(leverage)
+		totalMarginUsed += marginUsed
 		pnlPct := calculatePnLPercentage(unrealizedPnl, marginUsed)
 
 		posKey := symbolPos + "_" + side
@@ -3419,7 +3421,13 @@ func (at *AutoTrader) buildTradingContextForSymbol(symbol string, _ *cfg.Trading
 	marketDataMap := make(map[string]*market.Data)
 	marketDataMap[symbol] = marketData
 
-	// 4. Build context
+	// 4. Calculate margin used percentage
+	marginUsedPct := 0.0
+	if totalEquity > 0 {
+		marginUsedPct = (totalMarginUsed / totalEquity) * 100
+	}
+
+	// 5. Build context
 	ctx := &decision.Context{
 		CurrentTime:    time.Now().Format("2006-01-02 15:04:05"),
 		CallCount:      at.callCount,
@@ -3428,7 +3436,7 @@ func (at *AutoTrader) buildTradingContextForSymbol(symbol string, _ *cfg.Trading
 			TotalEquity:      totalEquity,
 			AvailableBalance: availableBalance,
 			TotalPnLPct:      ((totalEquity - at.initialBalance) / at.initialBalance) * 100,
-			MarginUsedPct:    (totalWalletBalance / totalEquity) * 100,
+			MarginUsedPct:    marginUsedPct,
 			PositionCount:    len(positions),
 		},
 		Positions:       positionInfos,
