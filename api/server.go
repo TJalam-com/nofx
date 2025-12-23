@@ -14,6 +14,7 @@ import (
 	"nofx/config"
 	"nofx/crypto"
 	"nofx/decision"
+	"nofx/logger"
 	"nofx/manager"
 	"nofx/trader"
 	"os"
@@ -3174,17 +3175,7 @@ func (s *Server) handleEquityHistory(c *gin.Context) {
 		return
 	}
 
-	// Get as much historical data as possible (several days of data)
-	// Every 3 minutes per cycle: 10000 records = approximately 20 days of data
-	records, err := trader.GetDecisionLogger().GetLatestRecords(10000)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": fmt.Sprintf("Failed to get historical data: %v", err),
-		})
-		return
-	}
-
-	// Build return history data points
+	// Define EquityPoint type for return data
 	type EquityPoint struct {
 		Timestamp        string  `json:"timestamp"`
 		TotalEquity      float64 `json:"total_equity"`      // Account equity (wallet + unrealized)
@@ -3196,55 +3187,108 @@ func (s *Server) handleEquityHistory(c *gin.Context) {
 		CycleNumber      int     `json:"cycle_number"`
 	}
 
-	// Get initial balance from AutoTrader (for calculating PnL percentage)
+	// Try to get equity history from database first (persistent across deployments)
+	var history []EquityPoint
+	var records []*logger.DecisionRecord
+	
+	if s.database != nil {
+		dbRecords, err := s.database.GetEquityHistory(traderID, 10000)
+		if err == nil && len(dbRecords) > 0 {
+			// Convert database records to EquityPoint format
+			history = make([]EquityPoint, 0, len(dbRecords))
+			for _, dbRec := range dbRecords {
+				history = append(history, EquityPoint{
+					Timestamp:        dbRec.Timestamp.Format("2006-01-02 15:04:05"),
+					TotalEquity:      dbRec.TotalEquity,
+					AvailableBalance: dbRec.AvailableBalance,
+					TotalPnL:         dbRec.TotalPnL,
+					TotalPnLPct:      dbRec.TotalPnLPct,
+					PositionCount:    dbRec.PositionCount,
+					MarginUsedPct:    dbRec.MarginUsedPct,
+					CycleNumber:      dbRec.CycleNumber,
+				})
+			}
+		}
+	}
+
+	// Fallback to file-based logs if database is empty or unavailable
+	if len(history) == 0 {
+		// Get as much historical data as possible (several days of data)
+		// Every 3 minutes per cycle: 10000 records = approximately 20 days of data
+		records, err = trader.GetDecisionLogger().GetLatestRecords(10000)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": fmt.Sprintf("Failed to get historical data: %v", err),
+			})
+			return
+		}
+	}
+
+	// Process file-based records if database was empty
+	if len(history) == 0 && len(records) > 0 {
+		// Get initial balance from AutoTrader (for calculating PnL percentage)
+		initialBalance := 0.0
+		if status := trader.GetStatus(); status != nil {
+			if ib, ok := status["initial_balance"].(float64); ok && ib > 0 {
+				initialBalance = ib
+			}
+		}
+
+		// If cannot get from status and have historical records, get from first record
+		if initialBalance == 0 && len(records) > 0 {
+			// First record's equity as initial balance
+			initialBalance = records[0].AccountState.TotalBalance
+		}
+
+		// If initial balance is 0, return empty array (account has no funds or hasn't started trading)
+		if initialBalance == 0 {
+			// If no historical records, return empty array
+			if len(records) == 0 {
+				c.JSON(http.StatusOK, []EquityPoint{})
+				return
+			}
+			// If have historical records but initial balance is 0, use 1.0 as baseline to avoid division by zero
+			// PNL percentage will show as 0% or based on first record
+			initialBalance = 1.0
+		}
+
+		// Convert file-based records to EquityPoint format
+		history = make([]EquityPoint, 0, len(records))
+		for _, record := range records {
+			// TotalBalance field actually stores TotalEquity
+			totalEquity := record.AccountState.TotalBalance
+			// TotalUnrealizedProfit field actually stores TotalPnL (relative to initial balance)
+			totalPnL := record.AccountState.TotalUnrealizedProfit
+
+			// Calculate PnL percentage
+			totalPnLPct := 0.0
+			if initialBalance > 0 {
+				totalPnLPct = (totalPnL / initialBalance) * 100
+			}
+
+			history = append(history, EquityPoint{
+				Timestamp:        record.Timestamp.Format("2006-01-02 15:04:05"),
+				TotalEquity:      totalEquity,
+				AvailableBalance: record.AccountState.AvailableBalance,
+				TotalPnL:         totalPnL,
+				TotalPnLPct:      totalPnLPct,
+				PositionCount:    record.AccountState.PositionCount,
+				MarginUsedPct:    record.AccountState.MarginUsedPct,
+				CycleNumber:      record.CycleNumber,
+			})
+		}
+	}
+
+	// Get initial balance for real-time data point calculation
 	initialBalance := 0.0
 	if status := trader.GetStatus(); status != nil {
 		if ib, ok := status["initial_balance"].(float64); ok && ib > 0 {
 			initialBalance = ib
 		}
 	}
-
-	// If cannot get from status and have historical records, get from first record
-	if initialBalance == 0 && len(records) > 0 {
-		// First record's equity as initial balance
-		initialBalance = records[0].AccountState.TotalBalance
-	}
-
-	// If initial balance is 0, return empty array (account has no funds or hasn't started trading)
-	if initialBalance == 0 {
-		// If no historical records, return empty array
-		if len(records) == 0 {
-			c.JSON(http.StatusOK, []EquityPoint{})
-			return
-		}
-		// If have historical records but initial balance is 0, use 1.0 as baseline to avoid division by zero
-		// PNL percentage will show as 0% or based on first record
-		initialBalance = 1.0
-	}
-
-	var history []EquityPoint
-	for _, record := range records {
-		// TotalBalance field actually stores TotalEquity
-		totalEquity := record.AccountState.TotalBalance
-		// TotalUnrealizedProfit field actually stores TotalPnL (relative to initial balance)
-		totalPnL := record.AccountState.TotalUnrealizedProfit
-
-		// Calculate PnL percentage
-		totalPnLPct := 0.0
-		if initialBalance > 0 {
-			totalPnLPct = (totalPnL / initialBalance) * 100
-		}
-
-		history = append(history, EquityPoint{
-			Timestamp:        record.Timestamp.Format("2006-01-02 15:04:05"),
-			TotalEquity:      totalEquity,
-			AvailableBalance: record.AccountState.AvailableBalance,
-			TotalPnL:         totalPnL,
-			TotalPnLPct:      totalPnLPct,
-			PositionCount:    record.AccountState.PositionCount,
-			MarginUsedPct:    record.AccountState.MarginUsedPct,
-			CycleNumber:      record.CycleNumber,
-		})
+	// Fallback: calculate from first history record if available
+	if initialBalance == 0 && len(history) > 0 {
+		initialBalance = history[0].TotalEquity - history[0].TotalPnL
 	}
 
 	// Add real-time data point from current account balance for chart/leaderboard consistency
@@ -4962,11 +5006,35 @@ func (s *Server) getEquityHistoryForTraders(traderIDs []string) map[string]inter
 			continue
 		}
 
-		// Get historical data (for comparison display, limit data volume)
-		records, err := trader.GetDecisionLogger().GetLatestRecords(500)
-		if err != nil {
-			errors[traderID] = fmt.Sprintf("Failed to get historical data: %v", err)
-			continue
+		// Try to get equity history from database first (persistent across deployments)
+		var history []map[string]interface{}
+		var records []*logger.DecisionRecord
+
+		if s.database != nil {
+			dbRecords, err := s.database.GetEquityHistory(traderID, 500)
+			if err == nil && len(dbRecords) > 0 {
+				// Convert database records to history format
+				history = make([]map[string]interface{}, 0, len(dbRecords))
+				for _, dbRec := range dbRecords {
+					history = append(history, map[string]interface{}{
+						"timestamp":     dbRec.Timestamp.Format("2006-01-02 15:04:05"),
+						"total_equity":  dbRec.TotalEquity,
+						"total_pnl":     dbRec.TotalPnL,
+						"total_pnl_pct": dbRec.TotalPnLPct,
+						"balance":       dbRec.TotalEquity - dbRec.TotalPnL, // Approximate balance
+					})
+				}
+			}
+		}
+
+		// Fallback to file-based logs if database is empty or unavailable
+		if len(history) == 0 {
+			// Get historical data (for comparison display, limit data volume)
+			records, err = trader.GetDecisionLogger().GetLatestRecords(500)
+			if err != nil {
+				errors[traderID] = fmt.Sprintf("Failed to get historical data: %v", err)
+				continue
+			}
 		}
 
 		// Get initial balance from database
@@ -4976,32 +5044,35 @@ func (s *Server) getEquityHistoryForTraders(traderIDs []string) map[string]inter
 			initialBalance = traderRecord.InitialBalance
 		}
 
-		// Fallback to first snapshot equity if initial_balance not set
-		if initialBalance == 0 && len(records) > 0 {
-			firstRecord := records[0]
-			initialBalance = firstRecord.AccountState.TotalBalance + firstRecord.AccountState.TotalUnrealizedProfit
-		}
-
-		// Build return history data
-		history := make([]map[string]interface{}, 0, len(records))
-		for _, record := range records {
-			// Calculate total equity (balance + unrealized PnL)
-			totalEquity := record.AccountState.TotalBalance + record.AccountState.TotalUnrealizedProfit
-
-			// Calculate total PnL percentage using initial_balance
-			totalPnLPct := 0.0
-			if initialBalance > 0 {
-				totalPnL := totalEquity - initialBalance
-				totalPnLPct = (totalPnL / initialBalance) * 100
+		// Process file-based records if database was empty
+		if len(history) == 0 && len(records) > 0 {
+			// Fallback to first snapshot equity if initial_balance not set
+			if initialBalance == 0 {
+				firstRecord := records[0]
+				initialBalance = firstRecord.AccountState.TotalBalance + firstRecord.AccountState.TotalUnrealizedProfit
 			}
 
-			history = append(history, map[string]interface{}{
-				"timestamp":     record.Timestamp.Format("2006-01-02 15:04:05"),
-				"total_equity":  totalEquity,
-				"total_pnl":     totalEquity - initialBalance,
-				"total_pnl_pct": totalPnLPct,
-				"balance":       record.AccountState.TotalBalance,
-			})
+			// Build return history data
+			history = make([]map[string]interface{}, 0, len(records))
+			for _, record := range records {
+				// Calculate total equity (balance + unrealized PnL)
+				totalEquity := record.AccountState.TotalBalance + record.AccountState.TotalUnrealizedProfit
+
+				// Calculate total PnL percentage using initial_balance
+				totalPnLPct := 0.0
+				if initialBalance > 0 {
+					totalPnL := totalEquity - initialBalance
+					totalPnLPct = (totalPnL / initialBalance) * 100
+				}
+
+				history = append(history, map[string]interface{}{
+					"timestamp":     record.Timestamp.Format("2006-01-02 15:04:05"),
+					"total_equity":  totalEquity,
+					"total_pnl":     totalEquity - initialBalance,
+					"total_pnl_pct": totalPnLPct,
+					"balance":       record.AccountState.TotalBalance,
+				})
+			}
 		}
 
 		// Add real-time data point from current account balance for chart/leaderboard consistency

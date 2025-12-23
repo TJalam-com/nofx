@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   ComposedChart,
   Area,
@@ -25,6 +25,16 @@ interface ComparisonChartProps {
 
 export function ComparisonChart({ traders }: ComparisonChartProps) {
   const { language } = useLanguage()
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
   // Get all trader history data - use single useSWR to concurrently request all trader data
   // Generate unique key that triggers re-request when traders change
   const tradersKey = traders
@@ -639,7 +649,12 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={displayData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
+            margin={{
+              top: 20,
+              right: isMobile ? 10 : 30,
+              left: isMobile ? 5 : 20,
+              bottom: isMobile ? 30 : 50,
+            }}
           >
             <defs>
               {traders.map((trader) => (
@@ -674,21 +689,27 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
             <XAxis
               dataKey="time"
               stroke="var(--text-gray-light)"
-              tick={{ fill: 'var(--text-gray-light)', fontSize: 11 }}
+              tick={{
+                fill: 'var(--text-gray-light)',
+                fontSize: isMobile ? 9 : 11,
+              }}
               tickLine={{ stroke: 'var(--bg-panel)' }}
-              interval={Math.floor(displayData.length / 12)}
-              angle={-15}
+              interval={Math.floor(displayData.length / (isMobile ? 8 : 12))}
+              angle={isMobile ? -45 : -15}
               textAnchor="end"
-              height={60}
+              height={isMobile ? 40 : 60}
             />
 
             <YAxis
               stroke="var(--text-gray-light)"
-              tick={{ fill: 'var(--text-gray-light)', fontSize: 12 }}
+              tick={{
+                fill: 'var(--text-gray-light)',
+                fontSize: isMobile ? 10 : 12,
+              }}
               tickLine={{ stroke: 'var(--bg-panel)' }}
               domain={calculateYDomain()}
               tickFormatter={(value) => `${value.toFixed(1)}%`}
-              width={60}
+              width={isMobile ? 40 : 60}
             />
 
             <Tooltip content={<CustomTooltip />} />

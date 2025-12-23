@@ -521,6 +521,22 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (trader_id) REFERENCES traders(id) ON DELETE CASCADE
 		)`,
 
+		// Trader equity history table (for persistent equity curve data)
+		`CREATE TABLE IF NOT EXISTS trader_equity_history (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			trader_id TEXT NOT NULL,
+			timestamp DATETIME NOT NULL,
+			total_equity REAL NOT NULL,
+			available_balance REAL NOT NULL,
+			total_pnl REAL NOT NULL,
+			total_pnl_pct REAL NOT NULL,
+			position_count INTEGER DEFAULT 0,
+			margin_used_pct REAL DEFAULT 0,
+			cycle_number INTEGER NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (trader_id) REFERENCES traders(id) ON DELETE CASCADE
+		)`,
+
 		// Articles table
 		`CREATE TABLE IF NOT EXISTS articles (
 			id TEXT PRIMARY KEY,
@@ -550,6 +566,8 @@ func (d *Database) createTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_trader ON trader_positions(trader_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_symbol ON trader_positions(symbol)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_closed_at ON trader_positions(closed_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_trader_equity_history_trader_ts ON trader_equity_history(trader_id, timestamp)`,
+		`CREATE INDEX IF NOT EXISTS idx_trader_equity_history_cycle ON trader_equity_history(trader_id, cycle_number)`,
 		`CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(slug)`,
 		`CREATE INDEX IF NOT EXISTS idx_articles_status_published ON articles(status, published_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_articles_author ON articles(author_id)`,
@@ -4253,6 +4271,80 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 	}
 
 	return positions, rows.Err()
+}
+
+// EquityHistoryRecord represents an equity history point in the database
+type EquityHistoryRecord struct {
+	ID              int64
+	TraderID        string
+	Timestamp       time.Time
+	TotalEquity     float64
+	AvailableBalance float64
+	TotalPnL        float64
+	TotalPnLPct     float64
+	PositionCount   int
+	MarginUsedPct   float64
+	CycleNumber     int
+	CreatedAt       time.Time
+}
+
+// SaveEquityHistory saves an equity history point to the database
+func (d *Database) SaveEquityHistory(traderID string, timestamp time.Time, totalEquity, availableBalance, totalPnL, totalPnLPct float64, positionCount int, marginUsedPct float64, cycleNumber int) error {
+	query := `
+		INSERT INTO trader_equity_history 
+		(trader_id, timestamp, total_equity, available_balance, total_pnl, total_pnl_pct, position_count, margin_used_pct, cycle_number)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err := d.db.Exec(query, traderID, timestamp.Format("2006-01-02 15:04:05"), totalEquity, availableBalance, totalPnL, totalPnLPct, positionCount, marginUsedPct, cycleNumber)
+	return err
+}
+
+// GetEquityHistory retrieves equity history for a trader (latest N records, oldest to newest)
+func (d *Database) GetEquityHistory(traderID string, limit int) ([]*EquityHistoryRecord, error) {
+	if limit <= 0 {
+		limit = 10000 // Default to 10000 records
+	}
+	
+	query := `
+		SELECT id, trader_id, timestamp, total_equity, available_balance, total_pnl, total_pnl_pct, position_count, margin_used_pct, cycle_number, created_at
+		FROM trader_equity_history
+		WHERE trader_id = ?
+		ORDER BY timestamp ASC, cycle_number ASC
+		LIMIT ?
+	`
+	
+	rows, err := d.db.Query(query, traderID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []*EquityHistoryRecord
+	for rows.Next() {
+		var rec EquityHistoryRecord
+		var timestampStr string
+		var createdAtStr string
+
+		err := rows.Scan(&rec.ID, &rec.TraderID, &timestampStr, &rec.TotalEquity, &rec.AvailableBalance, &rec.TotalPnL, &rec.TotalPnLPct, &rec.PositionCount, &rec.MarginUsedPct, &rec.CycleNumber, &createdAtStr)
+		if err != nil {
+			return nil, err
+		}
+
+		rec.Timestamp, err = time.Parse("2006-01-02 15:04:05", timestampStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse timestamp: %w", err)
+		}
+
+		rec.CreatedAt, err = time.Parse("2006-01-02 15:04:05", createdAtStr)
+		if err != nil {
+			// CreatedAt parsing error is not critical, continue
+			rec.CreatedAt = time.Now()
+		}
+
+		records = append(records, &rec)
+	}
+
+	return records, rows.Err()
 }
 
 // GetOpenPositions get open positions for a trader

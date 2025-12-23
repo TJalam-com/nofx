@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   LineChart,
   Line,
@@ -39,6 +39,16 @@ export function EquityChart({ traderId }: EquityChartProps) {
   const { language } = useLanguage()
   const { user, token } = useAuth()
   const [displayMode, setDisplayMode] = useState<'dollar' | 'percent'>('dollar')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const { data: history, error } = useSWR<EquityPoint[]>(
     user && token && traderId ? `equity-history-${traderId}` : null,
@@ -329,7 +339,12 @@ export function EquityChart({ traderId }: EquityChartProps) {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
-            margin={{ top: 10, right: 20, left: 5, bottom: 30 }}
+            margin={{
+              top: 10,
+              right: isMobile ? 10 : 20,
+              left: isMobile ? 0 : 5,
+              bottom: isMobile ? 20 : 30,
+            }}
           >
             <defs>
               <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
@@ -341,21 +356,22 @@ export function EquityChart({ traderId }: EquityChartProps) {
             <XAxis
               dataKey="time"
               stroke="#5E6673"
-              tick={{ fill: '#848E9C', fontSize: 11 }}
+              tick={{ fill: '#848E9C', fontSize: isMobile ? 9 : 11 }}
               tickLine={{ stroke: 'var(--panel-border)' }}
-              interval={Math.floor(chartData.length / 10)}
-              angle={-15}
+              interval={Math.floor(chartData.length / (isMobile ? 6 : 10))}
+              angle={isMobile ? -45 : -15}
               textAnchor="end"
-              height={60}
+              height={isMobile ? 40 : 60}
             />
             <YAxis
               stroke="#5E6673"
-              tick={{ fill: '#848E9C', fontSize: 12 }}
+              tick={{ fill: '#848E9C', fontSize: isMobile ? 10 : 12 }}
               tickLine={{ stroke: 'var(--panel-border)' }}
               domain={calculateYDomain()}
               tickFormatter={(value) =>
                 displayMode === 'dollar' ? `$${value.toFixed(0)}` : `${value}%`
               }
+              width={isMobile ? 40 : 60}
             />
             <Tooltip content={<CustomTooltip />} />
             <ReferenceLine

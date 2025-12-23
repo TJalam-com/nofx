@@ -622,7 +622,7 @@ func (at *AutoTrader) runCycle() error {
 		log.Printf("⏸ Risk control: trading paused, %.0f minutes remaining", remaining.Minutes())
 		record.Success = false
 		record.ErrorMessage = fmt.Sprintf("Risk control pause in effect, %.0f minutes remaining", remaining.Minutes())
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return nil
 	}
 
@@ -639,7 +639,7 @@ func (at *AutoTrader) runCycle() error {
 		log.Printf("📋 [%s] Follower mode: skipping periodic cycle, waiting for parent signals", at.name)
 		record.Success = true
 		record.ExecutionLog = append(record.ExecutionLog, "Follower mode: waiting for parent signals")
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return nil
 	}
 
@@ -654,7 +654,7 @@ func (at *AutoTrader) runCycle() error {
 	if err != nil {
 		record.Success = false
 		record.ErrorMessage = fmt.Sprintf("failed to build trading context: %v", err)
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return fmt.Errorf("failed to build trading context: %w", err)
 	}
 
@@ -734,7 +734,7 @@ func (at *AutoTrader) runCycle() error {
 			}
 		}
 
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return fmt.Errorf("failed to get AI decision: %w", err)
 	}
 
@@ -801,8 +801,8 @@ func (at *AutoTrader) runCycle() error {
 		record.Decisions = append(record.Decisions, actionRecord)
 	}
 
-	// 9. Save decision record
-	if err := at.decisionLogger.LogDecision(record); err != nil {
+	// 9. Save decision record and equity history
+	if err := at.logDecisionAndSaveEquity(record); err != nil {
 		log.Printf("⚠ Failed to save decision record: %v", err)
 	}
 
@@ -2220,6 +2220,45 @@ func (at *AutoTrader) GetDecisionLogger() logger.IDecisionLogger {
 	return at.decisionLogger
 }
 
+// saveEquityHistoryToDB saves equity history point to database if database is available
+func (at *AutoTrader) saveEquityHistoryToDB(record *logger.DecisionRecord) {
+	if db, ok := at.database.(*cfg.Database); ok && db != nil {
+		// Calculate PnL and PnL percentage
+		totalEquity := record.AccountState.TotalBalance + record.AccountState.TotalUnrealizedProfit
+		totalPnL := totalEquity - at.initialBalance
+		totalPnLPct := 0.0
+		if at.initialBalance > 0 {
+			totalPnLPct = (totalPnL / at.initialBalance) * 100
+		}
+
+		// Save to database (ignore errors - file logging is primary, DB is secondary)
+		err := db.SaveEquityHistory(
+			at.id,
+			record.Timestamp,
+			totalEquity,
+			record.AccountState.AvailableBalance,
+			totalPnL,
+			totalPnLPct,
+			record.AccountState.PositionCount,
+			record.AccountState.MarginUsedPct,
+			record.CycleNumber,
+		)
+		if err != nil {
+			log.Printf("⚠️ [%s] Failed to save equity history to database: %v", at.name, err)
+		}
+	}
+}
+
+// logDecisionAndSaveEquity logs decision and saves equity history to database
+func (at *AutoTrader) logDecisionAndSaveEquity(record *logger.DecisionRecord) error {
+	err := at.decisionLogger.LogDecision(record)
+	if err == nil {
+		// Save equity history to database for persistence across deployments
+		at.saveEquityHistoryToDB(record)
+	}
+	return err
+}
+
 // GetStatus get system status (for API)
 func (at *AutoTrader) GetStatus() map[string]interface{} {
 	aiProvider := "DeepSeek"
@@ -2885,7 +2924,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 		}
 
 		// Log the decision
-		if err := at.decisionLogger.LogDecision(record); err != nil {
+		if err := at.logDecisionAndSaveEquity(record); err != nil {
 			log.Printf("⚠️ Position closure detection: failed to log auto-close for %s: %v", posKey, err)
 			continue
 		}
@@ -2982,7 +3021,7 @@ func (at *AutoTrader) processTradingViewAlerts(record *logger.DecisionRecord) er
 	if !ok {
 		record.Success = false
 		record.ErrorMessage = "unable to access database"
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return fmt.Errorf("database type error")
 	}
 
@@ -2991,14 +3030,14 @@ func (at *AutoTrader) processTradingViewAlerts(record *logger.DecisionRecord) er
 	if err != nil {
 		record.Success = false
 		record.ErrorMessage = fmt.Sprintf("failed to get TradingView alerts: %v", err)
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return fmt.Errorf("failed to get alerts: %w", err)
 	}
 
 	if len(alerts) == 0 {
 		log.Println("📭 No pending TradingView alerts")
 		record.ExecutionLog = append(record.ExecutionLog, "No pending TradingView alerts")
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return nil
 	}
 
@@ -3009,7 +3048,7 @@ func (at *AutoTrader) processTradingViewAlerts(record *logger.DecisionRecord) er
 	if err != nil {
 		record.Success = false
 		record.ErrorMessage = fmt.Sprintf("failed to get account information: %v", err)
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return fmt.Errorf("failed to get account information: %w", err)
 	}
 
@@ -3067,7 +3106,7 @@ func (at *AutoTrader) processTradingViewAlerts(record *logger.DecisionRecord) er
 	if len(decisions) == 0 {
 		log.Println("⚠️ No valid trading actions")
 		record.ExecutionLog = append(record.ExecutionLog, "No valid trading actions")
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return nil
 	}
 
@@ -3102,7 +3141,7 @@ func (at *AutoTrader) processTradingViewAlerts(record *logger.DecisionRecord) er
 	}
 
 	// Save decision record
-	if err := at.decisionLogger.LogDecision(record); err != nil {
+	if err := at.logDecisionAndSaveEquity(record); err != nil {
 		log.Printf("⚠ Failed to save decision record: %v", err)
 	}
 
@@ -3190,7 +3229,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		log.Printf("❌ [%s] Failed to build trading context: %v", at.name, err)
 		record.ErrorMessage = fmt.Sprintf("Failed to build trading context: %v", err)
 		_ = db.UpdateAlertStatus(alertID, "error")
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
@@ -3255,7 +3294,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		log.Printf("❌ [%s] AI call failed: %v", at.name, err)
 		record.ErrorMessage = fmt.Sprintf("AI call failed: %v", err)
 		_ = db.UpdateAlertStatus(alertID, "error")
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
@@ -3271,7 +3310,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		record.SystemPrompt = systemPrompt
 		record.InputPrompt = userPrompt
 		_ = db.UpdateAlertStatus(alertID, "error")
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
@@ -3292,7 +3331,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		// Debug: Log AccountState before saving (no decisions case)
 		log.Printf("🔍 [%s] TradingView Signal - Before LogDecision (no decisions): AccountState TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d",
 			at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance, record.AccountState.PositionCount)
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
@@ -3307,7 +3346,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		// Debug: Log AccountState before saving (safe fallback case)
 		log.Printf("🔍 [%s] TradingView Signal - Before LogDecision (safe fallback): AccountState TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d",
 			at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance, record.AccountState.PositionCount)
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
@@ -3319,7 +3358,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		// Debug: Log AccountState before saving (reject case)
 		log.Printf("🔍 [%s] TradingView Signal - Before LogDecision (reject): AccountState TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d",
 			at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance, record.AccountState.PositionCount)
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
@@ -3359,7 +3398,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 	log.Printf("🔍 [%s] TradingView Signal - Before LogDecision (final): AccountState TotalBalance=%.2f, AvailableBalance=%.2f, PositionCount=%d, MarginUsedPct=%.2f%%",
 		at.name, record.AccountState.TotalBalance, record.AccountState.AvailableBalance,
 		record.AccountState.PositionCount, record.AccountState.MarginUsedPct)
-	if err := at.decisionLogger.LogDecision(record); err != nil {
+	if err := at.logDecisionAndSaveEquity(record); err != nil {
 		log.Printf("⚠️ [%s] Failed to save decision record: %v", at.name, err)
 	}
 }
@@ -3396,7 +3435,7 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 	if err != nil {
 		log.Printf("❌ [%s] Failed to build context: %v", at.name, err)
 		record.ErrorMessage = fmt.Sprintf("Failed to build context: %v", err)
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
@@ -3480,7 +3519,7 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 	if err != nil {
 		log.Printf("❌ [%s] AI call failed: %v", at.name, err)
 		record.ErrorMessage = fmt.Sprintf("AI call failed: %v", err)
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
@@ -3494,7 +3533,7 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 		record.ErrorMessage = fmt.Sprintf("Failed to parse: %v", err)
 		record.SystemPrompt = systemPrompt
 		record.InputPrompt = userPrompt
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
@@ -3530,7 +3569,7 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 		log.Printf("❌ [%s] AI rejected signal: %s", at.name, aiDecision.Reasoning)
 		record.ErrorMessage = fmt.Sprintf("AI rejected: %s", aiDecision.Reasoning)
 		record.Success = true
-		at.decisionLogger.LogDecision(record)
+		at.logDecisionAndSaveEquity(record)
 		return
 	}
 
