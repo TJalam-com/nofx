@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams, useParams } from 'react-router-dom'
+import { useEffect, useState, useMemo } from 'react'
+import { Link, useNavigate, useSearchParams, useParams } from 'react-router-dom'
 import useSWR, { mutate } from 'swr'
 import { api } from '../lib/api'
 import { ChartTabs } from '../components/ChartTabs'
 import AILearning from '../components/AILearning'
 import { useLanguage } from '../contexts/LanguageContext'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth, isAdmin } from '../contexts/AuthContext'
 import { t, type Language } from '../i18n/translations'
 import { generateTraderSlug, parseTraderSlug } from '../lib/utils'
 import {
+  Activity,
   AlertTriangle,
   Bot,
   Brain,
@@ -185,6 +186,16 @@ export default function TraderDashboard() {
       dedupingInterval: 20000,
     }
   )
+
+  // Sort decisions by timestamp descending (most recent first) - cycle_number is not reliable
+  const sortedDecisions = useMemo(() => {
+    if (!decisions || decisions.length === 0) return []
+    return [...decisions].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime()
+      const timeB = new Date(b.timestamp).getTime()
+      return timeB - timeA // Descending order (most recent first)
+    })
+  }, [decisions])
 
   const { data: stats } = useSWR<Statistics>(
     user && token && selectedTraderId ? `statistics-${selectedTraderId}` : null,
@@ -401,32 +412,32 @@ export default function TraderDashboard() {
           boxShadow: '0 0 30px rgba(0, 255, 127, 0.15)',
         }}
       >
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
           <h2
-            className="text-2xl font-bold flex items-center gap-2"
+            className="text-xl sm:text-2xl font-bold flex items-center gap-2 min-w-0"
             style={{ color: '#EAECEF' }}
           >
             <span
-              className="w-10 h-10 rounded-full flex items-center justify-center"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0"
               style={{
                 background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               }}
             >
-              <Bot className="w-5 h-5" style={{ color: '#0B0E11' }} />
+              <Bot className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#0B0E11' }} />
             </span>
-            {selectedTrader.trader_name}
+            <span className="break-words">{selectedTrader.trader_name}</span>
           </h2>
 
           {/* Trader Selector */}
           {traders && traders.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm" style={{ color: '#848E9C' }}>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+              <span className="text-xs sm:text-sm whitespace-nowrap" style={{ color: '#848E9C' }}>
                 {t('switchTrader', language)}:
               </span>
               <select
                 value={selectedTraderId}
                 onChange={(e) => handleTraderSelect(e.target.value)}
-                className="rounded px-3 py-2 text-sm font-medium cursor-pointer transition-colors"
+                className="rounded px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium cursor-pointer transition-colors w-full sm:w-auto min-w-[120px]"
                 style={{
                   background: 'var(--navy-dark)',
                   border: '1px solid var(--navy-light)',
@@ -441,12 +452,30 @@ export default function TraderDashboard() {
               </select>
             </div>
           )}
+
+          {/* Streaming Link for Admins */}
+          {user && isAdmin(user) && (
+            <div className="shrink-0">
+              <Link
+                to={`/stream/${generateTraderSlug(selectedTrader.trader_name, selectedTrader.trader_id)}`}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded text-xs sm:text-sm font-semibold transition-all hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+                  color: '#0B0E11',
+                  boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)',
+                }}
+              >
+                <Activity className="w-4 h-4" />
+                Live Stream
+              </Link>
+            </div>
+          )}
         </div>
         <div
-          className="flex items-center gap-4 text-sm"
+          className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm"
           style={{ color: '#848E9C' }}
         >
-          <span>
+          <span className="whitespace-nowrap">
             AI Model:{' '}
             <span
               className="font-semibold"
@@ -462,16 +491,16 @@ export default function TraderDashboard() {
               )}
             </span>
           </span>
-          <span>•</span>
-          <span>
+          <span className="hidden sm:inline">•</span>
+          <span className="break-words">
             Prompt: <span className="font-semibold" style={{ color: highlightColor }}>{selectedTrader.system_prompt_template || '-'}</span>
           </span>
           {status && (
             <>
-              <span>•</span>
-              <span>Cycles: {status.call_count}</span>
-              <span>•</span>
-              <span>Runtime: {status.runtime_minutes} min</span>
+              <span className="hidden sm:inline">•</span>
+              <span className="whitespace-nowrap">Cycles: {status.call_count}</span>
+              <span className="hidden sm:inline">•</span>
+              <span className="whitespace-nowrap">Runtime: {status.runtime_minutes} min</span>
             </>
           )}
         </div>
@@ -520,25 +549,111 @@ export default function TraderDashboard() {
         />
       </div>
 
-      {/* 主要内容区：左右分屏 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* 左侧：图表 + 持仓 */}
-        <div className="space-y-6">
-          {/* Chart Tabs - Now includes TradingView */}
-          <div className="binance-card-enhanced animate-slide-in" style={{ animationDelay: '0.1s' }}>
-            <ChartTabs
-              traderId={selectedTrader.trader_id}
-              selectedSymbol={selectedChartSymbol}
-              updateKey={chartUpdateKey}
-              exchangeId={selectedTrader.exchange_id}
-            />
+      {/* 主要内容区：Account Equity Curve - Full Width */}
+      <div className="mb-6">
+        {/* Chart Tabs - Full Width, Fit to Screen */}
+        <div className="binance-card-enhanced animate-slide-in h-full" style={{ animationDelay: '0.1s', minHeight: 'clamp(400px, calc(100vh - 350px), 800px)' }}>
+          <ChartTabs
+            traderId={selectedTrader.trader_id}
+            selectedSymbol={selectedChartSymbol}
+            updateKey={chartUpdateKey}
+            exchangeId={selectedTrader.exchange_id}
+          />
+        </div>
+      </div>
+
+      {/* Recent Decisions - Full Width Below Chart */}
+      <div className="mb-6">
+        <div
+          className="binance-card p-6 animate-slide-in"
+          style={{ animationDelay: '0.2s' }}
+        >
+          <div
+            className="flex items-center justify-between mb-5 pb-4 border-b"
+            style={{ borderColor: 'var(--navy-light)' }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                }}
+              >
+                <Brain className="w-5 h-5" style={{ color: '#FFFFFF' }} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold" style={{ color: '#EAECEF' }}>
+                  {t('recentDecisions', language)}
+                </h2>
+                {decisions && decisions.length > 0 && (
+                  <div className="text-xs" style={{ color: '#848E9C' }}>
+                    {t('lastCycles', language, { count: decisions.length })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 显示数量选择器 */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: '#848E9C' }}>
+                {language === 'zh' ? '显示' : 'Show'}:
+              </span>
+              <select
+                value={decisionLimit}
+                onChange={(e) => handleLimitChange(parseInt(e.target.value, 10))}
+                className="rounded px-2 py-1 text-xs font-medium cursor-pointer transition-colors"
+                style={{
+                  background: 'var(--navy-dark)',
+                  border: '1px solid var(--navy-light)',
+                  color: '#EAECEF',
+                }}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="text-xs" style={{ color: '#848E9C' }}>
+                {language === 'zh' ? '条' : ''}
+              </span>
+            </div>
           </div>
 
-          {/* Current Positions */}
           <div
-            className="binance-card p-6 animate-slide-in"
-            style={{ animationDelay: '0.15s' }}
+            className="space-y-4 overflow-y-auto pr-2"
+            style={{ maxHeight: 'calc(100vh - 280px)' }}
           >
+            {sortedDecisions && sortedDecisions.length > 0 ? (
+              sortedDecisions.map((decision) => (
+                <DecisionCard key={`${decision.cycle_number}-${decision.timestamp}`} decision={decision} language={language} />
+              ))
+            ) : (
+              <div className="py-16 text-center">
+                <div className="mb-4 opacity-30 flex justify-center">
+                  <Brain className="w-16 h-16" />
+                </div>
+                <div
+                  className="text-lg font-semibold mb-2"
+                  style={{ color: '#EAECEF' }}
+                >
+                  {t('noDecisionsYet', language)}
+                </div>
+                <div className="text-sm" style={{ color: '#848E9C' }}>
+                  {t('aiDecisionsWillAppear', language)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Current Positions - Below Recent Decisions */}
+      <div className="mb-6">
+        <div
+          className="binance-card p-6 animate-slide-in"
+          style={{ animationDelay: '0.15s' }}
+        >
             <div className="flex items-center justify-between mb-5">
               <h2
                 className="text-xl font-bold flex items-center gap-2"
@@ -865,91 +980,6 @@ export default function TraderDashboard() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* 右侧：Recent Decisions */}
-        <div
-          className="binance-card p-6 animate-slide-in h-fit lg:sticky lg:top-24 lg:max-h-[calc(100vh-120px)]"
-          style={{ animationDelay: '0.2s' }}
-        >
-          <div
-            className="flex items-center justify-between mb-5 pb-4 border-b"
-            style={{ borderColor: 'var(--navy-light)' }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{
-                  background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
-                }}
-              >
-                <Brain className="w-5 h-5" style={{ color: '#FFFFFF' }} />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold" style={{ color: '#EAECEF' }}>
-                  {t('recentDecisions', language)}
-                </h2>
-                {decisions && decisions.length > 0 && (
-                  <div className="text-xs" style={{ color: '#848E9C' }}>
-                    {t('lastCycles', language, { count: decisions.length })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 显示数量选择器 */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs" style={{ color: '#848E9C' }}>
-                {language === 'zh' ? '显示' : 'Show'}:
-              </span>
-              <select
-                value={decisionLimit}
-                onChange={(e) => handleLimitChange(parseInt(e.target.value, 10))}
-                className="rounded px-2 py-1 text-xs font-medium cursor-pointer transition-colors"
-                style={{
-                  background: 'var(--navy-dark)',
-                  border: '1px solid var(--navy-light)',
-                  color: '#EAECEF',
-                }}
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-              <span className="text-xs" style={{ color: '#848E9C' }}>
-                {language === 'zh' ? '条' : ''}
-              </span>
-            </div>
-          </div>
-
-          <div
-            className="space-y-4 overflow-y-auto pr-2"
-            style={{ maxHeight: 'calc(100vh - 280px)' }}
-          >
-            {decisions && decisions.length > 0 ? (
-              decisions.map((decision, i) => (
-                <DecisionCard key={i} decision={decision} language={language} />
-              ))
-            ) : (
-              <div className="py-16 text-center">
-                <div className="mb-4 opacity-30 flex justify-center">
-                  <Brain className="w-16 h-16" />
-                </div>
-                <div
-                  className="text-lg font-semibold mb-2"
-                  style={{ color: '#EAECEF' }}
-                >
-                  {t('noDecisionsYet', language)}
-                </div>
-                <div className="text-sm" style={{ color: '#848E9C' }}>
-                  {t('aiDecisionsWillAppear', language)}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

@@ -146,7 +146,7 @@ export default function Footer({ variant = 'full' }: FooterProps) {
                 </a>
                 <a
                   className="inline-flex items-center gap-2 px-2 py-1 rounded-lg text-xs font-semibold transition-all duration-300 hover:scale-105"
-                  href="https://github.com/TJalam-com/nofx/tree/dev"
+                  href="https://github.com/TJalam-com/nofx/tree/prod"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -175,6 +175,26 @@ export default function Footer({ variant = 'full' }: FooterProps) {
                   </svg>
                   Dev Branch
                 </a>
+            </div>
+
+            {/* Attribution */}
+            <div
+              className="text-center text-sm max-w-4xl mx-auto mt-6"
+              style={{
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <p className="font-medium">
+                Built on NOFX (AGPL‑3.0) – original project at <a
+                  href="https://github.com/NoFxAiOS/nofx"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:opacity-80 transition-opacity"
+                  style={{ color: 'var(--green-primary)' }}
+                >
+                  github.com/NoFxAiOS/nofx
+                </a>
+              </p>
             </div>
           </>
         )}

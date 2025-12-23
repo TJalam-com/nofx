@@ -126,7 +126,7 @@ func TestUpdateStopLossValidation(t *testing.T) {
 				Reasoning:   "Test error case",
 			},
 			wantError: true,
-			errorMsg:  "New stop loss price must be greater than 0",
+			errorMsg:  "new stop loss price must be greater than 0",
 		},
 		{
 			name: "new_stop_loss is negative should error",
@@ -137,7 +137,7 @@ func TestUpdateStopLossValidation(t *testing.T) {
 				Reasoning:   "Test error case",
 			},
 			wantError: true,
-			errorMsg:  "New stop loss price must be greater than 0",
+			errorMsg:  "new stop loss price must be greater than 0",
 		},
 	}
 
@@ -186,7 +186,7 @@ func TestUpdateTakeProfitValidation(t *testing.T) {
 				Reasoning:     "Test error case",
 			},
 			wantError: true,
-			errorMsg:  "New take profit price must be greater than 0",
+			errorMsg:  "new take profit price must be greater than 0",
 		},
 		{
 			name: "new_take_profit is negative should error",
@@ -197,7 +197,7 @@ func TestUpdateTakeProfitValidation(t *testing.T) {
 				Reasoning:     "Test error case",
 			},
 			wantError: true,
-			errorMsg:  "New take profit price must be greater than 0",
+			errorMsg:  "new take profit price must be greater than 0",
 		},
 	}
 
@@ -246,7 +246,7 @@ func TestPartialCloseValidation(t *testing.T) {
 				Reasoning:       "Test error case",
 			},
 			wantError: true,
-			errorMsg:  "Close percentage must be between 0-100",
+			errorMsg:  "close percentage must be between 0-100",
 		},
 		{
 			name: "close_percentage exceeds 100 should error",
@@ -257,7 +257,7 @@ func TestPartialCloseValidation(t *testing.T) {
 				Reasoning:       "Test error case",
 			},
 			wantError: true,
-			errorMsg:  "Close percentage must be between 0-100",
+			errorMsg:  "close percentage must be between 0-100",
 		},
 	}
 

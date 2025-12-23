@@ -2,7 +2,6 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { useSEO } from '../hooks/useSEO'
 import { Container } from '../components/Container'
-import { Target, Users, Zap, Code, TrendingUp } from 'lucide-react'
 import { OrganizationSchema, BreadcrumbListSchema } from '../components/StructuredData'
 
 /**
@@ -47,158 +46,41 @@ export function AboutPage() {
 
           {/* Content */}
           <div className="space-y-12">
-            {/* Our Story */}
+            {/* Attribution */}
             <section>
               <div
-                className="rounded-lg p-6 md:p-8"
+                className="rounded-lg p-6 md:p-8 border-2 text-center"
                 style={{
                   background: 'var(--navy-dark)',
-                  border: '1px solid var(--panel-border)',
+                  borderColor: 'var(--green-primary)',
                 }}
               >
                 <h2
-                  className="text-2xl font-semibold mb-6"
+                  className="text-xl font-semibold mb-4"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  {t('aboutStoryTitle', language)}
+                  Attribution & Licensing
                 </h2>
                 <div
-                  className="text-sm leading-relaxed space-y-4"
+                  className="text-sm leading-relaxed"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  <p>{t('aboutStory1', language)}</p>
-                  <p>{t('aboutStory2', language)}</p>
-                  <p>{t('aboutStory3', language)}</p>
-                </div>
-              </div>
-            </section>
-
-            {/* Mission & Vision */}
-            <section>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div
-                  className="rounded-lg p-6 border-2"
-                  style={{
-                    background: 'var(--navy-dark)',
-                    borderColor: 'var(--green-primary)',
-                  }}
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <Target size={24} style={{ color: 'var(--green-primary)' }} />
-                    <h3
-                      className="text-xl font-semibold"
-                      style={{ color: 'var(--text-primary)' }}
+                  <p className="font-medium mb-2">
+                    Built on NOFX (AGPL‑3.0) – original project at{' '}
+                    <a
+                      href="https://github.com/NoFxAiOS/nofx"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:opacity-80 transition-opacity underline"
+                      style={{ color: 'var(--green-primary)' }}
                     >
-                      {t('aboutMissionTitle', language)}
-                    </h3>
-                  </div>
-                  <p
-                    className="text-sm leading-relaxed"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {t('aboutMission', language)}
+                      github.com/NoFxAiOS/nofx
+                    </a>
                   </p>
-                </div>
-
-                <div
-                  className="rounded-lg p-6 border-2"
-                  style={{
-                    background: 'var(--navy-dark)',
-                    borderColor: 'var(--green-primary)',
-                  }}
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <TrendingUp size={24} style={{ color: 'var(--green-primary)' }} />
-                    <h3
-                      className="text-xl font-semibold"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      {t('aboutVisionTitle', language)}
-                    </h3>
-                  </div>
-                  <p
-                    className="text-sm leading-relaxed"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {t('aboutVision', language)}
+                  <p>
+                    This is a modified version of the NOFX software, rebranded as AI Trading 24x7.
+                    All modifications are licensed under AGPL-3.0 and the complete source code is publicly available.
                   </p>
-                </div>
-              </div>
-            </section>
-
-            {/* Core Values */}
-            <section>
-              <div
-                className="rounded-lg p-6 md:p-8"
-                style={{
-                  background: 'var(--navy-dark)',
-                  border: '1px solid var(--panel-border)',
-                }}
-              >
-                <h2
-                  className="text-2xl font-semibold mb-6"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  {t('aboutValuesTitle', language)}
-                </h2>
-                <div className="grid md:grid-cols-2 gap-6">
-                  {[
-                    { icon: Code, key: 'aboutValue1' },
-                    { icon: Zap, key: 'aboutValue2' },
-                    { icon: Users, key: 'aboutValue3' },
-                    { icon: Target, key: 'aboutValue4' },
-                  ].map(({ icon: Icon, key }) => (
-                    <div key={key} className="flex items-start gap-4">
-                      <Icon size={24} style={{ color: 'var(--green-primary)' }} className="flex-shrink-0 mt-1" />
-                      <div>
-                        <h3
-                          className="text-lg font-semibold mb-2"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          {t(`${key}Title`, language)}
-                        </h3>
-                        <p
-                          className="text-sm leading-relaxed"
-                          style={{ color: 'var(--text-secondary)' }}
-                        >
-                          {t(`${key}Desc`, language)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* Team & Backing */}
-            <section>
-              <div
-                className="rounded-lg p-6 md:p-8"
-                style={{
-                  background: 'var(--navy-dark)',
-                  border: '1px solid var(--panel-border)',
-                }}
-              >
-                <h2
-                  className="text-2xl font-semibold mb-6"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  {t('aboutTeamTitle', language)}
-                </h2>
-                <div
-                  className="text-sm leading-relaxed space-y-4"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  <p>{t('aboutTeam1', language)}</p>
-                  <p>{t('aboutTeam2', language)}</p>
-                  <div className="mt-6 p-4 rounded-lg" style={{ background: 'var(--navy-primary)' }}>
-                    <p className="font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                      {t('aboutBackingTitle', language)}
-                    </p>
-                    <p style={{ color: 'var(--text-secondary)' }}>
-                      {t('aboutBacking', language)}
-                    </p>
-                  </div>
                 </div>
               </div>
             </section>

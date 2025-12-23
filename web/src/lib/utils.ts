@@ -20,10 +20,10 @@ export function generateTraderSlug(name: string, id: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-  
+
   // Get last 4 characters of ID
   const id4 = id.length >= 4 ? id.slice(-4) : id
-  
+
   return `${sanitizedName}-${id4}`
 }
 

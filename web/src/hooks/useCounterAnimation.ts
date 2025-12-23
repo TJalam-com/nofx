@@ -13,10 +13,18 @@ export function useCounterAnimation({
   duration = 2000,
   decimals = 0,
 }: UseCounterAnimationOptions): number {
-  const [count, setCount] = useState(start)
+  // Ensure end is a valid number
+  const safeEnd = typeof end === 'number' && !isNaN(end) ? end : 0
+  const safeStart = typeof start === 'number' && !isNaN(start) ? start : 0
+  
+  const [count, setCount] = useState(safeStart)
 
   useEffect(() => {
-    if (end === 0) return
+    // Don't animate if end is 0 or invalid
+    if (safeEnd === 0 && safeStart === 0) {
+      setCount(0)
+      return
+    }
 
     let startTime: number | null = null
     let animationFrame: number
@@ -28,13 +36,13 @@ export function useCounterAnimation({
       // 使用 easeOutExpo 缓动函数，让数字快速启动后缓慢停止
       const easeOutExpo = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress)
 
-      const currentCount = start + (end - start) * easeOutExpo
+      const currentCount = safeStart + (safeEnd - safeStart) * easeOutExpo
       setCount(currentCount)
 
       if (progress < 1) {
         animationFrame = requestAnimationFrame(animate)
       } else {
-        setCount(end)
+        setCount(safeEnd)
       }
     }
 
@@ -45,7 +53,9 @@ export function useCounterAnimation({
         cancelAnimationFrame(animationFrame)
       }
     }
-  }, [start, end, duration])
+  }, [safeStart, safeEnd, duration])
 
-  return decimals > 0 ? parseFloat(count.toFixed(decimals)) : Math.floor(count)
+  // Ensure count is a valid number before calling toFixed
+  const safeCount = typeof count === 'number' && !isNaN(count) ? count : 0
+  return decimals > 0 ? parseFloat(safeCount.toFixed(decimals)) : Math.floor(safeCount)
 }

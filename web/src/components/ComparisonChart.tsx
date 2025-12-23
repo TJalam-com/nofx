@@ -619,6 +619,8 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
         style={{
           background: 'var(--bg-dark)',
           border: '1px solid var(--bg-panel)',
+          minHeight: '400px',
+          height: 'clamp(400px, calc(100vh - 450px), 800px)',
         }}
       >
         {/* Enhanced AI Trading 24x7 Watermark */}
@@ -634,7 +636,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
         >
           AI Trading
         </div>
-        <ResponsiveContainer width="100%" height={520}>
+        <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={displayData}
             margin={{ top: 20, right: 30, left: 20, bottom: 50 }}

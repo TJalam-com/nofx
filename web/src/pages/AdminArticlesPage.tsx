@@ -150,8 +150,8 @@ export default function AdminArticlesPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary, #111827)' }}>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--text-primary, #111827)' }}>
           Article Management
         </h1>
         <button
@@ -159,7 +159,7 @@ export default function AdminArticlesPage() {
             setShowCreateForm(true)
             setEditingArticle(null)
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 whitespace-nowrap text-sm sm:text-base"
         >
           <Plus size={20} />
           Create Article
@@ -255,25 +255,25 @@ export default function AdminArticlesPage() {
                 className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                 style={{ borderColor: 'var(--border-color, #e5e7eb)', backgroundColor: 'var(--bg-primary, #ffffff)' }}
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-xl font-semibold" style={{ color: '#000000' }}>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h3 className="text-lg sm:text-xl font-semibold break-words" style={{ color: '#000000' }}>
                         {article.title}
                       </h3>
                       <span
-                        className={`px-2 py-1 text-xs rounded ${
+                        className={`px-2 py-1 text-xs rounded shrink-0 ${
                           article.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                         }`}
                       >
                         {article.status}
                       </span>
                     </div>
-                    <p className="text-sm mb-2" style={{ color: '#000000' }}>
+                    <p className="text-xs sm:text-sm mb-2 break-words" style={{ color: '#000000' }}>
                       {article.excerpt || 'No excerpt'}
                     </p>
-                    <p className="text-xs" style={{ color: '#000000' }}>
-                      Slug: <code className="bg-gray-100 px-1 rounded" style={{ color: '#000000' }}>{article.slug}</code> • 
+                    <p className="text-xs break-words" style={{ color: '#000000' }}>
+                      Slug: <code className="bg-gray-100 px-1 rounded break-all" style={{ color: '#000000' }}>{article.slug}</code> • 
                       Created: {new Date(article.created_at).toLocaleDateString()}
                       {article.status === 'published' ? (
                         article.published_at ? (
@@ -286,7 +286,7 @@ export default function AdminArticlesPage() {
                       )}
                     </p>
                   </div>
-                  <div className="flex gap-2 ml-4">
+                  <div className="flex flex-wrap gap-2 shrink-0 sm:ml-4">
                     {article.status === 'published' && (
                       <a
                         href={`/blog/${article.slug}`}

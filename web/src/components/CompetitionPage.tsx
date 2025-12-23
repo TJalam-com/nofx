@@ -331,12 +331,11 @@ export function CompetitionPage() {
         </div>
       </div>
 
-      {/* Left/Right Split: Performance Chart + Leaderboard */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-        {/* Left: Performance Comparison Chart */}
+      {/* Performance Comparison Chart - Full Width */}
+      <div className="mb-6 md:mb-8">
         <div
           className="binance-card-enhanced p-6 md:p-8 animate-slide-in"
-          style={{ animationDelay: '0.1s' }}
+          style={{ animationDelay: '0.1s', minHeight: 'clamp(400px, calc(100vh - 350px), 800px)' }}
         >
           <div className="flex items-center justify-between mb-6">
             <h2
@@ -358,8 +357,10 @@ export function CompetitionPage() {
           </div>
           <ComparisonChart traders={sortedTraders.slice(0, 10)} />
         </div>
+      </div>
 
-        {/* Right: Leaderboard */}
+      {/* Leaderboard - Full Width Below Chart */}
+      <div className="mb-6 md:mb-8">
         <div
           className="binance-card-enhanced p-6 md:p-8 animate-slide-in"
           style={{ animationDelay: '0.2s' }}

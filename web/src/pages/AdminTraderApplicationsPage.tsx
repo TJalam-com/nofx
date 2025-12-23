@@ -218,24 +218,24 @@ export default function AdminTraderApplicationsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
             Application Management
           </h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
             Review and manage user applications
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search applications..."
-              className="pl-10 pr-4 py-2 rounded-lg border text-sm"
+              className="pl-10 pr-4 py-2 rounded-lg border text-sm w-full"
               style={{
                 background: 'var(--input-bg)',
                 borderColor: 'var(--input-border)',
@@ -246,7 +246,7 @@ export default function AdminTraderApplicationsPage() {
           <button
             onClick={() => mutateApplications()}
             disabled={applicationsLoading}
-            className="px-4 py-2 rounded-lg border font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 rounded-lg border font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap"
             style={{
               background: 'var(--navy-dark)',
               borderColor: 'var(--panel-border)',
@@ -262,12 +262,12 @@ export default function AdminTraderApplicationsPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6 border-b" style={{ borderColor: 'var(--panel-border)' }}>
+      <div className="flex gap-2 mb-6 border-b overflow-x-auto" style={{ borderColor: 'var(--panel-border)' }}>
         {(['all', 'pending', 'approved', 'rejected'] as const).map((status) => (
           <button
             key={status}
             onClick={() => handleFilterChange(status)}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
               filterStatus === status
                 ? 'border-[var(--green-primary)] text-[var(--green-primary)]'
                 : 'border-transparent'
@@ -332,19 +332,19 @@ export default function AdminTraderApplicationsPage() {
                   borderColor: 'var(--panel-border)',
                 }}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                      <h3 className="text-base sm:text-lg font-semibold break-words" style={{ color: 'var(--text-primary)' }}>
                         {app.name}
                       </h3>
                       {getStatusBadge(app.status)}
                     </div>
-                    <div className="text-sm space-y-1" style={{ color: 'var(--text-secondary)' }}>
-                      <p>
+                    <div className="text-xs sm:text-sm space-y-1" style={{ color: 'var(--text-secondary)' }}>
+                      <p className="break-words">
                         <span className="font-semibold">User:</span> {app.user_email || app.user_id}
                       </p>
-                      <p>
+                      <p className="break-words">
                         <span className="font-semibold">Communication Email:</span> {app.email}
                       </p>
                       <p>
@@ -353,7 +353,7 @@ export default function AdminTraderApplicationsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     {(canAction || isApproving || isRejecting) && (
                       <>
                         {(app.status === 'pending' || isApproving) && (
