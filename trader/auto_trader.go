@@ -166,6 +166,10 @@ type AutoTrader struct {
 	followedTraderID         string                                             // Cached parent trader ID
 	processedSignals         map[string]time.Time                               // Deduplication cache (signal_id -> timestamp)
 	processedSignalsMutex    sync.RWMutex                                       // Mutex for signal cache
+	previousPositions        map[string]map[string]interface{}                   // Previous position snapshot (symbol_side -> position data)
+	previousPositionsMutex   sync.RWMutex                                       // Mutex for previous positions
+	loggedClosures           map[string]time.Time                               // Track logged closures to avoid duplicates (symbol_side -> timestamp)
+	loggedClosuresMutex     sync.RWMutex                                       // Mutex for logged closures
 }
 
 // NewAutoTrader create automatic trader
@@ -416,6 +420,8 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		isFollower:            isFollower,
 		followedTraderID:      followedTraderID,
 		processedSignals:      make(map[string]time.Time),
+		previousPositions:     make(map[string]map[string]interface{}),
+		loggedClosures:         make(map[string]time.Time),
 	}, nil
 }
 
@@ -2553,6 +2559,9 @@ func (at *AutoTrader) startDrawdownMonitor() {
 
 // Check position drawdown situation
 func (at *AutoTrader) checkPositionDrawdown() {
+	// Detect and log position closures (SL/TP)
+	at.detectAndLogPositionClosures()
+
 	// Get current positions
 	positions, err := at.trader.GetPositions()
 	if err != nil {
@@ -2646,6 +2655,263 @@ func (at *AutoTrader) checkPositionDrawdown() {
 				symbol, side, currentPnLPct, peakPnLPct, drawdownPct)
 		}
 	}
+}
+
+// detectAndLogPositionClosures detects positions that were closed by SL/TP and logs them as auto-close actions
+func (at *AutoTrader) detectAndLogPositionClosures() {
+	// Get current positions
+	currentPositions, err := at.trader.GetPositions()
+	if err != nil {
+		log.Printf("⚠️ Position closure detection: failed to get positions: %v", err)
+		return
+	}
+
+	// Build current position keys map (symbol_side -> true)
+	currentPositionKeys := make(map[string]bool)
+	currentPositionsMap := make(map[string]map[string]interface{})
+
+	for _, pos := range currentPositions {
+		symbol, ok := pos["symbol"].(string)
+		if !ok || symbol == "" {
+			continue
+		}
+		side, ok := pos["side"].(string)
+		if !ok || side == "" {
+			continue
+		}
+		quantity, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue
+		}
+		if quantity < 0 {
+			quantity = -quantity
+		}
+		// Skip closed positions (quantity = 0)
+		if quantity == 0 {
+			continue
+		}
+
+		posKey := symbol + "_" + side
+		currentPositionKeys[posKey] = true
+		currentPositionsMap[posKey] = pos
+	}
+
+	// Get previous positions snapshot
+	at.previousPositionsMutex.RLock()
+	previousPositions := make(map[string]map[string]interface{})
+	for k, v := range at.previousPositions {
+		previousPositions[k] = v
+	}
+	at.previousPositionsMutex.RUnlock()
+
+	// Detect disappeared positions (were in previous but not in current)
+	var disappearedPositions []string
+	for posKey := range previousPositions {
+		if !currentPositionKeys[posKey] {
+			disappearedPositions = append(disappearedPositions, posKey)
+		}
+	}
+
+	if len(disappearedPositions) == 0 {
+		// Update snapshot and return
+		at.previousPositionsMutex.Lock()
+		at.previousPositions = currentPositionsMap
+		at.previousPositionsMutex.Unlock()
+		return
+	}
+
+	// Get database reference
+	db, ok := at.database.(*cfg.Database)
+	if !ok {
+		log.Printf("⚠️ Position closure detection: database type error")
+		// Update snapshot anyway
+		at.previousPositionsMutex.Lock()
+		at.previousPositions = currentPositionsMap
+		at.previousPositionsMutex.Unlock()
+		return
+	}
+
+	// Check for closures within last 10 minutes
+	timeWindow := 10 * time.Minute
+	cutoffTime := time.Now().Add(-timeWindow)
+
+	// Get recent position history
+	recentHistory, err := db.GetPositionHistory(at.id, 50, 0)
+	if err != nil {
+		log.Printf("⚠️ Position closure detection: failed to get position history: %v", err)
+		// Update snapshot anyway
+		at.previousPositionsMutex.Lock()
+		at.previousPositions = currentPositionsMap
+		at.previousPositionsMutex.Unlock()
+		return
+	}
+
+	// Process each disappeared position
+	for _, posKey := range disappearedPositions {
+		// Check if we've already logged this closure (deduplication)
+		at.loggedClosuresMutex.RLock()
+		lastLogged, alreadyLogged := at.loggedClosures[posKey]
+		at.loggedClosuresMutex.RUnlock()
+
+		if alreadyLogged && time.Since(lastLogged) < timeWindow {
+			continue // Already logged recently, skip
+		}
+
+		// Parse symbol and side from posKey (format: symbol_side)
+		// Split from right to handle symbols that may contain underscores
+		lastUnderscore := strings.LastIndex(posKey, "_")
+		if lastUnderscore == -1 || lastUnderscore == len(posKey)-1 {
+			continue
+		}
+		symbol := posKey[:lastUnderscore]
+		side := posKey[lastUnderscore+1:]
+		if side != "long" && side != "short" {
+			continue // Invalid side
+		}
+
+		// Check decision logs first to see if this was already logged as a manual or auto-close
+		records, err := at.decisionLogger.GetLatestRecords(50)
+		alreadyLoggedInDecisions := false
+		if err == nil {
+			for _, record := range records {
+				for _, action := range record.Decisions {
+					if action.Symbol == symbol &&
+						(action.Action == "close_long" || action.Action == "close_short" ||
+							action.Action == "auto_close_long" || action.Action == "auto_close_short") &&
+						action.Timestamp.After(cutoffTime) {
+						// Already logged, skip
+						alreadyLoggedInDecisions = true
+						break
+					}
+				}
+				if alreadyLoggedInDecisions {
+					break
+				}
+			}
+		}
+
+		if alreadyLoggedInDecisions {
+			continue // Skip, already logged
+		}
+
+		// Find matching closed position in history
+		var closedPosition *cfg.PositionRecord
+		for _, histPos := range recentHistory {
+			if histPos.Symbol == symbol && histPos.Side == side && histPos.ClosedAt != nil {
+				// Check if closure is within time window
+				if histPos.ClosedAt.After(cutoffTime) {
+					closedPosition = histPos
+					break
+				}
+			}
+		}
+
+		// If no closure found in history, try to get from previous snapshot
+		if closedPosition == nil {
+			prevPos, exists := previousPositions[posKey]
+			if exists {
+				// Try to find closure by checking if position was recently closed
+				// Use previous position data to create a closure record
+				entryPrice, _ := prevPos["entryPrice"].(float64)
+				quantity, _ := prevPos["positionAmt"].(float64)
+				if quantity < 0 {
+					quantity = -quantity
+				}
+				leverage, _ := prevPos["leverage"].(float64)
+
+				// Get current market price as exit price estimate
+				marketData, err := market.Get(symbol)
+				if err != nil {
+					log.Printf("⚠️ Position closure detection: failed to get market data for %s: %v", symbol, err)
+					continue
+				}
+
+				// Calculate P&L estimate
+				var realizedPnL float64
+				if side == "long" {
+					realizedPnL = quantity * (marketData.CurrentPrice - entryPrice)
+				} else {
+					realizedPnL = quantity * (entryPrice - marketData.CurrentPrice)
+				}
+
+				// Create closure record from snapshot
+				closedAt := time.Now()
+				closedPosition = &cfg.PositionRecord{
+					Symbol:      symbol,
+					Side:        side,
+					EntryPrice:  entryPrice,
+					ExitPrice:   marketData.CurrentPrice,
+					Quantity:    quantity,
+					Leverage:    int(leverage),
+					RealizedPnL: realizedPnL,
+					ClosedAt:    &closedAt,
+				}
+			}
+		}
+
+		if closedPosition == nil {
+			continue // No closure found, skip
+		}
+
+		// Determine action type
+		action := "auto_close_long"
+		if side == "short" {
+			action = "auto_close_short"
+		}
+
+		// Create decision action
+		closeTime := time.Now()
+		if closedPosition.ClosedAt != nil {
+			closeTime = *closedPosition.ClosedAt
+		}
+
+		decisionAction := logger.DecisionAction{
+			Action:    action,
+			Symbol:    closedPosition.Symbol,
+			Quantity:  closedPosition.Quantity,
+			Leverage:  closedPosition.Leverage,
+			Price:     closedPosition.ExitPrice,
+			Timestamp: closeTime,
+			Success:   true,
+		}
+
+		// Create minimal decision record
+		record := &logger.DecisionRecord{
+			Timestamp:    closeTime,
+			CycleNumber:  0, // Auto-close doesn't belong to a cycle
+			Decisions:    []logger.DecisionAction{decisionAction},
+			ExecutionLog: []string{"Auto-closed by SL/TP"},
+			Success:      true,
+		}
+
+		// Log the decision
+		if err := at.decisionLogger.LogDecision(record); err != nil {
+			log.Printf("⚠️ Position closure detection: failed to log auto-close for %s: %v", posKey, err)
+			continue
+		}
+
+		log.Printf("✅ Position closure detected and logged: %s %s (entry=%.4f, exit=%.4f, pnl=%.4f)",
+			symbol, side, closedPosition.EntryPrice, closedPosition.ExitPrice, closedPosition.RealizedPnL)
+
+		// Mark as logged
+		at.loggedClosuresMutex.Lock()
+		at.loggedClosures[posKey] = closeTime
+		at.loggedClosuresMutex.Unlock()
+
+		// Clean up old logged closures (older than 1 hour)
+		at.loggedClosuresMutex.Lock()
+		for k, v := range at.loggedClosures {
+			if time.Since(v) > time.Hour {
+				delete(at.loggedClosures, k)
+			}
+		}
+		at.loggedClosuresMutex.Unlock()
+	}
+
+	// Update previous positions snapshot
+	at.previousPositionsMutex.Lock()
+	at.previousPositions = currentPositionsMap
+	at.previousPositionsMutex.Unlock()
 }
 
 // Emergency close position function

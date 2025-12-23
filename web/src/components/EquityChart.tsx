@@ -203,7 +203,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
   }
 
   return (
-    <div className="binance-card p-3 sm:p-5 animate-fade-in">
+    <div className="binance-card p-3 sm:p-5 animate-fade-in h-full flex flex-col">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
         <div className="flex-1">
@@ -300,11 +300,14 @@ export function EquityChart({ traderId }: EquityChartProps) {
 
       {/* Chart */}
       <div
-        className="my-2"
+        className="my-2 w-full"
         style={{
           borderRadius: '8px',
           overflow: 'hidden',
           position: 'relative',
+          minHeight: '400px',
+          height: '100%',
+          flex: '1 1 0',
         }}
       >
         {/* AI Trading 24x7 Watermark */}
@@ -323,7 +326,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
         >
           AI Trading
         </div>
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
             margin={{ top: 10, right: 20, left: 5, bottom: 30 }}
@@ -371,7 +374,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
             <Line
               type="natural"
               dataKey="value"
-              stroke="url(#colorGradient)"
+              stroke="var(--green-primary)"
               strokeWidth={3}
               dot={chartData.length > 50 ? false : { fill: 'var(--green-primary)', r: 3 }}
               activeDot={{

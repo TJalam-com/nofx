@@ -3,6 +3,7 @@ import { EquityChart } from './EquityChart'
 import { TradingViewChart } from './TradingViewChart'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
+import { soundSystem } from '../lib/sound'
 import { BarChart3, CandlestickChart } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -11,11 +12,22 @@ interface ChartTabsProps {
   selectedSymbol?: string // Symbol selected from external source
   updateKey?: number // Key to force update
   exchangeId?: string // Exchange ID
+  autoSwitchEnabled?: boolean // Enable auto-switching between tabs
+  autoSwitchInterval?: number // Seconds between auto-switches
+  onTabSwitchComplete?: () => void // Callback when tab switch animation completes
 }
 
 type ChartTab = 'equity' | 'kline'
 
-export function ChartTabs({ traderId, selectedSymbol, updateKey, exchangeId }: ChartTabsProps) {
+export function ChartTabs({
+  traderId,
+  selectedSymbol,
+  updateKey,
+  exchangeId,
+  autoSwitchEnabled = false,
+  autoSwitchInterval = 10,
+  onTabSwitchComplete
+}: ChartTabsProps) {
   const { language } = useLanguage()
   const [activeTab, setActiveTab] = useState<ChartTab>('equity')
   const [chartSymbol, setChartSymbol] = useState<string>('BTCUSDT')
@@ -28,11 +40,26 @@ export function ChartTabs({ traderId, selectedSymbol, updateKey, exchangeId }: C
     }
   }, [selectedSymbol, updateKey])
 
+  // Auto-switch between tabs
+  useEffect(() => {
+    if (!autoSwitchEnabled) return
+
+    const interval = setInterval(() => {
+      setActiveTab(prev => {
+        const newTab = prev === 'equity' ? 'kline' : 'equity'
+        soundSystem.playChartSwitch()
+        return newTab
+      })
+    }, autoSwitchInterval * 1000)
+
+    return () => clearInterval(interval)
+  }, [autoSwitchEnabled, autoSwitchInterval])
+
   return (
-    <div className="binance-card">
+    <div className="binance-card h-full flex flex-col">
       {/* Tab Headers */}
       <div
-        className="flex items-center gap-2 p-3"
+        className="flex items-center gap-2 p-3 flex-shrink-0"
         style={{
           borderBottom: '1px solid var(--panel-border)',
           background: 'var(--navy-primary)',
@@ -66,7 +93,7 @@ export function ChartTabs({ traderId, selectedSymbol, updateKey, exchangeId }: C
       </div>
 
       {/* Tab Content */}
-      <div className="relative overflow-hidden min-h-[400px]">
+      <div className="relative overflow-hidden flex-1" style={{ minHeight: 'clamp(400px, calc(100vh - 350px), 800px)', height: '100%' }}>
         <AnimatePresence mode="wait">
           {activeTab === 'equity' ? (
             <motion.div
@@ -75,7 +102,9 @@ export function ChartTabs({ traderId, selectedSymbol, updateKey, exchangeId }: C
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.2 }}
-              className="h-full"
+              onAnimationComplete={() => onTabSwitchComplete?.()}
+              className="h-full w-full"
+              style={{ display: 'flex', flexDirection: 'column' }}
             >
               <EquityChart traderId={traderId} />
             </motion.div>
@@ -86,6 +115,7 @@ export function ChartTabs({ traderId, selectedSymbol, updateKey, exchangeId }: C
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
+              onAnimationComplete={() => onTabSwitchComplete?.()}
               className="h-full"
             >
               <TradingViewChart

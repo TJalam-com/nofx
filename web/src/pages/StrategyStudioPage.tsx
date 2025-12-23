@@ -155,21 +155,21 @@ export function StrategyStudioPage() {
     <div className="min-h-screen" style={{ background: 'var(--navy-background)' }}>
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-[#EAECEF] mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#EAECEF] mb-2">
               {language === 'zh' ? '策略' : 'Strategy'}
             </h1>
-            <p className="text-[#848E9C]">
+            <p className="text-sm sm:text-base text-[#848E9C]">
               {language === 'zh' 
                 ? '创建、管理和分享您的交易策略' 
                 : 'Create, manage, and share your trading strategies'}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3 shrink-0">
             <button
               onClick={handleImport}
-              className="px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+              className="px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm sm:text-base whitespace-nowrap"
               style={{ 
                 background: 'var(--navy-primary)', 
                 border: '1px solid var(--panel-border)',
@@ -177,11 +177,11 @@ export function StrategyStudioPage() {
               }}
             >
               <Upload className="w-4 h-4" />
-              {language === 'zh' ? '导入' : 'Import'}
+              <span className="hidden sm:inline">{language === 'zh' ? '导入' : 'Import'}</span>
             </button>
             <button
               onClick={handleCreate}
-              className="px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+              className="px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm sm:text-base whitespace-nowrap"
               style={{ 
                 background: 'var(--green-primary)', 
                 color: 'var(--navy-primary)'

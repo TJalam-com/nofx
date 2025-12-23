@@ -745,11 +745,13 @@ export default function HeaderBar({
             <button
               key="mobile-competition-tab"
               onClick={() => {
-                console.log(
-                  '移动端 实时 button clicked, onPageChange:',
-                  onPageChange
-                )
-                onPageChange?.('competition')
+                // Navigate using React Router (primary navigation method)
+                navigate('/competition')
+                // Call onPageChange if provided (for backward compatibility with App.tsx)
+                if (onPageChange) {
+                  onPageChange('competition')
+                }
+                // Close mobile menu after navigation
                 setMobileMenuOpen(false)
               }}
               className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"

@@ -25,7 +25,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
     if (location.pathname === '/traders') {
       return 'traders'
     }
-    if (location.pathname === '/dashboard') {
+    // Check for dashboard route (both /dashboard and /dashboard/:slug)
+    if (location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/')) {
       return 'trader'
     }
     if (location.pathname === '/followers') {

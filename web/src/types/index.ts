@@ -110,3 +110,37 @@ export interface Statistics {
   total_open_positions: number
   total_close_positions: number
 }
+
+// Streaming configuration types
+export interface StreamingConfig {
+  id: string
+  admin_id: string
+  is_streaming: boolean
+  stream_mode: 'full' | 'minimal' | 'charts_only'
+  show_decisions: boolean
+  show_positions: boolean
+  animation_speed: number // 0.5-2x
+  theme: 'dark' | 'light' | 'cyberpunk'
+  auto_switch_charts: boolean // Auto-switch between equity and market charts
+  auto_switch_interval: number // Seconds between switches (5-30)
+  auto_scroll_ai_analysis: boolean // Auto-scroll AI analysis text as it types
+  auto_scroll_page: boolean // Auto-scroll the entire page
+  auto_scroll_page_speed: number // 0.5x - 2x speed multiplier
+  sound_enabled: boolean // Enable sound effects
+  watermark_text: string
+  widget_visibility: {
+    equity: boolean
+    positions: boolean
+    decisions: boolean
+    metrics: boolean
+    ai_process: boolean
+  }
+  layout_type: 'dashboard' | 'chart_focus' | 'position_focus'
+}
+
+// WebSocket message types
+export interface WebSocketMessage {
+  type: 'equity_update' | 'position_update' | 'decision_update' | 'account_update'
+  data: any
+  timestamp: string
+}

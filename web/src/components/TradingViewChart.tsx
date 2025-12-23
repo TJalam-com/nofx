@@ -3,6 +3,21 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { ChevronDown, TrendingUp, X } from 'lucide-react'
 
+// Helper to conditionally send ingest logs (only if env var is set)
+const shouldLogIngest = () => {
+  return import.meta.env.VITE_ENABLE_INGEST_LOGS === 'true' || 
+         (typeof window !== 'undefined' && (window as any).__ENABLE_INGEST_LOGS__ === true)
+}
+
+const logIngest = (data: any) => {
+  if (!shouldLogIngest()) return
+  fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).catch(() => {})
+}
+
 // Supported exchange list (futures format)
 const EXCHANGES = [
   { id: 'BINANCE', name: 'Binance', prefix: 'BINANCE:', suffix: '.P' },
@@ -68,9 +83,15 @@ function TradingViewChartComponent({
 
   // When defaultSymbol changes, update local symbol
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:70',message:'Default symbol effect',data:{defaultSymbol,currentSymbol:symbol,willUpdate:defaultSymbol && defaultSymbol !== symbol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
+    logIngest({
+      location: 'TradingViewChart.tsx:70',
+      message: 'Default symbol effect',
+      data: { defaultSymbol, currentSymbol: symbol, willUpdate: defaultSymbol && defaultSymbol !== symbol },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'E'
+    })
     if (defaultSymbol && defaultSymbol !== symbol) {
       setSymbol(defaultSymbol)
     }
@@ -92,17 +113,29 @@ function TradingViewChartComponent({
     const prefix = exchangeInfo?.prefix || 'BINANCE:'
     const suffix = exchangeInfo?.suffix || '.P'
     const fullSymbol = `${prefix}${symbol}${suffix}`
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:91',message:'Full symbol generated',data:{symbol,exchange,prefix,suffix,fullSymbol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
+    logIngest({
+      location: 'TradingViewChart.tsx:91',
+      message: 'Full symbol generated',
+      data: { symbol, exchange, prefix, suffix, fullSymbol },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'C'
+    })
     return fullSymbol
   }
 
   // Load TradingView Widget
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:95',message:'Widget useEffect triggered',data:{symbol,exchange,timeInterval,hasContainer:!!containerRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
+    logIngest({
+      location: 'TradingViewChart.tsx:95',
+      message: 'Widget useEffect triggered',
+      data: { symbol, exchange, timeInterval, hasContainer: !!containerRef.current },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'B'
+    })
     if (!containerRef.current) return
 
     // Clear container
@@ -150,17 +183,29 @@ function TradingViewChartComponent({
       support_host: 'https://www.tradingview.com',
     }
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:142',message:'Widget config created',data:{widgetConfig,fullSymbol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
+    logIngest({
+      location: 'TradingViewChart.tsx:142',
+      message: 'Widget config created',
+      data: { widgetConfig, fullSymbol },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'C'
+    })
     
     script.innerHTML = JSON.stringify(widgetConfig)
     
     // Add error handling
     script.onerror = () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:145',message:'Script onerror fired',data:{fullSymbol,scriptSrc:script.src},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
+      logIngest({
+        location: 'TradingViewChart.tsx:145',
+        message: 'Script onerror fired',
+        data: { fullSymbol, scriptSrc: script.src },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'D'
+      })
       console.error('Failed to load TradingView widget script')
       if (containerRef.current) {
         containerRef.current.innerHTML = `
@@ -174,16 +219,28 @@ function TradingViewChartComponent({
 
     // Monitor widget initialization
     script.onload = () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:157',message:'Script onload fired',data:{fullSymbol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
+      logIngest({
+        location: 'TradingViewChart.tsx:157',
+        message: 'Script onload fired',
+        data: { fullSymbol },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'B'
+      })
       // Check if widget rendered after a delay
       setTimeout(() => {
         const widgetElement = containerRef.current?.querySelector('.tradingview-widget-container__widget')
         const hasContent = widgetElement && widgetElement.children.length > 0
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:161',message:'Widget render check',data:{fullSymbol,hasContent,childrenCount:widgetElement?.children.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
+        logIngest({
+          location: 'TradingViewChart.tsx:161',
+          message: 'Widget render check',
+          data: { fullSymbol, hasContent, childrenCount: widgetElement?.children.length || 0 },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'B'
+        })
       }, 2000)
     }
 
@@ -198,9 +255,15 @@ function TradingViewChartComponent({
 
   // Handle custom symbol input
   const handleCustomSymbolSubmit = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:167',message:'Custom symbol submit called',data:{customSymbol:customSymbol.trim(),exchange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
+    logIngest({
+      location: 'TradingViewChart.tsx:167',
+      message: 'Custom symbol submit called',
+      data: { customSymbol: customSymbol.trim(), exchange },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'A'
+    })
     if (customSymbol.trim()) {
       let sym = customSymbol.trim().toUpperCase()
       const originalSym = sym
@@ -208,9 +271,15 @@ function TradingViewChartComponent({
       if (!sym.endsWith('USDT')) {
         sym = sym + 'USDT'
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradingViewChart.tsx:174',message:'Symbol transformed',data:{originalSym,transformedSym:sym,exchange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
+      logIngest({
+        location: 'TradingViewChart.tsx:174',
+        message: 'Symbol transformed',
+        data: { originalSym, transformedSym: sym, exchange },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A'
+      })
       setSymbol(sym)
       setCustomSymbol('')
       setShowSymbolDropdown(false)
@@ -221,14 +290,19 @@ function TradingViewChartComponent({
     <div
       className={`${embedded ? '' : 'binance-card'} overflow-hidden ${embedded ? '' : 'animate-fade-in'} ${isFullscreen
           ? 'fixed inset-0 z-50 rounded-none flex flex-col'
-          : ''
+          : height === 0 
+            ? 'flex flex-col h-full'
+            : ''
         }`}
-      style={isFullscreen ? { background: 'var(--navy-primary)' } : undefined}
+      style={isFullscreen ? { background: 'var(--navy-primary)' } : height === 0 ? { height: '100%', display: 'flex', flexDirection: 'column' } : undefined}
     >
       {/* Header */}
       <div
         className="flex flex-wrap items-center gap-2 p-3 sm:p-4"
-        style={{ borderBottom: embedded ? 'none' : '1px solid var(--panel-border)' }}
+        style={{ 
+          borderBottom: embedded ? 'none' : '1px solid var(--panel-border)',
+          flexShrink: 0
+        }}
       >
         {!embedded && (
           <div className="flex items-center gap-2">
@@ -428,7 +502,13 @@ function TradingViewChartComponent({
       <div
         ref={containerRef}
         style={{
-          height: isFullscreen ? 'calc(100vh - 65px)' : height,
+          height: isFullscreen 
+            ? 'calc(100vh - 65px)' 
+            : height > 0 
+              ? height 
+              : '100%',
+          minHeight: height > 0 ? height : '400px',
+          flex: height === 0 ? '1 1 auto' : '0 0 auto',
           background: 'var(--navy-primary)',
           overflow: 'hidden',
         }}

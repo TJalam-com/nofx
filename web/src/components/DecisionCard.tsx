@@ -2,6 +2,12 @@ import { useState, useMemo } from 'react'
 import type { DecisionRecord } from '../types'
 import { t, type Language } from '../i18n/translations'
 import { UserCheck, CheckCircle, XCircle, Wrench } from 'lucide-react'
+import { useAuth, isAdmin } from '../contexts/AuthContext'
+import { AdminAnimationWrapper } from './animations/AdminAnimationWrapper'
+import { AnimatedAIMessage } from './animations/AnimatedAIMessage'
+import { ThinkingIndicator } from './animations/ThinkingIndicator'
+import { ConfidenceScore } from './animations/ConfidenceScore'
+import { SentimentIndicator } from './animations/SentimentIndicator'
 
 interface DecisionCardProps {
   decision: DecisionRecord
@@ -75,6 +81,8 @@ function translateAIErrorMessage(message: string, language: 'en' | 'zh'): string
 }
 
 export function DecisionCard({ decision, language }: DecisionCardProps) {
+  const { user } = useAuth()
+  const admin = isAdmin(user)
   const [showInputPrompt, setShowInputPrompt] = useState(false)
   const [showCoT, setShowCoT] = useState(false)
 
@@ -228,79 +236,151 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
 
       {decision.cot_trace && (
         <div className="mb-3">
-          <button
-            onClick={() => setShowCoT(!showCoT)}
-            className="flex items-center gap-2 text-sm transition-colors"
-            style={{ color: '#F0B90B' }}
-          >
-            <span className="font-semibold">
-              📤 {t('aiThinking', language)}
-            </span>
-            <span className="text-xs">
-              {showCoT ? t('collapse', language) : t('expand', language)}
-            </span>
-          </button>
-          {showCoT && (
-            <div
-              className="mt-2 rounded p-4 text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto"
-              style={{
-                background: 'var(--navy-primary)',
-                border: '1px solid var(--panel-border)',
-                color: '#EAECEF',
-              }}
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => setShowCoT(!showCoT)}
+              className="flex items-center gap-2 text-sm transition-colors"
+              style={{ color: '#F0B90B' }}
             >
-              {decision.cot_trace}
-            </div>
+              <span className="font-semibold">
+                📤 {t('aiThinking', language)}
+              </span>
+              <span className="text-xs">
+                {showCoT ? t('collapse', language) : t('expand', language)}
+              </span>
+            </button>
+            <AdminAnimationWrapper>
+              <ThinkingIndicator isThinking={!showCoT && admin} />
+            </AdminAnimationWrapper>
+          </div>
+          {showCoT && (
+            <AdminAnimationWrapper
+              staticFallback={
+                <div
+                  className="mt-2 rounded p-4 text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto"
+                  style={{
+                    background: 'var(--navy-primary)',
+                    border: '1px solid var(--panel-border)',
+                    color: '#EAECEF',
+                  }}
+                >
+                  {decision.cot_trace}
+                </div>
+              }
+            >
+              <div
+                className="mt-2 rounded p-4 text-sm font-mono max-h-96 overflow-y-auto"
+                style={{
+                  background: 'var(--navy-primary)',
+                  border: '1px solid var(--panel-border)',
+                  color: '#EAECEF',
+                }}
+              >
+                <AnimatedAIMessage message={decision.cot_trace} typingSpeed={30} />
+              </div>
+            </AdminAnimationWrapper>
           )}
         </div>
       )}
 
       {decision.decisions && decision.decisions.length > 0 && (
         <div className="space-y-2 mb-3">
-          {decision.decisions.map((action, index) => (
-            <div
-              key={`${action.symbol}-${index}`}
-              className="flex items-center gap-2 text-sm rounded px-3 py-2"
-              style={{ background: 'var(--navy-primary)' }}
-            >
-              <span
-                className="font-mono font-bold"
-                style={{ color: '#EAECEF' }}
+          {decision.decisions.map((action, index) => {
+            // Determine sentiment based on action
+            const sentiment: 'positive' | 'negative' | 'neutral' =
+              action.action.includes('open') || action.success
+                ? 'positive'
+                : action.action.includes('close') && !action.success
+                  ? 'negative'
+                  : 'neutral'
+
+            return (
+              <div
+                key={`${action.symbol}-${index}`}
+                className="flex items-center gap-2 text-sm rounded px-3 py-2"
+                style={{ background: 'var(--navy-primary)' }}
               >
-                {action.symbol}
-              </span>
-              <span
-                className="px-2 py-0.5 rounded text-xs font-bold"
-                style={
-                  action.action.includes('open')
-                    ? {
-                        background: 'rgba(96, 165, 250, 0.1)',
-                        color: '#60a5fa',
-                      }
-                    : action.action.includes('close')
-                    ? {
-                        background: 'rgba(14, 203, 129, 0.1)',
-                        color: '#0ECB81',
-                      }
-                    : {
-                        background: 'rgba(248, 113, 113, 0.1)',
-                        color: '#F87171',
-                      }
-                }
-              >
-                {action.action}
-              </span>
-              {action.reasoning && (
                 <span
-                  className="text-xs"
-                  style={{ color: '#848E9C', flex: 1 }}
+                  className="font-mono font-bold"
+                  style={{ color: '#EAECEF' }}
                 >
-                  {action.reasoning}
+                  {action.symbol}
                 </span>
-              )}
-            </div>
-          ))}
+                <span
+                  className="px-2 py-0.5 rounded text-xs font-bold"
+                  style={
+                    action.action.includes('open')
+                      ? {
+                          background: 'rgba(96, 165, 250, 0.1)',
+                          color: '#60a5fa',
+                        }
+                      : action.action.includes('close')
+                        ? {
+                            background: 'rgba(14, 203, 129, 0.1)',
+                            color: '#0ECB81',
+                          }
+                        : {
+                            background: 'rgba(248, 113, 113, 0.1)',
+                            color: '#F87171',
+                          }
+                  }
+                >
+                  {action.action}
+                </span>
+                {action.reasoning && (
+                  <span
+                    className="text-xs"
+                    style={{ color: '#848E9C', flex: 1 }}
+                  >
+                    {action.reasoning}
+                  </span>
+                )}
+                <AdminAnimationWrapper>
+                  <SentimentIndicator sentiment={sentiment} intensity={action.success ? 0.8 : 0.5} />
+                </AdminAnimationWrapper>
+                {action.confidence !== undefined && action.confidence !== null && (
+                  <AdminAnimationWrapper>
+                    <div style={{ minWidth: '100px' }}>
+                      <ConfidenceScore
+                        confidence={
+                          typeof action.confidence === 'number'
+                            ? action.confidence <= 1
+                              ? action.confidence * 100
+                              : action.confidence
+                            : 0
+                        }
+                        showLabel={false}
+                      />
+                    </div>
+                  </AdminAnimationWrapper>
+                )}
+              </div>
+            )
+          })}
         </div>
+      )}
+
+      {/* Confidence Score for overall decision */}
+      {admin && decision.decisions && decision.decisions.length > 0 && (
+        <AdminAnimationWrapper>
+          <div className="mb-3">
+            {decision.decisions.some((d) => d.confidence !== undefined && d.confidence !== null) && (
+              <ConfidenceScore
+                confidence={
+                  (() => {
+                    const confidences = decision.decisions
+                      .map((d) => d.confidence)
+                      .filter((c): c is number => c !== undefined && c !== null)
+                    if (confidences.length === 0) return 0
+                    const avg = confidences.reduce((sum, c) => sum + c, 0) / confidences.length
+                    // Assume confidence is 0-1 if average is <= 1, otherwise 0-100
+                    return avg <= 1 ? avg * 100 : avg
+                  })()
+                }
+              />
+            )}
+          </div>
+        </AdminAnimationWrapper>
       )}
 
       {decision.execution_log && decision.execution_log.length > 0 && (

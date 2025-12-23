@@ -116,6 +116,17 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
               </span>
             </motion.div>
 
+            {/* Attribution */}
+            <motion.div
+              className="text-sm font-medium"
+              style={{ color: 'var(--text-secondary)' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              AI Trading 24x7 powered by NoFx
+            </motion.div>
+
             {/* Main Heading */}
             <motion.h1
               className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold leading-[1.1] tracking-tight"

@@ -75,6 +75,7 @@ const AdminArticlesPage = lazyWithErrorHandling(() => import('../pages/AdminArti
 const StrategyStudioPage = lazyWithErrorHandling(() => import('../pages/StrategyStudioPage').then(m => ({ default: m.StrategyStudioPage })))
 const BlogPage = lazyWithErrorHandling(() => import('../pages/BlogPage').then(m => ({ default: m.BlogPage })))
 const ArticlePage = lazyWithErrorHandling(() => import('../pages/ArticlePage').then(m => ({ default: m.ArticlePage })))
+const StreamingPage = lazyWithErrorHandling(() => import('../pages/StreamingPage'))
 
 // Loading fallback component
 function RouteLoadingFallback() {
@@ -220,6 +221,14 @@ export const router = createBrowserRouter([
           {
             path: '/dashboard/:slug',
             element: <TraderDashboard />,
+          },
+          {
+            path: '/stream/:slug',
+            element: (
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <AdminProtectedRoute><StreamingPage /></AdminProtectedRoute>
+              </Suspense>
+            ),
           },
           {
             path: '/followers',
