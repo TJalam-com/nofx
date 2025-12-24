@@ -1700,7 +1700,47 @@ func (s *Server) handleStartTrader(c *gin.Context) {
 	// Always refresh memory instance with latest configuration (force reload single trader)
 	if reloadErr := s.traderManager.ReloadTraderFromDB(s.database, traderOwnerID, traderID); reloadErr != nil {
 		log.Printf("⚠️ Failed to reload trader, cannot start: %v", reloadErr)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load latest trader configuration, please try again later"})
+		
+		// Parse error to provide user-friendly message
+		errMsg := reloadErr.Error()
+		log.Printf("🔍 DEBUG: Error message for matching: %q", errMsg)
+		
+		// Check for Lighter-specific errors (case-insensitive and handle variations)
+		errMsgLower := strings.ToLower(errMsg)
+		if strings.Contains(errMsgLower, "lighter api key private key is required") || 
+		   strings.Contains(errMsgLower, "lighter api key") && strings.Contains(errMsgLower, "required") {
+			log.Printf("✅ Matched Lighter API key error")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "LIGHTER initialization failed. Please check: 1) Wallet address is set, 2) API key private key is configured in Exchange Settings, 3) API key is generated from Lighter interface",
+				"details": errMsg,
+			})
+			return
+		}
+		if strings.Contains(errMsgLower, "lighter wallet address is required") || 
+		   strings.Contains(errMsgLower, "lighter wallet") && strings.Contains(errMsgLower, "required") {
+			log.Printf("✅ Matched Lighter wallet address error")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "LIGHTER initialization failed. Wallet address is required. Please configure it in Exchange Settings",
+				"details": errMsg,
+			})
+			return
+		}
+		if strings.Contains(errMsgLower, "failed to initialize lighter") || 
+		   strings.Contains(errMsgLower, "lighter initialization failed") {
+			log.Printf("✅ Matched Lighter initialization error")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "LIGHTER initialization failed. Please check: 1) Wallet address is correct, 2) API key private key is valid, 3) Network connectivity",
+				"details": errMsg,
+			})
+			return
+		}
+		
+		// Fallback for other errors
+		log.Printf("⚠️ Error did not match any specific pattern, using generic error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Unable to load latest trader configuration",
+			"details": errMsg,
+		})
 		return
 	}
 
@@ -2177,6 +2217,17 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 		return
 	}
 	log.Printf("✅ Found %d exchange configurations", len(exchanges))
+	
+	// Debug logging for Lighter exchange
+	for _, ex := range exchanges {
+		if ex.ID == "lighter" {
+			log.Printf("🔍 DEBUG [GetExchanges]: Lighter exchange - WalletAddr=%s, APIKeyPrivateKey length=%d, APIKeyIndex=%d, GenericAPIKey length=%d",
+				ex.LighterWalletAddr,
+				len(ex.LighterAPIKeyPrivateKey),
+				ex.LighterAPIKeyIndex,
+				len(ex.APIKey))
+		}
+	}
 
 	// If database is empty, return default exchanges
 	if len(exchanges) == 0 {
@@ -2205,6 +2256,18 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 			secretKeyMasked = ex.SecretKey[:8] + "..."
 		}
 		log.Printf("   └─ Exchange: %s, APIKey: %s, SecretKey: %s", ex.ID, apiKeyMasked, secretKeyMasked)
+		
+		// Additional debug for Lighter exchange
+		if ex.ID == "lighter" {
+			lighterAPIKeyMasked := ""
+			if len(ex.LighterAPIKeyPrivateKey) > 8 {
+				lighterAPIKeyMasked = ex.LighterAPIKeyPrivateKey[:8] + "..."
+			} else if ex.LighterAPIKeyPrivateKey == "" {
+				lighterAPIKeyMasked = "EMPTY"
+			}
+			log.Printf("      └─ Lighter specific: WalletAddr=%s, APIKeyPrivateKey: %s (length=%d), APIKeyIndex=%d",
+				ex.LighterWalletAddr, lighterAPIKeyMasked, len(ex.LighterAPIKeyPrivateKey), ex.LighterAPIKeyIndex)
+		}
 	}
 
 	// Convert to safe response structure, remove sensitive information
@@ -2289,6 +2352,14 @@ func (s *Server) handleUpdateExchangeConfigs(c *gin.Context) {
 
 	// Update each exchange's configuration
 	for exchangeID, exchangeData := range req.Exchanges {
+		// Add debug logging for Lighter exchange
+		if exchangeID == "lighter" {
+			log.Printf("🔍 DEBUG [UpdateExchange]: Lighter exchange data - WalletAddr=%s, APIKeyPrivateKey length=%d, APIKeyIndex=%d",
+				exchangeData.LighterWalletAddr,
+				len(exchangeData.LighterAPIKeyPrivateKey),
+				exchangeData.LighterAPIKeyIndex)
+		}
+		
 		err := s.database.UpdateExchange(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.LighterWalletAddr, exchangeData.LighterPrivateKey, exchangeData.LighterAPIKeyPrivateKey, exchangeData.LighterAPIKeyIndex, exchangeData.OkxPassphrase)
 		if err != nil {
 			// Provide more helpful error message

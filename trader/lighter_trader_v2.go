@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -157,7 +158,7 @@ func (t *LighterTraderV2) initializeAccount() error {
 // getAccountByL1Address gets LIGHTER account information via L1 wallet address
 // Supports both single account and sub_accounts array responses
 func (t *LighterTraderV2) getAccountByL1Address() (*AccountInfo, error) {
-	endpoint := fmt.Sprintf("%s/api/v1/account?by=address&value=%s", t.baseURL, t.walletAddr)
+	endpoint := fmt.Sprintf("%s/api/v1/account?by=address&value=%s", t.baseURL, url.QueryEscape(strings.TrimSpace(t.walletAddr)))
 
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {

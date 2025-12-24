@@ -2360,8 +2360,15 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 	}
 	args := []interface{}{enabled, testnet, hyperliquidWalletAddr, asterUser, asterSigner, lighterWalletAddr, lighterAPIKeyIndex}
 
+	// For Lighter exchange, always clear api_key field (should use lighter_api_key_private_key instead)
+	if id == "lighter" {
+		setClauses = append(setClauses, "api_key = ?")
+		args = append(args, "") // Clear api_key for Lighter
+		log.Printf("🔍 DEBUG [UpdateExchange]: Clearing api_key field for Lighter exchange")
+	}
+
 	// 🔒 Sensitive fields: only update when non-empty (protect existing data)
-	if apiKey != "" {
+	if apiKey != "" && id != "lighter" {
 		encryptedAPIKey := d.encryptSensitiveData(apiKey)
 		setClauses = append(setClauses, "api_key = ?")
 		args = append(args, encryptedAPIKey)
@@ -2386,9 +2393,12 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 	}
 
 	if lighterAPIKeyPrivateKey != "" {
+		log.Printf("🔍 DEBUG [UpdateExchange]: Updating lighter_api_key_private_key (length=%d)", len(lighterAPIKeyPrivateKey))
 		encryptedLighterAPIKeyPrivateKey := d.encryptSensitiveData(lighterAPIKeyPrivateKey)
 		setClauses = append(setClauses, "lighter_api_key_private_key = ?")
 		args = append(args, encryptedLighterAPIKeyPrivateKey)
+	} else {
+		log.Printf("⚠️ DEBUG [UpdateExchange]: lighterAPIKeyPrivateKey is empty, skipping update (security feature)")
 	}
 
 	if okxPassphrase != "" {
@@ -2516,7 +2526,13 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		}
 
 		// Encrypt sensitive fields
-		encryptedAPIKey := d.encryptSensitiveData(apiKey)
+		// For Lighter exchange, always use empty api_key (should use lighter_api_key_private_key instead)
+		encryptedAPIKey := ""
+		if id != "lighter" {
+			encryptedAPIKey = d.encryptSensitiveData(apiKey)
+		} else {
+			log.Printf("🔍 DEBUG [UpdateExchange]: Using empty api_key for new Lighter exchange record")
+		}
 		encryptedSecretKey := d.encryptSensitiveData(secretKey)
 		encryptedAsterPrivateKey := d.encryptSensitiveData(asterPrivateKey)
 		encryptedLighterPrivateKey := d.encryptSensitiveData(lighterPrivateKey)
