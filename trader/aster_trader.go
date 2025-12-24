@@ -1054,6 +1054,7 @@ func (t *AsterTrader) SetStopLoss(symbol string, positionSide string, quantity, 
 		"stopPrice":    priceStr,
 		"quantity":     qtyStr,
 		"timeInForce":  "GTC",
+		"reduceOnly":   true, // Ensure SL order only closes positions, never opens new ones
 	}
 
 	_, err = t.request("POST", "/fapi/v3/order", params)
@@ -1095,6 +1096,7 @@ func (t *AsterTrader) SetTakeProfit(symbol string, positionSide string, quantity
 		"stopPrice":    priceStr,
 		"quantity":     qtyStr,
 		"timeInForce":  "GTC",
+		"reduceOnly":   true, // Ensure TP order only closes positions, never opens new ones
 	}
 
 	_, err = t.request("POST", "/fapi/v3/order", params)

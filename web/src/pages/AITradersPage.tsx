@@ -196,6 +196,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     handleSaveEditTrader,
     handleDeleteTrader,
     handleToggleTrader,
+    handleToggleCompetition,
     handleAddModel,
     handleAddExchange,
     handleModelClick,
@@ -320,6 +321,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         onEditTrader={handleEditTrader}
         onDeleteTrader={handleDeleteTrader}
         onToggleTrader={handleToggleTrader}
+        onToggleCompetition={handleToggleCompetition}
       />
 
       {/* Become a Trader Card for Followers */}
