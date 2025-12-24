@@ -2892,24 +2892,153 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 			continue // No closure found, skip
 		}
 
+		// Update database position record with closure information
+		// First, try to find the open position record in database
+		openPositions, err := db.GetOpenPositions(at.id)
+		var dbPosition *cfg.PositionRecord
+		if err == nil {
+			for _, pos := range openPositions {
+				if pos.Symbol == symbol && pos.Side == side {
+					dbPosition = pos
+					break
+				}
+			}
+		}
+
+		// Determine close time
+		closeTime := time.Now()
+		if closedPosition.ClosedAt != nil {
+			closeTime = *closedPosition.ClosedAt
+		}
+
+		// Get actual exit price - prefer from closedPosition (position history) if available,
+		// otherwise use market price estimate
+		actualExitPrice := closedPosition.ExitPrice
+		if actualExitPrice <= 0 {
+			// Fallback to market price if exit price not available
+			marketData, err := market.Get(symbol)
+			if err == nil {
+				actualExitPrice = marketData.CurrentPrice
+			} else {
+				log.Printf("⚠️ Position closure detection: failed to get market data for %s: %v", symbol, err)
+				actualExitPrice = closedPosition.EntryPrice // Last resort fallback
+			}
+		}
+
+		// Calculate realized PnL accurately
+		var realizedPnL float64
+		var entryPrice float64
+		var quantity float64
+		var leverage int
+		var entryFee float64
+		var exitFee float64
+
+		if dbPosition != nil {
+			// Use data from database position record
+			entryPrice = dbPosition.EntryPrice
+			quantity = dbPosition.Quantity
+			leverage = dbPosition.Leverage
+			entryFee = dbPosition.EntryFee
+			exitFee = dbPosition.ExitFee
+
+			// Calculate realized PnL: (exitPrice - entryPrice) * quantity - fees
+			if side == "long" {
+				realizedPnL = (actualExitPrice - entryPrice) * quantity - entryFee - exitFee
+			} else {
+				realizedPnL = (entryPrice - actualExitPrice) * quantity - entryFee - exitFee
+			}
+
+			// Update database position record with closure information
+			err := db.SavePosition(
+				at.id,
+				symbol,
+				side,
+				entryPrice,
+				actualExitPrice,
+				quantity,
+				entryFee,
+				exitFee,
+				realizedPnL,
+				leverage,
+				dbPosition.OrderIDOpen,
+				"", // OrderIDClose not available for auto-closed positions
+				dbPosition.OpenedAt,
+				&closeTime,
+			)
+			if err != nil {
+				log.Printf("⚠️ Position closure detection: failed to update database position record for %s: %v", posKey, err)
+			} else {
+				log.Printf("✓ Updated database position record for %s %s (closed_at=%s)", symbol, side, closeTime.Format("2006-01-02 15:04:05"))
+			}
+		} else {
+			// No database record found, use data from closedPosition
+			entryPrice = closedPosition.EntryPrice
+			quantity = closedPosition.Quantity
+			leverage = closedPosition.Leverage
+			realizedPnL = closedPosition.RealizedPnL
+
+			// Recalculate PnL with actual exit price if it was estimated
+			if closedPosition.ExitPrice != actualExitPrice {
+				if side == "long" {
+					realizedPnL = (actualExitPrice - entryPrice) * quantity
+				} else {
+					realizedPnL = (entryPrice - actualExitPrice) * quantity
+				}
+			}
+
+			// Create new position record in database (estimated open time)
+			estimatedOpenTime := closeTime.Add(-24 * time.Hour) // Estimate opened 24h ago if not found
+			err := db.SavePosition(
+				at.id,
+				symbol,
+				side,
+				entryPrice,
+				actualExitPrice,
+				quantity,
+				0, // Entry fee not available
+				0, // Exit fee not available
+				realizedPnL,
+				leverage,
+				"", // OrderIDOpen not available
+				"", // OrderIDClose not available
+				estimatedOpenTime,
+				&closeTime,
+			)
+			if err != nil {
+				log.Printf("⚠️ Position closure detection: failed to create database position record for %s: %v", posKey, err)
+			} else {
+				log.Printf("✓ Created database position record for %s %s (estimated open_time=%s, closed_at=%s)", symbol, side, estimatedOpenTime.Format("2006-01-02 15:04:05"), closeTime.Format("2006-01-02 15:04:05"))
+			}
+		}
+
+		// Update closedPosition with accurate values for decision record
+		closedPosition.ExitPrice = actualExitPrice
+		closedPosition.RealizedPnL = realizedPnL
+		closedPosition.ClosedAt = &closeTime
+
+		// Cancel remaining stop orders (SL/TP) for this symbol when position is auto-closed
+		// When SL is hit, TP order should be cancelled, and vice versa
+		// Using CancelStopOrders to cancel both SL and TP orders for safety
+		if err := at.trader.CancelStopOrders(symbol); err != nil {
+			log.Printf("⚠️ Position closure detection: failed to cancel remaining stop orders for %s: %v", symbol, err)
+			// Don't fail the closure detection if order cancellation fails - log and continue
+		} else {
+			log.Printf("✓ Cancelled remaining stop orders (SL/TP) for %s after auto-close", symbol)
+		}
+
 		// Determine action type
 		action := "auto_close_long"
 		if side == "short" {
 			action = "auto_close_short"
 		}
 
-		// Create decision action
-		closeTime := time.Now()
-		if closedPosition.ClosedAt != nil {
-			closeTime = *closedPosition.ClosedAt
-		}
-
+		// Create decision action with accurate data
 		decisionAction := logger.DecisionAction{
 			Action:    action,
 			Symbol:    closedPosition.Symbol,
-			Quantity:  closedPosition.Quantity,
-			Leverage:  closedPosition.Leverage,
-			Price:     closedPosition.ExitPrice,
+			Quantity:  quantity,
+			Leverage:  leverage,
+			Price:     actualExitPrice,
 			Timestamp: closeTime,
 			Success:   true,
 		}
@@ -2930,7 +3059,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 		}
 
 		log.Printf("✅ Position closure detected and logged: %s %s (entry=%.4f, exit=%.4f, pnl=%.4f)",
-			symbol, side, closedPosition.EntryPrice, closedPosition.ExitPrice, closedPosition.RealizedPnL)
+			symbol, side, entryPrice, actualExitPrice, realizedPnL)
 
 		// Mark as logged
 		at.loggedClosuresMutex.Lock()

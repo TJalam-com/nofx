@@ -1,4 +1,4 @@
-import { Bot, BarChart3, Trash2, Pencil } from 'lucide-react'
+import { Bot, BarChart3, Trash2, Pencil, Eye, EyeOff } from 'lucide-react'
 import { t, type Language } from '../../../i18n/translations'
 import { getModelDisplayName } from '../index'
 import type { TraderInfo } from '../../../types'
@@ -27,6 +27,7 @@ interface TradersGridProps {
   onEditTrader: (traderId: string) => void
   onDeleteTrader: (traderId: string) => void
   onToggleTrader: (traderId: string, running: boolean) => void
+  onToggleCompetition: (traderId: string, showInCompetition: boolean) => void
 }
 
 export function TradersGrid({
@@ -36,6 +37,7 @@ export function TradersGrid({
   onEditTrader,
   onDeleteTrader,
   onToggleTrader,
+  onToggleCompetition,
 }: TradersGridProps) {
   if (!traders || traders.length === 0) {
     return (
@@ -176,6 +178,40 @@ export function TradersGrid({
                 }
               >
                 {trader.is_running ? t('stop', language) : t('start', language)}
+              </button>
+
+              <button
+                onClick={() =>
+                  onToggleCompetition(
+                    trader.trader_id,
+                    trader.show_in_competition ?? true
+                  )
+                }
+                className="px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 whitespace-nowrap flex items-center gap-1"
+                style={
+                  trader.show_in_competition !== false
+                    ? {
+                        background: 'rgba(14, 203, 129, 0.1)',
+                        color: '#0ECB81',
+                      }
+                    : {
+                        background: 'rgba(132, 142, 156, 0.1)',
+                        color: '#848E9C',
+                      }
+                }
+                title={
+                  trader.show_in_competition !== false
+                    ? t('competitionVisibilityShown', language) ||
+                      'Visible in competition'
+                    : t('competitionVisibilityHidden', language) ||
+                      'Hidden from competition'
+                }
+              >
+                {trader.show_in_competition !== false ? (
+                  <Eye className="w-3 h-3 md:w-4 md:h-4" />
+                ) : (
+                  <EyeOff className="w-3 h-3 md:w-4 md:h-4" />
+                )}
               </button>
 
               <button
