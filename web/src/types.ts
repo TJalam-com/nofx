@@ -249,6 +249,8 @@ export interface UpdateExchangeConfigRequest {
       lighter_wallet_addr?: string
       lighter_private_key?: string
       lighter_api_key_private_key?: string
+      lighter_api_key_index?: number
+      okx_passphrase?: string
     }
   }
 }

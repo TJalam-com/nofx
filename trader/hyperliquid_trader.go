@@ -29,10 +29,10 @@ func NewHyperliquidTrader(privateKeyHex string, walletAddr string, testnet bool)
 	// 去掉私钥的 0x 前缀（如果有，不区分大小写）
 	privateKeyHex = strings.TrimPrefix(strings.ToLower(privateKeyHex), "0x")
 
-	// 解析私钥
+	// Parse private key
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
 	if err != nil {
-		return nil, fmt.Errorf("解析私钥失败: %w", err)
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
 	}
 
 	// 选择API URL
@@ -79,12 +79,12 @@ func NewHyperliquidTrader(privateKeyHex string, walletAddr string, testnet bool)
 		nil,        // SpotMeta will be fetched automatically
 	)
 
-	log.Printf("✓ Hyperliquid交易器初始化成功 (testnet=%v, wallet=%s)", testnet, walletAddr)
+	log.Printf("✓ Hyperliquid trader initialized successfully (testnet=%v, wallet=%s)", testnet, walletAddr)
 
-	// 获取meta信息（包含精度等配置）
+	// Get meta information (includes precision and other configuration)
 	meta, err := exchange.Info().Meta(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("获取meta信息失败: %w", err)
+		return nil, fmt.Errorf("failed to get meta information: %w", err)
 	}
 
 	// 🔍 Security check: Validate Agent wallet balance (should be close to 0)
@@ -129,30 +129,30 @@ func NewHyperliquidTrader(privateKeyHex string, walletAddr string, testnet bool)
 	}, nil
 }
 
-// GetBalance 获取账户余额
+// GetBalance gets account balance
 func (t *HyperliquidTrader) GetBalance() (map[string]interface{}, error) {
-	log.Printf("🔄 正在调用Hyperliquid API获取账户余额...")
+	log.Printf("🔄 Calling Hyperliquid API to get account balance...")
 
-	// ✅ Step 1: 查询 Spot 现货账户余额
+	// ✅ Step 1: Query Spot account balance
 	spotState, err := t.exchange.Info().SpotUserState(t.ctx, t.walletAddr)
 	var spotUSDCBalance float64 = 0.0
 	if err != nil {
-		log.Printf("⚠️ 查询 Spot 余额失败（可能无现货资产）: %v", err)
+		log.Printf("⚠️ Failed to query Spot balance (may have no spot assets): %v", err)
 	} else if spotState != nil && len(spotState.Balances) > 0 {
 		for _, balance := range spotState.Balances {
 			if balance.Coin == "USDC" {
 				spotUSDCBalance, _ = strconv.ParseFloat(balance.Total, 64)
-				log.Printf("✓ 发现 Spot 现货余额: %.2f USDC", spotUSDCBalance)
+				log.Printf("✓ Found Spot balance: %.2f USDC", spotUSDCBalance)
 				break
 			}
 		}
 	}
 
-	// ✅ Step 2: 查询 Perpetuals 合约账户状态
+	// ✅ Step 2: Query Perpetuals account status
 	accountState, err := t.exchange.Info().UserState(t.ctx, t.walletAddr)
 	if err != nil {
-		log.Printf("❌ Hyperliquid Perpetuals API调用失败: %v", err)
-		return nil, fmt.Errorf("获取账户信息失败: %w", err)
+		log.Printf("❌ Hyperliquid Perpetuals API call failed: %v", err)
+		return nil, fmt.Errorf("failed to get account information: %w", err)
 	}
 
 	// 解析余额信息（MarginSummary字段都是string）
@@ -164,90 +164,90 @@ func (t *HyperliquidTrader) GetBalance() (map[string]interface{}, error) {
 	var summary interface{}
 
 	if t.isCrossMargin {
-		// 全仓模式：使用 CrossMarginSummary
+		// Cross margin mode: use CrossMarginSummary
 		accountValue, _ = strconv.ParseFloat(accountState.CrossMarginSummary.AccountValue, 64)
 		totalMarginUsed, _ = strconv.ParseFloat(accountState.CrossMarginSummary.TotalMarginUsed, 64)
-		summaryType = "CrossMarginSummary (全仓)"
+		summaryType = "CrossMarginSummary (Cross Margin)"
 		summary = accountState.CrossMarginSummary
 	} else {
-		// 逐仓模式：使用 MarginSummary
+		// Isolated margin mode: use MarginSummary
 		accountValue, _ = strconv.ParseFloat(accountState.MarginSummary.AccountValue, 64)
 		totalMarginUsed, _ = strconv.ParseFloat(accountState.MarginSummary.TotalMarginUsed, 64)
-		summaryType = "MarginSummary (逐仓)"
+		summaryType = "MarginSummary (Isolated Margin)"
 		summary = accountState.MarginSummary
 	}
 
-	// 🔍 调试：打印API返回的完整摘要结构
+	// 🔍 Debug: print complete summary structure returned by API
 	summaryJSON, _ := json.MarshalIndent(summary, "  ", "  ")
-	log.Printf("🔍 [DEBUG] Hyperliquid API %s 完整数据:", summaryType)
+	log.Printf("🔍 [DEBUG] Hyperliquid API %s complete data:", summaryType)
 	log.Printf("%s", string(summaryJSON))
 
-	// ⚠️ 关键修复：从所有持仓中累加真正的未实现盈亏
+	// ⚠️ Critical fix: accumulate true unrealized PnL from all positions
 	totalUnrealizedPnl := 0.0
 	for _, assetPos := range accountState.AssetPositions {
 		unrealizedPnl, _ := strconv.ParseFloat(assetPos.Position.UnrealizedPnl, 64)
 		totalUnrealizedPnl += unrealizedPnl
 	}
 
-	// ✅ 正确理解Hyperliquid字段：
-	// AccountValue = 总账户净值（已包含空闲资金+持仓价值+未实现盈亏）
-	// TotalMarginUsed = 持仓占用的保证金（已包含在AccountValue中，仅用于显示）
+	// ✅ Correct understanding of Hyperliquid fields:
+	// AccountValue = Total account net value (includes idle funds + position value + unrealized PnL)
+	// TotalMarginUsed = Margin used by positions (already included in AccountValue, for display only)
 	//
-	// 为了兼容auto_trader.go的计算逻辑（totalEquity = totalWalletBalance + totalUnrealizedProfit）
-	// 需要返回"不包含未实现盈亏的钱包余额"
+	// To be compatible with auto_trader.go calculation logic (totalEquity = totalWalletBalance + totalUnrealizedProfit)
+	// Need to return "wallet balance without unrealized PnL"
 	walletBalanceWithoutUnrealized := accountValue - totalUnrealizedPnl
 
-	// ✅ Step 4: 使用 Withdrawable 欄位（PR #443）
-	// Withdrawable 是官方提供的真实可提现余额，比简单计算更可靠
+	// ✅ Step 4: Use Withdrawable field (PR #443)
+	// Withdrawable is the official real withdrawable balance, more reliable than simple calculation
 	availableBalance := 0.0
 	if accountState.Withdrawable != "" {
 		withdrawable, err := strconv.ParseFloat(accountState.Withdrawable, 64)
 		if err == nil && withdrawable > 0 {
 			availableBalance = withdrawable
-			log.Printf("✓ 使用 Withdrawable 作为可用余额: %.2f", availableBalance)
+			log.Printf("✓ Using Withdrawable as available balance: %.2f", availableBalance)
 		}
 	}
 
-	// 降级方案：如果没有 Withdrawable，使用简单计算
+	// Fallback: if no Withdrawable, use simple calculation
 	if availableBalance == 0 && accountState.Withdrawable == "" {
 		availableBalance = accountValue - totalMarginUsed
 		if availableBalance < 0 {
-			log.Printf("⚠️ 计算出的可用余额为负数 (%.2f)，重置为 0", availableBalance)
+			log.Printf("⚠️ Calculated available balance is negative (%.2f), resetting to 0", availableBalance)
 			availableBalance = 0
 		}
 	}
 
-	// ✅ Step 5: 正确处理 Spot + Perpetuals 余额
-	// 重要：Spot 只加到总资产，不加到可用余额
-	//      原因：Spot 和 Perpetuals 是独立帐户，需手动 ClassTransfer 才能转账
+	// ✅ Step 5: Correctly handle Spot + Perpetuals balance
+	// Important: Spot is only added to total assets, not to available balance
+	//       Reason: Spot and Perpetuals are separate accounts, require manual ClassTransfer to transfer
 	totalWalletBalance := walletBalanceWithoutUnrealized + spotUSDCBalance
 
-	result["totalWalletBalance"] = totalWalletBalance    // 总资产（Perp + Spot）
-	result["availableBalance"] = availableBalance        // 可用余额（仅 Perpetuals，不含 Spot）
-	result["totalUnrealizedProfit"] = totalUnrealizedPnl // 未实现盈亏（仅来自 Perpetuals）
-	result["spotBalance"] = spotUSDCBalance              // Spot 现货余额（单独返回）
+	result["totalWalletBalance"] = totalWalletBalance    // Total assets (Perp + Spot)
+	result["availableBalance"] = availableBalance        // Available balance (Perpetuals only, excluding Spot)
+	result["totalUnrealizedProfit"] = totalUnrealizedPnl // Unrealized PnL (from Perpetuals only)
+	result["spotBalance"] = spotUSDCBalance              // Spot balance (returned separately)
 
-	log.Printf("✓ Hyperliquid 完整账户:")
-	log.Printf("  • Spot 现货余额: %.2f USDC （需手动转账到 Perpetuals 才能开仓）", spotUSDCBalance)
-	log.Printf("  • Perpetuals 合约净值: %.2f USDC (钱包%.2f + 未实现%.2f)",
+	log.Printf("✓ Hyperliquid complete account:")
+	log.Printf("  • Spot balance: %.2f USDC (need to manually transfer to Perpetuals to open positions)", spotUSDCBalance)
+	log.Printf("  • Perpetuals contract net value: %.2f USDC (wallet %.2f + unrealized %.2f)",
 		accountValue,
 		walletBalanceWithoutUnrealized,
 		totalUnrealizedPnl)
-	log.Printf("  • Perpetuals 可用余额: %.2f USDC （可直接用于开仓）", availableBalance)
-	log.Printf("  • 保证金占用: %.2f USDC", totalMarginUsed)
-	log.Printf("  • 总资产 (Perp+Spot): %.2f USDC", totalWalletBalance)
-	log.Printf("  ⭐ 总资产: %.2f USDC | Perp 可用: %.2f USDC | Spot 余额: %.2f USDC",
+	log.Printf("  • Perpetuals available balance: %.2f USDC (can be directly used for opening positions)", availableBalance)
+	log.Printf("  • Margin used: %.2f USDC", totalMarginUsed)
+	log.Printf("  • Total assets (Perp+Spot): %.2f USDC", totalWalletBalance)
+	log.Printf("  ⭐ Total assets: %.2f USDC | Perp available: %.2f USDC | Spot balance: %.2f USDC",
 		totalWalletBalance, availableBalance, spotUSDCBalance)
 
 	return result, nil
 }
 
-// GetPositions 获取所有持仓
+// GetPositions gets all positions
 func (t *HyperliquidTrader) GetPositions() ([]map[string]interface{}, error) {
-	// 获取账户状态
+	// Get account status
 	accountState, err := t.exchange.Info().UserState(t.ctx, t.walletAddr)
 	if err != nil {
-		return nil, fmt.Errorf("获取持仓失败: %w", err)
+		return nil, fmt.Errorf("failed to get positions: %w", err)
 	}
 
 	var result []map[string]interface{}
@@ -308,107 +308,107 @@ func (t *HyperliquidTrader) GetPositions() ([]map[string]interface{}, error) {
 	return result, nil
 }
 
-// SetMarginMode 设置仓位模式 (在SetLeverage时一并设置)
+// SetMarginMode sets margin mode (set together with SetLeverage)
 func (t *HyperliquidTrader) SetMarginMode(symbol string, isCrossMargin bool) error {
-	// Hyperliquid的仓位模式在SetLeverage时设置，这里只记录
+	// Hyperliquid margin mode is set in SetLeverage, here we only record
 	t.isCrossMargin = isCrossMargin
-	marginModeStr := "全仓"
+	marginModeStr := "Cross Margin"
 	if !isCrossMargin {
-		marginModeStr = "逐仓"
+		marginModeStr = "Isolated Margin"
 	}
-	log.Printf("  ✓ %s 将使用 %s 模式", symbol, marginModeStr)
+	log.Printf("  ✓ %s will use %s mode", symbol, marginModeStr)
 	return nil
 }
 
-// SetLeverage 设置杠杆
+// SetLeverage sets leverage
 func (t *HyperliquidTrader) SetLeverage(symbol string, leverage int) error {
-	// Hyperliquid symbol格式（去掉USDT后缀）
+	// Hyperliquid symbol format (remove USDT suffix)
 	coin := convertSymbolToHyperliquid(symbol)
 
-	// 调用UpdateLeverage (leverage int, name string, isCross bool)
-	// 第三个参数: true=全仓模式, false=逐仓模式
+	// Call UpdateLeverage (leverage int, name string, isCross bool)
+	// Third parameter: true=Cross Margin mode, false=Isolated Margin mode
 	_, err := t.exchange.UpdateLeverage(t.ctx, leverage, coin, t.isCrossMargin)
 	if err != nil {
-		return fmt.Errorf("设置杠杆失败: %w", err)
+		return fmt.Errorf("failed to set leverage: %w", err)
 	}
 
-	log.Printf("  ✓ %s 杠杆已切换为 %dx", symbol, leverage)
+	log.Printf("  ✓ %s leverage switched to %dx", symbol, leverage)
 	return nil
 }
 
-// refreshMetaIfNeeded 当 Meta 信息失效时刷新（Asset ID 为 0 时触发）
+// refreshMetaIfNeeded refreshes Meta information when it becomes invalid (triggered when Asset ID is 0)
 func (t *HyperliquidTrader) refreshMetaIfNeeded(coin string) error {
 	assetID := t.exchange.Info().NameToAsset(coin)
 	if assetID != 0 {
-		return nil // Meta 正常，无需刷新
+		return nil // Meta is normal, no need to refresh
 	}
 
-	log.Printf("⚠️  %s 的 Asset ID 为 0，尝试刷新 Meta 信息...", coin)
+	log.Printf("⚠️  Asset ID for %s is 0, attempting to refresh Meta information...", coin)
 
-	// 刷新 Meta 信息
+	// Refresh Meta information
 	meta, err := t.exchange.Info().Meta(t.ctx)
 	if err != nil {
-		return fmt.Errorf("刷新 Meta 信息失败: %w", err)
+		return fmt.Errorf("failed to refresh Meta information: %w", err)
 	}
 
-	// ✅ 并发安全：使用写锁保护 meta 字段更新
+	// ✅ Thread-safe: use write lock to protect meta field update
 	t.metaMutex.Lock()
 	t.meta = meta
 	t.metaMutex.Unlock()
 
-	log.Printf("✅ Meta 信息已刷新，包含 %d 个资产", len(meta.Universe))
+	log.Printf("✅ Meta information refreshed, contains %d assets", len(meta.Universe))
 
-	// 验证刷新后的 Asset ID
+	// Verify Asset ID after refresh
 	assetID = t.exchange.Info().NameToAsset(coin)
 	if assetID == 0 {
-		return fmt.Errorf("❌ 即使在刷新 Meta 后，资产 %s 的 Asset ID 仍为 0。可能原因：\n"+
-			"  1. 该币种未在 Hyperliquid 上市\n"+
-			"  2. 币种名称错误（应为 BTC 而非 BTCUSDT）\n"+
-			"  3. API 连接问题", coin)
+		return fmt.Errorf("❌ Even after refreshing Meta, Asset ID for %s is still 0. Possible reasons:\n"+
+			"  1. This coin is not listed on Hyperliquid\n"+
+			"  2. Coin name is incorrect (should be BTC not BTCUSDT)\n"+
+			"  3. API connection issue", coin)
 	}
 
-	log.Printf("✅ 刷新后 Asset ID 检查通过: %s -> %d", coin, assetID)
+	log.Printf("✅ Asset ID check passed after refresh: %s -> %d", coin, assetID)
 	return nil
 }
 
-// OpenLong 开多仓
+// OpenLong opens a long position
 func (t *HyperliquidTrader) OpenLong(symbol string, quantity float64, leverage int) (map[string]interface{}, error) {
-	// 先取消该币种的所有委托单
+	// First cancel all pending orders for this coin
 	if err := t.CancelAllOrders(symbol); err != nil {
-		log.Printf("  ⚠ 取消旧委托单失败: %v", err)
+		log.Printf("  ⚠ Failed to cancel old pending orders: %v", err)
 	}
 
-	// 设置杠杆
+	// Set leverage
 	if err := t.SetLeverage(symbol, leverage); err != nil {
 		return nil, err
 	}
 
-	// Hyperliquid symbol格式
+	// Hyperliquid symbol format
 	coin := convertSymbolToHyperliquid(symbol)
 
-	// 获取当前价格（用于市价单）
+	// Get current price (for market order)
 	price, err := t.GetMarketPrice(symbol)
 	if err != nil {
 		return nil, err
 	}
 
-	// ⚠️ 关键：根据币种精度要求，四舍五入数量
+	// ⚠️ Critical: round quantity according to coin precision requirements
 	roundedQuantity := t.roundToSzDecimals(coin, quantity)
-	log.Printf("  📏 数量精度处理: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
+	log.Printf("  📏 Quantity precision processing: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
 
-	// ⚠️ 关键：价格也需要处理为5位有效数字
+	// ⚠️ Critical: price also needs to be processed to 5 significant figures
 	aggressivePrice := t.roundPriceToSigfigs(price * 1.01)
-	log.Printf("  💰 价格精度处理: %.8f -> %.8f (5位有效数字)", price*1.01, aggressivePrice)
+	log.Printf("  💰 Price precision processing: %.8f -> %.8f (5 significant figures)", price*1.01, aggressivePrice)
 
-	// 创建市价买入订单（使用IOC limit order with aggressive price）
+	// Create market buy order (using IOC limit order with aggressive price)
 	order := hyperliquid.CreateOrderRequest{
 		Coin:  coin,
 		IsBuy: true,
-		Size:  roundedQuantity, // 使用四舍五入后的数量
-		Price: aggressivePrice, // 使用处理后的价格
+		Size:  roundedQuantity, // Use rounded quantity
+		Price: aggressivePrice, // Use processed price
 		OrderType: hyperliquid.OrderType{
 			Limit: &hyperliquid.LimitOrderType{
-				Tif: hyperliquid.TifIoc, // Immediate or Cancel (类似市价单)
+				Tif: hyperliquid.TifIoc, // Immediate or Cancel (similar to market order)
 			},
 		},
 		ReduceOnly: false,
@@ -416,10 +416,10 @@ func (t *HyperliquidTrader) OpenLong(symbol string, quantity float64, leverage i
 
 	_, err = t.exchange.Order(t.ctx, order, nil)
 	if err != nil {
-		return nil, fmt.Errorf("开多仓失败: %w", err)
+		return nil, fmt.Errorf("failed to open long position: %w", err)
 	}
 
-	log.Printf("✓ 开多仓成功: %s 数量: %.4f", symbol, roundedQuantity)
+	log.Printf("✓ Long position opened successfully: %s quantity: %.4f", symbol, roundedQuantity)
 
 	result := make(map[string]interface{})
 	result["orderId"] = 0 // Hyperliquid没有返回order ID
@@ -429,41 +429,41 @@ func (t *HyperliquidTrader) OpenLong(symbol string, quantity float64, leverage i
 	return result, nil
 }
 
-// OpenShort 开空仓
+// OpenShort opens a short position
 func (t *HyperliquidTrader) OpenShort(symbol string, quantity float64, leverage int) (map[string]interface{}, error) {
-	// 先取消该币种的所有委托单
+	// First cancel all pending orders for this coin
 	if err := t.CancelAllOrders(symbol); err != nil {
-		log.Printf("  ⚠ 取消旧委托单失败: %v", err)
+		log.Printf("  ⚠ Failed to cancel old pending orders: %v", err)
 	}
 
-	// 设置杠杆
+	// Set leverage
 	if err := t.SetLeverage(symbol, leverage); err != nil {
 		return nil, err
 	}
 
-	// Hyperliquid symbol格式
+	// Hyperliquid symbol format
 	coin := convertSymbolToHyperliquid(symbol)
 
-	// 获取当前价格
+	// Get current price
 	price, err := t.GetMarketPrice(symbol)
 	if err != nil {
 		return nil, err
 	}
 
-	// ⚠️ 关键：根据币种精度要求，四舍五入数量
+	// ⚠️ Critical: round quantity according to coin precision requirements
 	roundedQuantity := t.roundToSzDecimals(coin, quantity)
-	log.Printf("  📏 数量精度处理: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
+	log.Printf("  📏 Quantity precision processing: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
 
-	// ⚠️ 关键：价格也需要处理为5位有效数字
+	// ⚠️ Critical: price also needs to be processed to 5 significant figures
 	aggressivePrice := t.roundPriceToSigfigs(price * 0.99)
-	log.Printf("  💰 价格精度处理: %.8f -> %.8f (5位有效数字)", price*0.99, aggressivePrice)
+	log.Printf("  💰 Price precision processing: %.8f -> %.8f (5 significant figures)", price*0.99, aggressivePrice)
 
-	// 创建市价卖出订单
+	// Create market sell order
 	order := hyperliquid.CreateOrderRequest{
 		Coin:  coin,
 		IsBuy: false,
-		Size:  roundedQuantity, // 使用四舍五入后的数量
-		Price: aggressivePrice, // 使用处理后的价格
+		Size:  roundedQuantity, // Use rounded quantity
+		Price: aggressivePrice, // Use processed price
 		OrderType: hyperliquid.OrderType{
 			Limit: &hyperliquid.LimitOrderType{
 				Tif: hyperliquid.TifIoc,
@@ -474,10 +474,10 @@ func (t *HyperliquidTrader) OpenShort(symbol string, quantity float64, leverage 
 
 	_, err = t.exchange.Order(t.ctx, order, nil)
 	if err != nil {
-		return nil, fmt.Errorf("开空仓失败: %w", err)
+		return nil, fmt.Errorf("failed to open short position: %w", err)
 	}
 
-	log.Printf("✓ 开空仓成功: %s 数量: %.4f", symbol, roundedQuantity)
+	log.Printf("✓ Short position opened successfully: %s quantity: %.4f", symbol, roundedQuantity)
 
 	result := make(map[string]interface{})
 	result["orderId"] = 0
@@ -487,9 +487,9 @@ func (t *HyperliquidTrader) OpenShort(symbol string, quantity float64, leverage 
 	return result, nil
 }
 
-// CloseLong 平多仓
+// CloseLong closes a long position
 func (t *HyperliquidTrader) CloseLong(symbol string, quantity float64) (map[string]interface{}, error) {
-	// 如果数量为0，获取当前持仓数量
+	// If quantity is 0, get current position quantity
 	if quantity == 0 {
 		positions, err := t.GetPositions()
 		if err != nil {
@@ -504,51 +504,51 @@ func (t *HyperliquidTrader) CloseLong(symbol string, quantity float64) (map[stri
 		}
 
 		if quantity == 0 {
-			return nil, fmt.Errorf("没有找到 %s 的多仓", symbol)
+			return nil, fmt.Errorf("no long position found for %s", symbol)
 		}
 	}
 
-	// Hyperliquid symbol格式
+	// Hyperliquid symbol format
 	coin := convertSymbolToHyperliquid(symbol)
 
-	// 获取当前价格
+	// Get current price
 	price, err := t.GetMarketPrice(symbol)
 	if err != nil {
 		return nil, err
 	}
 
-	// ⚠️ 关键：根据币种精度要求，四舍五入数量
+	// ⚠️ Critical: round quantity according to coin precision requirements
 	roundedQuantity := t.roundToSzDecimals(coin, quantity)
-	log.Printf("  📏 数量精度处理: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
+	log.Printf("  📏 Quantity precision processing: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
 
-	// ⚠️ 关键：价格也需要处理为5位有效数字
+	// ⚠️ Critical: price also needs to be processed to 5 significant figures
 	aggressivePrice := t.roundPriceToSigfigs(price * 0.99)
-	log.Printf("  💰 价格精度处理: %.8f -> %.8f (5位有效数字)", price*0.99, aggressivePrice)
+	log.Printf("  💰 Price precision processing: %.8f -> %.8f (5 significant figures)", price*0.99, aggressivePrice)
 
-	// 创建平仓订单（卖出 + ReduceOnly）
+	// Create close order (sell + ReduceOnly)
 	order := hyperliquid.CreateOrderRequest{
 		Coin:  coin,
 		IsBuy: false,
-		Size:  roundedQuantity, // 使用四舍五入后的数量
-		Price: aggressivePrice, // 使用处理后的价格
+		Size:  roundedQuantity, // Use rounded quantity
+		Price: aggressivePrice, // Use processed price
 		OrderType: hyperliquid.OrderType{
 			Limit: &hyperliquid.LimitOrderType{
 				Tif: hyperliquid.TifIoc,
 			},
 		},
-		ReduceOnly: true, // 只平仓，不开新仓
+		ReduceOnly: true, // Only close position, don't open new one
 	}
 
 	_, err = t.exchange.Order(t.ctx, order, nil)
 	if err != nil {
-		return nil, fmt.Errorf("平多仓失败: %w", err)
+		return nil, fmt.Errorf("failed to close long position: %w", err)
 	}
 
-	log.Printf("✓ 平多仓成功: %s 数量: %.4f", symbol, roundedQuantity)
+	log.Printf("✓ Long position closed successfully: %s quantity: %.4f", symbol, roundedQuantity)
 
-	// 平仓后取消该币种的所有挂单
+	// After closing, cancel all pending orders for this coin
 	if err := t.CancelAllOrders(symbol); err != nil {
-		log.Printf("  ⚠ 取消挂单失败: %v", err)
+		log.Printf("  ⚠ Failed to cancel pending orders: %v", err)
 	}
 
 	result := make(map[string]interface{})
@@ -559,9 +559,9 @@ func (t *HyperliquidTrader) CloseLong(symbol string, quantity float64) (map[stri
 	return result, nil
 }
 
-// CloseShort 平空仓
+// CloseShort closes a short position
 func (t *HyperliquidTrader) CloseShort(symbol string, quantity float64) (map[string]interface{}, error) {
-	// 如果数量为0，获取当前持仓数量
+	// If quantity is 0, get current position quantity
 	if quantity == 0 {
 		positions, err := t.GetPositions()
 		if err != nil {
@@ -576,33 +576,33 @@ func (t *HyperliquidTrader) CloseShort(symbol string, quantity float64) (map[str
 		}
 
 		if quantity == 0 {
-			return nil, fmt.Errorf("没有找到 %s 的空仓", symbol)
+			return nil, fmt.Errorf("no short position found for %s", symbol)
 		}
 	}
 
-	// Hyperliquid symbol格式
+	// Hyperliquid symbol format
 	coin := convertSymbolToHyperliquid(symbol)
 
-	// 获取当前价格
+	// Get current price
 	price, err := t.GetMarketPrice(symbol)
 	if err != nil {
 		return nil, err
 	}
 
-	// ⚠️ 关键：根据币种精度要求，四舍五入数量
+	// ⚠️ Critical: round quantity according to coin precision requirements
 	roundedQuantity := t.roundToSzDecimals(coin, quantity)
-	log.Printf("  📏 数量精度处理: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
+	log.Printf("  📏 Quantity precision processing: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
 
-	// ⚠️ 关键：价格也需要处理为5位有效数字
+	// ⚠️ Critical: price also needs to be processed to 5 significant figures
 	aggressivePrice := t.roundPriceToSigfigs(price * 1.01)
-	log.Printf("  💰 价格精度处理: %.8f -> %.8f (5位有效数字)", price*1.01, aggressivePrice)
+	log.Printf("  💰 Price precision processing: %.8f -> %.8f (5 significant figures)", price*1.01, aggressivePrice)
 
-	// 创建平仓订单（买入 + ReduceOnly）
+	// Create close order (buy + ReduceOnly)
 	order := hyperliquid.CreateOrderRequest{
 		Coin:  coin,
 		IsBuy: true,
-		Size:  roundedQuantity, // 使用四舍五入后的数量
-		Price: aggressivePrice, // 使用处理后的价格
+		Size:  roundedQuantity, // Use rounded quantity
+		Price: aggressivePrice, // Use processed price
 		OrderType: hyperliquid.OrderType{
 			Limit: &hyperliquid.LimitOrderType{
 				Tif: hyperliquid.TifIoc,
@@ -613,14 +613,14 @@ func (t *HyperliquidTrader) CloseShort(symbol string, quantity float64) (map[str
 
 	_, err = t.exchange.Order(t.ctx, order, nil)
 	if err != nil {
-		return nil, fmt.Errorf("平空仓失败: %w", err)
+		return nil, fmt.Errorf("failed to close short position: %w", err)
 	}
 
-	log.Printf("✓ 平空仓成功: %s 数量: %.4f", symbol, roundedQuantity)
+	log.Printf("✓ Short position closed successfully: %s quantity: %.4f", symbol, roundedQuantity)
 
-	// 平仓后取消该币种的所有挂单
+	// After closing, cancel all pending orders for this coin
 	if err := t.CancelAllOrders(symbol); err != nil {
-		log.Printf("  ⚠ 取消挂单失败: %v", err)
+		log.Printf("  ⚠ Failed to cancel pending orders: %v", err)
 	}
 
 	result := make(map[string]interface{})
@@ -631,67 +631,67 @@ func (t *HyperliquidTrader) CloseShort(symbol string, quantity float64) (map[str
 	return result, nil
 }
 
-// CancelStopOrders 取消该币种的止盈/止
+// CancelStopOrders cancels stop loss/take profit orders for this coin
 
-// CancelStopLossOrders 仅取消止损单（Hyperliquid 暂无法区分止损和止盈，取消所有）
+// CancelStopLossOrders cancels only stop loss orders (Hyperliquid cannot distinguish stop loss from take profit, cancels all)
 func (t *HyperliquidTrader) CancelStopLossOrders(symbol string) error {
-	// Hyperliquid SDK 的 OpenOrder 结构不暴露 trigger 字段
-	// 无法区分止损和止盈单，因此取消该币种的所有挂单
-	log.Printf("  ⚠️ Hyperliquid 无法区分止损/止盈单，将取消所有挂单")
+	// Hyperliquid SDK's OpenOrder structure doesn't expose trigger field
+	// Cannot distinguish stop loss from take profit orders, so cancel all pending orders for this coin
+	log.Printf("  ⚠️ Hyperliquid cannot distinguish stop loss/take profit orders, will cancel all pending orders")
 	return t.CancelStopOrders(symbol)
 }
 
-// CancelTakeProfitOrders 仅取消止盈单（Hyperliquid 暂无法区分止损和止盈，取消所有）
+// CancelTakeProfitOrders cancels only take profit orders (Hyperliquid cannot distinguish stop loss from take profit, cancels all)
 func (t *HyperliquidTrader) CancelTakeProfitOrders(symbol string) error {
-	// Hyperliquid SDK 的 OpenOrder 结构不暴露 trigger 字段
-	// 无法区分止损和止盈单，因此取消该币种的所有挂单
-	log.Printf("  ⚠️ Hyperliquid 无法区分止损/止盈单，将取消所有挂单")
+	// Hyperliquid SDK's OpenOrder structure doesn't expose trigger field
+	// Cannot distinguish stop loss from take profit orders, so cancel all pending orders for this coin
+	log.Printf("  ⚠️ Hyperliquid cannot distinguish stop loss/take profit orders, will cancel all pending orders")
 	return t.CancelStopOrders(symbol)
 }
 
-// CancelAllOrders 取消该币种的所有挂单
+// CancelAllOrders cancels all pending orders for this coin
 func (t *HyperliquidTrader) CancelAllOrders(symbol string) error {
 	coin := convertSymbolToHyperliquid(symbol)
 
-	// 获取所有挂单
+	// Get all pending orders
 	openOrders, err := t.exchange.Info().OpenOrders(t.ctx, t.walletAddr)
 	if err != nil {
-		return fmt.Errorf("获取挂单失败: %w", err)
+		return fmt.Errorf("failed to get pending orders: %w", err)
 	}
 
-	// 取消该币种的所有挂单
+	// Cancel all pending orders for this coin
 	for _, order := range openOrders {
 		if order.Coin == coin {
 			_, err := t.exchange.Cancel(t.ctx, coin, order.Oid)
 			if err != nil {
-				log.Printf("  ⚠ 取消订单失败 (oid=%d): %v", order.Oid, err)
+				log.Printf("  ⚠ Failed to cancel order (oid=%d): %v", order.Oid, err)
 			}
 		}
 	}
 
-	log.Printf("  ✓ 已取消 %s 的所有挂单", symbol)
+	log.Printf("  ✓ Canceled all pending orders for %s", symbol)
 	return nil
 }
 
-// CancelStopOrders 取消该币种的止盈/止损单（用于调整止盈止损位置）
+// CancelStopOrders cancels stop loss/take profit orders for this coin (used when adjusting stop loss/take profit positions)
 func (t *HyperliquidTrader) CancelStopOrders(symbol string) error {
 	coin := convertSymbolToHyperliquid(symbol)
 
-	// 获取所有挂单
+	// Get all pending orders
 	openOrders, err := t.exchange.Info().OpenOrders(t.ctx, t.walletAddr)
 	if err != nil {
-		return fmt.Errorf("获取挂单失败: %w", err)
+		return fmt.Errorf("failed to get pending orders: %w", err)
 	}
 
-	// 注意：Hyperliquid SDK 的 OpenOrder 结构不暴露 trigger 字段
-	// 因此暂时取消该币种的所有挂单（包括止盈止损单）
-	// 这是安全的，因为在设置新的止盈止损之前，应该清理所有旧订单
+	// Note: Hyperliquid SDK's OpenOrder structure doesn't expose trigger field
+	// So temporarily cancel all pending orders for this coin (including stop loss/take profit orders)
+	// This is safe because all old orders should be cleaned up before setting new stop loss/take profit
 	canceledCount := 0
 	for _, order := range openOrders {
 		if order.Coin == coin {
 			_, err := t.exchange.Cancel(t.ctx, coin, order.Oid)
 			if err != nil {
-				log.Printf("  ⚠ 取消订单失败 (oid=%d): %v", order.Oid, err)
+				log.Printf("  ⚠ Failed to cancel order (oid=%d): %v", order.Oid, err)
 				continue
 			}
 			canceledCount++
@@ -699,54 +699,54 @@ func (t *HyperliquidTrader) CancelStopOrders(symbol string) error {
 	}
 
 	if canceledCount == 0 {
-		log.Printf("  ℹ %s 没有挂单需要取消", symbol)
+		log.Printf("  ℹ %s has no pending orders to cancel", symbol)
 	} else {
-		log.Printf("  ✓ 已取消 %s 的 %d 个挂单（包括止盈/止损单）", symbol, canceledCount)
+		log.Printf("  ✓ Canceled %d pending orders for %s (including stop loss/take profit orders)", canceledCount, symbol)
 	}
 
 	return nil
 }
 
-// GetMarketPrice 获取市场价格
+// GetMarketPrice gets market price
 func (t *HyperliquidTrader) GetMarketPrice(symbol string) (float64, error) {
 	coin := convertSymbolToHyperliquid(symbol)
 
-	// 获取所有市场价格
+	// Get all market prices
 	allMids, err := t.exchange.Info().AllMids(t.ctx)
 	if err != nil {
-		return 0, fmt.Errorf("获取价格失败: %w", err)
+		return 0, fmt.Errorf("failed to get price: %w", err)
 	}
 
-	// 查找对应币种的价格（allMids是map[string]string）
+	// Find price for corresponding coin (allMids is map[string]string)
 	if priceStr, ok := allMids[coin]; ok {
 		priceFloat, err := strconv.ParseFloat(priceStr, 64)
 		if err == nil {
 			return priceFloat, nil
 		}
-		return 0, fmt.Errorf("价格格式错误: %v", err)
+		return 0, fmt.Errorf("price format error: %v", err)
 	}
 
-	return 0, fmt.Errorf("未找到 %s 的价格", symbol)
+	return 0, fmt.Errorf("price not found for %s", symbol)
 }
 
-// SetStopLoss 设置止损单
+// SetStopLoss sets stop loss order
 func (t *HyperliquidTrader) SetStopLoss(symbol string, positionSide string, quantity, stopPrice float64) error {
 	coin := convertSymbolToHyperliquid(symbol)
 
-	isBuy := positionSide == "SHORT" // 空仓止损=买入，多仓止损=卖出
+	isBuy := positionSide == "SHORT" // Short position stop loss = buy, long position stop loss = sell
 
-	// ⚠️ 关键：根据币种精度要求，四舍五入数量
+	// ⚠️ Critical: round quantity according to coin precision requirements
 	roundedQuantity := t.roundToSzDecimals(coin, quantity)
 
-	// ⚠️ 关键：价格也需要处理为5位有效数字
+	// ⚠️ Critical: price also needs to be processed to 5 significant figures
 	roundedStopPrice := t.roundPriceToSigfigs(stopPrice)
 
-	// 创建止损单（Trigger Order）
+	// Create stop loss order (Trigger Order)
 	order := hyperliquid.CreateOrderRequest{
 		Coin:  coin,
 		IsBuy: isBuy,
-		Size:  roundedQuantity,  // 使用四舍五入后的数量
-		Price: roundedStopPrice, // 使用处理后的价格
+		Size:  roundedQuantity,  // Use rounded quantity
+		Price: roundedStopPrice, // Use processed price
 		OrderType: hyperliquid.OrderType{
 			Trigger: &hyperliquid.TriggerOrderType{
 				TriggerPx: roundedStopPrice,
@@ -759,31 +759,31 @@ func (t *HyperliquidTrader) SetStopLoss(symbol string, positionSide string, quan
 
 	_, err := t.exchange.Order(t.ctx, order, nil)
 	if err != nil {
-		return fmt.Errorf("设置止损失败: %w", err)
+		return fmt.Errorf("failed to set stop loss: %w", err)
 	}
 
-	log.Printf("  止损价设置: %.4f", roundedStopPrice)
+	log.Printf("  Stop loss price set: %.4f", roundedStopPrice)
 	return nil
 }
 
-// SetTakeProfit 设置止盈单
+// SetTakeProfit sets take profit order
 func (t *HyperliquidTrader) SetTakeProfit(symbol string, positionSide string, quantity, takeProfitPrice float64) error {
 	coin := convertSymbolToHyperliquid(symbol)
 
-	isBuy := positionSide == "SHORT" // 空仓止盈=买入，多仓止盈=卖出
+	isBuy := positionSide == "SHORT" // Short position take profit = buy, long position take profit = sell
 
-	// ⚠️ 关键：根据币种精度要求，四舍五入数量
+	// ⚠️ Critical: round quantity according to coin precision requirements
 	roundedQuantity := t.roundToSzDecimals(coin, quantity)
 
-	// ⚠️ 关键：价格也需要处理为5位有效数字
+	// ⚠️ Critical: price also needs to be processed to 5 significant figures
 	roundedTakeProfitPrice := t.roundPriceToSigfigs(takeProfitPrice)
 
-	// 创建止盈单（Trigger Order）
+	// Create take profit order (Trigger Order)
 	order := hyperliquid.CreateOrderRequest{
 		Coin:  coin,
 		IsBuy: isBuy,
-		Size:  roundedQuantity,        // 使用四舍五入后的数量
-		Price: roundedTakeProfitPrice, // 使用处理后的价格
+		Size:  roundedQuantity,        // Use rounded quantity
+		Price: roundedTakeProfitPrice, // Use processed price
 		OrderType: hyperliquid.OrderType{
 			Trigger: &hyperliquid.TriggerOrderType{
 				TriggerPx: roundedTakeProfitPrice,
@@ -796,10 +796,10 @@ func (t *HyperliquidTrader) SetTakeProfit(symbol string, positionSide string, qu
 
 	_, err := t.exchange.Order(t.ctx, order, nil)
 	if err != nil {
-		return fmt.Errorf("设置止盈失败: %w", err)
+		return fmt.Errorf("failed to set take profit: %w", err)
 	}
 
-	log.Printf("  止盈价设置: %.4f", roundedTakeProfitPrice)
+	log.Printf("  Take profit price set: %.4f", roundedTakeProfitPrice)
 	return nil
 }
 
@@ -856,35 +856,35 @@ func (t *HyperliquidTrader) FormatQuantity(symbol string, quantity float64) (str
 	return fmt.Sprintf(formatStr, quantity), nil
 }
 
-// getSzDecimals 获取币种的数量精度
+// getSzDecimals gets the quantity precision for a coin
 func (t *HyperliquidTrader) getSzDecimals(coin string) int {
 	// Refresh meta if needed (before acquiring read lock to avoid deadlock)
 	if err := t.refreshMetaIfNeeded(coin); err != nil {
-		log.Printf("⚠️  刷新meta信息失败: %v，使用默认精度4", err)
+		log.Printf("⚠️  Failed to refresh meta information: %v, using default precision 4", err)
 		// Continue with default precision if refresh fails
 	}
 
-	// ✅ 并发安全：使用读锁保护 meta 字段访问
+	// ✅ Thread-safe: use read lock to protect meta field access
 	t.metaMutex.RLock()
 	defer t.metaMutex.RUnlock()
 
 	if t.meta == nil {
-		log.Printf("⚠️  meta信息为空，使用默认精度4")
-		return 4 // 默认精度
+		log.Printf("⚠️  Meta information is empty, using default precision 4")
+		return 4 // Default precision
 	}
 
-	// 在meta.Universe中查找对应的币种
+	// Find corresponding coin in meta.Universe
 	for _, asset := range t.meta.Universe {
 		if asset.Name == coin {
 			return asset.SzDecimals
 		}
 	}
 
-	log.Printf("⚠️  未找到 %s 的精度信息，使用默认精度4", coin)
-	return 4 // 默认精度
+	log.Printf("⚠️  Precision information not found for %s, using default precision 4", coin)
+	return 4 // Default precision
 }
 
-// roundToSzDecimals 将数量四舍五入到正确的精度
+// roundToSzDecimals rounds quantity to correct precision
 func (t *HyperliquidTrader) roundToSzDecimals(coin string, quantity float64) float64 {
 	szDecimals := t.getSzDecimals(coin)
 
@@ -898,16 +898,16 @@ func (t *HyperliquidTrader) roundToSzDecimals(coin string, quantity float64) flo
 	return float64(int(quantity*multiplier+0.5)) / multiplier
 }
 
-// roundPriceToSigfigs 将价格四舍五入到5位有效数字
-// Hyperliquid要求价格使用5位有效数字（significant figures）
+// roundPriceToSigfigs rounds price to 5 significant figures
+// Hyperliquid requires prices to use 5 significant figures
 func (t *HyperliquidTrader) roundPriceToSigfigs(price float64) float64 {
 	if price == 0 {
 		return 0
 	}
 
-	const sigfigs = 5 // Hyperliquid标准：5位有效数字
+	const sigfigs = 5 // Hyperliquid standard: 5 significant figures
 
-	// 计算价格的数量级
+	// Calculate the magnitude of the price
 	var magnitude float64
 	if price < 0 {
 		magnitude = -price
@@ -915,7 +915,7 @@ func (t *HyperliquidTrader) roundPriceToSigfigs(price float64) float64 {
 		magnitude = price
 	}
 
-	// 计算需要的倍数
+	// Calculate required multiplier
 	multiplier := 1.0
 	for magnitude >= 10 {
 		magnitude /= 10

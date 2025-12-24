@@ -199,8 +199,8 @@ export function ExchangeConfigModal({
       setAsterPrivateKey(trimmed)
     }
     if (secureInputTarget === 'lighter') {
-      setLighterPrivateKey(trimmed)
-      toast.success(t('lighterPrivateKeyImported', language))
+      setLighterApiKeyPrivateKey(trimmed)
+      toast.success(t('lighterApiKeyPrivateKeyImported', language) || 'API Key Private Key imported successfully')
     }
     // Only output debug information in development environment
     if (import.meta.env.DEV) {
@@ -274,24 +274,24 @@ export function ExchangeConfigModal({
           undefined
         )
       } else if (selectedExchange?.id === 'lighter') {
-        if (!lighterWalletAddr.trim() || !lighterPrivateKey.trim()) {
+        if (!lighterWalletAddr.trim() || !lighterApiKeyPrivateKey.trim()) {
           setIsLoading(false)
           return
         }
         await onSave(
           selectedExchangeId,
-          lighterPrivateKey.trim(),
-          '',
+          '', // apiKey should be empty for Lighter (not lighterPrivateKey)
+          '', // secretKey
           testnet,
-          lighterWalletAddr.trim(),
-          undefined,
-          undefined,
-          undefined,
-          lighterWalletAddr.trim(),
-          lighterPrivateKey.trim(),
-          lighterApiKeyPrivateKey.trim(),
-          lighterApiKeyIndex,
-          undefined
+          undefined, // hyperliquidWalletAddr
+          undefined, // asterUser
+          undefined, // asterSigner
+          undefined, // asterPrivateKey
+          lighterWalletAddr.trim(), // lighterWalletAddr
+          lighterPrivateKey.trim(), // lighterPrivateKey (deprecated but kept for compatibility)
+          lighterApiKeyPrivateKey.trim(), // lighterApiKeyPrivateKey
+          lighterApiKeyIndex, // lighterApiKeyIndex
+          undefined // okxPassphrase
         )
       } else if (selectedExchange?.id === 'okx') {
         if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) {
@@ -948,14 +948,6 @@ export function ExchangeConfigModal({
                         style={{ color: '#EAECEF' }}
                       >
                         {t('lighterPrivateKey', language)}
-                        <button
-                          type="button"
-                          onClick={() => setSecureInputTarget('lighter')}
-                          className="ml-2 text-xs underline"
-                          style={{ color: 'var(--green-primary)' }}
-                        >
-                          {t('secureInputButton', language)}
-                        </button>
                       </label>
                       <input
                         type="password"
@@ -968,10 +960,9 @@ export function ExchangeConfigModal({
                           border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
-                        required
                       />
                       <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                        {t('lighterPrivateKeyDesc', language)}
+                        {t('lighterPrivateKeyDesc', language)} (Deprecated - not required when wallet address is provided)
                       </div>
                     </div>
 
@@ -982,6 +973,14 @@ export function ExchangeConfigModal({
                         style={{ color: '#EAECEF' }}
                       >
                         {t('lighterApiKeyPrivateKey', language)} ⭐
+                        <button
+                          type="button"
+                          onClick={() => setSecureInputTarget('lighter')}
+                          className="ml-2 text-xs underline"
+                          style={{ color: 'var(--green-primary)' }}
+                        >
+                          {t('secureInputButton', language)}
+                        </button>
                       </label>
                       <input
                         type="password"
@@ -994,16 +993,10 @@ export function ExchangeConfigModal({
                           border: '1px solid var(--panel-border)',
                           color: '#EAECEF',
                         }}
+                        required
                       />
                       <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                        {t('lighterApiKeyPrivateKeyDesc', language)}
-                      </div>
-                      <div className="text-xs mt-2 p-2 rounded" style={{
-                        background: 'var(--navy-dark)',
-                        border: '1px solid var(--panel-border)',
-                        color: 'var(--green-primary)'
-                      }}>
-                        💡 {t('lighterApiKeyOptionalNote', language)}
+                        {t('lighterApiKeyPrivateKeyDesc', language)} (Required for LIGHTER V2)
                       </div>
                     </div>
 
@@ -1072,7 +1065,7 @@ export function ExchangeConfigModal({
                     !asterSigner.trim() ||
                     !asterPrivateKey.trim())) ||
                 (selectedExchange.id === 'lighter' &&
-                  (!lighterWalletAddr.trim() || !lighterPrivateKey.trim())) ||
+                  (!lighterWalletAddr.trim() || !lighterApiKeyPrivateKey.trim())) ||
                 (selectedExchange.id === 'bybit' &&
                   (!apiKey.trim() || !secretKey.trim())) ||
                 (selectedExchange.type === 'cex' &&
