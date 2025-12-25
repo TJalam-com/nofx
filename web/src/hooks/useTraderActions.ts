@@ -520,10 +520,9 @@ export function useTraderActions({
               aster_user: exchange.asterUser || '',
               aster_signer: exchange.asterSigner || '',
               aster_private_key: exchange.asterPrivateKey || '',
-              lighter_wallet_addr: exchange.lighterWalletAddr || '',
-              lighter_private_key: exchange.lighterPrivateKey || '',
-              lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
-              lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
+                lighter_wallet_addr: exchange.lighterWalletAddr || '',
+                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
+                lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
               okx_passphrase: exchange.okxPassphrase || '',
             },
           ])
@@ -628,10 +627,9 @@ export function useTraderActions({
                 aster_user: exchange.asterUser || '',
                 aster_signer: exchange.asterSigner || '',
                 aster_private_key: exchange.asterPrivateKey || '',
-                lighter_wallet_addr: exchange.lighterWalletAddr || '', // Kept for backward compatibility
-                lighter_private_key: exchange.lighterPrivateKey || '', // Kept for backward compatibility
-                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '', // Kept for backward compatibility
-                lighter_api_key_index: exchange.lighterAPIKeyIndex || 0, // Kept for backward compatibility
+                lighter_wallet_addr: exchange.lighterWalletAddr || '',
+                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
+                lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
                 okx_passphrase: exchange.okxPassphrase || '',
               },
             ]

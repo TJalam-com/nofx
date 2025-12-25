@@ -705,7 +705,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
               aster_signer: exchange.asterSigner || '',
               aster_private_key: exchange.asterPrivateKey || '',
               lighter_wallet_addr: exchange.lighterWalletAddr || '',
-              lighter_private_key: exchange.lighterPrivateKey || '',
               lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
               lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
               okx_passphrase: exchange.okxPassphrase || '',
@@ -885,7 +884,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             // Always include Lighter fields - backend will always update them
             // Use explicit !== undefined checks to preserve empty strings and avoid losing values
             exchangeData.lighter_wallet_addr = exchange.lighterWalletAddr !== undefined ? exchange.lighterWalletAddr : ''
-            exchangeData.lighter_private_key = exchange.lighterPrivateKey !== undefined ? exchange.lighterPrivateKey : '' // Deprecated field, always empty
             exchangeData.lighter_api_key_private_key = exchange.lighterAPIKeyPrivateKey !== undefined ? exchange.lighterAPIKeyPrivateKey : ''
             exchangeData.lighter_api_key_index = exchange.lighterAPIKeyIndex !== undefined ? exchange.lighterAPIKeyIndex : 0
             // #region agent log
@@ -2173,7 +2171,6 @@ function ModelConfigModal({
 // Exchange Configuration Modal Component
 function ExchangeConfigModal({
   allExchanges,
-  configuredExchanges,
   editingExchangeId,
   onSave,
   onDelete,
@@ -2181,20 +2178,21 @@ function ExchangeConfigModal({
   language,
 }: {
   allExchanges: Exchange[]
-  configuredExchanges: Exchange[]
   editingExchangeId: string | null
   onSave: (
     exchangeId: string,
     apiKey: string,
-    secretKey: string,
-    testnet: boolean,
+    secretKey?: string,
+    testnet?: boolean,
     hyperliquidWalletAddr?: string,
     asterUser?: string,
     asterSigner?: string,
     asterPrivateKey?: string,
-    lighterApiKeyIndex?: number,
-    passphrase?: string
-  ) => void
+    okxPassphrase?: string,
+    lighterWalletAddr?: string,
+    lighterAPIKeyPrivateKey?: string,
+    lighterAPIKeyIndex?: number
+  ) => Promise<void>
   onDelete: (exchangeId: string) => void
   onClose: () => void
   language: Language
@@ -2402,11 +2400,10 @@ function ExchangeConfigModal({
         undefined,
         undefined,
         undefined,
+        passphrase.trim(),
         undefined,
         undefined,
-        undefined,
-        undefined, // lighterApiKeyIndex
-        passphrase.trim()
+        undefined
       )
     } else {
       // 默认情况（其他CEX交易所）

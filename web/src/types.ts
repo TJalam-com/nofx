@@ -245,6 +245,10 @@ export interface UpdateExchangeConfigRequest {
       aster_signer?: string
       aster_private_key?: string
       okx_passphrase?: string
+      // Lighter 特定字段
+      lighter_wallet_addr?: string
+      lighter_api_key_private_key?: string
+      lighter_api_key_index?: number
     }
   }
 }
