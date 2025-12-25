@@ -1256,10 +1256,10 @@ type ExchangeConfig struct {
 	AsterSigner     string `json:"asterSigner"`
 	AsterPrivateKey string `json:"asterPrivateKey"`
 	// LIGHTER specific fields
-	LighterWalletAddr       string `json:"lighterWalletAddr"`       // Ethereum wallet address (L1)
-	LighterPrivateKey       string `json:"lighterPrivateKey"`       // L1 private key (for account identification)
+	LighterWalletAddr       string `json:"lighterWalletAddr"`       // Ethereum wallet address (for display/logging purposes only, not used for account lookup)
+	LighterPrivateKey       string `json:"lighterPrivateKey"`       // Deprecated - no longer used (kept for backward compatibility)
 	LighterAPIKeyPrivateKey string `json:"lighterAPIKeyPrivateKey"` // API Key private key (40 bytes, for signing transactions)
-	LighterAPIKeyIndex      int    `json:"lighterAPIKeyIndex"`      // API Key index (default 0)
+	LighterAPIKeyIndex      int    `json:"lighterAPIKeyIndex"`      // API Key index (default 0, range 0-254)
 	// OKX specific fields
 	OkxPassphrase string    `json:"okxPassphrase"` // OKX passphrase (required for OKX)
 	CreatedAt     time.Time `json:"created_at"`
@@ -2360,15 +2360,8 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 	}
 	args := []interface{}{enabled, testnet, hyperliquidWalletAddr, asterUser, asterSigner, lighterWalletAddr, lighterAPIKeyIndex}
 
-	// For Lighter exchange, always clear api_key field (should use lighter_api_key_private_key instead)
-	if id == "lighter" {
-		setClauses = append(setClauses, "api_key = ?")
-		args = append(args, "") // Clear api_key for Lighter
-		log.Printf("🔍 DEBUG [UpdateExchange]: Clearing api_key field for Lighter exchange")
-	}
-
 	// 🔒 Sensitive fields: only update when non-empty (protect existing data)
-	if apiKey != "" && id != "lighter" {
+	if apiKey != "" {
 		encryptedAPIKey := d.encryptSensitiveData(apiKey)
 		setClauses = append(setClauses, "api_key = ?")
 		args = append(args, encryptedAPIKey)
@@ -2386,20 +2379,6 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		args = append(args, encryptedAsterPrivateKey)
 	}
 
-	if lighterPrivateKey != "" {
-		encryptedLighterPrivateKey := d.encryptSensitiveData(lighterPrivateKey)
-		setClauses = append(setClauses, "lighter_private_key = ?")
-		args = append(args, encryptedLighterPrivateKey)
-	}
-
-	if lighterAPIKeyPrivateKey != "" {
-		log.Printf("🔍 DEBUG [UpdateExchange]: Updating lighter_api_key_private_key (length=%d)", len(lighterAPIKeyPrivateKey))
-		encryptedLighterAPIKeyPrivateKey := d.encryptSensitiveData(lighterAPIKeyPrivateKey)
-		setClauses = append(setClauses, "lighter_api_key_private_key = ?")
-		args = append(args, encryptedLighterAPIKeyPrivateKey)
-	} else {
-		log.Printf("⚠️ DEBUG [UpdateExchange]: lighterAPIKeyPrivateKey is empty, skipping update (security feature)")
-	}
 
 	if okxPassphrase != "" {
 		encryptedOkxPassphrase := d.encryptSensitiveData(okxPassphrase)
@@ -2451,9 +2430,6 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		case "aster":
 			name = "Aster DEX"
 			typ = "dex"
-		case "lighter":
-			name = "LIGHTER DEX"
-			typ = "dex"
 		case "okx":
 			name = "OKX Futures"
 			typ = "cex"
@@ -2495,46 +2471,11 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 			}
 		}
 
-		// Ensure lighter_api_key_private_key column exists before INSERT (defensive check)
-		exists, err = d.columnExists("exchanges", "lighter_api_key_private_key")
-		if err != nil {
-			log.Printf("⚠️  Error checking if lighter_api_key_private_key column exists: %v", err)
-		} else if !exists {
-			log.Printf("🔄 Adding missing lighter_api_key_private_key column to exchanges table (defensive check)...")
-			_, err = d.db.Exec(`ALTER TABLE exchanges ADD COLUMN lighter_api_key_private_key TEXT DEFAULT ''`)
-			if err != nil {
-				log.Printf("⚠️  Failed to add lighter_api_key_private_key column: %v", err)
-				// Continue anyway, will fail on INSERT if column truly missing
-			} else {
-				log.Printf("✅ Successfully added lighter_api_key_private_key column")
-			}
-		}
-
-		// Ensure lighter_api_key_index column exists before INSERT (defensive check)
-		exists, err = d.columnExists("exchanges", "lighter_api_key_index")
-		if err != nil {
-			log.Printf("⚠️  Error checking if lighter_api_key_index column exists: %v", err)
-		} else if !exists {
-			log.Printf("🔄 Adding missing lighter_api_key_index column to exchanges table (defensive check)...")
-			_, err = d.db.Exec(`ALTER TABLE exchanges ADD COLUMN lighter_api_key_index INTEGER DEFAULT 0`)
-			if err != nil {
-				log.Printf("⚠️  Failed to add lighter_api_key_index column: %v", err)
-				// Continue anyway, will fail on INSERT if column truly missing
-			} else {
-				log.Printf("✅ Successfully added lighter_api_key_index column")
-			}
-		}
-
 		// Encrypt sensitive fields
-		// For Lighter exchange, always use empty api_key (should use lighter_api_key_private_key instead)
-		encryptedAPIKey := ""
-		if id != "lighter" {
-			encryptedAPIKey = d.encryptSensitiveData(apiKey)
-		} else {
-			log.Printf("🔍 DEBUG [UpdateExchange]: Using empty api_key for new Lighter exchange record")
-		}
+		encryptedAPIKey := d.encryptSensitiveData(apiKey)
 		encryptedSecretKey := d.encryptSensitiveData(secretKey)
 		encryptedAsterPrivateKey := d.encryptSensitiveData(asterPrivateKey)
+		// Lighter fields kept for backward compatibility but not used
 		encryptedLighterPrivateKey := d.encryptSensitiveData(lighterPrivateKey)
 		encryptedLighterAPIKeyPrivateKey := d.encryptSensitiveData(lighterAPIKeyPrivateKey)
 		encryptedOkxPassphrase := d.encryptSensitiveData(okxPassphrase)

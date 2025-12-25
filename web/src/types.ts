@@ -181,11 +181,6 @@ export interface Exchange {
   asterUser?: string
   asterSigner?: string
   asterPrivateKey?: string
-  // LIGHTER specific fields
-  lighterWalletAddr?: string
-  lighterPrivateKey?: string
-  lighterAPIKeyPrivateKey?: string
-  lighterAPIKeyIndex?: number
   // OKX specific fields
   okxPassphrase?: string
 }
@@ -245,11 +240,6 @@ export interface UpdateExchangeConfigRequest {
       aster_user?: string
       aster_signer?: string
       aster_private_key?: string
-      // LIGHTER 特定字段
-      lighter_wallet_addr?: string
-      lighter_private_key?: string
-      lighter_api_key_private_key?: string
-      lighter_api_key_index?: number
       okx_passphrase?: string
     }
   }

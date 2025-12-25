@@ -45,7 +45,7 @@ Update the formData initialization `useEffect` to:
 
 **Code Change**:
 
-```typescript
+````typescript
 } else if (!isEditMode) {
   // For followers, use getDefaultRiskModel to prioritize "Risk Management" model
   const defaultAIModel = userIsFollower 
@@ -81,4 +81,5 @@ The separate `useEffect` at line 113-123 can be removed or simplified since the 
 - Verify the model is selected even if models load after modal opens
 - Verify no validation error appears for AI Model field
 - Verify the model selection persists when modal is reopened
-- Verify non-followers still get the first available model as default
+
+````

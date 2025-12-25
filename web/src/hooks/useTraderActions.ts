@@ -531,10 +531,6 @@ export function useTraderActions({
     asterUser?: string,
     asterSigner?: string,
     asterPrivateKey?: string,
-    lighterWalletAddr?: string,
-    lighterPrivateKey?: string,
-    lighterApiKeyPrivateKey?: string,
-    lighterApiKeyIndex?: number,
     okxPassphrase?: string
   ) => {
     try {
@@ -565,10 +561,6 @@ export function useTraderActions({
                   asterUser,
                   asterSigner,
                   asterPrivateKey,
-                  lighterWalletAddr,
-                  lighterPrivateKey,
-                  lighterApiKeyPrivateKey,
-                  lighterAPIKeyIndex: lighterApiKeyIndex || 0,
                   okxPassphrase,
                   enabled: true,
                 }
@@ -598,31 +590,21 @@ export function useTraderActions({
       const request = {
         exchanges: Object.fromEntries(
           updatedExchanges.map((exchange) => {
-            // Debug logging for Lighter exchange
-            if (exchange.id === 'lighter') {
-              console.log('🔍 DEBUG: Lighter exchange data being sent:', {
-                lighterWalletAddr: exchange.lighterWalletAddr,
-                lighterAPIKeyPrivateKey: exchange.lighterAPIKeyPrivateKey
-                  ? `${exchange.lighterAPIKeyPrivateKey.substring(0, 10)}...`
-                  : 'EMPTY',
-                lighterAPIKeyIndex: exchange.lighterAPIKeyIndex,
-              })
-            }
             return [
               exchange.id,
               {
                 enabled: exchange.enabled,
-                api_key: exchange.id === 'lighter' ? '' : (exchange.apiKey || ''), // Always empty for Lighter
-                secret_key: exchange.id === 'lighter' ? '' : (exchange.secretKey || ''), // Always empty for Lighter
+                api_key: exchange.apiKey || '',
+                secret_key: exchange.secretKey || '',
                 testnet: exchange.testnet || false,
                 hyperliquid_wallet_addr: exchange.hyperliquidWalletAddr || '',
                 aster_user: exchange.asterUser || '',
                 aster_signer: exchange.asterSigner || '',
                 aster_private_key: exchange.asterPrivateKey || '',
-                lighter_wallet_addr: exchange.lighterWalletAddr || '',
-                lighter_private_key: exchange.lighterPrivateKey || '',
-                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
-                lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
+                lighter_wallet_addr: exchange.lighterWalletAddr || '', // Kept for backward compatibility
+                lighter_private_key: exchange.lighterPrivateKey || '', // Kept for backward compatibility
+                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '', // Kept for backward compatibility
+                lighter_api_key_index: exchange.lighterAPIKeyIndex || 0, // Kept for backward compatibility
                 okx_passphrase: exchange.okxPassphrase || '',
               },
             ]

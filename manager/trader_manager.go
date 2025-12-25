@@ -289,19 +289,6 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
 		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
-	} else if exchangeCfg.ID == "lighter" {
-		// Validate Lighter configuration
-		if exchangeCfg.LighterWalletAddr == "" {
-			return fmt.Errorf("Lighter wallet address is required")
-		}
-		if exchangeCfg.LighterAPIKeyPrivateKey == "" {
-			return fmt.Errorf("Lighter API key private key is required. Please generate API key from Lighter interface and configure it in Exchange Settings")
-		}
-		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
-		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
-		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
-		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
-		traderConfig.LighterTestnet = false // Always mainnet for Lighter
 	}
 
 	// Set API keys based on AI model
@@ -441,19 +428,6 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
 		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
-	} else if exchangeCfg.ID == "lighter" {
-		// Validate Lighter configuration
-		if exchangeCfg.LighterWalletAddr == "" {
-			return fmt.Errorf("Lighter wallet address is required")
-		}
-		if exchangeCfg.LighterAPIKeyPrivateKey == "" {
-			return fmt.Errorf("Lighter API key private key is required. Please generate API key from Lighter interface and configure it in Exchange Settings")
-		}
-		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
-		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
-		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
-		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
-		traderConfig.LighterTestnet = false // Always mainnet for Lighter
 	}
 
 	// Set API keys based on AI model
@@ -1428,19 +1402,6 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
 		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
-	} else if exchangeCfg.ID == "lighter" {
-		// Validate Lighter configuration
-		if exchangeCfg.LighterWalletAddr == "" {
-			return fmt.Errorf("Lighter wallet address is required")
-		}
-		if exchangeCfg.LighterAPIKeyPrivateKey == "" {
-			return fmt.Errorf("Lighter API key private key is required. Please generate API key from Lighter interface and configure it in Exchange Settings")
-		}
-		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
-		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
-		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
-		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
-		traderConfig.LighterTestnet = false // Always mainnet for Lighter
 	}
 
 	// Set API keys based on AI model

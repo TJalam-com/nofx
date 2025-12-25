@@ -88,12 +88,6 @@ export function ExchangesSection({
                           )}
                         </>
                       )}
-                      {exchange.id === 'lighter' && exchange.lighterWalletAddr && (
-                        <WalletAddressDisplay
-                          address={exchange.lighterWalletAddr}
-                          language={language}
-                        />
-                      )}
                     </div>
                   )}
                 </div>

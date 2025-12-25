@@ -1999,16 +1999,8 @@ func (s *Server) handleSyncBalance(c *gin.Context) {
 			exchangeCfg.SecretKey,
 		)
 	case "lighter":
-		if exchangeCfg.LighterWalletAddr != "" && exchangeCfg.LighterAPIKeyPrivateKey != "" {
-			// Lighter only supports mainnet
-			tempTrader, createErr = trader.NewLighterTraderV2(
-				exchangeCfg.LighterWalletAddr,
-				exchangeCfg.LighterAPIKeyPrivateKey,
-				exchangeCfg.LighterAPIKeyIndex,
-			)
-		} else {
-			createErr = fmt.Errorf("Lighter requires wallet address and API Key private key")
-		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Lighter DEX support has been removed. Please migrate to another exchange"})
+		return
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported exchange type"})
 		return
@@ -2239,7 +2231,6 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 			{ID: "bitget", Name: "Bitget Futures", Type: "bitget", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
 			{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
 			{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
-			{ID: "lighter", Name: "LIGHTER DEX", Type: "lighter", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
 		}
 		c.JSON(http.StatusOK, defaultExchanges)
 		return
@@ -4288,7 +4279,6 @@ func (s *Server) handleGetSupportedExchanges(c *gin.Context) {
 		{ID: "okx", Name: "OKX Futures", Type: "okx", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
 		{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
 		{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-		{ID: "lighter", Name: "LIGHTER DEX", Type: "lighter", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
 	}
 
 	c.JSON(http.StatusOK, supportedExchanges)

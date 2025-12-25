@@ -28,10 +28,6 @@ interface ExchangeConfigModalProps {
     asterUser?: string,
     asterSigner?: string,
     asterPrivateKey?: string,
-    lighterWalletAddr?: string,
-    lighterPrivateKey?: string,
-    lighterApiKeyPrivateKey?: string,
-    lighterApiKeyIndex?: number,
     okxPassphrase?: string
   ) => Promise<void>
   onDelete: (exchangeId: string) => void
@@ -76,15 +72,9 @@ export function ExchangeConfigModal({
   // Hyperliquid specific fields
   const [hyperliquidWalletAddr, setHyperliquidWalletAddr] = useState('')
 
-  // LIGHTER specific fields
-  const [lighterWalletAddr, setLighterWalletAddr] = useState('')
-  const [lighterPrivateKey, setLighterPrivateKey] = useState('')
-  const [lighterApiKeyPrivateKey, setLighterApiKeyPrivateKey] = useState('')
-  const [lighterApiKeyIndex, setLighterApiKeyIndex] = useState(0)
-
   // Secure input state
   const [secureInputTarget, setSecureInputTarget] = useState<
-    null | 'hyperliquid' | 'aster' | 'lighter'
+    null | 'hyperliquid' | 'aster'
   >(null)
 
   // Get current editing exchange information
@@ -107,12 +97,6 @@ export function ExchangeConfigModal({
 
       // Hyperliquid fields
       setHyperliquidWalletAddr(selectedExchange.hyperliquidWalletAddr || '')
-
-      // LIGHTER fields
-      setLighterWalletAddr(selectedExchange.lighterWalletAddr || '')
-      setLighterPrivateKey('') // Don't load existing private key for security
-      setLighterApiKeyPrivateKey('') // Don't load existing API key for security
-      setLighterApiKeyIndex(selectedExchange.lighterAPIKeyIndex || 0)
     }
   }, [editingExchangeId, selectedExchange])
 
@@ -198,10 +182,6 @@ export function ExchangeConfigModal({
     if (secureInputTarget === 'aster') {
       setAsterPrivateKey(trimmed)
     }
-    if (secureInputTarget === 'lighter') {
-      setLighterApiKeyPrivateKey(trimmed)
-      toast.success(t('lighterApiKeyPrivateKeyImported', language) || 'API Key Private Key imported successfully')
-    }
     // Only output debug information in development environment
     if (import.meta.env.DEV) {
       console.log('Secure input obfuscation log:', obfuscationLog)
@@ -273,26 +253,6 @@ export function ExchangeConfigModal({
           undefined,
           undefined
         )
-      } else if (selectedExchange?.id === 'lighter') {
-        if (!lighterWalletAddr.trim() || !lighterApiKeyPrivateKey.trim()) {
-          setIsLoading(false)
-          return
-        }
-        await onSave(
-          selectedExchangeId,
-          '', // apiKey should be empty for Lighter (not lighterPrivateKey)
-          '', // secretKey
-          testnet,
-          undefined, // hyperliquidWalletAddr
-          undefined, // asterUser
-          undefined, // asterSigner
-          undefined, // asterPrivateKey
-          lighterWalletAddr.trim(), // lighterWalletAddr
-          lighterPrivateKey.trim(), // lighterPrivateKey (deprecated but kept for compatibility)
-          lighterApiKeyPrivateKey.trim(), // lighterApiKeyPrivateKey
-          lighterApiKeyIndex, // lighterApiKeyIndex
-          undefined // okxPassphrase
-        )
       } else if (selectedExchange?.id === 'okx') {
         if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) {
           setIsLoading(false)
@@ -320,8 +280,8 @@ export function ExchangeConfigModal({
     }
   }
 
-  // Available exchange list (all supported exchanges)
-  const availableExchanges = allExchanges || []
+  // Available exchange list (all supported exchanges, excluding Lighter)
+  const availableExchanges = (allExchanges || []).filter(exchange => exchange.id !== 'lighter')
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
@@ -912,121 +872,6 @@ export function ExchangeConfigModal({
                   </>
                 )}
 
-                {/* LIGHTER specific configuration */}
-                {selectedExchange?.id === 'lighter' && (
-                  <>
-                    {/* L1 Wallet Address */}
-                    <div className="mb-4">
-                      <label
-                        className="block text-sm font-semibold mb-2"
-                        style={{ color: '#EAECEF' }}
-                      >
-                        {t('lighterWalletAddress', language)}
-                      </label>
-                      <input
-                        type="text"
-                        value={lighterWalletAddr}
-                        onChange={(e) => setLighterWalletAddr(e.target.value)}
-                        placeholder={t('enterLighterWalletAddress', language)}
-                        className="w-full px-3 py-2 rounded"
-                        style={{
-                          background: 'var(--navy-primary)',
-                          border: '1px solid var(--panel-border)',
-                          color: '#EAECEF',
-                        }}
-                        required
-                      />
-                      <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                        {t('lighterWalletAddressDesc', language)}
-                      </div>
-                    </div>
-
-                    {/* L1 Private Key */}
-                    <div className="mb-4">
-                      <label
-                        className="block text-sm font-semibold mb-2"
-                        style={{ color: '#EAECEF' }}
-                      >
-                        {t('lighterPrivateKey', language)}
-                      </label>
-                      <input
-                        type="password"
-                        value={lighterPrivateKey}
-                        onChange={(e) => setLighterPrivateKey(e.target.value)}
-                        placeholder={t('enterLighterPrivateKey', language)}
-                        className="w-full px-3 py-2 rounded font-mono text-sm"
-                        style={{
-                          background: 'var(--navy-primary)',
-                          border: '1px solid var(--panel-border)',
-                          color: '#EAECEF',
-                        }}
-                      />
-                      <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                        {t('lighterPrivateKeyDesc', language)} (Deprecated - not required when wallet address is provided)
-                      </div>
-                    </div>
-
-                    {/* API Key Private Key */}
-                    <div className="mb-4">
-                      <label
-                        className="block text-sm font-semibold mb-2"
-                        style={{ color: '#EAECEF' }}
-                      >
-                        {t('lighterApiKeyPrivateKey', language)} ⭐
-                        <button
-                          type="button"
-                          onClick={() => setSecureInputTarget('lighter')}
-                          className="ml-2 text-xs underline"
-                          style={{ color: 'var(--green-primary)' }}
-                        >
-                          {t('secureInputButton', language)}
-                        </button>
-                      </label>
-                      <input
-                        type="password"
-                        value={lighterApiKeyPrivateKey}
-                        onChange={(e) => setLighterApiKeyPrivateKey(e.target.value)}
-                        placeholder={t('enterLighterApiKeyPrivateKey', language)}
-                        className="w-full px-3 py-2 rounded font-mono text-sm"
-                        style={{
-                          background: 'var(--navy-primary)',
-                          border: '1px solid var(--panel-border)',
-                          color: '#EAECEF',
-                        }}
-                        required
-                      />
-                      <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                        {t('lighterApiKeyPrivateKeyDesc', language)} (Required for LIGHTER V2)
-                      </div>
-                    </div>
-
-                    {/* API Key Index */}
-                    <div className="mb-4">
-                      <label
-                        className="block text-sm font-semibold mb-2"
-                        style={{ color: '#EAECEF' }}
-                      >
-                        {t('lighterApiKeyIndex', language) || 'API Key Index'}
-                      </label>
-                      <input
-                        type="number"
-                        value={lighterApiKeyIndex}
-                        onChange={(e) => setLighterApiKeyIndex(parseInt(e.target.value) || 0)}
-                        placeholder="0"
-                        min="0"
-                        className="w-full px-3 py-2 rounded"
-                        style={{
-                          background: 'var(--navy-primary)',
-                          border: '1px solid var(--panel-border)',
-                          color: '#EAECEF',
-                        }}
-                      />
-                      <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                        {t('lighterApiKeyIndexDesc', language) || 'API Key index (default: 0)'}
-                      </div>
-                    </div>
-                  </>
-                )}
               </>
             )}
           </div>
@@ -1064,14 +909,11 @@ export function ExchangeConfigModal({
                   (!asterUser.trim() ||
                     !asterSigner.trim() ||
                     !asterPrivateKey.trim())) ||
-                (selectedExchange.id === 'lighter' &&
-                  (!lighterWalletAddr.trim() || !lighterApiKeyPrivateKey.trim())) ||
                 (selectedExchange.id === 'bybit' &&
                   (!apiKey.trim() || !secretKey.trim())) ||
                 (selectedExchange.type === 'cex' &&
                   selectedExchange.id !== 'hyperliquid' &&
                   selectedExchange.id !== 'aster' &&
-                  selectedExchange.id !== 'lighter' &&
                   selectedExchange.id !== 'binance' &&
                   selectedExchange.id !== 'bybit' &&
                   selectedExchange.id !== 'okx' &&

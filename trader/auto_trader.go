@@ -25,7 +25,7 @@ type AutoTraderConfig struct {
 	AIModel string // AI model: "qwen" or "deepseek"
 
 	// Exchange selection
-	Exchange string // "binance", "bybit", "okx", "bitget", "hyperliquid", "aster" or "lighter"
+	Exchange string // "binance", "bybit", "okx", "bitget", "hyperliquid", "aster"
 
 	// Binance API configuration
 	BinanceAPIKey    string
@@ -54,13 +54,6 @@ type AutoTraderConfig struct {
 	AsterUser       string // Aster main wallet address
 	AsterSigner     string // Aster API wallet address
 	AsterPrivateKey string // Aster API wallet private key
-
-	// LIGHTER configuration
-	LighterWalletAddr       string // LIGHTER wallet address (L1 wallet)
-	LighterPrivateKey       string // LIGHTER L1 private key (for account identification, deprecated - not needed when wallet address is provided)
-	LighterAPIKeyPrivateKey string // LIGHTER API Key private key (40 bytes, for signing transactions)
-	LighterAPIKeyIndex      int    // LIGHTER API Key index (default 0)
-	LighterTestnet          bool   // Deprecated - Lighter only supports mainnet
 
 	CoinPoolAPIURL string
 
@@ -322,22 +315,7 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 			return nil, fmt.Errorf("failed to initialize Aster trader: %w", err)
 		}
 	case "lighter":
-		log.Printf("🏦 [%s] Using LIGHTER trading", config.Name)
-
-		// Lighter V2 requires wallet address and API Key
-		if config.LighterWalletAddr != "" && config.LighterAPIKeyPrivateKey != "" {
-			log.Printf("✓ Using LIGHTER SDK (V2) - mainnet only")
-			trader, err = NewLighterTraderV2(
-				config.LighterWalletAddr,
-				config.LighterAPIKeyPrivateKey,
-				config.LighterAPIKeyIndex,
-			)
-			if err != nil {
-				return nil, fmt.Errorf("failed to initialize LIGHTER trader (V2): %w", err)
-			}
-		} else {
-			return nil, fmt.Errorf("wallet address and api key private key required for lighter exchange")
-		}
+		return nil, fmt.Errorf("Lighter DEX support has been removed. Please migrate to another exchange")
 	default:
 		return nil, fmt.Errorf("unsupported exchange: %s", config.Exchange)
 	}
@@ -347,22 +325,30 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		log.Printf("📊 [%s] Initial balance not set, attempting to fetch from exchange...", config.Name)
 		account, err := trader.GetBalance()
 		if err != nil {
-			return nil, fmt.Errorf("initial balance not set and unable to fetch balance from exchange: %w", err)
-		}
-		// Try multiple balance field names (different exchanges return different formats)
-		balanceKeys := []string{"total_equity", "totalWalletBalance", "wallet_balance", "totalEq", "balance"}
-		var foundBalance float64
-		for _, key := range balanceKeys {
-			if balance, ok := account[key].(float64); ok && balance > 0 {
-				foundBalance = balance
-				break
+			// For Lighter, if balance fetch fails (e.g., API key not fully initialized), provide helpful error message
+			if config.Exchange == "lighter" {
+				log.Printf("⚠️  [%s] Failed to auto-fetch balance from Lighter: %v", config.Name, err)
+				log.Printf("   This may occur if the API key slot exists but isn't fully initialized yet")
+				log.Printf("   Please edit the trader and set InitialBalance manually in trader configuration")
+				return nil, fmt.Errorf("initial balance not set and unable to fetch balance from exchange: %w. For Lighter, please edit the trader and set InitialBalance manually in trader configuration (go to trader settings > edit > set initial balance)", err)
 			}
-		}
-		if foundBalance > 0 {
-			config.InitialBalance = foundBalance
-			log.Printf("✓ [%s] Auto-fetched initial balance: %.2f USDT", config.Name, foundBalance)
+			return nil, fmt.Errorf("initial balance not set and unable to fetch balance from exchange: %w", err)
 		} else {
-			return nil, fmt.Errorf("initial balance must be greater than 0, please set InitialBalance in configuration or ensure exchange account has balance")
+			// Try multiple balance field names (different exchanges return different formats)
+			balanceKeys := []string{"total_equity", "totalWalletBalance", "wallet_balance", "totalEq", "balance"}
+			var foundBalance float64
+			for _, key := range balanceKeys {
+				if balance, ok := account[key].(float64); ok && balance > 0 {
+					foundBalance = balance
+					break
+				}
+			}
+			if foundBalance > 0 {
+				config.InitialBalance = foundBalance
+				log.Printf("✓ [%s] Auto-fetched initial balance: %.2f USDT", config.Name, foundBalance)
+			} else {
+				return nil, fmt.Errorf("initial balance must be greater than 0, please set InitialBalance in configuration or ensure exchange account has balance")
+			}
 		}
 	}
 

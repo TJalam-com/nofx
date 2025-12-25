@@ -230,6 +230,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   
   const enabledExchanges =
     allExchanges?.filter((e) => {
+      // Exclude Lighter (removed support)
+      if (e.id === 'lighter') return false
       if (!e.enabled) return false
 
       // Aster exchange needs special fields (backend returns these non-sensitive fields)
@@ -761,10 +763,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                   asterUser,
                   asterSigner,
                   asterPrivateKey,
-                  lighterWalletAddr,
-                  lighterPrivateKey,
-                  lighterApiKeyPrivateKey,
-                  lighterAPIKeyIndex: lighterApiKeyIndex || 0,
                   okxPassphrase,
                   enabled: true,
                 }
@@ -780,12 +778,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           hyperliquidWalletAddr,
           asterUser,
           asterSigner,
-          asterPrivateKey,
-          lighterWalletAddr,
-          lighterPrivateKey,
-          lighterApiKeyPrivateKey,
-          lighterAPIKeyIndex: lighterApiKeyIndex || 0,
-          okxPassphrase,
+                  asterPrivateKey,
+                  okxPassphrase,
           enabled: true,
         }
         updatedExchanges = [...(allExchanges || []), newExchange]
@@ -794,31 +788,21 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       const request = {
         exchanges: Object.fromEntries(
           updatedExchanges.map((exchange) => {
-            // Debug logging for Lighter exchange
-            if (exchange.id === 'lighter') {
-              console.log('🔍 DEBUG: Lighter exchange data being sent:', {
-                lighterWalletAddr: exchange.lighterWalletAddr,
-                lighterAPIKeyPrivateKey: exchange.lighterAPIKeyPrivateKey
-                  ? `${exchange.lighterAPIKeyPrivateKey.substring(0, 10)}...`
-                  : 'EMPTY',
-                lighterAPIKeyIndex: exchange.lighterAPIKeyIndex,
-              })
-            }
             return [
               exchange.id,
               {
                 enabled: exchange.enabled,
-                api_key: exchange.id === 'lighter' ? '' : (exchange.apiKey || ''), // Always empty for Lighter
-                secret_key: exchange.id === 'lighter' ? '' : (exchange.secretKey || ''), // Always empty for Lighter
+                api_key: exchange.apiKey || '',
+                secret_key: exchange.secretKey || '',
                 testnet: exchange.testnet || false,
                 hyperliquid_wallet_addr: exchange.hyperliquidWalletAddr || '',
                 aster_user: exchange.asterUser || '',
                 aster_signer: exchange.asterSigner || '',
                 aster_private_key: exchange.asterPrivateKey || '',
-                lighter_wallet_addr: exchange.lighterWalletAddr || '',
-                lighter_private_key: exchange.lighterPrivateKey || '',
-                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
-                lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
+                lighter_wallet_addr: exchange.lighterWalletAddr || '', // Kept for backward compatibility
+                lighter_private_key: exchange.lighterPrivateKey || '', // Kept for backward compatibility
+                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '', // Kept for backward compatibility
+                lighter_api_key_index: exchange.lighterAPIKeyIndex || 0, // Kept for backward compatibility
                 okx_passphrase: exchange.okxPassphrase || '',
               },
             ]
@@ -2303,8 +2287,8 @@ function ExchangeConfigModal({
     }
   }
 
-  // 可选择的交易所列表（所有支持的交易所）
-  const availableExchanges = allExchanges || []
+  // 可选择的交易所列表（所有支持的交易所，排除 Lighter）
+  const availableExchanges = (allExchanges || []).filter(exchange => exchange.id !== 'lighter')
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
