@@ -183,6 +183,10 @@ export interface Exchange {
   asterPrivateKey?: string
   // OKX specific fields
   okxPassphrase?: string
+  // Lighter specific fields
+  lighterWalletAddr?: string
+  lighterAPIKeyPrivateKey?: string
+  lighterAPIKeyIndex?: number
 }
 
 export interface CreateTraderRequest {

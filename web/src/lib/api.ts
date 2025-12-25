@@ -396,6 +396,12 @@ export const api = {
   async updateExchangeConfigsEncrypted(
     request: UpdateExchangeConfigRequest
   ): Promise<void> {
+    // #region agent log
+    const lighterExchange = request.exchanges?.['lighter']
+    if (lighterExchange) {
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:396',message:'updateExchangeConfigsEncrypted ENTRY',data:{lighter_wallet_addr:lighterExchange.lighter_wallet_addr||'',lighter_wallet_addr_type:typeof lighterExchange.lighter_wallet_addr,lighter_api_key_index:lighterExchange.lighter_api_key_index,lighter_api_key_index_type:typeof lighterExchange.lighter_api_key_index,allKeys:Object.keys(lighterExchange)},timestamp:Date.now(),sessionId:'debug-session',runId:'run10',hypothesisId:'H6'})}).catch(()=>{});
+    }
+    // #endregion
     // Check if transport encryption is enabled
     // If config check fails, default to plain JSON (safer fallback)
     let transportEncryptionEnabled = false
@@ -406,6 +412,11 @@ export const api = {
       console.warn('Failed to get crypto config, defaulting to plain JSON:', error)
       transportEncryptionEnabled = false
     }
+    // #region agent log
+    if (lighterExchange) {
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:408',message:'BEFORE sending request',data:{transportEncryptionEnabled,lighter_wallet_addr:lighterExchange.lighter_wallet_addr||'',lighter_api_key_index:lighterExchange.lighter_api_key_index,requestPayload:JSON.stringify(request.exchanges['lighter']).substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run10',hypothesisId:'H7'})}).catch(()=>{});
+    }
+    // #endregion
 
     if (transportEncryptionEnabled) {
       // Get RSA public key

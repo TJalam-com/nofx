@@ -28,7 +28,10 @@ interface ExchangeConfigModalProps {
     asterUser?: string,
     asterSigner?: string,
     asterPrivateKey?: string,
-    okxPassphrase?: string
+    okxPassphrase?: string,
+    lighterWalletAddr?: string,
+    lighterAPIKeyPrivateKey?: string,
+    lighterAPIKeyIndex?: number
   ) => Promise<void>
   onDelete: (exchangeId: string) => void
   onClose: () => void
@@ -72,9 +75,14 @@ export function ExchangeConfigModal({
   // Hyperliquid specific fields
   const [hyperliquidWalletAddr, setHyperliquidWalletAddr] = useState('')
 
+  // Lighter specific fields
+  const [lighterWalletAddr, setLighterWalletAddr] = useState('')
+  const [lighterAPIKeyPrivateKey, setLighterAPIKeyPrivateKey] = useState('')
+  const [lighterAPIKeyIndex, setLighterAPIKeyIndex] = useState(0)
+
   // Secure input state
   const [secureInputTarget, setSecureInputTarget] = useState<
-    null | 'hyperliquid' | 'aster'
+    null | 'hyperliquid' | 'aster' | 'lighter'
   >(null)
 
   // Get current editing exchange information
@@ -97,6 +105,11 @@ export function ExchangeConfigModal({
 
       // Hyperliquid fields
       setHyperliquidWalletAddr(selectedExchange.hyperliquidWalletAddr || '')
+
+      // Lighter fields
+      setLighterWalletAddr(selectedExchange.lighterWalletAddr || '')
+      setLighterAPIKeyPrivateKey('') // Don't load existing private key for security
+      setLighterAPIKeyIndex(selectedExchange.lighterAPIKeyIndex || 0)
     }
   }, [editingExchangeId, selectedExchange])
 
@@ -253,6 +266,50 @@ export function ExchangeConfigModal({
           undefined,
           undefined
         )
+      } else if (selectedExchange?.id === 'lighter') {
+        if (!lighterWalletAddr.trim() || !lighterAPIKeyPrivateKey.trim()) {
+          setIsLoading(false)
+          return
+        }
+        // #region agent log
+        const trimmedWalletAddr = lighterWalletAddr.trim()
+        const trimmedAPIKeyPrivateKey = lighterAPIKeyPrivateKey.trim()
+        console.log('🔍 ExchangeConfigModal: Calling onSave for Lighter', {
+          exchangeId: selectedExchangeId,
+          lighterWalletAddr: trimmedWalletAddr,
+          lighterWalletAddr_length: trimmedWalletAddr.length,
+          lighterAPIKeyPrivateKey_len: trimmedAPIKeyPrivateKey.length,
+          lighterAPIKeyIndex: lighterAPIKeyIndex,
+          lighterAPIKeyIndex_type: typeof lighterAPIKeyIndex,
+          parameterOrder: {
+            pos1: 'selectedExchangeId',
+            pos2: "'' (apiKey)",
+            pos3: "'' (secretKey)",
+            pos4: 'testnet',
+            pos5: 'undefined (hyperliquidWalletAddr)',
+            pos6: 'undefined (asterUser)',
+            pos7: 'undefined (asterSigner)',
+            pos8: 'undefined (asterPrivateKey)',
+            pos9: 'undefined (okxPassphrase)',
+            pos10: 'lighterWalletAddr.trim()',
+            pos11: 'lighterAPIKeyPrivateKey.trim()',
+            pos12: 'lighterAPIKeyIndex'
+          }
+        })
+        await onSave(
+          selectedExchangeId,
+          '',
+          '',
+          testnet,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          trimmedWalletAddr,
+          trimmedAPIKeyPrivateKey,
+          lighterAPIKeyIndex
+        )
       } else if (selectedExchange?.id === 'okx') {
         if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) {
           setIsLoading(false)
@@ -280,8 +337,8 @@ export function ExchangeConfigModal({
     }
   }
 
-  // Available exchange list (all supported exchanges, excluding Lighter)
-  const availableExchanges = (allExchanges || []).filter(exchange => exchange.id !== 'lighter')
+  // Available exchange list (all supported exchanges)
+  const availableExchanges = allExchanges || []
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
@@ -736,6 +793,110 @@ export function ExchangeConfigModal({
                   </>
                 )}
 
+                {/* Lighter exchange fields */}
+                {selectedExchange.id === 'lighter' && (
+                  <>
+                    {/* Security warning banner */}
+                    <div
+                      className="p-3 rounded mb-4"
+                      style={{
+                        background: 'rgba(0, 255, 127, 0.1)',
+                        border: '1px solid rgba(0, 255, 127, 0.3)',
+                      }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span style={{ color: 'var(--green-primary)', fontSize: '16px' }}>
+                          🔐
+                        </span>
+                        <div className="flex-1">
+                          <div
+                            className="text-sm font-semibold mb-1"
+                            style={{ color: 'var(--green-primary)' }}
+                          >
+                            Lighter Agent Wallet
+                          </div>
+                          <div
+                            className="text-xs"
+                            style={{ color: '#848E9C', lineHeight: '1.5' }}
+                          >
+                            Use Agent Wallet for secure trading. Never expose your main wallet private key.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Wallet Address field */}
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: '#EAECEF' }}
+                      >
+                        Wallet Address
+                      </label>
+                      <input
+                        type="text"
+                        value={lighterWalletAddr}
+                        onChange={(e) => setLighterWalletAddr(e.target.value)}
+                        placeholder="0x..."
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
+                          color: '#EAECEF',
+                        }}
+                        required
+                      />
+                    </div>
+
+                    {/* API Key Private Key field */}
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: '#EAECEF' }}
+                      >
+                        API Key Private Key
+                      </label>
+                      <input
+                        type="password"
+                        value={lighterAPIKeyPrivateKey}
+                        onChange={(e) => setLighterAPIKeyPrivateKey(e.target.value)}
+                        placeholder="Enter API key private key"
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
+                          color: '#EAECEF',
+                        }}
+                        required
+                      />
+                    </div>
+
+                    {/* API Key Index field */}
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: '#EAECEF' }}
+                      >
+                        API Key Index (0-254)
+                      </label>
+                      <input
+                        type="number"
+                        value={lighterAPIKeyIndex}
+                        onChange={(e) => setLighterAPIKeyIndex(parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        max="254"
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
+                          color: '#EAECEF',
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+
                 {/* Hyperliquid exchange fields */}
                 {selectedExchange.id === 'hyperliquid' && (
                   <>
@@ -909,11 +1070,15 @@ export function ExchangeConfigModal({
                   (!asterUser.trim() ||
                     !asterSigner.trim() ||
                     !asterPrivateKey.trim())) ||
+                (selectedExchange.id === 'lighter' &&
+                  (!lighterWalletAddr.trim() ||
+                    !lighterAPIKeyPrivateKey.trim())) ||
                 (selectedExchange.id === 'bybit' &&
                   (!apiKey.trim() || !secretKey.trim())) ||
                 (selectedExchange.type === 'cex' &&
                   selectedExchange.id !== 'hyperliquid' &&
                   selectedExchange.id !== 'aster' &&
+                  selectedExchange.id !== 'lighter' &&
                   selectedExchange.id !== 'binance' &&
                   selectedExchange.id !== 'bybit' &&
                   selectedExchange.id !== 'okx' &&

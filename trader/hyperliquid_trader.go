@@ -56,14 +56,14 @@ func NewHyperliquidTrader(privateKeyHex string, walletAddr string, testnet bool)
 
 	// Check if user accidentally uses main wallet private key (security risk)
 	if strings.EqualFold(walletAddr, agentAddr) {
-		log.Printf("⚠️⚠️⚠️ WARNING: Main wallet address (%s) matches Agent wallet address!", walletAddr)
+		log.Printf("⚠️⚠️⚠️ WARNING: Main wallet address (%s) matches Agent wallet address!", maskWalletAddress(walletAddr))
 		log.Printf("   This indicates you may be using your main wallet private key, which poses extremely high security risks!")
 		log.Printf("   Recommendation: Immediately create a separate Agent Wallet on Hyperliquid official website")
 		log.Printf("   Reference: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/nonces-and-api-wallets")
 	} else {
 		log.Printf("✓ Using Agent Wallet mode (secure)")
-		log.Printf("  └─ Agent wallet address: %s (for signing)", agentAddr)
-		log.Printf("  └─ Main wallet address: %s (holds funds)", walletAddr)
+		log.Printf("  └─ Agent wallet address: %s (for signing)", maskWalletAddress(agentAddr))
+		log.Printf("  └─ Main wallet address: %s (holds funds)", maskWalletAddress(walletAddr))
 	}
 
 	ctx := context.Background()
@@ -79,7 +79,7 @@ func NewHyperliquidTrader(privateKeyHex string, walletAddr string, testnet bool)
 		nil,        // SpotMeta will be fetched automatically
 	)
 
-	log.Printf("✓ Hyperliquid trader initialized successfully (testnet=%v, wallet=%s)", testnet, walletAddr)
+	log.Printf("✓ Hyperliquid trader initialized successfully (testnet=%v, wallet=%s)", testnet, maskWalletAddress(walletAddr))
 
 	// Get meta information (includes precision and other configuration)
 	meta, err := exchange.Info().Meta(ctx)
@@ -99,7 +99,7 @@ func NewHyperliquidTrader(privateKeyHex string, walletAddr string, testnet bool)
 				// Critical: Agent wallet holds too much funds
 				log.Printf("🚨🚨🚨 CRITICAL SECURITY WARNING 🚨🚨🚨")
 				log.Printf("   Agent wallet balance: %.2f USDC (exceeds safe threshold of 100 USDC)", agentBalance)
-				log.Printf("   Agent wallet address: %s", agentAddr)
+				log.Printf("   Agent wallet address: %s", maskWalletAddress(agentAddr))
 				log.Printf("   ⚠️  Agent wallets should only be used for signing and hold minimal/zero balance")
 				log.Printf("   ⚠️  High balance in Agent wallet poses security risks")
 				log.Printf("   📖 Reference: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/nonces-and-api-wallets")
@@ -107,7 +107,7 @@ func NewHyperliquidTrader(privateKeyHex string, walletAddr string, testnet bool)
 				return nil, fmt.Errorf("security check failed: Agent wallet balance too high (%.2f USDC), exceeds 100 USDC threshold", agentBalance)
 			} else if agentBalance > 10 {
 				// Warning: Agent wallet has some balance (acceptable but not ideal)
-				log.Printf("⚠️  Notice: Agent wallet address (%s) has some balance: %.2f USDC", agentAddr, agentBalance)
+				log.Printf("⚠️  Notice: Agent wallet address (%s) has some balance: %.2f USDC", maskWalletAddress(agentAddr), agentBalance)
 				log.Printf("   While not critical, it's recommended to keep Agent wallet balance near 0 for security")
 			} else {
 				// OK: Agent wallet balance is safe

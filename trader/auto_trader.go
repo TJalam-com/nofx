@@ -25,7 +25,7 @@ type AutoTraderConfig struct {
 	AIModel string // AI model: "qwen" or "deepseek"
 
 	// Exchange selection
-	Exchange string // "binance", "bybit", "okx", "bitget", "hyperliquid", "aster"
+	Exchange string // "binance", "bybit", "okx", "bitget", "hyperliquid", "aster", "lighter"
 
 	// Binance API configuration
 	BinanceAPIKey    string
@@ -54,6 +54,12 @@ type AutoTraderConfig struct {
 	AsterUser       string // Aster main wallet address
 	AsterSigner     string // Aster API wallet address
 	AsterPrivateKey string // Aster API wallet private key
+
+	// Lighter configuration
+	LighterWalletAddr       string // Lighter main wallet address
+	LighterAPIKeyPrivateKey string // Lighter API key private key
+	LighterAPIKeyIndex      int    // Lighter API key index (0-254)
+	LighterTestnet          bool   // Lighter testnet flag
 
 	CoinPoolAPIURL string
 
@@ -315,7 +321,16 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 			return nil, fmt.Errorf("failed to initialize Aster trader: %w", err)
 		}
 	case "lighter":
-		return nil, fmt.Errorf("Lighter DEX support has been removed. Please migrate to another exchange")
+		log.Printf("🏦 [%s] Using Lighter DEX trading", config.Name)
+		trader, err = NewLighterTraderV2(
+			config.LighterWalletAddr,
+			config.LighterAPIKeyPrivateKey,
+			config.LighterAPIKeyIndex,
+			config.LighterTestnet,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize Lighter trader: %w", err)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported exchange: %s", config.Exchange)
 	}

@@ -220,6 +220,33 @@ const BitgetIcon: React.FC<IconProps> = ({
   </svg>
 )
 
+// Lighter SVG Icon Component
+const LighterIcon: React.FC<IconProps> = ({
+  width = 24,
+  height = 24,
+  className,
+}) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 200 200"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <rect width="200" height="200" rx="40" fill="#1A1A1A" />
+    <circle cx="100" cy="100" r="60" fill="#FFD700" />
+    <path
+      d="M100 60L120 80L100 100L80 80L100 60Z"
+      fill="#1A1A1A"
+    />
+    <path
+      d="M100 100L120 120L100 140L80 120L100 100Z"
+      fill="#1A1A1A"
+    />
+  </svg>
+)
+
 // 获取交易所图标的函数
 export const getExchangeIcon = (
   exchangeType: string,
@@ -238,7 +265,9 @@ export const getExchangeIcon = (
             ? 'hyperliquid'
             : exchangeType.toLowerCase().includes('aster')
               ? 'aster'
-              : exchangeType.toLowerCase()
+              : exchangeType.toLowerCase().includes('lighter')
+                ? 'lighter'
+                : exchangeType.toLowerCase()
 
   const iconProps = {
     width: props.width || 24,
@@ -260,6 +289,8 @@ export const getExchangeIcon = (
       return <HyperliquidIcon {...iconProps} />
     case 'aster':
       return <AsterIcon {...iconProps} />
+    case 'lighter':
+      return <LighterIcon {...iconProps} />
     case 'cex':
     default:
       return (

@@ -289,6 +289,11 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
 		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
+	} else if exchangeCfg.ID == "lighter" {
+		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
+		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
+		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
+		traderConfig.LighterTestnet = exchangeCfg.Testnet
 	}
 
 	// Set API keys based on AI model
@@ -428,6 +433,11 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
 		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
+	} else if exchangeCfg.ID == "lighter" {
+		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
+		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
+		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
+		traderConfig.LighterTestnet = exchangeCfg.Testnet
 	}
 
 	// Set API keys based on AI model
@@ -1402,6 +1412,11 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
 		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
+	} else if exchangeCfg.ID == "lighter" {
+		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
+		traderConfig.LighterAPIKeyPrivateKey = exchangeCfg.LighterAPIKeyPrivateKey
+		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
+		traderConfig.LighterTestnet = exchangeCfg.Testnet
 	}
 
 	// Set API keys based on AI model

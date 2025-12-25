@@ -1041,6 +1041,16 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 				exchangeCfg.AsterSigner,
 				exchangeCfg.AsterPrivateKey,
 			)
+		case "lighter":
+			log.Printf("🔍 [Lighter] Creating trader with config: walletAddr=%s (len=%d), apiKeyPrivateKey=*** (len=%d), apiKeyIndex=%d",
+				MaskWalletAddress(exchangeCfg.LighterWalletAddr), len(exchangeCfg.LighterWalletAddr),
+				len(exchangeCfg.LighterAPIKeyPrivateKey), exchangeCfg.LighterAPIKeyIndex)
+			tempTrader, createErr = trader.NewLighterTraderV2(
+				exchangeCfg.LighterWalletAddr,
+				exchangeCfg.LighterAPIKeyPrivateKey,
+				exchangeCfg.LighterAPIKeyIndex,
+				exchangeCfg.Testnet,
+			)
 		case "bybit":
 			tempTrader = trader.NewBybitTrader(
 				exchangeCfg.APIKey,
@@ -1999,8 +2009,15 @@ func (s *Server) handleSyncBalance(c *gin.Context) {
 			exchangeCfg.SecretKey,
 		)
 	case "lighter":
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Lighter DEX support has been removed. Please migrate to another exchange"})
-		return
+		log.Printf("🔍 [Lighter] Creating trader with config: walletAddr=%s (len=%d), apiKeyPrivateKey=*** (len=%d), apiKeyIndex=%d",
+			MaskWalletAddress(exchangeCfg.LighterWalletAddr), len(exchangeCfg.LighterWalletAddr),
+			len(exchangeCfg.LighterAPIKeyPrivateKey), exchangeCfg.LighterAPIKeyIndex)
+		tempTrader, createErr = trader.NewLighterTraderV2(
+			exchangeCfg.LighterWalletAddr,
+			exchangeCfg.LighterAPIKeyPrivateKey,
+			exchangeCfg.LighterAPIKeyIndex,
+			exchangeCfg.Testnet,
+		)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported exchange type"})
 		return
@@ -2210,16 +2227,6 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 	}
 	log.Printf("✅ Found %d exchange configurations", len(exchanges))
 	
-	// Debug logging for Lighter exchange
-	for _, ex := range exchanges {
-		if ex.ID == "lighter" {
-			log.Printf("🔍 DEBUG [GetExchanges]: Lighter exchange - WalletAddr=%s, APIKeyPrivateKey length=%d, APIKeyIndex=%d, GenericAPIKey length=%d",
-				ex.LighterWalletAddr,
-				len(ex.LighterAPIKeyPrivateKey),
-				ex.LighterAPIKeyIndex,
-				len(ex.APIKey))
-		}
-	}
 
 	// If database is empty, return default exchanges
 	if len(exchanges) == 0 {
@@ -2231,6 +2238,7 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 			{ID: "bitget", Name: "Bitget Futures", Type: "bitget", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
 			{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
 			{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+			{ID: "lighter", Name: "Lighter DEX", Type: "lighter", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
 		}
 		c.JSON(http.StatusOK, defaultExchanges)
 		return
@@ -2257,7 +2265,7 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 				lighterAPIKeyMasked = "EMPTY"
 			}
 			log.Printf("      └─ Lighter specific: WalletAddr=%s, APIKeyPrivateKey: %s (length=%d), APIKeyIndex=%d",
-				ex.LighterWalletAddr, lighterAPIKeyMasked, len(ex.LighterAPIKeyPrivateKey), ex.LighterAPIKeyIndex)
+				MaskWalletAddress(ex.LighterWalletAddr), lighterAPIKeyMasked, len(ex.LighterAPIKeyPrivateKey), ex.LighterAPIKeyIndex)
 		}
 	}
 
@@ -2343,14 +2351,6 @@ func (s *Server) handleUpdateExchangeConfigs(c *gin.Context) {
 
 	// Update each exchange's configuration
 	for exchangeID, exchangeData := range req.Exchanges {
-		// Add debug logging for Lighter exchange
-		if exchangeID == "lighter" {
-			log.Printf("🔍 DEBUG [UpdateExchange]: Lighter exchange data - WalletAddr=%s, APIKeyPrivateKey length=%d, APIKeyIndex=%d",
-				exchangeData.LighterWalletAddr,
-				len(exchangeData.LighterAPIKeyPrivateKey),
-				exchangeData.LighterAPIKeyIndex)
-		}
-		
 		err := s.database.UpdateExchange(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.LighterWalletAddr, exchangeData.LighterPrivateKey, exchangeData.LighterAPIKeyPrivateKey, exchangeData.LighterAPIKeyIndex, exchangeData.OkxPassphrase)
 		if err != nil {
 			// Provide more helpful error message
@@ -4274,11 +4274,13 @@ func (s *Server) handleGetSupportedModels(c *gin.Context) {
 func (s *Server) handleGetSupportedExchanges(c *gin.Context) {
 	// Return static list of supported exchanges
 	supportedExchanges := []SafeExchangeConfig{
-		{ID: "binance", Name: "Binance Futures", Type: "binance", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-		{ID: "bybit", Name: "Bybit Futures", Type: "bybit", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-		{ID: "okx", Name: "OKX Futures", Type: "okx", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-		{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
-		{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: ""},
+		{ID: "binance", Name: "Binance Futures", Type: "binance", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+		{ID: "bybit", Name: "Bybit Futures", Type: "bybit", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+		{ID: "okx", Name: "OKX Futures", Type: "okx", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+		{ID: "bitget", Name: "Bitget Futures", Type: "bitget", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+		{ID: "hyperliquid", Name: "Hyperliquid", Type: "hyperliquid", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+		{ID: "aster", Name: "Aster DEX", Type: "aster", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
+		{ID: "lighter", Name: "Lighter DEX", Type: "lighter", Enabled: false, Testnet: false, HyperliquidWalletAddr: "", AsterUser: "", AsterSigner: "", LighterWalletAddr: ""},
 	}
 
 	c.JSON(http.StatusOK, supportedExchanges)

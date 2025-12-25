@@ -262,6 +262,18 @@ export function useTraderActions({
     traderId: string,
     currentShowInCompetition: boolean
   ) => {
+    // Find the trader to check if it's running
+    const trader = traders?.find((t) => t.trader_id === traderId)
+    
+    // Safety check: prevent toggling if trader is not running
+    if (!trader?.is_running) {
+      toast.error(
+        t('startTraderFirst', language) ||
+          'Please start the trader first to enable competition visibility'
+      )
+      return
+    }
+
     try {
       const newValue = !currentShowInCompetition
       await toast.promise(api.toggleCompetition(traderId, newValue), {
@@ -274,10 +286,14 @@ export function useTraderActions({
         error: t('updateFailed', language) || 'Update failed',
       })
 
-      // Immediately refresh traders list to update status
-      await mutateTraders()
+      // Wait a bit for backend to update, then refresh traders list to update status
+      setTimeout(async () => {
+        await mutateTraders()
+      }, 500)
     } catch (error) {
       console.error('Failed to toggle competition visibility:', error)
+      // Refresh to get accurate state on error
+      await mutateTraders()
       toast.error(t('operationFailed', language))
     }
   }
@@ -504,6 +520,11 @@ export function useTraderActions({
               aster_user: exchange.asterUser || '',
               aster_signer: exchange.asterSigner || '',
               aster_private_key: exchange.asterPrivateKey || '',
+              lighter_wallet_addr: exchange.lighterWalletAddr || '',
+              lighter_private_key: exchange.lighterPrivateKey || '',
+              lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
+              lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
+              okx_passphrase: exchange.okxPassphrase || '',
             },
           ])
         ),
@@ -531,7 +552,10 @@ export function useTraderActions({
     asterUser?: string,
     asterSigner?: string,
     asterPrivateKey?: string,
-    okxPassphrase?: string
+    okxPassphrase?: string,
+    lighterWalletAddr?: string,
+    lighterAPIKeyPrivateKey?: string,
+    lighterAPIKeyIndex?: number
   ) => {
     try {
       // 找到要配置的交易所(从supportedExchanges中)
@@ -562,6 +586,10 @@ export function useTraderActions({
                   asterSigner,
                   asterPrivateKey,
                   okxPassphrase,
+                  // Lighter fields: always use provided values if available, otherwise keep existing
+                  lighterWalletAddr: lighterWalletAddr !== undefined ? lighterWalletAddr : (e.lighterWalletAddr ?? ''),
+                  lighterAPIKeyPrivateKey: lighterAPIKeyPrivateKey !== undefined ? lighterAPIKeyPrivateKey : (e.lighterAPIKeyPrivateKey ?? ''),
+                  lighterAPIKeyIndex: lighterAPIKeyIndex !== undefined ? lighterAPIKeyIndex : (e.lighterAPIKeyIndex ?? 0),
                   enabled: true,
                 }
               : e
@@ -577,10 +605,9 @@ export function useTraderActions({
           asterUser,
           asterSigner,
           asterPrivateKey,
-          lighterWalletAddr,
-          lighterPrivateKey,
-          lighterApiKeyPrivateKey,
-          lighterAPIKeyIndex: lighterApiKeyIndex || 0,
+          lighterWalletAddr: lighterWalletAddr !== undefined ? lighterWalletAddr : '',
+          lighterAPIKeyPrivateKey: lighterAPIKeyPrivateKey !== undefined ? lighterAPIKeyPrivateKey : '',
+          lighterAPIKeyIndex: lighterAPIKeyIndex !== undefined ? lighterAPIKeyIndex : 0,
           okxPassphrase,
           enabled: true,
         }

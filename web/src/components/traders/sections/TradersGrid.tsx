@@ -184,12 +184,18 @@ export function TradersGrid({
                 onClick={() =>
                   onToggleCompetition(
                     trader.trader_id,
-                    trader.show_in_competition ?? true
+                    trader.show_in_competition !== false
                   )
                 }
-                className="px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 whitespace-nowrap flex items-center gap-1"
+                disabled={!trader.is_running}
+                className="px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 whitespace-nowrap flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={
-                  trader.show_in_competition !== false
+                  !trader.is_running
+                    ? {
+                        background: 'rgba(132, 142, 156, 0.1)',
+                        color: '#848E9C',
+                      }
+                    : trader.show_in_competition !== false
                     ? {
                         background: 'rgba(14, 203, 129, 0.1)',
                         color: '#0ECB81',
@@ -200,11 +206,11 @@ export function TradersGrid({
                       }
                 }
                 title={
-                  trader.show_in_competition !== false
-                    ? t('competitionVisibilityShown', language) ||
-                      'Visible in competition'
-                    : t('competitionVisibilityHidden', language) ||
-                      'Hidden from competition'
+                  !trader.is_running
+                    ? t('startTraderFirst', language) || 'Start trader to enable competition visibility'
+                    : trader.show_in_competition !== false
+                    ? t('competitionVisibilityShown', language) || 'Visible in competition'
+                    : t('competitionVisibilityHidden', language) || 'Hidden from competition'
                 }
               >
                 {trader.show_in_competition !== false ? (

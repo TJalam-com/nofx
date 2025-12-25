@@ -2354,11 +2354,45 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		"hyperliquid_wallet_addr = ?",
 		"aster_user = ?",
 		"aster_signer = ?",
-		"lighter_wallet_addr = ?",
-		"lighter_api_key_index = ?",
 		"updated_at = datetime('now')",
 	}
-	args := []interface{}{enabled, testnet, hyperliquidWalletAddr, asterUser, asterSigner, lighterWalletAddr, lighterAPIKeyIndex}
+	args := []interface{}{enabled, testnet, hyperliquidWalletAddr, asterUser, asterSigner}
+	
+	// Lighter wallet address: always update (it's not sensitive, but we need to allow setting it)
+	// First verify the column exists - defensive check for migration issues
+	columnExists, err := d.columnExists("exchanges", "lighter_wallet_addr")
+	if err != nil {
+		log.Printf("⚠️ UpdateExchange: Error checking lighter_wallet_addr column: %v", err)
+	} else if !columnExists {
+		log.Printf("🔄 UpdateExchange: lighter_wallet_addr column doesn't exist, adding it...")
+		_, alterErr := d.db.Exec(`ALTER TABLE exchanges ADD COLUMN lighter_wallet_addr TEXT DEFAULT ''`)
+		if alterErr != nil {
+			log.Printf("❌ UpdateExchange: Failed to add lighter_wallet_addr column: %v", alterErr)
+		} else {
+			log.Printf("✅ UpdateExchange: Successfully added lighter_wallet_addr column")
+		}
+	}
+	
+	setClauses = append(setClauses, "lighter_wallet_addr = ?")
+	args = append(args, lighterWalletAddr)
+	
+	// Lighter API key index: always update (it's not sensitive)
+	// First verify the column exists - defensive check for migration issues
+	columnExistsIndex, err := d.columnExists("exchanges", "lighter_api_key_index")
+	if err != nil {
+		log.Printf("⚠️ UpdateExchange: Error checking lighter_api_key_index column: %v", err)
+	} else if !columnExistsIndex {
+		log.Printf("🔄 UpdateExchange: lighter_api_key_index column doesn't exist, adding it...")
+		_, alterErr := d.db.Exec(`ALTER TABLE exchanges ADD COLUMN lighter_api_key_index INTEGER DEFAULT 0`)
+		if alterErr != nil {
+			log.Printf("❌ UpdateExchange: Failed to add lighter_api_key_index column: %v", alterErr)
+		} else {
+			log.Printf("✅ UpdateExchange: Successfully added lighter_api_key_index column")
+		}
+	}
+	
+	setClauses = append(setClauses, "lighter_api_key_index = ?")
+	args = append(args, lighterAPIKeyIndex)
 
 	// 🔒 Sensitive fields: only update when non-empty (protect existing data)
 	if apiKey != "" {
@@ -2379,6 +2413,11 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		args = append(args, encryptedAsterPrivateKey)
 	}
 
+	if lighterAPIKeyPrivateKey != "" {
+		encryptedLighterAPIKeyPrivateKey := d.encryptSensitiveData(lighterAPIKeyPrivateKey)
+		setClauses = append(setClauses, "lighter_api_key_private_key = ?")
+		args = append(args, encryptedLighterAPIKeyPrivateKey)
+	}
 
 	if okxPassphrase != "" {
 		encryptedOkxPassphrase := d.encryptSensitiveData(okxPassphrase)
@@ -2395,10 +2434,13 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		WHERE id = ? AND user_id = ?
 	`, strings.Join(setClauses, ", "))
 
+
 	// Execute update
 	result, err := d.db.Exec(query, args...)
 	if err != nil {
 		log.Printf("❌ UpdateExchange: update failed: %v", err)
+		log.Printf("❌ UpdateExchange: Query was: %s", query)
+		log.Printf("❌ UpdateExchange: Args were: %v", args)
 		return err
 	}
 

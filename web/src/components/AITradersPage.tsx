@@ -230,8 +230,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   
   const enabledExchanges =
     allExchanges?.filter((e) => {
-      // Exclude Lighter (removed support)
-      if (e.id === 'lighter') return false
       if (!e.enabled) return false
 
       // Aster exchange needs special fields (backend returns these non-sensitive fields)
@@ -687,6 +685,10 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         asterUser: '',
         asterSigner: '',
         asterPrivateKey: '',
+        lighterWalletAddr: '',
+        lighterAPIKeyPrivateKey: '',
+        lighterAPIKeyIndex: 0,
+        okxPassphrase: '',
         enabled: false,
       }),
       buildRequest: (exchanges) => ({
@@ -702,6 +704,11 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
               aster_user: exchange.asterUser || '',
               aster_signer: exchange.asterSigner || '',
               aster_private_key: exchange.asterPrivateKey || '',
+              lighter_wallet_addr: exchange.lighterWalletAddr || '',
+              lighter_private_key: exchange.lighterPrivateKey || '',
+              lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
+              lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
+              okx_passphrase: exchange.okxPassphrase || '',
             },
           ])
         ),
@@ -729,11 +736,10 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     asterUser?: string,
     asterSigner?: string,
     asterPrivateKey?: string,
+    okxPassphrase?: string,
     lighterWalletAddr?: string,
-    lighterPrivateKey?: string,
-    lighterApiKeyPrivateKey?: string,
-    lighterApiKeyIndex?: number,
-    okxPassphrase?: string
+    lighterAPIKeyPrivateKey?: string,
+    lighterAPIKeyIndex?: number
   ) => {
     try {
       // 找到要配置的交易所（从supportedExchanges中）
@@ -751,25 +757,62 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
 
       if (existingExchange) {
         // 更新现有配置
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AITradersPage.tsx:752',message:'Updating existing exchange',data:{exchangeId,lighterWalletAddr:lighterWalletAddr||'',lighterAPIKeyPrivateKey_len:(lighterAPIKeyPrivateKey||'').length,lighterAPIKeyIndex:lighterAPIKeyIndex||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run5',hypothesisId:'L'})}).catch(()=>{});
+        // #endregion
         updatedExchanges =
-          allExchanges?.map((e) =>
-            e.id === exchangeId
-              ? {
-                  ...e,
-                  apiKey,
-                  secretKey,
-                  testnet,
-                  hyperliquidWalletAddr,
-                  asterUser,
-                  asterSigner,
-                  asterPrivateKey,
-                  okxPassphrase,
-                  enabled: true,
-                }
-              : e
-          ) || []
+          allExchanges?.map((e) => {
+            if (e.id === exchangeId) {
+              // Ensure provided values are used, even if they're empty strings
+              // Don't fall back to existing values if new values are explicitly provided
+              const updated = {
+                ...e,
+                apiKey,
+                secretKey,
+                testnet,
+                hyperliquidWalletAddr,
+                asterUser,
+                asterSigner,
+                asterPrivateKey,
+                // Lighter fields: always use provided values if available, otherwise keep existing
+                lighterWalletAddr: lighterWalletAddr !== undefined ? lighterWalletAddr : (e.lighterWalletAddr ?? ''),
+                lighterAPIKeyPrivateKey: lighterAPIKeyPrivateKey !== undefined ? lighterAPIKeyPrivateKey : (e.lighterAPIKeyPrivateKey ?? ''),
+                lighterAPIKeyIndex: lighterAPIKeyIndex !== undefined ? lighterAPIKeyIndex : (e.lighterAPIKeyIndex ?? 0),
+                okxPassphrase,
+                enabled: true,
+              }
+              // #region agent log
+              if (exchangeId === 'lighter') {
+                fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AITradersPage.tsx:788',message:'AFTER updating exchange object',data:{lighterWalletAddr:updated.lighterWalletAddr||'',lighterWalletAddr_type:typeof updated.lighterWalletAddr,lighterWalletAddr_length:updated.lighterWalletAddr?updated.lighterWalletAddr.length:0,lighterAPIKeyIndex:updated.lighterAPIKeyIndex,lighterAPIKeyIndex_type:typeof updated.lighterAPIKeyIndex,hasLighterWalletAddr:'lighterWalletAddr' in updated,hasLighterAPIKeyIndex:'lighterAPIKeyIndex' in updated,allKeys:Object.keys(updated)},timestamp:Date.now(),sessionId:'debug-session',runId:'run10',hypothesisId:'H2'})}).catch(()=>{});
+                console.log('🔍 Updated exchange object for Lighter', {
+                  lighterWalletAddr: updated.lighterWalletAddr || '(empty)',
+                  lighterWalletAddr_type: typeof updated.lighterWalletAddr,
+                  lighterAPIKeyPrivateKey_len: (updated.lighterAPIKeyPrivateKey || '').length,
+                  lighterAPIKeyIndex: updated.lighterAPIKeyIndex,
+                  lighterAPIKeyIndex_type: typeof updated.lighterAPIKeyIndex,
+                  provided_lighterWalletAddr: lighterWalletAddr || '(empty)',
+                  provided_lighterAPIKeyIndex: lighterAPIKeyIndex
+                })
+                fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AITradersPage.tsx:766',message:'Updated exchange object for Lighter',data:{lighterWalletAddr:updated.lighterWalletAddr||'',lighterWalletAddr_type:typeof updated.lighterWalletAddr,lighterAPIKeyPrivateKey_len:(updated.lighterAPIKeyPrivateKey||'').length,lighterAPIKeyIndex:updated.lighterAPIKeyIndex,lighterAPIKeyIndex_type:typeof updated.lighterAPIKeyIndex,provided_lighterWalletAddr:lighterWalletAddr||'',provided_lighterAPIKeyIndex:lighterAPIKeyIndex},timestamp:Date.now(),sessionId:'debug-session',runId:'run9',hypothesisId:'O'})}).catch(()=>{});
+              }
+              // #endregion
+              return updated
+            }
+            return e
+          }) || []
       } else {
         // 添加新配置
+        // #region agent log
+        console.log('🔍 Creating new exchange for Lighter', {
+          exchangeId,
+          lighterWalletAddr: lighterWalletAddr || '(empty/undefined)',
+          lighterWalletAddr_type: typeof lighterWalletAddr,
+          lighterAPIKeyPrivateKey_len: (lighterAPIKeyPrivateKey || '').length,
+          lighterAPIKeyIndex: lighterAPIKeyIndex,
+          lighterAPIKeyIndex_type: typeof lighterAPIKeyIndex
+        })
+        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AITradersPage.tsx:810',message:'Creating new exchange',data:{exchangeId,lighterWalletAddr:lighterWalletAddr||'',lighterWalletAddr_type:typeof lighterWalletAddr,lighterAPIKeyPrivateKey_len:(lighterAPIKeyPrivateKey||'').length,lighterAPIKeyIndex:lighterAPIKeyIndex||0,lighterAPIKeyIndex_type:typeof lighterAPIKeyIndex},timestamp:Date.now(),sessionId:'debug-session',runId:'run9',hypothesisId:'M'})}).catch(()=>{});
+        // #endregion
         const newExchange = {
           ...exchangeToUpdate,
           apiKey,
@@ -778,37 +821,117 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           hyperliquidWalletAddr,
           asterUser,
           asterSigner,
-                  asterPrivateKey,
-                  okxPassphrase,
+          asterPrivateKey,
+          lighterWalletAddr: lighterWalletAddr !== undefined ? lighterWalletAddr : '',
+          lighterAPIKeyPrivateKey: lighterAPIKeyPrivateKey !== undefined ? lighterAPIKeyPrivateKey : '',
+          lighterAPIKeyIndex: lighterAPIKeyIndex !== undefined ? lighterAPIKeyIndex : 0,
+          okxPassphrase,
           enabled: true,
         }
+        // #region agent log
+        if (exchangeId === 'lighter') {
+          console.log('🔍 New exchange object created for Lighter', {
+            lighterWalletAddr: newExchange.lighterWalletAddr || '(empty)',
+            lighterWalletAddr_type: typeof newExchange.lighterWalletAddr,
+            lighterAPIKeyPrivateKey_len: (newExchange.lighterAPIKeyPrivateKey || '').length,
+            lighterAPIKeyIndex: newExchange.lighterAPIKeyIndex,
+            lighterAPIKeyIndex_type: typeof newExchange.lighterAPIKeyIndex
+          })
+        }
+        // #endregion
         updatedExchanges = [...(allExchanges || []), newExchange]
       }
 
+      // #region agent log
+      // Log all exchanges before building request
+      const lighterExchangeBefore = updatedExchanges?.find(e=>e.id==='lighter')
+      console.log('🔍 Before building request', {
+        updatedExchangesCount: updatedExchanges?.length || 0,
+        lighterExchange: lighterExchangeBefore ? {
+          lighterWalletAddr: lighterExchangeBefore.lighterWalletAddr || '',
+          lighterAPIKeyPrivateKey_len: (lighterExchangeBefore.lighterAPIKeyPrivateKey || '').length,
+          lighterAPIKeyIndex: lighterExchangeBefore.lighterAPIKeyIndex
+        } : null
+      })
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AITradersPage.tsx:820',message:'Before building request',data:{updatedExchangesCount:updatedExchanges?.length||0,lighterExchange:lighterExchangeBefore?{lighterWalletAddr:(lighterExchangeBefore.lighterWalletAddr||'').substring(0,20)+'...',lighterAPIKeyPrivateKey_len:(lighterExchangeBefore.lighterAPIKeyPrivateKey||'').length,lighterAPIKeyIndex:lighterExchangeBefore.lighterAPIKeyIndex}:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run8',hypothesisId:'Q'})}).catch(()=>{});
+      // #endregion
+      
       const request = {
         exchanges: Object.fromEntries(
           updatedExchanges.map((exchange) => {
-            return [
-              exchange.id,
-              {
-                enabled: exchange.enabled,
-                api_key: exchange.apiKey || '',
-                secret_key: exchange.secretKey || '',
-                testnet: exchange.testnet || false,
-                hyperliquid_wallet_addr: exchange.hyperliquidWalletAddr || '',
-                aster_user: exchange.asterUser || '',
-                aster_signer: exchange.asterSigner || '',
-                aster_private_key: exchange.asterPrivateKey || '',
-                lighter_wallet_addr: exchange.lighterWalletAddr || '', // Kept for backward compatibility
-                lighter_private_key: exchange.lighterPrivateKey || '', // Kept for backward compatibility
-                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '', // Kept for backward compatibility
-                lighter_api_key_index: exchange.lighterAPIKeyIndex || 0, // Kept for backward compatibility
-                okx_passphrase: exchange.okxPassphrase || '',
-              },
-            ]
+            const exchangeData: any = {
+              enabled: exchange.enabled,
+              api_key: exchange.apiKey || '',
+              secret_key: exchange.secretKey || '',
+              testnet: exchange.testnet || false,
+              hyperliquid_wallet_addr: exchange.hyperliquidWalletAddr || '',
+              aster_user: exchange.asterUser || '',
+              aster_signer: exchange.asterSigner || '',
+              aster_private_key: exchange.asterPrivateKey || '',
+              okx_passphrase: exchange.okxPassphrase || '',
+            }
+            
+            // Before building exchangeData, verify exchange object has correct values
+            if (exchange.id === 'lighter') {
+              fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AITradersPage.tsx:894',message:'BEFORE building exchangeData',data:{exchangeLighterWalletAddr:exchange.lighterWalletAddr||'',exchangeLighterWalletAddr_type:typeof exchange.lighterWalletAddr,exchangeLighterAPIKeyIndex:exchange.lighterAPIKeyIndex,exchangeLighterAPIKeyIndex_type:typeof exchange.lighterAPIKeyIndex,exchangeKeys:Object.keys(exchange),hasLighterWalletAddr:'lighterWalletAddr' in exchange},timestamp:Date.now(),sessionId:'debug-session',runId:'run10',hypothesisId:'H3'})}).catch(()=>{});
+              console.log('🔍 Exchange object before request building', {
+                exchangeLighterWalletAddr: exchange.lighterWalletAddr,
+                exchangeLighterAPIKeyIndex: exchange.lighterAPIKeyIndex,
+                exchangeKeys: Object.keys(exchange),
+                hasLighterWalletAddr: 'lighterWalletAddr' in exchange
+              })
+            }
+            
+            // Always include Lighter fields - backend will always update them
+            // Use explicit !== undefined checks to preserve empty strings and avoid losing values
+            exchangeData.lighter_wallet_addr = exchange.lighterWalletAddr !== undefined ? exchange.lighterWalletAddr : ''
+            exchangeData.lighter_private_key = exchange.lighterPrivateKey !== undefined ? exchange.lighterPrivateKey : '' // Deprecated field, always empty
+            exchangeData.lighter_api_key_private_key = exchange.lighterAPIKeyPrivateKey !== undefined ? exchange.lighterAPIKeyPrivateKey : ''
+            exchangeData.lighter_api_key_index = exchange.lighterAPIKeyIndex !== undefined ? exchange.lighterAPIKeyIndex : 0
+            // #region agent log
+            if (exchange.id === 'lighter') {
+              fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AITradersPage.tsx:908',message:'AFTER setting exchangeData fields',data:{lighter_wallet_addr:exchangeData.lighter_wallet_addr||'',lighter_wallet_addr_type:typeof exchangeData.lighter_wallet_addr,lighter_api_key_index:exchangeData.lighter_api_key_index,lighter_api_key_index_type:typeof exchangeData.lighter_api_key_index,exchangeLighterWalletAddr:exchange.lighterWalletAddr!==undefined?exchange.lighterWalletAddr:'(undefined)',exchangeLighterAPIKeyIndex:exchange.lighterAPIKeyIndex!==undefined?exchange.lighterAPIKeyIndex:'(undefined)'},timestamp:Date.now(),sessionId:'debug-session',runId:'run10',hypothesisId:'H4'})}).catch(()=>{});
+            }
+            // #endregion
+            // #region agent log
+            if (exchange.id === 'lighter') {
+              console.log('🔍 Building request for Lighter exchange', {
+                lighterWalletAddr: exchangeData.lighter_wallet_addr || '(empty)',
+                lighterWalletAddr_type: typeof exchange.lighterWalletAddr,
+                lighterAPIKeyPrivateKey_len: (exchangeData.lighter_api_key_private_key || '').length,
+                lighterAPIKeyIndex: exchangeData.lighter_api_key_index,
+                lighterAPIKeyIndex_type: typeof exchange.lighterAPIKeyIndex,
+                exchangeLighterWalletAddr: exchange.lighterWalletAddr !== undefined ? exchange.lighterWalletAddr : '(undefined)',
+                exchangeLighterAPIKeyIndex: exchange.lighterAPIKeyIndex !== undefined ? exchange.lighterAPIKeyIndex : '(undefined)',
+                exchangeKeys: Object.keys(exchange)
+              })
+              fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AITradersPage.tsx:880',message:'Building request for Lighter exchange',data:{lighterWalletAddr:exchangeData.lighter_wallet_addr||'',lighterWalletAddr_type:typeof exchange.lighterWalletAddr,lighterAPIKeyPrivateKey_len:(exchangeData.lighter_api_key_private_key||'').length,lighterAPIKeyIndex:exchangeData.lighter_api_key_index,lighterAPIKeyIndex_type:typeof exchange.lighterAPIKeyIndex,exchangeLighterWalletAddr:exchange.lighterWalletAddr!==undefined?exchange.lighterWalletAddr:'(undefined)',exchangeLighterAPIKeyIndex:exchange.lighterAPIKeyIndex!==undefined?exchange.lighterAPIKeyIndex:'(undefined)',exchangeKeys:Object.keys(exchange)},timestamp:Date.now(),sessionId:'debug-session',runId:'run9',hypothesisId:'P'})}).catch(()=>{});
+            }
+            // #endregion
+            
+            return [exchange.id, exchangeData]
           })
         ),
       }
+
+      // #region agent log
+      // After building request, verify final payload
+      const lighterExchange = request.exchanges['lighter']
+      if (lighterExchange) {
+        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AITradersPage.tsx:932',message:'FINAL request payload BEFORE api call',data:{lighter_wallet_addr:lighterExchange.lighter_wallet_addr||'',lighter_wallet_addr_type:typeof lighterExchange.lighter_wallet_addr,lighter_api_key_index:lighterExchange.lighter_api_key_index,lighter_api_key_index_type:typeof lighterExchange.lighter_api_key_index,allKeys:Object.keys(lighterExchange),requestStringified:JSON.stringify(request.exchanges['lighter']).substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run10',hypothesisId:'H5'})}).catch(()=>{});
+        console.log('🔍 Final request payload for Lighter', {
+          lighter_wallet_addr: lighterExchange.lighter_wallet_addr,
+          lighter_api_key_index: lighterExchange.lighter_api_key_index,
+          allKeys: Object.keys(lighterExchange)
+        })
+        console.log('🔍 Request payload before sending', {
+          lighterWalletAddr: lighterExchange.lighter_wallet_addr || '(empty)',
+          lighterAPIKeyPrivateKey_len: (lighterExchange.lighter_api_key_private_key || '').length,
+          lighterAPIKeyIndex: lighterExchange.lighter_api_key_index,
+          lighterAPIKeyIndex_type: typeof lighterExchange.lighter_api_key_index
+        })
+      }
+      // #endregion
 
       await toast.promise(api.updateExchangeConfigsEncrypted(request), {
         loading: t('updatingExchange', language),
@@ -1401,12 +1524,18 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                       onClick={() =>
                         handleToggleCompetition(
                           trader.trader_id,
-                          trader.show_in_competition ?? true
+                          trader.show_in_competition !== false
                         )
                       }
-                      className="px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 whitespace-nowrap flex items-center gap-1"
+                      disabled={!trader.is_running}
+                      className="px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 whitespace-nowrap flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                       style={
-                        trader.show_in_competition !== false
+                        !trader.is_running
+                          ? {
+                              background: 'rgba(132, 142, 156, 0.1)',
+                              color: '#848E9C',
+                            }
+                          : trader.show_in_competition !== false
                           ? {
                               background: 'rgba(14, 203, 129, 0.1)',
                               color: '#0ECB81',
@@ -1417,11 +1546,11 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                             }
                       }
                       title={
-                        trader.show_in_competition !== false
-                          ? t('competitionVisibilityShown', language) ||
-                            'Visible in competition'
-                          : t('competitionVisibilityHidden', language) ||
-                            'Hidden from competition'
+                        !trader.is_running
+                          ? t('startTraderFirst', language) || 'Start trader to enable competition visibility'
+                          : trader.show_in_competition !== false
+                          ? t('competitionVisibilityShown', language) || 'Visible in competition'
+                          : t('competitionVisibilityHidden', language) || 'Hidden from competition'
                       }
                     >
                       {trader.show_in_competition !== false ? (
@@ -2044,6 +2173,7 @@ function ModelConfigModal({
 // Exchange Configuration Modal Component
 function ExchangeConfigModal({
   allExchanges,
+  configuredExchanges,
   editingExchangeId,
   onSave,
   onDelete,
@@ -2051,22 +2181,20 @@ function ExchangeConfigModal({
   language,
 }: {
   allExchanges: Exchange[]
+  configuredExchanges: Exchange[]
   editingExchangeId: string | null
   onSave: (
     exchangeId: string,
     apiKey: string,
-    secretKey?: string,
-    testnet?: boolean,
+    secretKey: string,
+    testnet: boolean,
     hyperliquidWalletAddr?: string,
     asterUser?: string,
     asterSigner?: string,
     asterPrivateKey?: string,
-    lighterWalletAddr?: string,
-    lighterPrivateKey?: string,
-    lighterApiKeyPrivateKey?: string,
     lighterApiKeyIndex?: number,
-    okxPassphrase?: string
-  ) => Promise<void>
+    passphrase?: string
+  ) => void
   onDelete: (exchangeId: string) => void
   onClose: () => void
   language: Language
