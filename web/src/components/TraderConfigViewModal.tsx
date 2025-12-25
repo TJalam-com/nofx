@@ -95,10 +95,18 @@ export function TraderConfigViewModal({
     copyable?: boolean
     fieldName?: string
   }) => (
-    <div className="flex justify-between items-start py-2 border-b last:border-b-0" style={{ borderColor: 'var(--panel-border)' }}>
-      <span className="text-sm text-[#848E9C] font-medium">{label}</span>
-      <div className="flex items-center text-right">
-        <span className="text-sm text-[#EAECEF] font-mono">
+    <div className="flex justify-between items-start py-2 border-b last:border-b-0 gap-4" style={{ borderColor: 'var(--panel-border)' }}>
+      <span className="text-sm text-[#848E9C] font-medium flex-shrink-0">{label}</span>
+      <div className="flex items-center text-right min-w-0 flex-1 justify-end">
+        <span 
+          className="text-sm text-[#EAECEF] font-mono break-all"
+          style={{ 
+            wordBreak: 'break-all',
+            overflowWrap: 'anywhere',
+            maxWidth: '100%'
+          }}
+          title={typeof value === 'string' ? value : undefined}
+        >
           {typeof value === 'boolean' ? (value ? t('yes', language) : t('no', language)) : value}
         </span>
         {copyable && typeof value === 'string' && value && (

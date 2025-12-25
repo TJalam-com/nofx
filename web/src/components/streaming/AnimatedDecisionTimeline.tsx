@@ -38,23 +38,6 @@ export function AnimatedDecisionTimeline({
   onMostRecentAnalysisComplete,
   onMostRecentScrollComplete,
 }: AnimatedDecisionTimelineProps) {
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'run4',
-        hypothesisId: 'V1',
-        location: 'AnimatedDecisionTimeline.tsx:props',
-        message: 'Timeline received autoScroll prop',
-        data: { autoScrollAiAnalysis },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-  }, [autoScrollAiAnalysis])
-  // #endregion
 
   const { user, token } = useAuth()
   const [decisions, setDecisions] = useState<DecisionRecord[]>([])
@@ -64,7 +47,9 @@ export function AnimatedDecisionTimeline({
 
   // Sort decisions by timestamp descending (most recent first)
   const sortedDecisions = useMemo(() => {
-    return [...decisions].sort((a, b) => {
+    // Ensure decisions is always an array before spreading
+    const safeDecisions = Array.isArray(decisions) ? decisions : []
+    return [...safeDecisions].sort((a, b) => {
       const timeA = new Date(a.timestamp).getTime()
       const timeB = new Date(b.timestamp).getTime()
       return timeB - timeA // Descending order (most recent first)
@@ -99,7 +84,8 @@ export function AnimatedDecisionTimeline({
     const loadDecisions = async () => {
       try {
         const data = await api.getLatestDecisions(traderId, limit)
-        setDecisions(data)
+        // Ensure we always set an array, never null or undefined
+        setDecisions(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error('Failed to load decisions:', error)
       } finally {
@@ -114,10 +100,14 @@ export function AnimatedDecisionTimeline({
       try {
         const updatedDecisions = await api.getLatestDecisions(traderId, limit)
 
+        // Ensure we have valid arrays before processing
+        const safeUpdatedDecisions = Array.isArray(updatedDecisions) ? updatedDecisions : []
+        const safeDecisions = Array.isArray(decisions) ? decisions : []
+
         // Check for new decisions
-        if (updatedDecisions.length > decisions.length) {
-          const newDecisions = updatedDecisions.slice(0, updatedDecisions.length - decisions.length)
-          setDecisions(updatedDecisions)
+        if (safeUpdatedDecisions.length > safeDecisions.length) {
+          const newDecisions = safeUpdatedDecisions.slice(0, safeUpdatedDecisions.length - safeDecisions.length)
+          setDecisions(safeUpdatedDecisions)
 
           // Show processing animation for new decisions
           if (newDecisions.length > 0) {
@@ -175,7 +165,7 @@ export function AnimatedDecisionTimeline({
           AI Decisions
         </h3>
         <div className="text-sm" style={{ color: '#848E9C' }}>
-          {decisions.length} recent cycles
+          {Array.isArray(decisions) ? decisions.length : 0} recent cycles
         </div>
       </div>
 
@@ -193,7 +183,7 @@ export function AnimatedDecisionTimeline({
         />
 
         <AnimatePresence mode="popLayout">
-          {decisions.length === 0 ? (
+          {(!Array.isArray(decisions) || decisions.length === 0) ? (
             <motion.div
               className="text-center py-16"
               initial={{ opacity: 0 }}

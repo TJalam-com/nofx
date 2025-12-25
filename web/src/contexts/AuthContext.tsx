@@ -90,26 +90,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Reset 401 flag on page load to allow fresh 401 handling
     reset401Flag()
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.tsx:89',message:'AuthContext initialization starting',data:{},timestamp:Date.now(),sessionId:'debug-session', runId:'initial', hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     // 先检查是否为管理员模式（使用带缓存的系统配置获取）
     getSystemConfig()
       .then(() => {
         // 不再在管理员模式下模拟登录；统一检查本地存储
         const savedToken = localStorage.getItem('auth_token')
         const savedUser = localStorage.getItem('auth_user')
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.tsx:94',message:'Checking localStorage for saved auth',data:{hasSavedToken: !!savedToken, hasSavedUser: !!savedUser},timestamp:Date.now(),sessionId:'debug-session', runId:'initial', hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         if (savedToken && savedUser) {
           const parsedUser = JSON.parse(savedUser)
           console.log('🔐 Restored user from localStorage - Role:', parsedUser.role)
           console.log('🔐 Full restored user:', parsedUser)
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.tsx:97',message:'Restoring user from localStorage',data:{userId: parsedUser.id, userEmail: parsedUser.email, userRole: parsedUser.role},timestamp:Date.now(),sessionId:'debug-session', runId:'initial', hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
           setToken(savedToken)
           setUser(parsedUser)
           

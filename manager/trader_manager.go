@@ -1383,6 +1383,7 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		MaxDrawdown:          maxDrawdown,
 		StopTradingTime:      time.Duration(stopTradingMinutes) * time.Minute,
 		IsCrossMargin:        traderCfg.IsCrossMargin,
+		ShowInCompetition:    traderCfg.ShowInCompetition, // Competition visibility
 		DefaultCoins:         defaultCoins,
 		TradingCoins:         tradingCoins,
 		SystemPromptTemplate: traderCfg.SystemPromptTemplate, // System prompt template

@@ -10,12 +10,7 @@ const shouldLogIngest = () => {
 }
 
 const logIngest = (data: any) => {
-  if (!shouldLogIngest()) return
-  fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  }).catch(() => {})
+  // Debug logging removed - no-op function to prevent errors if called
 }
 
 // Supported exchange list (futures format)

@@ -227,9 +227,16 @@ export function useTraderActions({
   }
 
   const handleToggleTrader = async (traderId: string, running: boolean) => {
-    // Note: Optimistic update handled by component calling this hook
-    // mutateTraders signature is () => Promise<any>, so we can't pass data directly
-    // The optimistic update will be handled by the component that calls this hook
+    // Optimistically update the UI immediately
+    const newRunningState = !running
+    const optimisticTraders = traders?.map((trader) =>
+      trader.trader_id === traderId
+        ? { ...trader, is_running: newRunningState }
+        : trader
+    )
+
+    // Update UI optimistically
+    await mutateTraders(optimisticTraders, { revalidate: false })
 
     try {
       if (running) {
@@ -246,10 +253,11 @@ export function useTraderActions({
         })
       }
 
-      // Wait longer for backend to update state, then refresh from server
-      setTimeout(async () => {
-        await mutateTraders() // Force revalidation
-      }, 1000) // Increased from immediate to 1000ms
+      // Refresh from server to ensure we have the latest state
+      // Longer delay for Start/Stop as backend needs to actually start/stop the trader process
+      // The optimistic update keeps the UI responsive, so we can wait longer for accurate server state
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      await mutateTraders() // Force revalidation
     } catch (error) {
       console.error('Failed to toggle trader:', error)
       // Revert optimistic update on error
@@ -274,8 +282,18 @@ export function useTraderActions({
       return
     }
 
+    // Optimistically update the UI immediately
+    const newValue = !currentShowInCompetition
+    const optimisticTraders = traders?.map((t) =>
+      t.trader_id === traderId
+        ? { ...t, show_in_competition: newValue }
+        : t
+    )
+
+    // Update UI optimistically
+    await mutateTraders(optimisticTraders, { revalidate: false })
+
     try {
-      const newValue = !currentShowInCompetition
       await toast.promise(api.toggleCompetition(traderId, newValue), {
         loading: t('updating', language) || 'Updating...',
         success: newValue
@@ -286,14 +304,15 @@ export function useTraderActions({
         error: t('updateFailed', language) || 'Update failed',
       })
 
-      // Wait a bit for backend to update, then refresh traders list to update status
-      setTimeout(async () => {
-        await mutateTraders()
-      }, 500)
+      // Refresh from server to ensure we have the latest state
+      // Delay to ensure backend has processed the request
+      // The optimistic update keeps the UI responsive, so we can wait for accurate server state
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      await mutateTraders()
     } catch (error) {
       console.error('Failed to toggle competition visibility:', error)
-      // Refresh to get accurate state on error
-      await mutateTraders()
+      // Revert optimistic update on error
+      await mutateTraders() // Force revalidation to get correct state
       toast.error(t('operationFailed', language))
     }
   }

@@ -2850,13 +2850,43 @@ func (d *Database) GetPromptTemplate(userID, templateID string) (*PromptTemplate
 	return &template, nil
 }
 
+// ErrDuplicateTemplateID is returned when a template with the same ID already exists
+var ErrDuplicateTemplateID = errors.New("template ID already exists")
+
+// ErrForeignKeyViolation is returned when a foreign key constraint is violated
+var ErrForeignKeyViolation = errors.New("foreign key constraint violation")
+
 // CreatePromptTemplate create new prompt template
 func (d *Database) CreatePromptTemplate(userID, id, name, content string, isSystem bool) error {
-	_, err := d.db.Exec(`
+	// Check if template ID already exists
+	var existingID string
+	err := d.db.QueryRow(`SELECT id FROM prompt_templates WHERE id = ?`, id).Scan(&existingID)
+	if err == nil {
+		// Template ID already exists
+		return ErrDuplicateTemplateID
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		// Unexpected database error
+		return fmt.Errorf("failed to check for existing template: %w", err)
+	}
+
+	// Attempt to insert the template
+	_, err = d.db.Exec(`
 		INSERT INTO prompt_templates (id, user_id, name, content, is_system, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
 	`, id, userID, name, content, isSystem)
-	return err
+	if err != nil {
+		// Check for constraint violations
+		errStr := err.Error()
+		if strings.Contains(errStr, "UNIQUE constraint") || strings.Contains(errStr, "PRIMARY KEY") {
+			return ErrDuplicateTemplateID
+		}
+		if strings.Contains(errStr, "FOREIGN KEY constraint") {
+			return fmt.Errorf("%w: user_id '%s' does not exist", ErrForeignKeyViolation, userID)
+		}
+		return fmt.Errorf("failed to create prompt template: %w", err)
+	}
+	return nil
 }
 
 // UpdatePromptTemplate update prompt template (can only update user-created templates, cannot update system templates)

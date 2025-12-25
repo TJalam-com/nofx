@@ -1795,6 +1795,10 @@ func (s *Server) handleStartTrader(c *gin.Context) {
 	}
 
 	log.Printf("✓ Trader %s started (running status: %v)", trader.GetName(), isRunning)
+	
+	// Invalidate competition cache to ensure visibility state is reflected immediately
+	s.traderManager.InvalidateCompetitionCache()
+	
 	c.JSON(http.StatusOK, gin.H{
 		"message":         "Trader started",
 		"is_running":      isRunning,
@@ -1884,6 +1888,10 @@ func (s *Server) handleStopTrader(c *gin.Context) {
 	}
 
 	log.Printf("⏹  Trader %s stopped (memory status: %v, database status: false)", trader.GetName(), isRunning)
+	
+	// Invalidate competition cache to ensure visibility state is reflected immediately
+	s.traderManager.InvalidateCompetitionCache()
+	
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "Trader stopped",
 		"is_running": false,
@@ -4780,21 +4788,83 @@ func (s *Server) handleCreatePromptTemplate(c *gin.Context) {
 		return
 	}
 
-	// Generate template ID (use userID_name format to ensure uniqueness)
-	templateID := fmt.Sprintf("%s_%s", userID, strings.ToLower(strings.ReplaceAll(req.Name, " ", "_")))
+	// Validate input
+	req.Name = strings.TrimSpace(req.Name)
+	req.Content = strings.TrimSpace(req.Content)
+	if req.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Template name cannot be empty"})
+		return
+	}
+	if req.Content == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Template content cannot be empty"})
+		return
+	}
 
-	// Create template (user-created template, isSystem=false)
-	err := s.database.CreatePromptTemplate(userID, templateID, req.Name, req.Content, false)
-	if err != nil {
+	// Generate base template ID (use userID_name format to ensure uniqueness)
+	baseName := req.Name
+	baseTemplateID := fmt.Sprintf("%s_%s", userID, strings.ToLower(strings.ReplaceAll(baseName, " ", "_")))
+
+	// Try to create template, handling duplicates by auto-incrementing name
+	templateID := baseTemplateID
+	templateName := baseName
+	maxAttempts := 100 // Prevent infinite loop
+	attempt := 0
+
+	for attempt < maxAttempts {
+		err := s.database.CreatePromptTemplate(userID, templateID, templateName, req.Content, false)
+		if err == nil {
+			// Success - template created
+			break
+		}
+
+		// Check if it's a duplicate ID error
+		if errors.Is(err, config.ErrDuplicateTemplateID) {
+			// Generate new name with suffix
+			attempt++
+			if attempt >= maxAttempts {
+				log.Printf("❌ Failed to create prompt template after %d attempts: %v", maxAttempts, err)
+				c.JSON(http.StatusConflict, gin.H{
+					"error": fmt.Sprintf("Unable to create template. Too many templates with similar names exist. Please choose a more unique name."),
+				})
+				return
+			}
+
+			// Try with incremented suffix
+			if attempt == 1 {
+				templateName = fmt.Sprintf("%s (1)", baseName)
+			} else {
+				templateName = fmt.Sprintf("%s (%d)", baseName, attempt)
+			}
+			// Generate template ID: replace spaces with underscores, remove parentheses, convert to lowercase
+			sanitizedName := strings.ToLower(strings.ReplaceAll(templateName, " ", "_"))
+			sanitizedName = strings.ReplaceAll(sanitizedName, "(", "")
+			sanitizedName = strings.ReplaceAll(sanitizedName, ")", "")
+			templateID = fmt.Sprintf("%s_%s", userID, sanitizedName)
+			continue
+		}
+
+		// Handle foreign key violation
+		if errors.Is(err, config.ErrForeignKeyViolation) {
+			log.Printf("❌ Failed to create prompt template - foreign key violation: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid user. Please log in again.",
+			})
+			return
+		}
+
+		// Other database errors
 		log.Printf("❌ Failed to create prompt template: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create template"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Failed to create template: %v", err),
+		})
 		return
 	}
 
 	// Get created template
 	template, err := s.database.GetPromptTemplate(userID, templateID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get created template"})
+		log.Printf("❌ Failed to get created template: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Template created but failed to retrieve. Please refresh the template list."})
 		return
 	}
 

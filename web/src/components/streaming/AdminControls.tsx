@@ -268,21 +268,6 @@ export function AdminControls({
                 </label>
                 <button
                   onClick={() => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        sessionId: 'debug-session',
-                        runId: 'run4',
-                        hypothesisId: 'T1',
-                        location: 'AdminControls.tsx:toggleAI',
-                        message: 'Toggle AI analysis auto-scroll',
-                        data: { current: config.auto_scroll_ai_analysis, new: !config.auto_scroll_ai_analysis },
-                        timestamp: Date.now()
-                      })
-                    }).catch(() => {})
-                    // #endregion
                     updateConfig({ auto_scroll_ai_analysis: !config.auto_scroll_ai_analysis })
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -305,21 +290,6 @@ export function AdminControls({
                 </label>
                 <button
                   onClick={() => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        sessionId: 'debug-session',
-                        runId: 'run4',
-                        hypothesisId: 'T2',
-                        location: 'AdminControls.tsx:togglePage',
-                        message: 'Toggle page auto-scroll',
-                        data: { current: config.auto_scroll_page, new: !config.auto_scroll_page },
-                        timestamp: Date.now()
-                      })
-                    }).catch(() => {})
-                    // #endregion
                     updateConfig({ auto_scroll_page: !config.auto_scroll_page })
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${

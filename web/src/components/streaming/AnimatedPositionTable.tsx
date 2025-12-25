@@ -39,7 +39,8 @@ export function AnimatedPositionTable({
     const loadPositions = async () => {
       try {
         const data = await api.getPositions(traderId)
-        setPositions(data)
+        // Ensure we always set an array, never null or undefined
+        setPositions(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error('Failed to load positions:', error)
       }
@@ -52,9 +53,13 @@ export function AnimatedPositionTable({
       try {
         const updatedPositions = await api.getPositions(traderId)
 
+        // Ensure we have valid arrays before processing
+        const safeUpdatedPositions = Array.isArray(updatedPositions) ? updatedPositions : []
+        const safePositions = Array.isArray(positions) ? positions : []
+
         // Mark new positions for animation
-        const existingIds = new Set(positions.map(p => `${p.symbol}-${p.side}`))
-        const newIds = updatedPositions
+        const existingIds = new Set(safePositions.map(p => `${p.symbol}-${p.side}`))
+        const newIds = safeUpdatedPositions
           .filter(p => !existingIds.has(`${p.symbol}-${p.side}`))
           .map(p => `${p.symbol}-${p.side}`)
 
@@ -70,7 +75,7 @@ export function AnimatedPositionTable({
           }, 3000)
         }
 
-        setPositions(updatedPositions)
+        setPositions(safeUpdatedPositions)
       } catch (error) {
         console.error('Failed to poll positions:', error)
       }
@@ -103,7 +108,8 @@ export function AnimatedPositionTable({
 
       // Update positions
       const updated = await api.getPositions(traderId)
-      setPositions(updated)
+      // Ensure we always set an array, never null or undefined
+      setPositions(Array.isArray(updated) ? updated : [])
     } catch (error: any) {
       notify.error(error.message || 'Failed to close position')
     } finally {
@@ -125,7 +131,7 @@ export function AnimatedPositionTable({
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <h3 className="text-xl font-bold flex items-center gap-2" style={{ color: '#EAECEF' }}>
           <TrendingUp className="w-5 h-5" style={{ color: 'var(--green-primary)' }} />
-          Positions ({positions.length})
+          Positions ({Array.isArray(positions) ? positions.length : 0})
         </h3>
       </div>
 
@@ -134,7 +140,7 @@ export function AnimatedPositionTable({
         style={{ maxHeight }}
       >
         <AnimatePresence mode="popLayout">
-          {positions.length === 0 ? (
+          {(!Array.isArray(positions) || positions.length === 0) ? (
             <motion.div
               className="text-center py-16"
               initial={{ opacity: 0 }}
@@ -147,7 +153,7 @@ export function AnimatedPositionTable({
               <div style={{ color: '#848E9C' }}>No active positions</div>
             </motion.div>
           ) : (
-            positions.map((position, index) => (
+            (Array.isArray(positions) ? positions : []).map((position, index) => (
               <AnimatedPositionRow
                 key={`${position.symbol}-${position.side}`}
                 position={position}

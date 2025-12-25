@@ -98,26 +98,6 @@ export default function StreamingPage() {
     // Mark as enabled
     autoScrollEnabledRef.current = true
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'run3',
-        hypothesisId: 'P1',
-        location: 'StreamingPage.tsx:autoScrollEffect',
-        message: 'Auto-scroll effect enabled',
-        data: {
-          auto_scroll_page_speed: config.auto_scroll_page_speed,
-          chartAnimationComplete,
-          aiAnalysisComplete,
-          aiScrollComplete
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
 
     let rafId: number | null = null
     let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -209,21 +189,6 @@ export default function StreamingPage() {
       const maxScroll = getDocumentHeight() - window.innerHeight
       const current = window.scrollY
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'run3',
-          hypothesisId: 'P2',
-          location: 'StreamingPage.tsx:scrollSegment',
-          message: 'Scroll segment start',
-          data: { maxScroll, current },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
 
       // If near bottom, pause then jump to top and wait for next animation cycle
       if (current >= maxScroll - 50) {
@@ -262,21 +227,6 @@ export default function StreamingPage() {
         if (progress < 1) {
           rafId = requestAnimationFrame(animate)
         } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: 'debug-session',
-              runId: 'run3',
-              hypothesisId: 'P3',
-              location: 'StreamingPage.tsx:scrollSegment',
-              message: 'Scroll segment complete',
-              data: { target, duration },
-              timestamp: Date.now()
-            })
-          }).catch(() => {})
-          // #endregion
 
           // After scrolling segment, reset flags and wait for next animation cycle
           setChartAnimationComplete(false)
@@ -333,7 +283,9 @@ export default function StreamingPage() {
       return
     }
 
-    if (!traders || traders.length === 0) {
+    // Ensure traders is an array before processing
+    const safeTraders = traders || []
+    if (safeTraders.length === 0) {
       // Traders list not loaded yet, wait
       return
     }
@@ -342,7 +294,7 @@ export default function StreamingPage() {
 
     // Priority 1: Check slug format from URL path (/stream/:slug)
     // Try to find trader by matching slug
-    for (const trader of traders) {
+    for (const trader of safeTraders) {
       const traderSlug = generateTraderSlug(trader.trader_name, trader.trader_id)
       if (traderSlug === slug) {
         traderId = trader.trader_id
@@ -354,7 +306,7 @@ export default function StreamingPage() {
     if (!traderId) {
       const id4 = parseTraderSlug(slug)
       if (id4) {
-        const found = traders.find((t) => t.trader_id.endsWith(id4))
+        const found = safeTraders.find((t) => t.trader_id.endsWith(id4))
         if (found) {
           traderId = found.trader_id
         }
@@ -403,21 +355,6 @@ export default function StreamingPage() {
   }, [selectedTraderId])
 
   const handleConfigChange = (newConfig: Partial<StreamingConfig>) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'run4',
-        hypothesisId: 'C1',
-        location: 'StreamingPage.tsx:handleConfigChange',
-        message: 'Config change',
-        data: { newConfig, currentAutoScrollPage: config.auto_scroll_page, currentAutoScrollAI: config.auto_scroll_ai_analysis },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     setConfig((prev: StreamingConfig) => ({ ...prev, ...newConfig }))
     // Here you would save to backend
     console.log('Config updated:', newConfig)
@@ -514,7 +451,7 @@ export default function StreamingPage() {
               <Activity className="w-4 h-4" style={{ color: 'var(--green-primary)' }} />
             </motion.div>
             <span className="text-sm font-bold" style={{ color: '#EAECEF' }}>
-              Live Trading Stream - {traders?.find(t => t.trader_id === selectedTraderId)?.trader_name || selectedTraderId}
+              Live Trading Stream - {(traders || []).find(t => t.trader_id === selectedTraderId)?.trader_name || selectedTraderId}
             </span>
           </div>
 
@@ -579,7 +516,7 @@ export default function StreamingPage() {
                     traderId={selectedTraderId}
                     selectedSymbol={selectedChartSymbol}
                     updateKey={chartUpdateKey}
-                    exchangeId={traders?.find(t => t.trader_id === selectedTraderId)?.exchange_id}
+                    exchangeId={(traders || []).find(t => t.trader_id === selectedTraderId)?.exchange_id}
                     autoSwitchEnabled={config.auto_switch_charts}
                     autoSwitchInterval={config.auto_switch_interval}
                     onTabSwitchComplete={() => {

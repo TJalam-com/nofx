@@ -56,17 +56,9 @@ export function CustomSelect({
           const left = rect.left
           const width = rect.width
           
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CustomSelect.tsx:updatePosition',message:'Dropdown position calculation',data:{rect:{top:rect.top,bottom:rect.bottom,left:rect.left,right:rect.right,width:rect.width,height:rect.height},calculated:{top,left,width},scrollY:window.scrollY,scrollX:window.scrollX,viewportHeight:window.innerHeight,viewportWidth:window.innerWidth},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
-          
           dropdownRef.current.style.top = `${top}px`
           dropdownRef.current.style.left = `${left}px`
           dropdownRef.current.style.width = `${width}px`
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CustomSelect.tsx:updatePosition',message:'Dropdown styles applied',data:{computedTop:dropdownRef.current.style.top,computedLeft:dropdownRef.current.style.left,computedWidth:dropdownRef.current.style.width,zIndex:window.getComputedStyle(dropdownRef.current).zIndex,position:window.getComputedStyle(dropdownRef.current).position},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
         }
       }
       
@@ -98,11 +90,6 @@ export function CustomSelect({
     <div
       ref={(el) => {
         dropdownRef.current = el
-        if (el) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CustomSelect.tsx:dropdownContent',message:'Dropdown rendered',data:{isPortal:true,parentElement:el.parentElement?.tagName,zIndex:window.getComputedStyle(el).zIndex,position:window.getComputedStyle(el).position,top:el.style.top,left:el.style.left,width:el.style.width},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
-        }
       }}
       className="fixed z-[9999] rounded-lg shadow-2xl overflow-hidden"
       style={{
