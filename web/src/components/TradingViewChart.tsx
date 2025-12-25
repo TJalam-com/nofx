@@ -3,13 +3,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { ChevronDown, TrendingUp, X } from 'lucide-react'
 
-// Helper to conditionally send ingest logs (only if env var is set)
-const shouldLogIngest = () => {
-  return import.meta.env.VITE_ENABLE_INGEST_LOGS === 'true' || 
-         (typeof window !== 'undefined' && (window as any).__ENABLE_INGEST_LOGS__ === true)
-}
-
-const logIngest = (data: any) => {
+const logIngest = (_data: any) => {
   // Debug logging removed - no-op function to prevent errors if called
 }
 

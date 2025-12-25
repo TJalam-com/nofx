@@ -18,7 +18,7 @@ interface UseTraderActionsParams {
   supportedModels: AIModel[]
   supportedExchanges: Exchange[]
   language: Language
-  mutateTraders: () => Promise<any>
+  mutateTraders: (data?: TraderInfo[], options?: { revalidate?: boolean }) => Promise<any>
   setAllModels: (models: AIModel[]) => void
   setAllExchanges: (exchanges: Exchange[]) => void
   setUserSignalSource: (config: {
