@@ -3870,9 +3870,20 @@ func (d *Database) GetPendingTradingViewAlerts(traderID string) ([]TradingViewAl
 			alert.PositionSize = positionSize.Float64
 		}
 
-		alert.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		// Try parsing with ISO 8601 format first (RFC3339), then fall back to SQLite datetime format
+		parsedTime, err := time.Parse(time.RFC3339, createdAt)
+		if err != nil {
+			parsedTime, err = time.Parse("2006-01-02 15:04:05", createdAt)
+			if err != nil {
+				parsedTime = time.Time{} // Zero time on failure
+			}
+		}
+		alert.CreatedAt = parsedTime
 		if processedAt.Valid {
-			t, _ := time.Parse("2006-01-02 15:04:05", processedAt.String)
+			t, err := time.Parse(time.RFC3339, processedAt.String)
+			if err != nil {
+				t, _ = time.Parse("2006-01-02 15:04:05", processedAt.String)
+			}
 			alert.ProcessedAt = &t
 		}
 
@@ -3936,9 +3947,20 @@ func (d *Database) GetTradingViewAlertByID(alertID string) (*TradingViewAlert, e
 		alert.PositionSize = positionSize.Float64
 	}
 
-	alert.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	// Try parsing with ISO 8601 format first (RFC3339), then fall back to SQLite datetime format
+	parsedTime, err := time.Parse(time.RFC3339, createdAt)
+	if err != nil {
+		parsedTime, err = time.Parse("2006-01-02 15:04:05", createdAt)
+		if err != nil {
+			parsedTime = time.Time{} // Zero time on failure
+		}
+	}
+	alert.CreatedAt = parsedTime
 	if processedAt.Valid {
-		t, _ := time.Parse("2006-01-02 15:04:05", processedAt.String)
+		t, err := time.Parse(time.RFC3339, processedAt.String)
+		if err != nil {
+			t, _ = time.Parse("2006-01-02 15:04:05", processedAt.String)
+		}
 		alert.ProcessedAt = &t
 	}
 
@@ -4007,11 +4029,25 @@ func (d *Database) GetRecentTradingViewAlerts(userID string, traderID string, li
 			alert.PositionSize = positionSize.Float64
 		}
 
-		alert.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		// Try parsing with ISO 8601 format first (RFC3339), then fall back to SQLite datetime format
+		parsedTime, err := time.Parse(time.RFC3339, createdAt)
+		if err != nil {
+			// Fall back to SQLite datetime format
+			parsedTime, err = time.Parse("2006-01-02 15:04:05", createdAt)
+			if err != nil {
+				parsedTime = time.Time{} // Zero time on failure
+			}
+		}
+		alert.CreatedAt = parsedTime
 		if processedAt.Valid {
-			t, _ := time.Parse("2006-01-02 15:04:05", processedAt.String)
+			// Try parsing with ISO 8601 format first (RFC3339), then fall back to SQLite datetime format
+			t, err := time.Parse(time.RFC3339, processedAt.String)
+			if err != nil {
+				t, _ = time.Parse("2006-01-02 15:04:05", processedAt.String)
+			}
 			alert.ProcessedAt = &t
 		}
+
 
 		alerts = append(alerts, alert)
 	}
@@ -4317,15 +4353,41 @@ type EquityHistoryRecord struct {
 	CreatedAt       time.Time
 }
 
-// SaveEquityHistory saves an equity history point to the database
+// SaveEquityHistory saves an equity history point to the database with retry logic
 func (d *Database) SaveEquityHistory(traderID string, timestamp time.Time, totalEquity, availableBalance, totalPnL, totalPnLPct float64, positionCount int, marginUsedPct float64, cycleNumber int) error {
 	query := `
 		INSERT INTO trader_equity_history 
 		(trader_id, timestamp, total_equity, available_balance, total_pnl, total_pnl_pct, position_count, margin_used_pct, cycle_number)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := d.db.Exec(query, traderID, timestamp.Format("2006-01-02 15:04:05"), totalEquity, availableBalance, totalPnL, totalPnLPct, positionCount, marginUsedPct, cycleNumber)
-	return err
+	
+	maxRetries := 3
+	var lastErr error
+	
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		_, err := d.db.Exec(query, traderID, timestamp.Format("2006-01-02 15:04:05"), totalEquity, availableBalance, totalPnL, totalPnLPct, positionCount, marginUsedPct, cycleNumber)
+		if err == nil {
+			return nil
+		}
+		
+		lastErr = err
+		
+		// Check if it's a transient error (database locked, busy, etc.)
+		errStr := err.Error()
+		isTransient := strings.Contains(errStr, "database is locked") ||
+			strings.Contains(errStr, "database disk image is malformed") ||
+			strings.Contains(errStr, "disk I/O error")
+		
+		if !isTransient || attempt >= maxRetries {
+			break
+		}
+		
+		// Wait before retry (exponential backoff)
+		waitTime := time.Duration(attempt*50) * time.Millisecond
+		time.Sleep(waitTime)
+	}
+	
+	return fmt.Errorf("failed to save equity history after %d attempts: %w", maxRetries, lastErr)
 }
 
 // GetEquityHistory retrieves equity history for a trader (latest N records, oldest to newest)
@@ -4374,6 +4436,119 @@ func (d *Database) GetEquityHistory(traderID string, limit int) ([]*EquityHistor
 	}
 
 	return records, rows.Err()
+}
+
+// VerifyDatabaseHealth checks if database file exists and is accessible
+func (d *Database) VerifyDatabaseHealth() error {
+	if d.db == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+	
+	// Test database connection
+	if err := d.db.Ping(); err != nil {
+		return fmt.Errorf("database ping failed: %w", err)
+	}
+	
+	// Verify critical tables exist
+	tables := []string{"trader_equity_history", "traders", "users"}
+	for _, table := range tables {
+		var count int
+		err := d.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='%s'", table)).Scan(&count)
+		if err != nil {
+			return fmt.Errorf("failed to check table %s: %w", table, err)
+		}
+		if count == 0 {
+			return fmt.Errorf("critical table %s does not exist", table)
+		}
+	}
+	
+	return nil
+}
+
+// GetEquityHistoryCount returns the total number of equity history records for a trader
+func (d *Database) GetEquityHistoryCount(traderID string) (int, error) {
+	var count int
+	err := d.db.QueryRow(`
+		SELECT COUNT(*) 
+		FROM trader_equity_history 
+		WHERE trader_id = ?
+	`, traderID).Scan(&count)
+	return count, err
+}
+
+// GetAllTradersWithEquityHistory returns list of trader IDs that have equity history
+func (d *Database) GetAllTradersWithEquityHistory() ([]string, error) {
+	rows, err := d.db.Query(`
+		SELECT DISTINCT trader_id 
+		FROM trader_equity_history 
+		ORDER BY trader_id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var traderIDs []string
+	for rows.Next() {
+		var traderID string
+		if err := rows.Scan(&traderID); err != nil {
+			continue
+		}
+		traderIDs = append(traderIDs, traderID)
+	}
+	return traderIDs, rows.Err()
+}
+
+// BatchSaveEquityHistory saves multiple equity history points in a single transaction
+// This is more efficient than individual saves and ensures atomicity
+func (d *Database) BatchSaveEquityHistory(records []*EquityHistoryRecord) error {
+	if len(records) == 0 {
+		return nil
+	}
+	
+	// Start transaction
+	tx, err := d.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+	
+	query := `
+		INSERT INTO trader_equity_history 
+		(trader_id, timestamp, total_equity, available_balance, total_pnl, total_pnl_pct, position_count, margin_used_pct, cycle_number)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("failed to prepare statement: %w", err)
+	}
+	defer stmt.Close()
+	
+	// Insert all records
+	for _, rec := range records {
+		_, err := stmt.Exec(
+			rec.TraderID,
+			rec.Timestamp.Format("2006-01-02 15:04:05"),
+			rec.TotalEquity,
+			rec.AvailableBalance,
+			rec.TotalPnL,
+			rec.TotalPnLPct,
+			rec.PositionCount,
+			rec.MarginUsedPct,
+			rec.CycleNumber,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert record for trader %s: %w", rec.TraderID, err)
+		}
+	}
+	
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	
+	return nil
 }
 
 // GetOpenPositions get open positions for a trader

@@ -748,7 +748,7 @@ func (tm *TraderManager) GetCompetitionData(database *config.Database) (map[stri
 		traders = traders[:limit]
 	}
 
-	// Add follower count to each trader
+	// Add follower count and verify equity history persistence for each trader
 	for i := range traders {
 		traderID, _ := traders[i]["trader_id"].(string)
 		// Get follower count for this trader from database
@@ -757,6 +757,31 @@ func (tm *TraderManager) GetCompetitionData(database *config.Database) (map[stri
 			traders[i]["followers_count"] = len(followers)
 		} else {
 			traders[i]["followers_count"] = 0
+		}
+		
+		// Verify equity history exists in database for persistence
+		// This ensures data survives deployments
+		historyCount, err := database.GetEquityHistoryCount(traderID)
+		if err == nil {
+			if historyCount > 0 {
+				// Get latest equity history record to ensure we have persisted data
+				latestHistory, err := database.GetEquityHistory(traderID, 1)
+				if err == nil && len(latestHistory) > 0 {
+					latest := latestHistory[len(latestHistory)-1]
+					// Use database PnL percentage if it's more recent or if real-time data is missing
+					if pnlPct, ok := traders[i]["total_pnl_pct"].(float64); !ok || pnlPct == 0 {
+						traders[i]["total_pnl_pct"] = latest.TotalPnLPct
+						traders[i]["total_pnl"] = latest.TotalPnL
+					}
+					// Store that equity history exists for this trader
+					traders[i]["has_equity_history"] = true
+					traders[i]["equity_history_count"] = historyCount
+				}
+			} else {
+				// No equity history yet - this is normal for new traders
+				traders[i]["has_equity_history"] = false
+				traders[i]["equity_history_count"] = 0
+			}
 		}
 	}
 

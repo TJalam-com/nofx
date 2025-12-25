@@ -14,6 +14,9 @@ services:
       # Data directory for database and logs
       # Log files are saved to data/nofx_YYYY-MM-DD.log
       - ./data:/app/data
+      # Decision logs directory for AI decision records
+      # Decision logs are saved to decision_logs/{trader_id}/decision_*.json
+      - ./decision_logs:/app/decision_logs
       - ./beta_codes.txt:/app/beta_codes.txt:ro
       - ./prompts:/app/prompts
       - ./secrets:/app/secrets:ro  # RSA key files

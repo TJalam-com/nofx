@@ -282,10 +282,33 @@ func (s *Server) setupRoutes() {
 
 // handleHealth Health check
 func (s *Server) handleHealth(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+	health := gin.H{
 		"status": "ok",
 		"time":   c.Request.Context().Value("time"),
-	})
+	}
+	
+	// Add data persistence verification
+	if s.database != nil {
+		// Verify database health
+		if err := s.database.VerifyDatabaseHealth(); err != nil {
+			health["database_health"] = "unhealthy"
+			health["database_error"] = err.Error()
+		} else {
+			health["database_health"] = "healthy"
+			
+			// Check equity history data
+			tradersWithHistory, err := s.database.GetAllTradersWithEquityHistory()
+			if err == nil {
+				health["equity_history_traders"] = len(tradersWithHistory)
+				health["equity_history_status"] = "available"
+			} else {
+				health["equity_history_status"] = "error"
+				health["equity_history_error"] = err.Error()
+			}
+		}
+	}
+	
+	c.JSON(http.StatusOK, health)
 }
 
 // handleGetSystemConfig Get system configuration (configuration client needs to know)

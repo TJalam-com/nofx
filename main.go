@@ -184,12 +184,29 @@ func main() {
 	}
 
 	log.Printf("📋 Initializing configuration database: %s", dbPath)
+	
+	// Verify database file exists and is accessible before initialization
+	if _, err := os.Stat(dbPath); err == nil {
+		log.Printf("✅ Database file exists: %s", dbPath)
+	} else if os.IsNotExist(err) {
+		log.Printf("ℹ️  Database file does not exist, will be created: %s", dbPath)
+	} else {
+		log.Printf("⚠️  Could not check database file: %v", err)
+	}
+	
 	database, err := config.NewDatabase(dbPath)
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize database: %v", err)
 	}
 	defer database.Close()
 	backtest.UseDatabase(database.Conn())
+	
+	// Verify database health after initialization
+	if err := database.VerifyDatabaseHealth(); err != nil {
+		log.Printf("⚠️  Database health check failed: %v", err)
+	} else {
+		log.Printf("✅ Database health check passed")
+	}
 
 	// Initialize encryption service
 	log.Printf("🔐 Initializing encryption service...")
@@ -315,6 +332,38 @@ func main() {
 	traders, err := database.GetTraders("default")
 	if err != nil {
 		log.Fatalf("❌ Failed to get trader list: %v", err)
+	}
+
+	// Verify equity history data exists for active traders
+	log.Printf("🔍 Verifying equity history data persistence...")
+	tradersWithHistory, err := database.GetAllTradersWithEquityHistory()
+	if err != nil {
+		log.Printf("⚠️  Failed to check equity history: %v", err)
+	} else {
+		log.Printf("📊 Found equity history for %d trader(s)", len(tradersWithHistory))
+		if len(tradersWithHistory) > 0 {
+			for _, traderID := range tradersWithHistory {
+				count, err := database.GetEquityHistoryCount(traderID)
+				if err == nil {
+					log.Printf("  • Trader %s: %d equity history records", traderID, count)
+				}
+			}
+		}
+	}
+	
+	// Check if any active traders are missing equity history
+	if len(traders) > 0 {
+		missingHistory := []string{}
+		for _, trader := range traders {
+			count, err := database.GetEquityHistoryCount(trader.ID)
+			if err == nil && count == 0 {
+				missingHistory = append(missingHistory, trader.ID)
+			}
+		}
+		if len(missingHistory) > 0 {
+			log.Printf("⚠️  %d trader(s) have no equity history yet: %v", len(missingHistory), missingHistory)
+			log.Printf("   This is normal for newly created traders. History will be created after first decision cycle.")
+		}
 	}
 
 	// Display loaded trader information

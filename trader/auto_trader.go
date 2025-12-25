@@ -2222,6 +2222,7 @@ func (at *AutoTrader) GetDecisionLogger() logger.IDecisionLogger {
 }
 
 // saveEquityHistoryToDB saves equity history point to database if database is available
+// Uses retry logic to ensure data persistence across deployments
 func (at *AutoTrader) saveEquityHistoryToDB(record *logger.DecisionRecord) {
 	if db, ok := at.database.(*cfg.Database); ok && db != nil {
 		// Calculate PnL and PnL percentage
@@ -2232,7 +2233,8 @@ func (at *AutoTrader) saveEquityHistoryToDB(record *logger.DecisionRecord) {
 			totalPnLPct = (totalPnL / at.initialBalance) * 100
 		}
 
-		// Save to database (ignore errors - file logging is primary, DB is secondary)
+		// Save to database with retry logic (database persistence is critical for deployments)
+		// The SaveEquityHistory method already has retry logic, but we log failures here for monitoring
 		err := db.SaveEquityHistory(
 			at.id,
 			record.Timestamp,
@@ -2245,7 +2247,17 @@ func (at *AutoTrader) saveEquityHistoryToDB(record *logger.DecisionRecord) {
 			record.CycleNumber,
 		)
 		if err != nil {
-			log.Printf("⚠️ [%s] Failed to save equity history to database: %v", at.name, err)
+			// Log error with context for debugging deployment issues
+			log.Printf("❌ [%s] Failed to save equity history to database after retries (trader_id=%s, cycle=%d, timestamp=%s): %v",
+				at.name, at.id, record.CycleNumber, record.Timestamp.Format("2006-01-02 15:04:05"), err)
+			// Note: We don't fail the decision cycle if DB save fails, as file logging is primary
+			// However, DB persistence is critical for deployments, so errors should be investigated
+		} else {
+			// Log successful save periodically (every 10 cycles) to verify persistence
+			if record.CycleNumber%10 == 0 {
+				log.Printf("✅ [%s] Equity history saved to database (cycle=%d, equity=%.2f, pnl_pct=%.2f%%)",
+					at.name, record.CycleNumber, totalEquity, totalPnLPct)
+			}
 		}
 	}
 }
