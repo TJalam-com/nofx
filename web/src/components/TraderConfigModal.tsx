@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import type { AIModel, Exchange, CreateTraderRequest, RunningTrader } from '../types'
 import type { PromptTemplate } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -99,7 +99,10 @@ export function TraderConfigModal({
     quant_data_url: '',
   })
   const [isSaving, setIsSaving] = useState(false)
-  const [_selectedCoins, setSelectedCoins] = useState<string[]>([])
+  const [availableCoins, setAvailableCoins] = useState<string[]>([])
+  const [selectedCoins, setSelectedCoins] = useState<string[]>([])
+  const [promptTemplates, setPromptTemplates] = useState<{ name: string }[]>([])
+  const [userPromptTemplates, setUserPromptTemplates] = useState<PromptTemplate[]>([])
   const [isFetchingBalance, setIsFetchingBalance] = useState(false)
   const [balanceFetchError, setBalanceFetchError] = useState<string>('')
   const [showTemplateModal, setShowTemplateModal] = useState(false)
