@@ -5,7 +5,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isFollower } from '../contexts/AuthContext'
 import { t } from '../i18n/translations'
 import { toast } from 'sonner'
-import { Pencil, Plus, X as IconX, Edit2, Save, Info } from 'lucide-react'
+import { Pencil, Plus, X as IconX, Edit2, Info } from 'lucide-react'
 import { httpClient } from '../lib/httpClient'
 import { api } from '../lib/api'
 import { PromptTemplateModal } from './PromptTemplateModal'
@@ -114,7 +114,6 @@ export function TraderConfigModal({
   const [selectedTraderToCopy, setSelectedTraderToCopy] = useState<string>('')
   const [loadingRunningTraders, setLoadingRunningTraders] = useState(false)
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>('')
-  const [showSaveAsStrategyModal, setShowSaveAsStrategyModal] = useState(false)
 
   // Load strategies for strategy selection
   const { data: strategies } = useSWR(
@@ -361,92 +360,98 @@ export function TraderConfigModal({
     }
   }
 
-  // Handle strategy selection
+  // Handle strategy selection - pure reference model: only set strategy_id
   const handleStrategyChange = async (strategyId: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:365',message:'handleStrategyChange called',data:{strategyId,selectedStrategyId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     setSelectedStrategyId(strategyId)
     if (!strategyId) {
+      // Clearing strategy - restore custom config fields (keep current values or defaults)
       setFormData((prev) => ({
         ...prev,
         strategy_id: undefined,
+        // Keep existing values or set defaults for custom config
+        btc_eth_leverage: prev.btc_eth_leverage || 5,
+        altcoin_leverage: prev.altcoin_leverage || 3,
+        trading_symbols: prev.trading_symbols || '',
+        custom_prompt: prev.custom_prompt || '',
+        override_base_prompt: prev.override_base_prompt || false,
+        system_prompt_template: prev.system_prompt_template || 'default',
+        is_cross_margin: prev.is_cross_margin ?? true,
+        use_coin_pool: prev.use_coin_pool || false,
+        use_oi_top: prev.use_oi_top || false,
+        use_tradingview: prev.use_tradingview || false,
+        enable_raw_klines: prev.enable_raw_klines ?? true,
+        enable_ema: prev.enable_ema || false,
+        enable_macd: prev.enable_macd || false,
+        enable_rsi: prev.enable_rsi || false,
+        enable_atr: prev.enable_atr || false,
+        enable_volume: prev.enable_volume ?? true,
+        enable_oi: prev.enable_oi ?? true,
+        enable_funding: prev.enable_funding ?? true,
+        indicator_timeframe: prev.indicator_timeframe || '3m',
+        quant_data_url: prev.quant_data_url || '',
       }))
+      toast.success(language === 'zh' ? '策略已清除，可使用自定义配置' : 'Strategy cleared, using custom config')
       return
     }
 
     try {
+      // Validate strategy exists
       const strategy = await api.getStrategy(strategyId)
-      // Merge strategy config into form (form values take precedence)
-      setFormData((prev) => ({
+      // Strategy selected - clear strategy-related fields from formData
+      // Strategy Studio is the single source of truth
+      setFormData((prev) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:403',message:'Setting strategy_id in formData',data:{strategyId,prevStrategyId:prev.strategy_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        return {
         ...prev,
         strategy_id: strategyId,
-        // Only update if not already set
-        system_prompt_template: prev.system_prompt_template || strategy.system_prompt_template,
-        custom_prompt: prev.custom_prompt || strategy.custom_prompt,
-        override_base_prompt: strategy.override_base_prompt,
-        btc_eth_leverage: prev.btc_eth_leverage || strategy.btc_eth_leverage,
-        altcoin_leverage: prev.altcoin_leverage || strategy.altcoin_leverage,
-        trading_symbols: prev.trading_symbols || strategy.trading_symbols,
-        is_cross_margin: strategy.is_cross_margin,
-        use_coin_pool: strategy.use_coin_pool,
-        use_oi_top: strategy.use_oi_top,
-        use_tradingview: strategy.use_tradingview,
-        enable_raw_klines: strategy.enable_raw_klines,
-        enable_ema: strategy.enable_ema,
-        enable_macd: strategy.enable_macd,
-        enable_rsi: strategy.enable_rsi,
-        enable_atr: strategy.enable_atr,
-        enable_volume: strategy.enable_volume,
-        enable_oi: strategy.enable_oi,
-        enable_funding: strategy.enable_funding,
-        indicator_timeframe: prev.indicator_timeframe || strategy.indicator_timeframe,
-        quant_data_url: prev.quant_data_url || strategy.quant_data_url,
-      }))
-      toast.success(language === 'zh' ? '策略已加载' : 'Strategy loaded')
+        // Clear strategy-related fields (they'll be loaded from strategy when needed)
+        btc_eth_leverage: 0,
+        altcoin_leverage: 0,
+        trading_symbols: '',
+        custom_prompt: '',
+        override_base_prompt: false,
+        system_prompt_template: '',
+        is_cross_margin: true,
+        use_coin_pool: false,
+        use_oi_top: false,
+        use_tradingview: false,
+        enable_raw_klines: true,
+        enable_ema: false,
+        enable_macd: false,
+        enable_rsi: false,
+        enable_atr: false,
+        enable_volume: true,
+        enable_oi: true,
+        enable_funding: true,
+        indicator_timeframe: '',
+        quant_data_url: '',
+        }
+      })
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:428',message:'Strategy selected successfully',data:{strategyId,strategyName:strategy.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      toast.success(language === 'zh' ? `策略 "${strategy.name}" 已选择，设置将从策略加载` : `Strategy "${strategy.name}" selected, settings will be loaded from strategy`)
     } catch (error: any) {
       toast.error(error.message || (language === 'zh' ? '加载策略失败' : 'Failed to load strategy'))
       setSelectedStrategyId('')
+      setFormData((prev) => ({
+        ...prev,
+        strategy_id: undefined,
+      }))
     }
   }
 
-  // Handle saving current config as strategy
-  const handleSaveAsStrategy = async (strategyName: string, description?: string) => {
-    try {
-      const strategyData: CreateStrategyRequest = {
-        name: strategyName,
-        description: description || '',
-        system_prompt_template: formData.system_prompt_template,
-        custom_prompt: formData.custom_prompt,
-        override_base_prompt: formData.override_base_prompt,
-        btc_eth_leverage: formData.btc_eth_leverage,
-        altcoin_leverage: formData.altcoin_leverage,
-        trading_symbols: formData.trading_symbols,
-        is_cross_margin: formData.is_cross_margin,
-        use_coin_pool: formData.use_coin_pool,
-        use_oi_top: formData.use_oi_top,
-        use_tradingview: formData.use_tradingview,
-        enable_raw_klines: formData.enable_raw_klines ?? true,
-        enable_ema: formData.enable_ema ?? false,
-        enable_macd: formData.enable_macd ?? false,
-        enable_rsi: formData.enable_rsi ?? false,
-        enable_atr: formData.enable_atr ?? false,
-        enable_volume: formData.enable_volume ?? true,
-        enable_oi: formData.enable_oi ?? true,
-        enable_funding: formData.enable_funding ?? true,
-        indicator_timeframe: formData.indicator_timeframe || '3m',
-        quant_data_url: formData.quant_data_url || '',
-      }
-      const newStrategy = await api.createStrategy(strategyData)
-      toast.success(language === 'zh' ? '策略已保存' : 'Strategy saved')
-      setShowSaveAsStrategyModal(false)
-      // Optionally select the newly created strategy
-      setSelectedStrategyId(newStrategy.id)
-      handleStrategyChange(newStrategy.id)
-    } catch (error: any) {
-      toast.error(error.message || (language === 'zh' ? '保存策略失败' : 'Failed to save strategy'))
-    }
-  }
 
   useEffect(() => {
     if (traderData) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:451',message:'Loading traderData in useEffect',data:{trader_id:traderData.trader_id,strategy_id:traderData.strategy_id,hasStrategyId:!!traderData.strategy_id,isEditMode,currentFormDataStrategyId:formData.strategy_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.log('🔍 DEBUG [TraderConfigModal]: Loading traderData:', {
         system_prompt_template: traderData.system_prompt_template,
         trader_id: traderData.trader_id,
@@ -455,32 +460,78 @@ export function TraderConfigModal({
         isEditMode: isEditMode
       })
       
-      setFormData({
-        ...traderData,
-        // Ensure system_prompt_template has a default value if empty/undefined
-        system_prompt_template: traderData.system_prompt_template || 'default',
-        // Ensure indicator config has defaults if not present
-        enable_raw_klines: traderData.enable_raw_klines ?? true,
-        enable_ema: traderData.enable_ema ?? false,
-        enable_macd: traderData.enable_macd ?? false,
-        enable_rsi: traderData.enable_rsi ?? false,
-        enable_atr: traderData.enable_atr ?? false,
-        enable_volume: traderData.enable_volume ?? true,
-        enable_oi: traderData.enable_oi ?? true,
-        enable_funding: traderData.enable_funding ?? true,
-        indicator_timeframe: traderData.indicator_timeframe || '3m',
-        quant_data_url: traderData.quant_data_url || '',
-      })
+      // If trader has strategy_id, only load trader-specific fields (Strategy Studio is single source of truth)
+      if (traderData.strategy_id) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:461',message:'Setting formData with strategy_id',data:{strategy_id:traderData.strategy_id,trader_id:traderData.trader_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        setFormData({
+          trader_id: traderData.trader_id,
+          trader_name: traderData.trader_name,
+          ai_model: traderData.ai_model,
+          exchange_id: traderData.exchange_id,
+          initial_balance: traderData.initial_balance,
+          scan_interval_minutes: traderData.scan_interval_minutes,
+          followed_trader_id: traderData.followed_trader_id,
+          strategy_id: traderData.strategy_id,
+          // Set defaults for strategy-related fields (they'll be loaded from strategy when needed)
+          btc_eth_leverage: 0,
+          altcoin_leverage: 0,
+          trading_symbols: '',
+          custom_prompt: '',
+          override_base_prompt: false,
+          system_prompt_template: '',
+          is_cross_margin: true,
+          use_coin_pool: false,
+          use_oi_top: false,
+          use_tradingview: false,
+          enable_raw_klines: true,
+          enable_ema: false,
+          enable_macd: false,
+          enable_rsi: false,
+          enable_atr: false,
+          enable_volume: true,
+          enable_oi: true,
+          enable_funding: true,
+          indicator_timeframe: '',
+          quant_data_url: '',
+        })
+        setSelectedStrategyId(traderData.strategy_id)
+      } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:494',message:'Setting formData without strategy_id (custom config)',data:{trader_id:traderData.trader_id,hasStrategyId:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        // No strategy_id - load all fields (custom configuration)
+        setFormData({
+          ...traderData,
+          // Ensure system_prompt_template has a default value if empty/undefined
+          system_prompt_template: traderData.system_prompt_template || 'default',
+          // Ensure indicator config has defaults if not present
+          enable_raw_klines: traderData.enable_raw_klines ?? true,
+          enable_ema: traderData.enable_ema ?? false,
+          enable_macd: traderData.enable_macd ?? false,
+          enable_rsi: traderData.enable_rsi ?? false,
+          enable_atr: traderData.enable_atr ?? false,
+          enable_volume: traderData.enable_volume ?? true,
+          enable_oi: traderData.enable_oi ?? true,
+          enable_funding: traderData.enable_funding ?? true,
+          indicator_timeframe: traderData.indicator_timeframe || '3m',
+          quant_data_url: traderData.quant_data_url || '',
+        })
+        setSelectedStrategyId('')
+      }
       
       console.log('🔍 DEBUG [TraderConfigModal]: Set formData with system_prompt_template:', traderData.system_prompt_template || 'default')
       
-      // 设置已选择的币种
-      if (traderData.trading_symbols) {
+      // 设置已选择的币种 (only if no strategy_id - strategy manages trading symbols)
+      if (!traderData.strategy_id && traderData.trading_symbols) {
         const coins = traderData.trading_symbols
           .split(',')
           .map((s) => s.trim())
           .filter((s) => s)
         setSelectedCoins(coins)
+      } else {
+        setSelectedCoins([])
       }
     } else if (!isEditMode) {
       // For followers, auto-select risk_management as system prompt template
@@ -491,6 +542,9 @@ export function TraderConfigModal({
       // Preserve followed_trader_id if it was already set (from copy trader flow)
       // Use functional update to avoid clearing it when dependencies change
       setFormData((prev) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:536',message:'Resetting formData in useEffect (create mode)',data:{prevStrategyId:prev.strategy_id,prevFollowedTraderId:prev.followed_trader_id,hasFollowedTraderId:!!prev.followed_trader_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         // Only reset if followed_trader_id is not already set
         if (prev.followed_trader_id) {
           console.log('🔍 DEBUG [TraderConfigModal]: Preserving followed_trader_id:', prev.followed_trader_id)
@@ -705,42 +759,67 @@ export function TraderConfigModal({
   const handleSave = async () => {
     if (!onSave) return
 
+    // Require strategy selection for non-followers when creating new trader
+    if (!userIsFollower && !isEditMode && !formData.strategy_id) {
+      toast.error(language === 'zh' 
+        ? '请先选择策略或创建新策略。所有交易配置必须在策略工作室中管理。'
+        : 'Please select a strategy or create a new one first. All trading configuration must be managed in Strategy Studio.')
+      return
+    }
+
     setIsSaving(true)
     try {
+      const hasStrategy = !!formData.strategy_id
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:786',message:'handleSave called - formData check',data:{strategy_id:formData.strategy_id,hasStrategy,selectedStrategyId,isEditMode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       console.log('🔍 DEBUG [TraderConfigModal]: Form data before save:', {
-        system_prompt_template: formData.system_prompt_template,
+        strategy_id: formData.strategy_id,
+        hasStrategy,
         followed_trader_id: formData.followed_trader_id,
-        allFormData: formData
       })
       
+      // Pure reference model: if strategy_id is set, only send strategy_id and trader-specific fields
+      // If strategy_id is not set, send individual settings (only allowed for followers or existing traders)
       const saveData: CreateTraderRequest = {
         name: formData.trader_name,
         ai_model_id: formData.ai_model,
         exchange_id: formData.exchange_id,
-        strategy_id: formData.strategy_id,
-        btc_eth_leverage: formData.btc_eth_leverage,
-        altcoin_leverage: formData.altcoin_leverage,
-        trading_symbols: formData.trading_symbols,
-        custom_prompt: formData.custom_prompt,
-        override_base_prompt: formData.override_base_prompt,
-        system_prompt_template: formData.system_prompt_template,
-        is_cross_margin: formData.is_cross_margin,
-        use_coin_pool: formData.use_coin_pool,
-        use_oi_top: formData.use_oi_top,
-        use_tradingview: formData.use_tradingview,
-        followed_trader_id: formData.followed_trader_id,
         scan_interval_minutes: formData.scan_interval_minutes,
+        followed_trader_id: formData.followed_trader_id,
+      }
+
+      if (hasStrategy) {
+        // Strategy reference mode: only send strategy_id
+        saveData.strategy_id = formData.strategy_id
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:805',message:'Strategy reference mode - setting strategy_id in saveData',data:{strategy_id:formData.strategy_id,saveDataStrategyId:saveData.strategy_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        console.log('✓ Using strategy reference mode - sending only strategy_id:', formData.strategy_id)
+      } else {
+        // Custom config mode: send individual settings (only for followers or existing traders without strategy)
+        saveData.btc_eth_leverage = formData.btc_eth_leverage
+        saveData.altcoin_leverage = formData.altcoin_leverage
+        saveData.trading_symbols = formData.trading_symbols
+        saveData.custom_prompt = formData.custom_prompt
+        saveData.override_base_prompt = formData.override_base_prompt
+        saveData.system_prompt_template = formData.system_prompt_template
+        saveData.is_cross_margin = formData.is_cross_margin
+        saveData.use_coin_pool = formData.use_coin_pool
+        saveData.use_oi_top = formData.use_oi_top
+        saveData.use_tradingview = formData.use_tradingview
         // Indicator configuration
-        enable_raw_klines: formData.enable_raw_klines ?? true,
-        enable_ema: formData.enable_ema ?? false,
-        enable_macd: formData.enable_macd ?? false,
-        enable_rsi: formData.enable_rsi ?? false,
-        enable_atr: formData.enable_atr ?? false,
-        enable_volume: formData.enable_volume ?? true,
-        enable_oi: formData.enable_oi ?? true,
-        enable_funding: formData.enable_funding ?? true,
-        indicator_timeframe: formData.indicator_timeframe || '3m',
-        quant_data_url: formData.quant_data_url || '',
+        saveData.enable_raw_klines = formData.enable_raw_klines ?? true
+        saveData.enable_ema = formData.enable_ema ?? false
+        saveData.enable_macd = formData.enable_macd ?? false
+        saveData.enable_rsi = formData.enable_rsi ?? false
+        saveData.enable_atr = formData.enable_atr ?? false
+        saveData.enable_volume = formData.enable_volume ?? true
+        saveData.enable_oi = formData.enable_oi ?? true
+        saveData.enable_funding = formData.enable_funding ?? true
+        saveData.indicator_timeframe = formData.indicator_timeframe || '3m'
+        saveData.quant_data_url = formData.quant_data_url || ''
+        console.log('✓ Using custom config mode - sending individual settings')
       }
 
       // 只在编辑模式时包含initial_balance（用于手动更新）
@@ -748,9 +827,12 @@ export function TraderConfigModal({
         saveData.initial_balance = formData.initial_balance
       }
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:840',message:'Save data before API call',data:{strategy_id:saveData.strategy_id,hasStrategy,isEditMode,fullSaveData:saveData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       console.log('🔍 DEBUG [TraderConfigModal]: Save data being sent:', {
-        system_prompt_template: saveData.system_prompt_template,
-        followed_trader_id: saveData.followed_trader_id,
+        strategy_id: saveData.strategy_id,
+        hasStrategy,
         isEditMode: isEditMode,
         fullSaveData: saveData
       })
@@ -960,45 +1042,8 @@ export function TraderConfigModal({
               ⚖️ {t('tradingConfig', language)}
             </h3>
             <div className="space-y-4">
-              {/* 第一行：保证金模式和初始余额 */}
+              {/* 第一行：初始余额 */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-[#EAECEF] block mb-2">
-                    {t('marginModeLabel', language)}
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange('is_cross_margin', true)}
-                        className={`flex-1 px-3 py-2 rounded text-sm ${
-                        formData.is_cross_margin
-                          ? 'bg-[var(--green-primary)]'
-                          : 'text-[#848E9C]'
-                      }`}
-                        style={formData.is_cross_margin 
-                          ? { color: 'var(--navy-primary)' }
-                          : { background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
-                    >
-                      {t('crossMarginMode', language)}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleInputChange('is_cross_margin', false)
-                      }
-                      className={`flex-1 px-3 py-2 rounded text-sm ${
-                        !formData.is_cross_margin
-                          ? 'bg-[var(--green-primary)]'
-                          : 'text-[#848E9C]'
-                      }`}
-                      style={!formData.is_cross_margin 
-                        ? { color: 'var(--navy-primary)' }
-                        : { background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
-                    >
-                      {t('isolatedMarginMode', language)}
-                    </button>
-                  </div>
-                </div>
                 {isEditMode && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -1104,100 +1149,6 @@ export function TraderConfigModal({
                 <div></div>
               </div>
 
-              {/* 第三行：杠杆设置 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-[#EAECEF] block mb-2">
-                    {t('btcEthLeverageLabel', language)}
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.btc_eth_leverage}
-                    onChange={(e) =>
-                      handleInputChange(
-                        'btc_eth_leverage',
-                        Number(e.target.value)
-                      )
-                    }
-                    className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
-                    min="1"
-                    max="125"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-[#EAECEF] block mb-2">
-                    {t('altcoinLeverageLabel', language)}
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.altcoin_leverage}
-                    onChange={(e) =>
-                      handleInputChange(
-                        'altcoin_leverage',
-                        Number(e.target.value)
-                      )
-                    }
-                    className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
-                    min="1"
-                    max="75"
-                  />
-                </div>
-              </div>
-
-              {/* 第三行：交易币种 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm text-[#EAECEF]">
-                    {t('tradingSymbolsLabel', language)}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowCoinSelector(!showCoinSelector)}
-                    className="px-3 py-1 text-xs bg-[var(--green-primary)] rounded hover:bg-[var(--green-dark)] transition-colors"
-                    style={{ color: 'var(--navy-primary)' }}
-                  >
-                    {showCoinSelector ? t('collapseSelect', language) : t('quickSelect', language)}
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={formData.trading_symbols}
-                  onChange={(e) =>
-                    handleInputChange('trading_symbols', e.target.value)
-                  }
-                  className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
-                  placeholder={t('tradingSymbolsExample', language)}
-                />
-
-                {/* 币种选择器 */}
-                {showCoinSelector && (
-                  <div className="mt-3 p-3 rounded" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
-                    <div className="text-xs text-[#848E9C] mb-2">
-                      {t('coinSelectorTitle', language)}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {availableCoins.map((coin) => (
-                        <button
-                          key={coin}
-                          type="button"
-                          onClick={() => handleCoinToggle(coin)}
-                          className={`px-2 py-1 text-xs rounded transition-colors ${
-                            selectedCoins.includes(coin)
-                              ? 'bg-[var(--green-primary)]'
-                              : 'text-[#848E9C] hover:border-[var(--green-primary)]'
-                          }`}
-                          style={selectedCoins.includes(coin) ? { color: 'var(--navy-primary)' } : undefined}
-                        >
-                          {coin.replace('USDT', '')}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
@@ -1210,401 +1161,98 @@ export function TraderConfigModal({
               <div className="space-y-3">
                 <div>
                   <label className="text-sm text-[#EAECEF] block mb-2">
-                    {language === 'zh' ? '选择策略（可选）' : 'Select Strategy (Optional)'}
+                    {language === 'zh' ? '选择策略' : 'Select Strategy'}
+                    <span className="text-xs text-[var(--green-primary)] ml-2">*</span>
                   </label>
                   <select
                     value={selectedStrategyId}
-                    onChange={(e) => handleStrategyChange(e.target.value)}
+                    onChange={(e) => {
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:1167',message:'Strategy select onChange triggered',data:{selectedValue:e.target.value,currentSelectedStrategyId:selectedStrategyId,currentFormDataStrategyId:formData.strategy_id,isEditMode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                      // #endregion
+                      handleStrategyChange(e.target.value)
+                    }}
                     className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
                     style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)', color: '#EAECEF' }}
                   >
-                    <option value="">{language === 'zh' ? '-- 不使用策略（自定义配置）--' : '-- None (Use Custom Config) --'}</option>
+                    <option value="">{language === 'zh' ? '-- 请选择策略 --' : '-- Please Select a Strategy --'}</option>
                     {strategies?.map((strategy) => (
                       <option key={strategy.id} value={strategy.id}>
                         {strategy.name}
                       </option>
                     ))}
                   </select>
-                  <div className="text-xs text-[#848E9C] mt-2">
-                    {language === 'zh' 
-                      ? '选择一个策略将自动填充配置。您仍可以覆盖任何设置。' 
-                      : 'Selecting a strategy will auto-fill configuration. You can still override any settings.'}
-                  </div>
-                </div>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setShowSaveAsStrategyModal(true)}
-                    className="px-4 py-2 text-sm bg-[var(--green-primary)] rounded hover:bg-[var(--green-dark)] transition-colors flex items-center gap-2"
-                    style={{ color: 'var(--navy-primary)' }}
-                  >
-                    <Save className="w-4 h-4" />
-                    {language === 'zh' ? '保存为策略' : 'Save as Strategy'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Signal Sources - Only show for non-followers */}
-          {!userIsFollower && (
-            <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
-              <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
-                📡 {t('signalSourceConfigSection', language)}
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.use_coin_pool}
-                    onChange={(e) =>
-                      handleInputChange('use_coin_pool', e.target.checked)
-                    }
-                    className="w-4 h-4"
-                  />
-                  <label className="text-sm text-[#EAECEF]">
-                    {t('useCoinPoolSignal', language)}
-                  </label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.use_oi_top}
-                    onChange={(e) =>
-                      handleInputChange('use_oi_top', e.target.checked)
-                    }
-                    className="w-4 h-4"
-                  />
-                  <label className="text-sm text-[#EAECEF]">
-                    {t('useOITopSignal', language)}
-                  </label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.use_tradingview}
-                    onChange={(e) =>
-                      handleInputChange('use_tradingview', e.target.checked)
-                    }
-                    className="w-4 h-4"
-                  />
-                  <label className="text-sm text-[#EAECEF]">
-                    {t('useTradingViewSignal', language)}
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Indicator Configuration */}
-          <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
-            <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
-              📊 {language === 'zh' ? '指标配置' : 'Indicator Configuration'}
-            </h3>
-            <IndicatorEditor
-              config={{
-                enable_raw_klines: formData.enable_raw_klines ?? true,
-                enable_ema: formData.enable_ema ?? false,
-                enable_macd: formData.enable_macd ?? false,
-                enable_rsi: formData.enable_rsi ?? false,
-                enable_atr: formData.enable_atr ?? false,
-                enable_volume: formData.enable_volume ?? true,
-                enable_oi: formData.enable_oi ?? true,
-                enable_funding: formData.enable_funding ?? true,
-                indicator_timeframe: formData.indicator_timeframe || '3m',
-                quant_data_url: formData.quant_data_url || '',
-              }}
-              onChange={handleIndicatorChange}
-              language={language}
-            />
-          </div>
-
-          {/* Trading Prompt - Show for all users (including followers) */}
-          <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
-            <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
-              💬 {t('tradingPromptSection', language)}
-            </h3>
-            <div className="space-y-4">
-              {/* 系统提示词模板选择 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm text-[#EAECEF]">
-                    {t('systemPromptTemplate', language)}
-                    {userIsFollower && (
-                      <span className="text-xs text-[var(--green-primary)] ml-2">
-                        (Risk Management Recommended)
-                      </span>
-                    )}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingTemplate(null)
-                      setShowTemplateModal(true)
-                    }}
-                    className="px-3 py-1 text-xs bg-[var(--green-primary)] rounded hover:bg-[var(--green-dark)] transition-colors flex items-center gap-1"
-                    style={{ color: 'var(--navy-primary)' }}
-                  >
-                    <Plus className="w-3 h-3" />
-                    {t('createTemplate', language) || 'Create Template'}
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <select
-                    value={formData.system_prompt_template}
-                    onChange={(e) => {
-                      console.log('🔍 DEBUG [TraderConfigModal]: System prompt template changed:', {
-                        oldValue: formData.system_prompt_template,
-                        newValue: e.target.value
-                      })
-                      handleInputChange('system_prompt_template', e.target.value)
-                    }}
-                    className="flex-1 px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)', color: '#EAECEF' }}
-                  >
-                    {promptTemplates.map((template) => {
-                      const getTemplateName = (name: string) => {
-                        const keyMap: Record<string, string> = {
-                          default: 'promptTemplateDefault',
-                          adaptive: 'promptTemplateAdaptive',
-                          adaptive_relaxed: 'promptTemplateAdaptiveRelaxed',
-                          Hansen: 'promptTemplateHansen',
-                          nof1: 'promptTemplateNof1',
-                          taro_long_prompts: 'promptTemplateTaroLong',
-                          risk_management: 'Risk Management',
-                          'risk-management': 'Risk Management',
-                        }
-                        const key = keyMap[name]
-                        if (key && key !== 'Risk Management') {
-                          return t(key, language)
-                        }
-                        if (name?.toLowerCase().includes('risk')) {
-                          return 'Risk Management'
-                        }
-                        return name.charAt(0).toUpperCase() + name.slice(1)
-                      }
-
-                      return (
-                        <option key={template.name} value={template.name}>
-                          {getTemplateName(template.name)}
-                        </option>
-                      )
-                    })}
-                    {/* Ensure risk_management is available even if not in promptTemplates */}
-                    {!promptTemplates.some(t => t.name === 'risk_management' || t.name === 'risk-management') && (
-                      <option value="risk_management">Risk Management</option>
-                    )}
-                    {userPromptTemplates
-                      .filter((template: PromptTemplate) => {
-                        // Filter out system templates that already exist in promptTemplates to avoid duplicates
-                        if (template.is_system) {
-                          const normalizedName = template.name.toLowerCase().replace(/[_-]/g, '')
-                          return !promptTemplates.some(t => {
-                            const tNormalized = t.name.toLowerCase().replace(/[_-]/g, '')
-                            return tNormalized === normalizedName
-                          })
-                        }
-                        // Always include user-created templates
-                        return true
-                      })
-                      .map((template: PromptTemplate) => (
-                        <option key={template.id} value={template.id}>
-                          {template.name} {template.is_system ? '(System)' : '(User)'}
-                        </option>
-                      ))}
-                  </select>
-                  {(() => {
-                    const selectedTemplate = userPromptTemplates.find(
-                      (t: PromptTemplate) => t.id === formData.system_prompt_template
-                    )
-                    if (selectedTemplate && !selectedTemplate.is_system) {
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingTemplate(selectedTemplate)
-                            setShowTemplateModal(true)
-                          }}
-                          className="px-3 py-2 text-[#EAECEF] rounded transition-colors flex items-center gap-1"
-                          style={{ background: 'var(--panel-border)' }}
-                          title={t('editTemplate', language) || 'Edit Template'}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      )
-                    }
-                    return null
-                  })()}
-                </div>
-
-                {/* 動態描述區域 */}
-                <div
-                  className="mt-2 p-3 rounded"
-                  style={{
-                    background: 'rgba(0, 255, 127, 0.05)',
-                    border: '1px solid rgba(0, 255, 127, 0.15)',
-                  }}
-                >
-                  <div
-                    className="text-xs font-semibold mb-1"
-                    style={{ color: 'var(--green-primary)' }}
-                  >
-                    {(() => {
-                      const titleKeyMap: Record<string, string> = {
-                        default: 'promptDescDefault',
-                        adaptive: 'promptDescAdaptive',
-                        adaptive_relaxed: 'promptDescAdaptiveRelaxed',
-                        Hansen: 'promptDescHansen',
-                        nof1: 'promptDescNof1',
-                        taro_long_prompts: 'promptDescTaroLong',
-                        risk_management: 'Risk Management',
-                        'risk-management': 'Risk Management',
-                      }
-                      const key = titleKeyMap[formData.system_prompt_template]
-                      if (key && key !== 'Risk Management') {
-                        return t(key, language)
-                      }
-                      if (formData.system_prompt_template?.toLowerCase().includes('risk')) {
-                        return 'Risk Management'
-                      }
-                      return t('promptDescDefault', language)
-                    })()}
-                  </div>
-                  <div className="text-xs" style={{ color: '#848E9C' }}>
-                    {(() => {
-                      const contentKeyMap: Record<string, string> = {
-                        default: 'promptDescDefaultContent',
-                        adaptive: 'promptDescAdaptiveContent',
-                        adaptive_relaxed: 'promptDescAdaptiveRelaxedContent',
-                        Hansen: 'promptDescHansenContent',
-                        nof1: 'promptDescNof1Content',
-                        taro_long_prompts: 'promptDescTaroLongContent',
-                        risk_management: 'Optimized for follower traders to manage risk and position sizing when copying trades.',
-                        'risk-management': 'Optimized for follower traders to manage risk and position sizing when copying trades.',
-                      }
-                      const key = contentKeyMap[formData.system_prompt_template]
-                      if (key && !key.includes('Optimized')) {
-                        return t(key, language)
-                      }
-                      if (formData.system_prompt_template?.toLowerCase().includes('risk')) {
-                        return 'Optimized for follower traders to manage risk and position sizing when copying trades.'
-                      }
-                      return t('promptDescDefaultContent', language)
-                    })()}
-                  </div>
-                </div>
-                <p className="text-xs text-[#848E9C] mt-1">
-                  {t('promptTemplateDescription', language)}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={formData.override_base_prompt}
-                  onChange={(e) =>
-                    handleInputChange('override_base_prompt', e.target.checked)
-                  }
-                  className="w-4 h-4"
-                />
-                <label className="text-sm text-[#EAECEF]">{t('overrideBasePrompt', language)}</label>
-                <span className="text-xs text-[var(--green-primary)] inline-flex items-center gap-1">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="w-3.5 h-3.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
-                    <line x1="12" x2="12" y1="9" y2="13" />
-                    <line x1="12" x2="12.01" y1="17" y2="17" />
-                  </svg>{' '}
-                  {t('overrideBasePromptWarning', language)}
-                </span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <label className="text-sm text-[#EAECEF]">
-                  {formData.override_base_prompt
-                    ? t('customPromptLabel', language)
-                    : t('appendPromptLabel', language)}
-                </label>
-                  {formData.override_base_prompt && (
-                    <Tooltip content={getTooltipContent()}>
-                      <Info className="w-4 h-4 cursor-help" style={{ color: 'var(--navy-light)' }} />
-                    </Tooltip>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <textarea
-                    value={formData.custom_prompt}
-                    onChange={(e) =>
-                      handleInputChange('custom_prompt', e.target.value)
-                    }
-                    className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none h-48 resize-y"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
-                    placeholder=""
-                  />
-                  {formData.override_base_prompt && (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-xs" style={{ color: '#EAECEF' }}>
+                  {!selectedStrategyId && (
+                    <div className="mt-2 p-3 rounded" style={{ background: 'rgba(255, 193, 7, 0.1)', border: '1px solid rgba(255, 193, 7, 0.3)' }}>
+                      <div className="text-xs" style={{ color: '#FFC107' }}>
                         {language === 'zh' 
-                          ? '💡 提示：在上方输入您的交易策略说明。系统会自动处理 JSON 格式要求，您只需专注于策略内容。'
-                          : '💡 Tip: Write your trading strategy instructions above. The system will automatically handle JSON format requirements - you only need to focus on your strategy content.'}
-                      </p>
-                      <div className="text-xs p-3 rounded-lg" style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}>
-                        <p className="mb-2 font-semibold" style={{ color: '#EAECEF' }}>
-                          {language === 'zh' ? '提示词示例（可复制修改）：' : 'Prompt Examples (copy and modify):'}
-                        </p>
-                        <pre className="text-xs whitespace-pre-wrap" style={{ color: '#EAECEF', fontFamily: 'inherit' }}>
-                          {getPromptExamples()}
-                        </pre>
+                          ? '⚠️ 请先选择策略或创建新策略。所有交易配置（杠杆、币种、信号源、指标、提示词等）都在策略工作室中管理。'
+                          : '⚠️ Please select a strategy or create a new one first. All trading configuration (leverage, symbols, signal sources, indicators, prompts, etc.) is managed in Strategy Studio.'}
+                      </div>
+                      <div className="mt-2">
+                        <a
+                          href="/strategy-studio"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[var(--green-primary)] rounded hover:bg-[var(--green-dark)] transition-colors"
+                          style={{ color: 'var(--navy-primary)' }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          {language === 'zh' ? '前往策略工作室' : 'Go to Strategy Studio'}
+                        </a>
                       </div>
                     </div>
                   )}
-                  {formData.custom_prompt && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-[#848E9C]">
-                        {formData.custom_prompt.length} {t('characters', language) || 'characters'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!formData.custom_prompt.trim()) {
-                            toast.error(t('templateContentRequired', language) || 'Template content is required')
-                            return
-                          }
-                          try {
-                            const template = await api.createPromptTemplate({
-                              name: `Custom ${new Date().toLocaleString()}`,
-                              content: formData.custom_prompt,
-                            })
-                            toast.success(t('templateCreated', language) || 'Template created')
-                            // Refresh templates
-                            const userTemplates = await api.getUserPromptTemplates()
-                            setUserPromptTemplates(userTemplates)
-                            // Optionally select the new template
-                            handleInputChange('system_prompt_template', template.id)
-                          } catch (error) {
-                            console.error('Failed to save as template:', error)
-                          }
-                        }}
-                        className="px-3 py-1 text-xs bg-[var(--green-primary)] rounded hover:bg-[var(--green-dark)] transition-colors flex items-center gap-1"
-                    style={{ color: 'var(--navy-primary)' }}
-                      >
-                        <Save className="w-3 h-3" />
-                        {t('saveAsTemplate', language) || 'Save as Template'}
-                      </button>
+                  {selectedStrategyId && (
+                    <div className="mt-2 p-4 rounded" style={{ background: 'rgba(0, 255, 127, 0.1)', border: '1px solid rgba(0, 255, 127, 0.3)' }}>
+                      <div className="text-xs font-semibold mb-2" style={{ color: 'var(--green-primary)' }}>
+                        {language === 'zh' ? '✓ 策略模式已启用' : '✓ Strategy Mode Active'}
+                      </div>
+                      <div className="text-xs mb-3" style={{ color: '#848E9C' }}>
+                        {language === 'zh' 
+                          ? `所有交易配置由策略 "${strategies?.find(s => s.id === selectedStrategyId)?.name || selectedStrategyId}" 管理。以下设置已从交易员配置中移除：`
+                          : `All trading configuration is managed by strategy "${strategies?.find(s => s.id === selectedStrategyId)?.name || selectedStrategyId}". The following settings have been removed from trader config:`}
+                      </div>
+                      <div className="text-xs mb-3 space-y-1" style={{ color: '#848E9C' }}>
+                        <div>• {language === 'zh' ? '交易配置' : 'Trading Configuration'} ({language === 'zh' ? '杠杆、交易币种、保证金模式' : 'leverage, trading symbols, margin mode'})</div>
+                        <div>• {language === 'zh' ? '信号源' : 'Signal Sources'} ({language === 'zh' ? '币池、OI Top、TradingView' : 'coin pool, OI top, TradingView'})</div>
+                        <div>• {language === 'zh' ? '指标配置' : 'Indicator Configuration'}</div>
+                        <div>• {language === 'zh' ? '交易提示词' : 'Trading Prompts'} ({language === 'zh' ? '系统模板、自定义提示词' : 'system template, custom prompt'})</div>
+                      </div>
+                      <div className="text-xs" style={{ color: '#848E9C' }}>
+                        {language === 'zh' 
+                          ? '策略更新将自动应用到所有使用该策略的交易员。在策略工作室中编辑策略以修改这些设置。'
+                          : 'Strategy updates will automatically apply to all traders using this strategy. Edit the strategy in Strategy Studio to modify these settings.'}
+                      </div>
+                      <div className="mt-3">
+                        <a
+                          href={`/strategy-studio${selectedStrategyId ? `?strategy=${selectedStrategyId}` : ''}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-[var(--green-primary)] rounded hover:bg-[var(--green-dark)] transition-colors"
+                          style={{ color: 'var(--navy-primary)' }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          {language === 'zh' ? '在策略工作室中编辑' : 'Edit in Strategy Studio'}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {!selectedStrategyId && (
+                    <div className="text-xs text-[#848E9C] mt-2">
+                      {language === 'zh' 
+                        ? '选择策略后，所有策略相关设置将从交易员配置中移除，由策略统一管理。如需自定义设置，请创建新策略。' 
+                        : 'When a strategy is selected, all strategy-related settings will be removed from trader config and managed by the strategy. To customize settings, create a new strategy.'}
                     </div>
                   )}
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
         </div>
 
@@ -1680,162 +1328,7 @@ export function TraderConfigModal({
         }}
       />
 
-      {/* Save as Strategy Modal */}
-      {showSaveAsStrategyModal && (
-        <SaveAsStrategyModal
-          isOpen={showSaveAsStrategyModal}
-          onClose={() => setShowSaveAsStrategyModal(false)}
-          onSave={handleSaveAsStrategy}
-          language={language}
-        />
-      )}
     </div>
   )
 }
 
-// Save as Strategy Modal Component
-interface SaveAsStrategyModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (name: string, description?: string) => void
-  language: string
-}
-
-function SaveAsStrategyModal({ isOpen, onClose, onSave, language }: SaveAsStrategyModalProps) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-
-  useEffect(() => {
-    if (isOpen) {
-      setName('')
-      setDescription('')
-    }
-  }, [isOpen])
-
-  if (!isOpen) return null
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim()) {
-      toast.error(language === 'zh' ? '请输入策略名称' : 'Please enter strategy name')
-      return
-    }
-    onSave(name.trim(), description.trim() || undefined)
-  }
-
-  return (
-    <div 
-      className="fixed inset-0 z-[300] flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto" 
-      style={{ background: 'rgba(0, 31, 63, 0.5)' }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose()
-        }
-      }}
-    >
-      <div
-        className="relative w-full max-w-md rounded-xl shadow-2xl"
-        style={{ 
-          background: 'var(--navy-dark)', 
-          border: '1px solid var(--panel-border)',
-          maxHeight: 'calc(100vh - 4rem)'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b sticky top-0 z-10 rounded-t-xl"
-          style={{ borderColor: 'var(--panel-border)', background: 'var(--navy-dark)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--green-primary)] to-[var(--green-dark)] flex items-center justify-center" style={{ color: 'var(--navy-primary)' }}>
-              <Save className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-[#EAECEF]">
-                {language === 'zh' ? '保存为策略' : 'Save as Strategy'}
-              </h2>
-              <p className="text-sm text-[#848E9C] mt-1">
-                {language === 'zh' ? '将当前配置保存为可重用的策略' : 'Save current configuration as a reusable strategy'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg text-[#848E9C] hover:text-[#EAECEF] transition-colors flex items-center justify-center"
-            style={{ '--hover-bg': 'var(--panel-border)' } as React.CSSProperties}
-          >
-            <IconX className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <form 
-          onSubmit={handleSubmit} 
-          className="p-6 space-y-4"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div>
-            <label className="text-sm font-medium text-[#EAECEF] block mb-2">
-              {language === 'zh' ? '策略名称' : 'Strategy Name'} <span className="text-[var(--green-primary)]">*</span>
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-              style={{ background: 'var(--navy-background)', border: '1px solid var(--panel-border)' }}
-              placeholder={language === 'zh' ? '输入策略名称' : 'Enter strategy name'}
-              required
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-[#EAECEF] block mb-2">
-              {language === 'zh' ? '描述（可选）' : 'Description (Optional)'}
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => {
-                e.stopPropagation()
-                setDescription(e.target.value)
-              }}
-              onKeyDown={(e) => {
-                e.stopPropagation()
-              }}
-              onKeyUp={(e) => {
-                e.stopPropagation()
-              }}
-              onClick={(e) => {
-                e.stopPropagation()
-              }}
-              onFocus={(e) => {
-                e.stopPropagation()
-              }}
-              className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors resize-none"
-              style={{ background: 'var(--navy-background)', border: '1px solid var(--panel-border)' }}
-              placeholder={language === 'zh' ? '输入策略描述' : 'Enter strategy description'}
-              rows={3}
-            />
-          </div>
-
-          {/* Footer */}
-          <div className="flex justify-end gap-3 pt-4 border-t" style={{ borderColor: 'var(--panel-border)' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2.5 rounded-lg text-[#EAECEF] transition-colors hover:bg-[var(--panel-border)] font-medium"
-            >
-              {language === 'zh' ? '取消' : 'Cancel'}
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 bg-gradient-to-r from-[var(--green-primary)] to-[var(--green-dark)] rounded-lg hover:from-[var(--green-dark)] hover:to-[var(--green-primary)] transition-all duration-200 font-semibold shadow-lg"
-              style={{ color: 'var(--navy-primary)' }}
-            >
-              {language === 'zh' ? '保存' : 'Save'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}

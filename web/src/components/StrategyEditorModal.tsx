@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { X as IconX, Settings, Info } from 'lucide-react'
+import { X as IconX, Settings, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../lib/api'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth, isFollower } from '../contexts/AuthContext'
 import type { Strategy, CreateStrategyRequest, UpdateStrategyRequest } from '../types'
 import { IndicatorEditor } from './traders/IndicatorEditor'
 import { PromptTemplateModal } from './PromptTemplateModal'
@@ -23,7 +24,15 @@ export function StrategyEditorModal({
   onSave,
 }: StrategyEditorModalProps) {
   const { language } = useLanguage()
+  const { user } = useAuth()
   const isEditMode = !!strategy
+  const userIsFollower = user ? isFollower(user) : false
+  
+  // Collapsible section states
+  const [showRiskManagement, setShowRiskManagement] = useState(false)
+  const [showPositionSizing, setShowPositionSizing] = useState(false)
+  const [showTradingRules, setShowTradingRules] = useState(false)
+  const [showSharpeRatio, setShowSharpeRatio] = useState(false)
 
   const [formData, setFormData] = useState<CreateStrategyRequest>({
     name: '',
@@ -48,6 +57,23 @@ export function StrategyEditorModal({
     enable_funding: true,
     indicator_timeframe: '3m',
     quant_data_url: '',
+    // Risk Management Configuration (defaults)
+    min_risk_reward_ratio: 3.0,
+    max_positions: 3,
+    margin_usage_limit: 90.0,
+    min_opening_amount: 12.0,
+    min_opening_amount_btc_eth: 60.0,
+    // Position Sizing Configuration (defaults)
+    altcoin_position_min: 0.8,
+    altcoin_position_max: 1.5,
+    btc_eth_position_min: 5.0,
+    btc_eth_position_max: 10.0,
+    available_margin_multiplier: 0.88,
+    // Trading Rules Configuration (defaults)
+    min_confidence_for_entry: 75,
+    min_holding_time_minutes: 30,
+    // Sharpe Ratio Configuration (defaults)
+    sharpe_ratio_config: '',
   })
 
   const [isSaving, setIsSaving] = useState(false)
@@ -102,6 +128,23 @@ export function StrategyEditorModal({
         enable_funding: strategy.enable_funding ?? true,
         indicator_timeframe: strategy.indicator_timeframe || '3m',
         quant_data_url: strategy.quant_data_url || '',
+        // Risk Management Configuration
+        min_risk_reward_ratio: strategy.min_risk_reward_ratio ?? 3.0,
+        max_positions: strategy.max_positions ?? 3,
+        margin_usage_limit: strategy.margin_usage_limit ?? 90.0,
+        min_opening_amount: strategy.min_opening_amount ?? 12.0,
+        min_opening_amount_btc_eth: strategy.min_opening_amount_btc_eth ?? 60.0,
+        // Position Sizing Configuration
+        altcoin_position_min: strategy.altcoin_position_min ?? 0.8,
+        altcoin_position_max: strategy.altcoin_position_max ?? 1.5,
+        btc_eth_position_min: strategy.btc_eth_position_min ?? 5.0,
+        btc_eth_position_max: strategy.btc_eth_position_max ?? 10.0,
+        available_margin_multiplier: strategy.available_margin_multiplier ?? 0.88,
+        // Trading Rules Configuration
+        min_confidence_for_entry: strategy.min_confidence_for_entry ?? 75,
+        min_holding_time_minutes: strategy.min_holding_time_minutes ?? 30,
+        // Sharpe Ratio Configuration
+        sharpe_ratio_config: strategy.sharpe_ratio_config || '',
       })
     } else if (isOpen && !strategy) {
       // Reset form for new strategy
@@ -128,6 +171,23 @@ export function StrategyEditorModal({
         enable_funding: true,
         indicator_timeframe: '3m',
         quant_data_url: '',
+        // Risk Management Configuration (defaults)
+        min_risk_reward_ratio: 3.0,
+        max_positions: 3,
+        margin_usage_limit: 90.0,
+        min_opening_amount: 12.0,
+        min_opening_amount_btc_eth: 60.0,
+        // Position Sizing Configuration (defaults)
+        altcoin_position_min: 0.8,
+        altcoin_position_max: 1.5,
+        btc_eth_position_min: 5.0,
+        btc_eth_position_max: 10.0,
+        available_margin_multiplier: 0.88,
+        // Trading Rules Configuration (defaults)
+        min_confidence_for_entry: 75,
+        min_holding_time_minutes: 30,
+        // Sharpe Ratio Configuration (defaults)
+        sharpe_ratio_config: '',
       })
     }
   }, [isOpen, strategy])
@@ -175,6 +235,23 @@ export function StrategyEditorModal({
           enable_funding: formData.enable_funding ?? true,
           indicator_timeframe: formData.indicator_timeframe || '3m',
           quant_data_url: formData.quant_data_url || '',
+          // Risk Management Configuration
+          min_risk_reward_ratio: formData.min_risk_reward_ratio,
+          max_positions: formData.max_positions,
+          margin_usage_limit: formData.margin_usage_limit,
+          min_opening_amount: formData.min_opening_amount,
+          min_opening_amount_btc_eth: formData.min_opening_amount_btc_eth,
+          // Position Sizing Configuration
+          altcoin_position_min: formData.altcoin_position_min,
+          altcoin_position_max: formData.altcoin_position_max,
+          btc_eth_position_min: formData.btc_eth_position_min,
+          btc_eth_position_max: formData.btc_eth_position_max,
+          available_margin_multiplier: formData.available_margin_multiplier,
+          // Trading Rules Configuration
+          min_confidence_for_entry: formData.min_confidence_for_entry,
+          min_holding_time_minutes: formData.min_holding_time_minutes,
+          // Sharpe Ratio Configuration
+          sharpe_ratio_config: formData.sharpe_ratio_config,
         }
         await api.updateStrategy(strategy.id, updateData)
         toast.success(language === 'zh' ? '策略更新成功' : 'Strategy updated successfully')
@@ -397,6 +474,244 @@ export function StrategyEditorModal({
                 </div>
               </div>
             </div>
+
+            {/* Risk Management Settings - Only show for non-followers */}
+            {!userIsFollower && (
+              <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+                <button
+                  onClick={() => setShowRiskManagement(!showRiskManagement)}
+                  className="w-full flex items-center justify-between text-lg font-semibold text-[#EAECEF] mb-4"
+                >
+                  <span>🛡️ {language === 'zh' ? '风险管理设置' : 'Risk Management Settings'}</span>
+                  {showRiskManagement ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </button>
+                {showRiskManagement && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '风险收益比 (最小)' : 'Risk-Reward Ratio (Minimum)'}
+                        </label>
+                        <select
+                          value={formData.min_risk_reward_ratio || 3.0}
+                          onChange={(e) => handleInputChange('min_risk_reward_ratio', parseFloat(e.target.value))}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        >
+                          <option value={2.0}>1:2</option>
+                          <option value={3.0}>1:3</option>
+                          <option value={4.0}>1:4</option>
+                          <option value={5.0}>1:5</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '最大持仓数量' : 'Max Positions'}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          value={formData.max_positions || 3}
+                          onChange={(e) => handleInputChange('max_positions', parseInt(e.target.value) || 3)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '保证金使用率限制 (%)' : 'Margin Usage Limit (%)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="50"
+                          max="100"
+                          step="1"
+                          value={formData.margin_usage_limit || 90.0}
+                          onChange={(e) => handleInputChange('margin_usage_limit', parseFloat(e.target.value) || 90.0)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '最小开仓金额 (山寨币, USDT)' : 'Min Opening Amount (Altcoins, USDT)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="0.1"
+                          value={formData.min_opening_amount || 12.0}
+                          onChange={(e) => handleInputChange('min_opening_amount', parseFloat(e.target.value) || 12.0)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '最小开仓金额 (BTC/ETH, USDT)' : 'Min Opening Amount (BTC/ETH, USDT)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="0.1"
+                          value={formData.min_opening_amount_btc_eth || 60.0}
+                          onChange={(e) => handleInputChange('min_opening_amount_btc_eth', parseFloat(e.target.value) || 60.0)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Position Sizing Settings - Only show for non-followers */}
+            {!userIsFollower && (
+              <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+                <button
+                  onClick={() => setShowPositionSizing(!showPositionSizing)}
+                  className="w-full flex items-center justify-between text-lg font-semibold text-[#EAECEF] mb-4"
+                >
+                  <span>📏 {language === 'zh' ? '仓位大小设置' : 'Position Sizing Settings'}</span>
+                  {showPositionSizing ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </button>
+                {showPositionSizing && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '山寨币仓位最小倍数' : 'Altcoin Position Min (x equity)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="0.1"
+                          max="5"
+                          step="0.1"
+                          value={formData.altcoin_position_min || 0.8}
+                          onChange={(e) => handleInputChange('altcoin_position_min', parseFloat(e.target.value) || 0.8)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '山寨币仓位最大倍数' : 'Altcoin Position Max (x equity)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="0.1"
+                          max="5"
+                          step="0.1"
+                          value={formData.altcoin_position_max || 1.5}
+                          onChange={(e) => handleInputChange('altcoin_position_max', parseFloat(e.target.value) || 1.5)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? 'BTC/ETH 仓位最小倍数' : 'BTC/ETH Position Min (x equity)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          step="0.1"
+                          value={formData.btc_eth_position_min || 5.0}
+                          onChange={(e) => handleInputChange('btc_eth_position_min', parseFloat(e.target.value) || 5.0)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? 'BTC/ETH 仓位最大倍数' : 'BTC/ETH Position Max (x equity)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          step="0.1"
+                          value={formData.btc_eth_position_max || 10.0}
+                          onChange={(e) => handleInputChange('btc_eth_position_max', parseFloat(e.target.value) || 10.0)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '可用保证金乘数' : 'Available Margin Multiplier'}
+                        </label>
+                        <input
+                          type="number"
+                          min="0.5"
+                          max="1.0"
+                          step="0.01"
+                          value={formData.available_margin_multiplier || 0.88}
+                          onChange={(e) => handleInputChange('available_margin_multiplier', parseFloat(e.target.value) || 0.88)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                        <p className="text-xs mt-1" style={{ color: 'var(--navy-light)' }}>
+                          {language === 'zh' 
+                            ? '用于计算可用保证金的乘数（默认 0.88 = 保留 12% 用于费用和滑点）'
+                            : 'Multiplier for calculating available margin (default 0.88 = reserve 12% for fees and slippage)'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Trading Rules Settings - Only show for non-followers */}
+            {!userIsFollower && (
+              <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+                <button
+                  onClick={() => setShowTradingRules(!showTradingRules)}
+                  className="w-full flex items-center justify-between text-lg font-semibold text-[#EAECEF] mb-4"
+                >
+                  <span>📋 {language === 'zh' ? '交易规则设置' : 'Trading Rules Settings'}</span>
+                  {showTradingRules ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </button>
+                {showTradingRules && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '最小入场信心度' : 'Min Confidence for Entry'}
+                        </label>
+                        <input
+                          type="number"
+                          min="50"
+                          max="100"
+                          value={formData.min_confidence_for_entry || 75}
+                          onChange={(e) => handleInputChange('min_confidence_for_entry', parseInt(e.target.value) || 75)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-[#EAECEF] block mb-2">
+                          {language === 'zh' ? '最小持仓时间 (分钟)' : 'Min Holding Time (minutes)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="1440"
+                          value={formData.min_holding_time_minutes || 30}
+                          onChange={(e) => handleInputChange('min_holding_time_minutes', parseInt(e.target.value) || 30)}
+                          className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
+                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Signal Sources */}
             <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>

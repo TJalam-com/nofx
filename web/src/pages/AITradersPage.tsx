@@ -70,6 +70,13 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     { refreshInterval: 5000 }
   )
 
+  // SWR for strategies data - check if user has any strategies
+  const { data: strategies } = useSWR(
+    user && token && !isFollower(user) ? 'strategies' : null,
+    api.getStrategies,
+    { refreshInterval: 30000 }
+  )
+
   // Track when configurations are ready
   const [configsReady, setConfigsReady] = useState(false)
 
@@ -171,6 +178,24 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       }
       
       console.log('✅ AITradersPage - All conditions met, opening create modal with copyTraderId:', copyTraderId)
+      
+      // Check if user has any strategies (only for non-followers)
+      if (!isFollower(user)) {
+        if (!strategies || strategies.length === 0) {
+          toast.error(
+            language === 'zh'
+              ? '请先创建策略。所有交易配置必须在策略工作室中管理。正在跳转到策略工作室...'
+              : 'Please create a strategy first. All trading configuration must be managed in Strategy Studio. Redirecting to Strategy Studio...',
+            { duration: 4000 }
+          )
+          // Navigate to Strategy Studio after a short delay
+          setTimeout(() => {
+            navigate('/strategy-studio')
+          }, 1500)
+          return
+        }
+      }
+      
       setShowCreateModal(true)
       // Clean up URL query param but keep copyTraderId in sessionStorage for TraderConfigModal
       // The TraderConfigModal will clear copyTraderId after successfully loading the trader config
@@ -285,7 +310,25 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         onAddModel={handleAddModel}
         onAddExchange={handleAddExchange}
         onConfigureSignalSource={() => setShowSignalSourceModal(true)}
-        onCreateTrader={() => setShowCreateModal(true)}
+        onCreateTrader={() => {
+          // Check if user has any strategies (only for non-followers)
+          if (!isFollower(user)) {
+            if (!strategies || strategies.length === 0) {
+              toast.error(
+                language === 'zh'
+                  ? '请先创建策略。所有交易配置必须在策略工作室中管理。正在跳转到策略工作室...'
+                  : 'Please create a strategy first. All trading configuration must be managed in Strategy Studio. Redirecting to Strategy Studio...',
+                { duration: 4000 }
+              )
+              // Navigate to Strategy Studio after a short delay
+              setTimeout(() => {
+                navigate('/strategy-studio')
+              }, 1500)
+              return
+            }
+          }
+          setShowCreateModal(true)
+        }}
       />
 
       {/* Signal Source Warning */}

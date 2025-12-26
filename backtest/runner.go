@@ -544,6 +544,7 @@ func (r *Runner) invokeAIWithRetry(ctx *decision.Context) (*decision.FullDecisio
 			r.cfg.CustomPrompt,
 			r.cfg.OverrideBasePrompt,
 			r.cfg.PromptTemplate,
+			decision.GetDefaultStrategyConfig(), // Backtest uses default config
 		)
 		if err == nil {
 			return fd, nil

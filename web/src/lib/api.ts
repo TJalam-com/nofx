@@ -101,10 +101,16 @@ export const api = {
   },
 
   async createTrader(request: CreateTraderRequest): Promise<TraderInfo> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:103',message:'createTrader API call - request payload',data:{strategy_id:request.strategy_id,hasStrategyId:!!request.strategy_id,requestKeys:Object.keys(request),fullRequest:request},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     const result = await httpClient.post<TraderInfo>(
       `${API_BASE}/traders`,
       request
     )
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:109',message:'createTrader API response',data:{success:result.success,hasData:!!result.data,traderId:result.data?.trader_id,strategyId:result.data?.strategy_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     if (!result.success) throw new Error('创建交易员失败')
     return result.data!
   },
@@ -164,6 +170,9 @@ export const api = {
     traderId: string,
     request: CreateTraderRequest
   ): Promise<TraderInfo> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:163',message:'updateTrader API call - request payload',data:{traderId,strategy_id:request.strategy_id,hasStrategyId:!!request.strategy_id,hasIndicatorConfig:!!request.enable_raw_klines,fullRequest:request},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     const result = await httpClient.put<TraderInfo>(
       `${API_BASE}/traders/${traderId}`,
       request
@@ -298,7 +307,10 @@ export const api = {
 
   async deleteStrategy(id: string): Promise<void> {
     const result = await httpClient.delete(`${API_BASE}/strategies/${id}`)
-    if (!result.success) throw new Error('删除策略失败')
+    if (!result.success) {
+      // Preserve backend error message (e.g., "cannot delete strategy: 2 trader(s) are using it")
+      throw new Error(result.message || '删除策略失败')
+    }
   },
 
   async exportStrategy(id: string): Promise<Blob> {

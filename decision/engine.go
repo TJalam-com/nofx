@@ -190,6 +190,97 @@ type Context struct {
 	Performance     interface{}                        `json:"-"` // Historical performance analysis (logger.PerformanceAnalysis)
 	BTCETHLeverage  int                                `json:"-"` // BTC/ETH leverage multiplier (read from config)
 	AltcoinLeverage int                                `json:"-"` // Altcoin leverage multiplier (read from config)
+	StrategyID      string                             `json:"-"` // Strategy ID (optional, for loading strategy config)
+}
+
+// StrategyConfig holds configurable strategy parameters
+type StrategyConfig struct {
+	MinRiskRewardRatio      float64
+	MaxPositions            int
+	MarginUsageLimit        float64
+	MinOpeningAmount        float64
+	MinOpeningAmountBTCETH  float64
+	AltcoinPositionMin      float64
+	AltcoinPositionMax      float64
+	BTCETHPositionMin       float64
+	BTCETHPositionMax       float64
+	AvailableMarginMultiplier float64
+	MinConfidenceForEntry   int
+	MinHoldingTimeMinutes   int
+	SharpeRatioConfig       map[string]interface{} // Parsed from JSON
+}
+
+// GetDefaultStrategyConfig returns default strategy configuration
+func GetDefaultStrategyConfig() StrategyConfig {
+	return StrategyConfig{
+		MinRiskRewardRatio:      3.0,
+		MaxPositions:            3,
+		MarginUsageLimit:         90.0,
+		MinOpeningAmount:        12.0,
+		MinOpeningAmountBTCETH:  60.0,
+		AltcoinPositionMin:      0.8,
+		AltcoinPositionMax:      1.5,
+		BTCETHPositionMin:       5.0,
+		BTCETHPositionMax:       10.0,
+		AvailableMarginMultiplier: 0.88,
+		MinConfidenceForEntry:   75,
+		MinHoldingTimeMinutes:   30,
+		SharpeRatioConfig:       make(map[string]interface{}),
+	}
+}
+
+// StrategyConfigFromFields creates StrategyConfig from individual fields (for use when StrategyRecord is not available)
+func StrategyConfigFromFields(
+	minRiskRewardRatio, marginUsageLimit, minOpeningAmount, minOpeningAmountBTCETH float64,
+	altcoinPositionMin, altcoinPositionMax, btcEthPositionMin, btcEthPositionMax, availableMarginMultiplier float64,
+	maxPositions, minConfidenceForEntry, minHoldingTimeMinutes int,
+	sharpeRatioConfigJSON string,
+) StrategyConfig {
+	config := GetDefaultStrategyConfig()
+	
+	if minRiskRewardRatio > 0 {
+		config.MinRiskRewardRatio = minRiskRewardRatio
+	}
+	if maxPositions > 0 {
+		config.MaxPositions = maxPositions
+	}
+	if marginUsageLimit > 0 {
+		config.MarginUsageLimit = marginUsageLimit
+	}
+	if minOpeningAmount > 0 {
+		config.MinOpeningAmount = minOpeningAmount
+	}
+	if minOpeningAmountBTCETH > 0 {
+		config.MinOpeningAmountBTCETH = minOpeningAmountBTCETH
+	}
+	if altcoinPositionMin > 0 {
+		config.AltcoinPositionMin = altcoinPositionMin
+	}
+	if altcoinPositionMax > 0 {
+		config.AltcoinPositionMax = altcoinPositionMax
+	}
+	if btcEthPositionMin > 0 {
+		config.BTCETHPositionMin = btcEthPositionMin
+	}
+	if btcEthPositionMax > 0 {
+		config.BTCETHPositionMax = btcEthPositionMax
+	}
+	if availableMarginMultiplier > 0 {
+		config.AvailableMarginMultiplier = availableMarginMultiplier
+	}
+	if minConfidenceForEntry > 0 {
+		config.MinConfidenceForEntry = minConfidenceForEntry
+	}
+	if minHoldingTimeMinutes > 0 {
+		config.MinHoldingTimeMinutes = minHoldingTimeMinutes
+	}
+	if sharpeRatioConfigJSON != "" {
+		if err := json.Unmarshal([]byte(sharpeRatioConfigJSON), &config.SharpeRatioConfig); err != nil {
+			log.Printf("⚠️ Failed to parse sharpe_ratio_config JSON: %v, using empty config", err)
+		}
+	}
+	
+	return config
 }
 
 // Decision AI trading decision
@@ -235,11 +326,11 @@ type FullDecision struct {
 
 // GetFullDecision Gets AI's complete trading decision (batch analysis of all coins and positions)
 func GetFullDecision(ctx *Context, mcpClient mcp.AIClient) (*FullDecision, error) {
-	return GetFullDecisionWithCustomPrompt(ctx, mcpClient, "", false, "")
+	return GetFullDecisionWithCustomPrompt(ctx, mcpClient, "", false, "", GetDefaultStrategyConfig())
 }
 
 // GetFullDecisionWithCustomPrompt Gets AI's complete trading decision (supports custom prompt and template selection)
-func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, customPrompt string, overrideBase bool, templateName string) (*FullDecision, error) {
+func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, customPrompt string, overrideBase bool, templateName string, config StrategyConfig) (*FullDecision, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("context is nil")
 	}
@@ -264,6 +355,7 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 		templateName,
 		ctx.PromptVariant,
 		PromptTypeStandard,
+		config,
 	)
 	userPrompt := buildUserPrompt(ctx)
 
@@ -276,7 +368,7 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 	}
 
 	// 4. Parse AI response
-	decision, err := parseFullDecisionResponse(aiResponse, ctx.Account.TotalEquity, ctx.BTCETHLeverage, ctx.AltcoinLeverage)
+	decision, err := parseFullDecisionResponse(aiResponse, ctx.Account.TotalEquity, ctx.BTCETHLeverage, ctx.AltcoinLeverage, config)
 
 	// Save SystemPrompt and UserPrompt regardless of errors (for debugging and troubleshooting when decisions are not executed)
 	if decision != nil {
@@ -405,7 +497,7 @@ func calculateMaxCandidates(ctx *Context) int {
 }
 
 // buildSystemPromptWithCustom Builds System Prompt with custom content
-func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, promptType PromptType) string {
+func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, promptType PromptType, config StrategyConfig) string {
 	// If override base prompt and have custom prompt, use only custom prompt
 	if overrideBase && customPrompt != "" {
 		// Ensure format section is included when overriding base prompt
@@ -416,7 +508,7 @@ func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinL
 	}
 
 	// Get base prompt (using specified template)
-	basePrompt := buildSystemPrompt(accountEquity, btcEthLeverage, altcoinLeverage, templateName, variant)
+	basePrompt := buildSystemPrompt(accountEquity, btcEthLeverage, altcoinLeverage, templateName, variant, config)
 
 	// If no custom prompt, return base prompt directly (which already includes format)
 	if customPrompt == "" {
@@ -436,9 +528,9 @@ func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinL
 }
 
 // BuildSystemPromptWithTradingView Builds System Prompt with TradingView signal analysis
-func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string) string {
+func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, config StrategyConfig) string {
 	// Build base prompt first
-	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeTradingView)
+	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeTradingView, config)
 
 	// Add TradingView signal analysis section
 	var sb strings.Builder
@@ -472,9 +564,9 @@ func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, alt
 }
 
 // BuildSystemPromptWithParentSignal Builds System Prompt with parent trader signal analysis
-func BuildSystemPromptWithParentSignal(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string) string {
+func BuildSystemPromptWithParentSignal(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, config StrategyConfig) string {
 	// Build base prompt first (using risk_management template)
-	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeParent)
+	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeParent, config)
 
 	// Add parent trader signal analysis section
 	var sb strings.Builder
@@ -524,7 +616,7 @@ func BuildSystemPromptWithParentSignal(accountEquity float64, btcEthLeverage, al
 }
 
 // buildSystemPrompt Builds System Prompt (using template + dynamic parts)
-func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage int, templateName string, variant string) string {
+func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage int, templateName string, variant string, config StrategyConfig) string {
 	var sb strings.Builder
 
 	// 1. Load prompt template (core trading strategy part)
@@ -562,30 +654,30 @@ func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage in
 
 	// 3. Hard constraints (risk control)
 	sb.WriteString("# Hard Constraints (Risk Control)\n\n")
-	sb.WriteString("1. Risk-reward ratio: Must be ≥ 1:3 (risk 1% to earn 3%+ returns)\n")
-	sb.WriteString("2. Maximum positions: 3 coins (quality > quantity)\n")
+	sb.WriteString(fmt.Sprintf("1. Risk-reward ratio: Must be ≥ 1:%.0f (risk 1%% to earn %.0f%%+ returns)\n", config.MinRiskRewardRatio, config.MinRiskRewardRatio))
+	sb.WriteString(fmt.Sprintf("2. Maximum positions: %d coins (quality > quantity)\n", config.MaxPositions))
 	sb.WriteString(fmt.Sprintf("3. Single coin position: Altcoins %.0f-%.0f USDT | BTC/ETH %.0f-%.0f USDT\n",
-		accountEquity*0.8, accountEquity*1.5, accountEquity*5, accountEquity*10))
+		accountEquity*config.AltcoinPositionMin, accountEquity*config.AltcoinPositionMax, accountEquity*config.BTCETHPositionMin, accountEquity*config.BTCETHPositionMax))
 	sb.WriteString(fmt.Sprintf("4. Leverage limits: **Altcoins maximum %dx leverage** | **BTC/ETH maximum %dx leverage**\n", altcoinLeverage, btcEthLeverage))
-	sb.WriteString("5. Margin usage rate ≤ 90%\n")
-	sb.WriteString("6. Opening amount: Recommended ≥12 USDT (exchange minimum notional value 10 USDT + safety margin)\n\n")
+	sb.WriteString(fmt.Sprintf("5. Margin usage rate ≤ %.0f%%\n", config.MarginUsageLimit))
+	sb.WriteString(fmt.Sprintf("6. Opening amount: Recommended ≥%.0f USDT (exchange minimum notional value 10 USDT + safety margin)\n\n", config.MinOpeningAmount))
 
 	// Position sizing guidance
 	sb.WriteString("# Position Sizing Guidance\n\n")
 	sb.WriteString("**Important**: `position_size_usd` is the **notional value** (including leverage), not margin requirement.\n\n")
 	sb.WriteString("**Calculation Steps**:\n")
-	sb.WriteString("1. **Available Margin** = Available Cash × 0.88 (reserve 12% for fees, slippage, and liquidation margin buffer)\n")
+	sb.WriteString(fmt.Sprintf("1. **Available Margin** = Available Cash × %.2f (reserve %.0f%% for fees, slippage, and liquidation margin buffer)\n", config.AvailableMarginMultiplier, (1-config.AvailableMarginMultiplier)*100))
 	sb.WriteString("2. **Notional Value** = Available Margin × Leverage\n")
 	sb.WriteString("3. **position_size_usd** = Notional Value (fill this value in JSON)\n")
 	sb.WriteString("4. **Actual Coin Amount** = position_size_usd / Current Price\n\n")
 	sb.WriteString("**Example**: Available cash $500, leverage 5x\n")
-	sb.WriteString("- Available Margin = $500 × 0.88 = $440\n")
-	sb.WriteString("- position_size_usd = $440 × 5 = **$2,200** ← Fill this value in JSON\n")
-	sb.WriteString("- Actual margin used = $440, remaining $60 for fees, slippage, and liquidation protection\n\n")
+	sb.WriteString(fmt.Sprintf("- Available Margin = $500 × %.2f = $%.0f\n", config.AvailableMarginMultiplier, 500*config.AvailableMarginMultiplier))
+	sb.WriteString(fmt.Sprintf("- position_size_usd = $%.0f × 5 = **$%.0f** ← Fill this value in JSON\n", 500*config.AvailableMarginMultiplier, 500*config.AvailableMarginMultiplier*5))
+	sb.WriteString(fmt.Sprintf("- Actual margin used = $%.0f, remaining $%.0f for fees, slippage, and liquidation protection\n\n", 500*config.AvailableMarginMultiplier, 500*(1-config.AvailableMarginMultiplier)))
 	sb.WriteString("**Sizing Considerations**:\n")
 	sb.WriteString("- Only use available cash (not account equity)\n")
 	sb.WriteString("- Consider current margin usage\n")
-	sb.WriteString(fmt.Sprintf("- Ensure position size fits within single coin limits (Altcoins %.0f-%.0f USDT, BTC/ETH %.0f-%.0f USDT)\n", accountEquity*0.8, accountEquity*1.5, accountEquity*5, accountEquity*10))
+	sb.WriteString(fmt.Sprintf("- Ensure position size fits within single coin limits (Altcoins %.0f-%.0f USDT, BTC/ETH %.0f-%.0f USDT)\n", accountEquity*config.AltcoinPositionMin, accountEquity*config.AltcoinPositionMax, accountEquity*config.BTCETHPositionMin, accountEquity*config.BTCETHPositionMax))
 	sb.WriteString("- Account for fees and slippage in calculations\n\n")
 
 	// 4. Trading frequency and signal quality
@@ -601,7 +693,7 @@ func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage in
 	sb.WriteString("- EMA20 / MACD / RSI7 / RSI14 indicator sequences\n")
 	sb.WriteString("- Volume, Open Interest (OI), funding rate capital flow sequences\n")
 	sb.WriteString("- AI500 / OI_Top filter tags (if available)\n\n")
-	sb.WriteString("Freely use any effective analysis methods, but **confidence ≥75** required to open positions; avoid single indicators, contradictory signals, sideways consolidation, immediately reopening after closing positions, and other low-quality behaviors.\n\n")
+	sb.WriteString(fmt.Sprintf("Freely use any effective analysis methods, but **confidence ≥%d** required to open positions; avoid single indicators, contradictory signals, sideways consolidation, immediately reopening after closing positions, and other low-quality behaviors.\n\n", config.MinConfidenceForEntry))
 
 	// 5. Sharpe ratio-driven adaptation
 	sb.WriteString("# 🧬 Sharpe Ratio Self-Evolution\n\n")
@@ -792,7 +884,7 @@ func buildUserPrompt(ctx *Context) string {
 }
 
 // parseFullDecisionResponse Parses AI's complete decision response
-func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthLeverage, altcoinLeverage int) (*FullDecision, error) {
+func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig) (*FullDecision, error) {
 	// 1. Extract reasoning chain
 	cotTrace := extractCoTTrace(aiResponse)
 
@@ -806,7 +898,7 @@ func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthL
 	}
 
 	// 3. Validate decisions
-	if err := validateDecisions(decisions, accountEquity, btcEthLeverage, altcoinLeverage); err != nil {
+	if err := validateDecisions(decisions, accountEquity, btcEthLeverage, altcoinLeverage, config); err != nil {
 		return &FullDecision{
 			CoTTrace:  cotTrace,
 			Decisions: decisions,
@@ -821,12 +913,13 @@ func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthL
 
 // ParseFullDecisionResponse Parses AI's complete decision response (public wrapper function)
 // Extracts account equity and leverage parameters from Context, calls private parseFullDecisionResponse function
-func ParseFullDecisionResponse(ctx *Context, aiResponse string) (*FullDecision, error) {
+func ParseFullDecisionResponse(ctx *Context, aiResponse string, config StrategyConfig) (*FullDecision, error) {
 	return parseFullDecisionResponse(
 		aiResponse,
 		ctx.Account.TotalEquity,
 		ctx.BTCETHLeverage,
 		ctx.AltcoinLeverage,
+		config,
 	)
 }
 
@@ -1287,9 +1380,9 @@ func compactArrayOpen(s string) string {
 }
 
 // validateDecisions Validates all decisions (requires account information and leverage configuration)
-func validateDecisions(decisions []Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int) error {
+func validateDecisions(decisions []Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig) error {
 	for i, decision := range decisions {
-		if err := validateDecision(&decision, accountEquity, btcEthLeverage, altcoinLeverage); err != nil {
+		if err := validateDecision(&decision, accountEquity, btcEthLeverage, altcoinLeverage, config); err != nil {
 			return fmt.Errorf("decision #%d validation failed: %w", i+1, err)
 		}
 	}
@@ -1297,7 +1390,7 @@ func validateDecisions(decisions []Decision, accountEquity float64, btcEthLevera
 }
 
 // validateDecision Validates validity of a single decision
-func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int) error {
+func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig) error {
 	// 🔧 TradingView signal reject decision: if signal_decision is "reject" (case-insensitive), skip all validation
 	// According to prompt instructions, reject decisions do not need to provide other trading parameters (including action)
 	signalDecisionLower := strings.ToLower(strings.TrimSpace(d.SignalDecision))
@@ -1339,10 +1432,10 @@ func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoi
 	if d.Action == "open_long" || d.Action == "open_short" {
 		// Use configured leverage limits based on coin type
 		maxLeverage := altcoinLeverage          // Altcoins use configured leverage
-		maxPositionValue := accountEquity * 1.5 // Altcoins max 1.5x account equity
+		maxPositionValue := accountEquity * config.AltcoinPositionMax // Altcoins max from config
 		if d.Symbol == "BTCUSDT" || d.Symbol == "ETHUSDT" {
 			maxLeverage = btcEthLeverage          // BTC and ETH use configured leverage
-			maxPositionValue = accountEquity * 10 // BTC/ETH max 10x account equity
+			maxPositionValue = accountEquity * config.BTCETHPositionMax // BTC/ETH max from config
 		}
 
 		// ✅ Fallback mechanism: automatically correct to upper limit when leverage exceeds limit (instead of directly rejecting decision)
@@ -1359,9 +1452,9 @@ func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoi
 		}
 
 		// ✅ Validate minimum opening amount (prevent quantity formatting to 0 error)
-		// Binance minimum notional value 10 USDT + safety margin
-		const minPositionSizeGeneral = 12.0 // 10 + 20% safety margin
-		const minPositionSizeBTCETH = 60.0  // BTC/ETH require larger amount due to high price and precision limits (more flexible)
+		// Use configurable minimum opening amounts
+		minPositionSizeGeneral := config.MinOpeningAmount
+		minPositionSizeBTCETH := config.MinOpeningAmountBTCETH
 
 		if d.Symbol == "BTCUSDT" || d.Symbol == "ETHUSDT" {
 			if d.PositionSizeUSD < minPositionSizeBTCETH {
@@ -1423,10 +1516,10 @@ func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoi
 			}
 		}
 
-		// Hard constraint: risk-reward ratio must be ≥3.0
-		if riskRewardRatio < 3.0 {
-			return fmt.Errorf("risk-reward ratio too low (%.2f:1), must be ≥3.0:1 [risk:%.2f%% reward:%.2f%%] [stop loss:%.2f take profit:%.2f]",
-				riskRewardRatio, riskPercent, rewardPercent, d.StopLoss, d.TakeProfit)
+		// Hard constraint: risk-reward ratio must be ≥ config.MinRiskRewardRatio
+		if riskRewardRatio < config.MinRiskRewardRatio {
+			return fmt.Errorf("risk-reward ratio too low (%.2f:1), must be ≥%.2f:1 [risk:%.2f%% reward:%.2f%%] [stop loss:%.2f take profit:%.2f]",
+				riskRewardRatio, config.MinRiskRewardRatio, riskPercent, rewardPercent, d.StopLoss, d.TakeProfit)
 		}
 	}
 

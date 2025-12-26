@@ -309,6 +309,19 @@ func (d *Database) createTables() error {
 			enable_funding BOOLEAN DEFAULT 1,
 			indicator_timeframe TEXT DEFAULT '3m',
 			quant_data_url TEXT DEFAULT '',
+			min_risk_reward_ratio REAL DEFAULT 3.0,
+			max_positions INTEGER DEFAULT 3,
+			margin_usage_limit REAL DEFAULT 90.0,
+			min_opening_amount REAL DEFAULT 12.0,
+			min_opening_amount_btc_eth REAL DEFAULT 60.0,
+			altcoin_position_min REAL DEFAULT 0.8,
+			altcoin_position_max REAL DEFAULT 1.5,
+			btc_eth_position_min REAL DEFAULT 5.0,
+			btc_eth_position_max REAL DEFAULT 10.0,
+			available_margin_multiplier REAL DEFAULT 0.88,
+			min_confidence_for_entry INTEGER DEFAULT 75,
+			min_holding_time_minutes INTEGER DEFAULT 30,
+			sharpe_ratio_config TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -667,6 +680,13 @@ func (d *Database) createTables() error {
 	err = d.migrateTradersTable()
 	if err != nil {
 		log.Printf("⚠️  Failed to migrate traders table: %v", err)
+	}
+
+	// Migrate strategies table to add new configuration columns
+	err = d.migrateStrategiesTable()
+	if err != nil {
+		log.Printf("⚠️  Failed to migrate strategies table: %v", err)
+		// Don't return error - allow system to continue, but log the issue
 	}
 
 	return nil
@@ -1192,6 +1212,60 @@ func (d *Database) migratePromptTemplatesFromFiles() error {
 	return nil
 }
 
+// migrateStrategiesTable migrate strategies table to add new configuration columns
+func (d *Database) migrateStrategiesTable() error {
+	log.Printf("🔄 Checking strategies table migration status...")
+	
+	// List of new columns to add with their definitions
+	newColumns := []struct {
+		name    string
+		definition string
+	}{
+		{"min_risk_reward_ratio", "REAL DEFAULT 3.0"},
+		{"max_positions", "INTEGER DEFAULT 3"},
+		{"margin_usage_limit", "REAL DEFAULT 90.0"},
+		{"min_opening_amount", "REAL DEFAULT 12.0"},
+		{"min_opening_amount_btc_eth", "REAL DEFAULT 60.0"},
+		{"altcoin_position_min", "REAL DEFAULT 0.8"},
+		{"altcoin_position_max", "REAL DEFAULT 1.5"},
+		{"btc_eth_position_min", "REAL DEFAULT 5.0"},
+		{"btc_eth_position_max", "REAL DEFAULT 10.0"},
+		{"available_margin_multiplier", "REAL DEFAULT 0.88"},
+		{"min_confidence_for_entry", "INTEGER DEFAULT 75"},
+		{"min_holding_time_minutes", "INTEGER DEFAULT 30"},
+		{"sharpe_ratio_config", "TEXT DEFAULT ''"},
+	}
+	
+	migratedCount := 0
+	for _, col := range newColumns {
+		exists, err := d.columnExists("strategies", col.name)
+		if err != nil {
+			log.Printf("⚠️  Error checking if column strategies.%s exists: %v", col.name, err)
+			continue
+		}
+		
+		if !exists {
+			alterQuery := fmt.Sprintf("ALTER TABLE strategies ADD COLUMN %s %s", col.name, col.definition)
+			if _, err := d.db.Exec(alterQuery); err != nil {
+				log.Printf("⚠️  Failed to add column strategies.%s: %v", col.name, err)
+				continue
+			}
+			log.Printf("✅ Successfully added column strategies.%s", col.name)
+			migratedCount++
+		} else {
+			log.Printf("ℹ️  Column strategies.%s already exists, skipping", col.name)
+		}
+	}
+	
+	if migratedCount > 0 {
+		log.Printf("✅ Strategies table migration completed, added %d columns", migratedCount)
+	} else {
+		log.Printf("✅ Strategies table migration check completed, all columns already exist")
+	}
+	
+	return nil
+}
+
 // User user configuration
 type User struct {
 	ID           string    `json:"id"`
@@ -1319,7 +1393,7 @@ type StrategyRecord struct {
 	IsCrossMargin        bool      `json:"is_cross_margin"`
 	UseCoinPool          bool      `json:"use_coin_pool"`
 	UseOITop             bool      `json:"use_oi_top"`
-	UseTradingView       bool      `json:"use_tradingview"`
+	UseTradingView        bool      `json:"use_tradingview"`
 	EnableRawKlines      bool      `json:"enable_raw_klines"`
 	EnableEMA            bool      `json:"enable_ema"`
 	EnableMACD           bool      `json:"enable_macd"`
@@ -1330,8 +1404,25 @@ type StrategyRecord struct {
 	EnableFunding        bool      `json:"enable_funding"`
 	IndicatorTimeframe   string    `json:"indicator_timeframe"`
 	QuantDataURL         string    `json:"quant_data_url"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	// Risk Management Configuration
+	MinRiskRewardRatio    float64 `json:"min_risk_reward_ratio"`    // Default: 3.0 (1:3)
+	MaxPositions           int     `json:"max_positions"`            // Default: 3
+	MarginUsageLimit       float64 `json:"margin_usage_limit"`      // Default: 90.0
+	MinOpeningAmount       float64 `json:"min_opening_amount"`      // Default: 12.0
+	MinOpeningAmountBTCETH float64 `json:"min_opening_amount_btc_eth"` // Default: 60.0
+	// Position Sizing Configuration
+	AltcoinPositionMin      float64 `json:"altcoin_position_min"`    // Default: 0.8
+	AltcoinPositionMax      float64 `json:"altcoin_position_max"`    // Default: 1.5
+	BTCETHPositionMin       float64 `json:"btc_eth_position_min"`    // Default: 5.0
+	BTCETHPositionMax       float64 `json:"btc_eth_position_max"`    // Default: 10.0
+	AvailableMarginMultiplier float64 `json:"available_margin_multiplier"` // Default: 0.88
+	// Trading Rules Configuration
+	MinConfidenceForEntry int     `json:"min_confidence_for_entry"` // Default: 75
+	MinHoldingTimeMinutes int     `json:"min_holding_time_minutes"` // Default: 30
+	// Sharpe Ratio Configuration (JSON string)
+	SharpeRatioConfig string `json:"sharpe_ratio_config"` // JSON: { thresholds: [...] }
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 // PromptTemplateConfig prompt template configuration
@@ -2961,21 +3052,71 @@ func (d *Database) CreateStrategy(strategy *StrategyRecord) error {
 	if strategy.IndicatorTimeframe == "" {
 		strategy.IndicatorTimeframe = "3m"
 	}
+	// Set defaults for new configuration fields if not set
+	if strategy.MinRiskRewardRatio == 0 {
+		strategy.MinRiskRewardRatio = 3.0
+	}
+	if strategy.MaxPositions == 0 {
+		strategy.MaxPositions = 3
+	}
+	if strategy.MarginUsageLimit == 0 {
+		strategy.MarginUsageLimit = 90.0
+	}
+	if strategy.MinOpeningAmount == 0 {
+		strategy.MinOpeningAmount = 12.0
+	}
+	if strategy.MinOpeningAmountBTCETH == 0 {
+		strategy.MinOpeningAmountBTCETH = 60.0
+	}
+	if strategy.AltcoinPositionMin == 0 {
+		strategy.AltcoinPositionMin = 0.8
+	}
+	if strategy.AltcoinPositionMax == 0 {
+		strategy.AltcoinPositionMax = 1.5
+	}
+	if strategy.BTCETHPositionMin == 0 {
+		strategy.BTCETHPositionMin = 5.0
+	}
+	if strategy.BTCETHPositionMax == 0 {
+		strategy.BTCETHPositionMax = 10.0
+	}
+	if strategy.AvailableMarginMultiplier == 0 {
+		strategy.AvailableMarginMultiplier = 0.88
+	}
+	if strategy.MinConfidenceForEntry == 0 {
+		strategy.MinConfidenceForEntry = 75
+	}
+	if strategy.MinHoldingTimeMinutes == 0 {
+		strategy.MinHoldingTimeMinutes = 30
+	}
+	
+	// Try to insert with new fields, fallback to old schema if columns don't exist
 	_, err := d.db.Exec(`
 		INSERT INTO strategies (id, user_id, name, description, system_prompt_template, custom_prompt, override_base_prompt,
 			btc_eth_leverage, altcoin_leverage, trading_symbols, is_cross_margin,
 			use_coin_pool, use_oi_top, use_tradingview,
 			enable_raw_klines, enable_ema, enable_macd, enable_rsi, enable_atr,
 			enable_volume, enable_oi, enable_funding,
-			indicator_timeframe, quant_data_url)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			indicator_timeframe, quant_data_url,
+			min_risk_reward_ratio, max_positions, margin_usage_limit, min_opening_amount, min_opening_amount_btc_eth,
+			altcoin_position_min, altcoin_position_max, btc_eth_position_min, btc_eth_position_max,
+			available_margin_multiplier, min_confidence_for_entry, min_holding_time_minutes, sharpe_ratio_config)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, strategy.ID, strategy.UserID, strategy.Name, strategy.Description,
 		strategy.SystemPromptTemplate, strategy.CustomPrompt, strategy.OverrideBasePrompt,
 		strategy.BTCETHLeverage, strategy.AltcoinLeverage, strategy.TradingSymbols, strategy.IsCrossMargin,
 		strategy.UseCoinPool, strategy.UseOITop, strategy.UseTradingView,
 		strategy.EnableRawKlines, strategy.EnableEMA, strategy.EnableMACD, strategy.EnableRSI, strategy.EnableATR,
 		strategy.EnableVolume, strategy.EnableOI, strategy.EnableFunding,
-		strategy.IndicatorTimeframe, strategy.QuantDataURL)
+		strategy.IndicatorTimeframe, strategy.QuantDataURL,
+		strategy.MinRiskRewardRatio, strategy.MaxPositions, strategy.MarginUsageLimit,
+		strategy.MinOpeningAmount, strategy.MinOpeningAmountBTCETH,
+		strategy.AltcoinPositionMin, strategy.AltcoinPositionMax,
+		strategy.BTCETHPositionMin, strategy.BTCETHPositionMax,
+		strategy.AvailableMarginMultiplier, strategy.MinConfidenceForEntry,
+		strategy.MinHoldingTimeMinutes, strategy.SharpeRatioConfig)
+	
 	return err
 }
 
@@ -3002,6 +3143,19 @@ func (d *Database) GetStrategy(strategyID, userID string) (*StrategyRecord, erro
 			COALESCE(enable_funding, 1) as enable_funding,
 			COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
 			COALESCE(quant_data_url, '') as quant_data_url,
+			COALESCE(min_risk_reward_ratio, 3.0) as min_risk_reward_ratio,
+			COALESCE(max_positions, 3) as max_positions,
+			COALESCE(margin_usage_limit, 90.0) as margin_usage_limit,
+			COALESCE(min_opening_amount, 12.0) as min_opening_amount,
+			COALESCE(min_opening_amount_btc_eth, 60.0) as min_opening_amount_btc_eth,
+			COALESCE(altcoin_position_min, 0.8) as altcoin_position_min,
+			COALESCE(altcoin_position_max, 1.5) as altcoin_position_max,
+			COALESCE(btc_eth_position_min, 5.0) as btc_eth_position_min,
+			COALESCE(btc_eth_position_max, 10.0) as btc_eth_position_max,
+			COALESCE(available_margin_multiplier, 0.88) as available_margin_multiplier,
+			COALESCE(min_confidence_for_entry, 75) as min_confidence_for_entry,
+			COALESCE(min_holding_time_minutes, 30) as min_holding_time_minutes,
+			COALESCE(sharpe_ratio_config, '') as sharpe_ratio_config,
 			created_at, updated_at
 		FROM strategies
 		WHERE id = ? AND user_id = ?
@@ -3014,11 +3168,19 @@ func (d *Database) GetStrategy(strategyID, userID string) (*StrategyRecord, erro
 		&strategy.EnableRSI, &strategy.EnableATR, &strategy.EnableVolume,
 		&strategy.EnableOI, &strategy.EnableFunding, &strategy.IndicatorTimeframe,
 		&strategy.QuantDataURL,
+		&strategy.MinRiskRewardRatio, &strategy.MaxPositions, &strategy.MarginUsageLimit,
+		&strategy.MinOpeningAmount, &strategy.MinOpeningAmountBTCETH,
+		&strategy.AltcoinPositionMin, &strategy.AltcoinPositionMax,
+		&strategy.BTCETHPositionMin, &strategy.BTCETHPositionMax,
+		&strategy.AvailableMarginMultiplier, &strategy.MinConfidenceForEntry,
+		&strategy.MinHoldingTimeMinutes, &strategy.SharpeRatioConfig,
 		&createdAt, &updatedAt,
 	)
+	
 	if err != nil {
 		return nil, err
 	}
+	
 	// Ensure enable_raw_klines is always true
 	strategy.EnableRawKlines = true
 	// Parse time string with error handling
@@ -3053,6 +3215,46 @@ func (d *Database) GetStrategy(strategyID, userID string) (*StrategyRecord, erro
 	return &strategy, nil
 }
 
+// LoadStrategyIntoTrader loads strategy settings into a TraderRecord when strategy_id is set
+// This ensures Strategy Studio is the single source of truth for strategy-related settings
+func (d *Database) LoadStrategyIntoTrader(trader *TraderRecord) error {
+	if trader.StrategyID == "" {
+		// No strategy_id set, trader uses custom configuration
+		return nil
+	}
+
+	// Load strategy from database
+	strategy, err := d.GetStrategy(trader.StrategyID, trader.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to load strategy %s: %w", trader.StrategyID, err)
+	}
+
+	// Merge strategy settings into trader record
+	// These settings come from Strategy Studio (single source of truth)
+	trader.SystemPromptTemplate = strategy.SystemPromptTemplate
+	trader.CustomPrompt = strategy.CustomPrompt
+	trader.OverrideBasePrompt = strategy.OverrideBasePrompt
+	trader.BTCETHLeverage = strategy.BTCETHLeverage
+	trader.AltcoinLeverage = strategy.AltcoinLeverage
+	trader.TradingSymbols = strategy.TradingSymbols
+	trader.IsCrossMargin = strategy.IsCrossMargin
+	trader.UseCoinPool = strategy.UseCoinPool
+	trader.UseOITop = strategy.UseOITop
+	trader.UseTradingView = strategy.UseTradingView
+	trader.EnableRawKlines = strategy.EnableRawKlines
+	trader.EnableEMA = strategy.EnableEMA
+	trader.EnableMACD = strategy.EnableMACD
+	trader.EnableRSI = strategy.EnableRSI
+	trader.EnableATR = strategy.EnableATR
+	trader.EnableVolume = strategy.EnableVolume
+	trader.EnableOI = strategy.EnableOI
+	trader.EnableFunding = strategy.EnableFunding
+	trader.IndicatorTimeframe = strategy.IndicatorTimeframe
+	trader.QuantDataURL = strategy.QuantDataURL
+
+	return nil
+}
+
 // GetStrategies get all strategies for a user
 func (d *Database) GetStrategies(userID string) ([]*StrategyRecord, error) {
 	rows, err := d.db.Query(`
@@ -3074,11 +3276,26 @@ func (d *Database) GetStrategies(userID string) ([]*StrategyRecord, error) {
 			COALESCE(enable_funding, 1) as enable_funding,
 			COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
 			COALESCE(quant_data_url, '') as quant_data_url,
+			COALESCE(min_risk_reward_ratio, 3.0) as min_risk_reward_ratio,
+			COALESCE(max_positions, 3) as max_positions,
+			COALESCE(margin_usage_limit, 90.0) as margin_usage_limit,
+			COALESCE(min_opening_amount, 12.0) as min_opening_amount,
+			COALESCE(min_opening_amount_btc_eth, 60.0) as min_opening_amount_btc_eth,
+			COALESCE(altcoin_position_min, 0.8) as altcoin_position_min,
+			COALESCE(altcoin_position_max, 1.5) as altcoin_position_max,
+			COALESCE(btc_eth_position_min, 5.0) as btc_eth_position_min,
+			COALESCE(btc_eth_position_max, 10.0) as btc_eth_position_max,
+			COALESCE(available_margin_multiplier, 0.88) as available_margin_multiplier,
+			COALESCE(min_confidence_for_entry, 75) as min_confidence_for_entry,
+			COALESCE(min_holding_time_minutes, 30) as min_holding_time_minutes,
+			COALESCE(sharpe_ratio_config, '') as sharpe_ratio_config,
 			created_at, updated_at
 		FROM strategies
 		WHERE user_id = ?
 		ORDER BY updated_at DESC
 	`, userID)
+	
+	
 	if err != nil {
 		return nil, err
 	}
@@ -3088,6 +3305,8 @@ func (d *Database) GetStrategies(userID string) ([]*StrategyRecord, error) {
 	for rows.Next() {
 		var strategy StrategyRecord
 		var createdAt, updatedAt string
+		
+		// Try scanning with new fields first
 		err := rows.Scan(
 			&strategy.ID, &strategy.UserID, &strategy.Name, &strategy.Description,
 			&strategy.SystemPromptTemplate, &strategy.CustomPrompt, &strategy.OverrideBasePrompt,
@@ -3097,8 +3316,44 @@ func (d *Database) GetStrategies(userID string) ([]*StrategyRecord, error) {
 			&strategy.EnableRSI, &strategy.EnableATR, &strategy.EnableVolume,
 			&strategy.EnableOI, &strategy.EnableFunding, &strategy.IndicatorTimeframe,
 			&strategy.QuantDataURL,
+			&strategy.MinRiskRewardRatio, &strategy.MaxPositions, &strategy.MarginUsageLimit,
+			&strategy.MinOpeningAmount, &strategy.MinOpeningAmountBTCETH,
+			&strategy.AltcoinPositionMin, &strategy.AltcoinPositionMax,
+			&strategy.BTCETHPositionMin, &strategy.BTCETHPositionMax,
+			&strategy.AvailableMarginMultiplier, &strategy.MinConfidenceForEntry,
+			&strategy.MinHoldingTimeMinutes, &strategy.SharpeRatioConfig,
 			&createdAt, &updatedAt,
 		)
+		
+		// If scan fails (old schema), try with old fields
+		if err != nil {
+			// Reset new fields to defaults
+			strategy.MinRiskRewardRatio = 3.0
+			strategy.MaxPositions = 3
+			strategy.MarginUsageLimit = 90.0
+			strategy.MinOpeningAmount = 12.0
+			strategy.MinOpeningAmountBTCETH = 60.0
+			strategy.AltcoinPositionMin = 0.8
+			strategy.AltcoinPositionMax = 1.5
+			strategy.BTCETHPositionMin = 5.0
+			strategy.BTCETHPositionMax = 10.0
+			strategy.AvailableMarginMultiplier = 0.88
+			strategy.MinConfidenceForEntry = 75
+			strategy.MinHoldingTimeMinutes = 30
+			strategy.SharpeRatioConfig = ""
+			
+			err = rows.Scan(
+				&strategy.ID, &strategy.UserID, &strategy.Name, &strategy.Description,
+				&strategy.SystemPromptTemplate, &strategy.CustomPrompt, &strategy.OverrideBasePrompt,
+				&strategy.BTCETHLeverage, &strategy.AltcoinLeverage, &strategy.TradingSymbols, &strategy.IsCrossMargin,
+				&strategy.UseCoinPool, &strategy.UseOITop, &strategy.UseTradingView,
+				&strategy.EnableRawKlines, &strategy.EnableEMA, &strategy.EnableMACD,
+				&strategy.EnableRSI, &strategy.EnableATR, &strategy.EnableVolume,
+				&strategy.EnableOI, &strategy.EnableFunding, &strategy.IndicatorTimeframe,
+				&strategy.QuantDataURL,
+				&createdAt, &updatedAt,
+			)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -3142,6 +3397,8 @@ func (d *Database) GetStrategies(userID string) ([]*StrategyRecord, error) {
 func (d *Database) UpdateStrategy(strategy *StrategyRecord) error {
 	// Ensure enable_raw_klines is always true
 	strategy.EnableRawKlines = true
+	
+	// Try to update with new fields first, fallback to old schema if columns don't exist
 	_, err := d.db.Exec(`
 		UPDATE strategies SET
 			name = ?, description = ?, system_prompt_template = ?, custom_prompt = ?, override_base_prompt = ?,
@@ -3150,6 +3407,12 @@ func (d *Database) UpdateStrategy(strategy *StrategyRecord) error {
 			enable_raw_klines = ?, enable_ema = ?, enable_macd = ?, enable_rsi = ?, enable_atr = ?,
 			enable_volume = ?, enable_oi = ?, enable_funding = ?,
 			indicator_timeframe = ?, quant_data_url = ?,
+			min_risk_reward_ratio = ?, max_positions = ?, margin_usage_limit = ?,
+			min_opening_amount = ?, min_opening_amount_btc_eth = ?,
+			altcoin_position_min = ?, altcoin_position_max = ?,
+			btc_eth_position_min = ?, btc_eth_position_max = ?,
+			available_margin_multiplier = ?, min_confidence_for_entry = ?,
+			min_holding_time_minutes = ?, sharpe_ratio_config = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND user_id = ?
 	`, strategy.Name, strategy.Description,
@@ -3159,14 +3422,42 @@ func (d *Database) UpdateStrategy(strategy *StrategyRecord) error {
 		strategy.EnableRawKlines, strategy.EnableEMA, strategy.EnableMACD, strategy.EnableRSI, strategy.EnableATR,
 		strategy.EnableVolume, strategy.EnableOI, strategy.EnableFunding,
 		strategy.IndicatorTimeframe, strategy.QuantDataURL,
+		strategy.MinRiskRewardRatio, strategy.MaxPositions, strategy.MarginUsageLimit,
+		strategy.MinOpeningAmount, strategy.MinOpeningAmountBTCETH,
+		strategy.AltcoinPositionMin, strategy.AltcoinPositionMax,
+		strategy.BTCETHPositionMin, strategy.BTCETHPositionMax,
+		strategy.AvailableMarginMultiplier, strategy.MinConfidenceForEntry,
+		strategy.MinHoldingTimeMinutes, strategy.SharpeRatioConfig,
 		strategy.ID, strategy.UserID)
+	
+	// If error due to missing columns, try with old schema (backward compatibility)
+	if err != nil && strings.Contains(err.Error(), "no such column") {
+		_, err = d.db.Exec(`
+			UPDATE strategies SET
+				name = ?, description = ?, system_prompt_template = ?, custom_prompt = ?, override_base_prompt = ?,
+				btc_eth_leverage = ?, altcoin_leverage = ?, trading_symbols = ?, is_cross_margin = ?,
+				use_coin_pool = ?, use_oi_top = ?, use_tradingview = ?,
+				enable_raw_klines = ?, enable_ema = ?, enable_macd = ?, enable_rsi = ?, enable_atr = ?,
+				enable_volume = ?, enable_oi = ?, enable_funding = ?,
+				indicator_timeframe = ?, quant_data_url = ?,
+				updated_at = CURRENT_TIMESTAMP
+			WHERE id = ? AND user_id = ?
+		`, strategy.Name, strategy.Description,
+			strategy.SystemPromptTemplate, strategy.CustomPrompt, strategy.OverrideBasePrompt,
+			strategy.BTCETHLeverage, strategy.AltcoinLeverage, strategy.TradingSymbols, strategy.IsCrossMargin,
+			strategy.UseCoinPool, strategy.UseOITop, strategy.UseTradingView,
+			strategy.EnableRawKlines, strategy.EnableEMA, strategy.EnableMACD, strategy.EnableRSI, strategy.EnableATR,
+			strategy.EnableVolume, strategy.EnableOI, strategy.EnableFunding,
+			strategy.IndicatorTimeframe, strategy.QuantDataURL,
+			strategy.ID, strategy.UserID)
+	}
 	return err
 }
 
 // DeleteStrategy delete strategy (only if not used by any traders)
 func (d *Database) DeleteStrategy(strategyID, userID string) error {
-	// Check if strategy is used by any traders
-	traders, err := d.GetTradersUsingStrategy(strategyID)
+	// Check if strategy is used by any traders (only check traders belonging to the same user)
+	traders, err := d.GetTradersUsingStrategy(strategyID, userID)
 	if err != nil {
 		return fmt.Errorf("failed to check strategy usage: %w", err)
 	}
@@ -3177,8 +3468,8 @@ func (d *Database) DeleteStrategy(strategyID, userID string) error {
 	return err
 }
 
-// GetTradersUsingStrategy get all traders using a specific strategy
-func (d *Database) GetTradersUsingStrategy(strategyID string) ([]*TraderRecord, error) {
+// GetTradersUsingStrategy get all traders using a specific strategy (filtered by user_id)
+func (d *Database) GetTradersUsingStrategy(strategyID, userID string) ([]*TraderRecord, error) {
 	rows, err := d.db.Query(`
 		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running,
 		       COALESCE(btc_eth_leverage, 5) as btc_eth_leverage, COALESCE(altcoin_leverage, 5) as altcoin_leverage,
@@ -3200,8 +3491,8 @@ func (d *Database) GetTradersUsingStrategy(strategyID string) ([]*TraderRecord, 
 		       COALESCE(strategy_id, '') as strategy_id,
 		       created_at, updated_at
 		FROM traders
-		WHERE COALESCE(strategy_id, '') = ?
-	`, strategyID)
+		WHERE strategy_id = ? AND user_id = ?
+	`, strategyID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -3235,6 +3526,20 @@ func (d *Database) GetTradersUsingStrategy(strategyID string) ([]*TraderRecord, 
 		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 		traders = append(traders, &trader)
 	}
+
+	// Load strategy settings for each trader (all traders use the same strategy_id)
+	// Strategy Studio is single source of truth
+	for _, trader := range traders {
+		if trader.StrategyID != "" {
+			if err := d.LoadStrategyIntoTrader(trader); err != nil {
+				log.Printf("⚠️ Failed to load strategy %s for trader %s in GetTradersUsingStrategy: %v, using trader's stored settings", trader.StrategyID, trader.ID, err)
+				// Continue with trader's stored values as fallback
+			} else {
+				log.Printf("✓ Loaded strategy %s settings for trader %s in GetTradersUsingStrategy (pure reference mode)", trader.StrategyID, trader.ID)
+			}
+		}
+	}
+
 	return traders, nil
 }
 
@@ -3311,6 +3616,18 @@ func (d *Database) GetTraders(userID string) ([]*TraderRecord, error) {
 		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 		traders = append(traders, &trader)
+	}
+
+	// Load strategy settings for each trader if strategy_id is set (Strategy Studio is single source of truth)
+	for _, trader := range traders {
+		if trader.StrategyID != "" {
+			if err := d.LoadStrategyIntoTrader(trader); err != nil {
+				log.Printf("⚠️ Failed to load strategy %s for trader %s in GetTraders: %v, using trader's stored settings", trader.StrategyID, trader.ID, err)
+				// Continue with trader's stored values as fallback
+			} else {
+				log.Printf("✓ Loaded strategy %s settings for trader %s in GetTraders (pure reference mode)", trader.StrategyID, trader.ID)
+			}
+		}
 	}
 
 	return traders, nil
@@ -3578,6 +3895,17 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 	exchange.LighterAPIKeyPrivateKey = d.decryptSensitiveData(exchange.LighterAPIKeyPrivateKey)
 	exchange.OkxPassphrase = d.decryptSensitiveData(exchange.OkxPassphrase)
 
+	// Load strategy settings if strategy_id is set (Strategy Studio is single source of truth)
+	// This ensures we return strategy settings from the strategy record, not from trader's stored duplicates
+	if trader.StrategyID != "" {
+		if err := d.LoadStrategyIntoTrader(&trader); err != nil {
+			// Log error but continue - fallback to trader's stored values (for backward compatibility)
+			log.Printf("⚠️ Failed to load strategy %s for trader %s in GetTraderConfig: %v, using trader's stored settings", trader.StrategyID, trader.ID, err)
+		} else {
+			log.Printf("✓ Loaded strategy %s settings for trader %s in GetTraderConfig (pure reference mode)", trader.StrategyID, trader.ID)
+		}
+	}
+
 	return &trader, &aiModel, &exchange, nil
 }
 
@@ -3603,6 +3931,7 @@ func (d *Database) GetTraderByID(traderID string) (*TraderRecord, error) {
 		       COALESCE(enable_funding, 1) as enable_funding,
 		       COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
 		       COALESCE(quant_data_url, '') as quant_data_url,
+		       COALESCE(strategy_id, '') as strategy_id,
 		       created_at, updated_at
 		FROM traders WHERE id = ?
 	`, traderID).Scan(
@@ -3616,7 +3945,7 @@ func (d *Database) GetTraderByID(traderID string) (*TraderRecord, error) {
 		&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
 		&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
 		&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
-		&trader.QuantDataURL,
+		&trader.QuantDataURL, &trader.StrategyID,
 		&createdAt, &updatedAt,
 	)
 
@@ -3629,6 +3958,16 @@ func (d *Database) GetTraderByID(traderID string) (*TraderRecord, error) {
 	// Parse time string
 	trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 	trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+
+	// Load strategy settings if strategy_id is set (Strategy Studio is single source of truth)
+	if trader.StrategyID != "" {
+		if err := d.LoadStrategyIntoTrader(&trader); err != nil {
+			log.Printf("⚠️ Failed to load strategy %s for trader %s in GetTraderByID: %v, using trader's stored settings", trader.StrategyID, trader.ID, err)
+			// Continue with trader's stored values as fallback
+		} else {
+			log.Printf("✓ Loaded strategy %s settings for trader %s in GetTraderByID (pure reference mode)", trader.StrategyID, trader.ID)
+		}
+	}
 
 	return &trader, nil
 }

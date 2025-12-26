@@ -355,12 +355,13 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         return
       }
 
-      const request = {
+      const request: CreateTraderRequest = {
         name: data.name,
         ai_model_id: data.ai_model_id,
         exchange_id: data.exchange_id,
         initial_balance: data.initial_balance,
         scan_interval_minutes: data.scan_interval_minutes,
+        strategy_id: data.strategy_id, // Include strategy_id if present
         btc_eth_leverage: data.btc_eth_leverage,
         altcoin_leverage: data.altcoin_leverage,
         trading_symbols: data.trading_symbols,
@@ -371,6 +372,17 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         use_coin_pool: data.use_coin_pool,
         use_oi_top: data.use_oi_top,
         use_tradingview: data.use_tradingview,
+        // Include indicator configuration if present
+        enable_raw_klines: data.enable_raw_klines,
+        enable_ema: data.enable_ema,
+        enable_macd: data.enable_macd,
+        enable_rsi: data.enable_rsi,
+        enable_atr: data.enable_atr,
+        enable_volume: data.enable_volume,
+        enable_oi: data.enable_oi,
+        enable_funding: data.enable_funding,
+        indicator_timeframe: data.indicator_timeframe,
+        quant_data_url: data.quant_data_url,
       }
 
       console.log('🔍 DEBUG [AITradersPage]: Update request being sent:', {

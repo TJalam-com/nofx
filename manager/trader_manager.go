@@ -111,6 +111,16 @@ func (tm *TraderManager) LoadTradersFromDatabase(database *config.Database) erro
 
 	// Get AI model and exchange configuration for each trader
 	for _, traderCfg := range allTraders {
+		// Load strategy settings if strategy_id is set (Strategy Studio is single source of truth)
+		if traderCfg.StrategyID != "" {
+			if err := database.LoadStrategyIntoTrader(traderCfg); err != nil {
+				log.Printf("⚠️ Failed to load strategy %s for trader %s: %v, proceeding with trader's stored settings", traderCfg.StrategyID, traderCfg.ID, err)
+				// Continue with trader's stored settings as fallback
+			} else {
+				log.Printf("✓ Loaded strategy %s settings for trader %s (pure reference mode)", traderCfg.StrategyID, traderCfg.ID)
+			}
+		}
+
 		// Get AI model configuration (using trader's user ID)
 		aiModels, err := database.GetAIModels(traderCfg.UserID)
 		if err != nil {
@@ -1050,6 +1060,16 @@ func (tm *TraderManager) LoadUserTraders(database *config.Database, userID strin
 
 	// Load configuration for each trader
 	for _, traderCfg := range traders {
+		// Load strategy settings if strategy_id is set (Strategy Studio is single source of truth)
+		if traderCfg.StrategyID != "" {
+			if err := database.LoadStrategyIntoTrader(traderCfg); err != nil {
+				log.Printf("⚠️ Failed to load strategy %s for trader %s: %v, proceeding with trader's stored settings", traderCfg.StrategyID, traderCfg.ID, err)
+				// Continue with trader's stored settings as fallback
+			} else {
+				log.Printf("✓ Loaded strategy %s settings for trader %s (pure reference mode)", traderCfg.StrategyID, traderCfg.ID)
+			}
+		}
+
 		// Check if trader already loaded
 		if existingTrader, exists := tm.traders[traderCfg.ID]; exists {
 			// Check if critical config changed
@@ -1167,6 +1187,16 @@ func (tm *TraderManager) LoadTraderByID(database *config.Database, userID, trade
 
 	if traderCfg == nil {
 		return fmt.Errorf("trader %s does not exist", traderID)
+	}
+
+	// 2.5. Load strategy settings if strategy_id is set (Strategy Studio is single source of truth)
+	if traderCfg.StrategyID != "" {
+		if err := database.LoadStrategyIntoTrader(traderCfg); err != nil {
+			log.Printf("⚠️ Failed to load strategy %s for trader %s: %v, proceeding with trader's stored settings", traderCfg.StrategyID, traderID, err)
+			// Continue with trader's stored settings as fallback
+		} else {
+			log.Printf("✓ Loaded strategy %s settings for trader %s (pure reference mode)", traderCfg.StrategyID, traderID)
+		}
 	}
 
 	// 3. Query AI model configuration
@@ -1305,6 +1335,16 @@ func (tm *TraderManager) ReloadTraderFromDB(database *config.Database, userID, t
 		return fmt.Errorf("failed to get trader configuration: %w", err)
 	}
 
+	// Load strategy settings if strategy_id is set (Strategy Studio is single source of truth)
+	if traderCfg.StrategyID != "" {
+		if err := database.LoadStrategyIntoTrader(traderCfg); err != nil {
+			log.Printf("⚠️ Failed to load strategy %s for trader %s: %v, proceeding with trader's stored settings", traderCfg.StrategyID, traderID, err)
+			// Continue with trader's stored settings as fallback
+		} else {
+			log.Printf("✓ Loaded strategy %s settings for trader %s (pure reference mode)", traderCfg.StrategyID, traderID)
+		}
+	}
+
 	// Query system configuration
 	maxDailyLossStr, _ := database.GetSystemConfig("max_daily_loss")
 	maxDrawdownStr, _ := database.GetSystemConfig("max_drawdown")
@@ -1412,6 +1452,7 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		DefaultCoins:         defaultCoins,
 		TradingCoins:         tradingCoins,
 		SystemPromptTemplate: traderCfg.SystemPromptTemplate, // System prompt template
+		StrategyID:           traderCfg.StrategyID,         // Strategy ID
 		UseTradingView:       traderCfg.UseTradingView,       // TradingView signal source
 		HyperliquidTestnet:   exchangeCfg.Testnet,            // Hyperliquid testnet
 	}

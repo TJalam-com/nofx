@@ -6,7 +6,7 @@
 # Versions extracted as ARGs for maintainability
 # ═══════════════════════════════════════════════════════════════
 
-ARG GO_VERSION=1.25-alpine
+ARG GO_VERSION=1.23-alpine
 ARG ALPINE_VERSION=latest
 ARG TA_LIB_VERSION=0.4.0
 ARG NODE_VERSION=20-alpine
@@ -67,7 +67,7 @@ RUN CGO_ENABLED=1 GOOS=linux \
 # ──────────────────────────────────────────────────────────────
 FROM alpine:${ALPINE_VERSION}
 
-RUN apk update && apk add --no-cache ca-certificates tzdata
+RUN apk update && apk add --no-cache ca-certificates tzdata wget
 
 COPY --from=ta-lib-builder /usr/local /usr/local
 WORKDIR /app

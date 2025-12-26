@@ -598,6 +598,23 @@ export interface Strategy {
   enable_funding: boolean
   indicator_timeframe: string
   quant_data_url: string
+  // Risk Management Configuration
+  min_risk_reward_ratio?: number
+  max_positions?: number
+  margin_usage_limit?: number
+  min_opening_amount?: number
+  min_opening_amount_btc_eth?: number
+  // Position Sizing Configuration
+  altcoin_position_min?: number
+  altcoin_position_max?: number
+  btc_eth_position_min?: number
+  btc_eth_position_max?: number
+  available_margin_multiplier?: number
+  // Trading Rules Configuration
+  min_confidence_for_entry?: number
+  min_holding_time_minutes?: number
+  // Sharpe Ratio Configuration (JSON string)
+  sharpe_ratio_config?: string
   created_at: string
   updated_at: string
 }
@@ -625,6 +642,23 @@ export interface CreateStrategyRequest {
   enable_funding?: boolean
   indicator_timeframe?: string
   quant_data_url?: string
+  // Risk Management Configuration
+  min_risk_reward_ratio?: number
+  max_positions?: number
+  margin_usage_limit?: number
+  min_opening_amount?: number
+  min_opening_amount_btc_eth?: number
+  // Position Sizing Configuration
+  altcoin_position_min?: number
+  altcoin_position_max?: number
+  btc_eth_position_min?: number
+  btc_eth_position_max?: number
+  available_margin_multiplier?: number
+  // Trading Rules Configuration
+  min_confidence_for_entry?: number
+  min_holding_time_minutes?: number
+  // Sharpe Ratio Configuration (JSON string)
+  sharpe_ratio_config?: string
 }
 
 export interface UpdateStrategyRequest {
@@ -650,6 +684,23 @@ export interface UpdateStrategyRequest {
   enable_funding?: boolean
   indicator_timeframe?: string
   quant_data_url?: string
+  // Risk Management Configuration
+  min_risk_reward_ratio?: number
+  max_positions?: number
+  margin_usage_limit?: number
+  min_opening_amount?: number
+  min_opening_amount_btc_eth?: number
+  // Position Sizing Configuration
+  altcoin_position_min?: number
+  altcoin_position_max?: number
+  btc_eth_position_min?: number
+  btc_eth_position_max?: number
+  available_margin_multiplier?: number
+  // Trading Rules Configuration
+  min_confidence_for_entry?: number
+  min_holding_time_minutes?: number
+  // Sharpe Ratio Configuration (JSON string)
+  sharpe_ratio_config?: string
 }
 
 // Article types

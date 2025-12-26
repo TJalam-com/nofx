@@ -101,6 +101,9 @@ type AutoTraderConfig struct {
 	// System prompt template
 	SystemPromptTemplate string // System prompt template name (e.g., "default", "aggressive")
 
+	// Strategy ID (optional, references strategies table)
+	StrategyID string // Strategy ID for loading strategy configuration
+
 	// TradingView configuration
 	UseTradingView bool // Whether to use TradingView signal source (if true, will skip AI decisions)
 
@@ -143,6 +146,7 @@ type AutoTrader struct {
 	customPrompt             string   // Custom trading strategy prompt
 	overrideBasePrompt       bool     // Whether to override base prompt
 	systemPromptTemplate     string   // System prompt template name
+	strategyID               string   // Strategy ID for loading strategy configuration
 	defaultCoins             []string // Default currency list (from database)
 	tradingCoins             []string // Actual trading currency list
 	lastResetTime            time.Time
@@ -402,6 +406,7 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		decisionLogger:        decisionLogger,
 		initialBalance:        config.InitialBalance,
 		systemPromptTemplate:  systemPromptTemplate,
+		strategyID:            config.StrategyID,
 		defaultCoins:          config.DefaultCoins,
 		tradingCoins:          config.TradingCoins,
 		lastResetTime:         time.Now(),
@@ -691,9 +696,12 @@ func (at *AutoTrader) runCycle() error {
 	log.Printf("📊 Account equity: %.2f USDT | Available: %.2f USDT | Positions: %d",
 		ctx.Account.TotalEquity, ctx.Account.AvailableBalance, ctx.Account.PositionCount)
 
-	// 5. Call AI to get full decision
+	// 5. Load strategy config
+	strategyConfig := at.getStrategyConfig()
+
+	// 6. Call AI to get full decision
 	log.Printf("🤖 Requesting AI analysis and decision... [Template: %s]", at.systemPromptTemplate)
-	decision, err := decision.GetFullDecisionWithCustomPrompt(ctx, at.mcpClient, at.customPrompt, at.overrideBasePrompt, at.systemPromptTemplate)
+	decision, err := decision.GetFullDecisionWithCustomPrompt(ctx, at.mcpClient, at.customPrompt, at.overrideBasePrompt, at.systemPromptTemplate, strategyConfig)
 
 	if decision != nil && decision.AIRequestDurationMs > 0 {
 		record.AIRequestDurationMs = decision.AIRequestDurationMs
@@ -1275,6 +1283,9 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 		log.Printf("  ⚠ Failed to set take profit: %v", err)
 	}
 
+	// Update position snapshot immediately for closure detection
+	at.updatePositionSnapshot()
+
 	return nil
 }
 
@@ -1473,6 +1484,9 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 	if err := at.trader.SetTakeProfit(decision.Symbol, "SHORT", actualExecutedQty, decision.TakeProfit); err != nil {
 		log.Printf("  ⚠ Failed to set take profit: %v", err)
 	}
+
+	// Update position snapshot immediately for closure detection
+	at.updatePositionSnapshot()
 
 	return nil
 }
@@ -2201,6 +2215,43 @@ func (at *AutoTrader) SetCustomPrompt(prompt string) {
 	at.customPrompt = prompt
 }
 
+// getStrategyConfig loads strategy configuration from database or returns defaults
+func (at *AutoTrader) getStrategyConfig() decision.StrategyConfig {
+	// If no strategy ID, return defaults
+	if at.strategyID == "" {
+		return decision.GetDefaultStrategyConfig()
+	}
+
+	// Try to load strategy from database
+	if db, ok := at.database.(*cfg.Database); ok {
+		strategy, err := db.GetStrategy(at.strategyID, at.userID)
+		if err != nil {
+			log.Printf("⚠️ [%s] Failed to load strategy %s: %v, using defaults", at.name, at.strategyID, err)
+			return decision.GetDefaultStrategyConfig()
+		}
+
+		// Convert StrategyRecord to StrategyConfig
+		return decision.StrategyConfigFromFields(
+			strategy.MinRiskRewardRatio,
+			strategy.MarginUsageLimit,
+			strategy.MinOpeningAmount,
+			strategy.MinOpeningAmountBTCETH,
+			strategy.AltcoinPositionMin,
+			strategy.AltcoinPositionMax,
+			strategy.BTCETHPositionMin,
+			strategy.BTCETHPositionMax,
+			strategy.AvailableMarginMultiplier,
+			strategy.MaxPositions,
+			strategy.MinConfidenceForEntry,
+			strategy.MinHoldingTimeMinutes,
+			strategy.SharpeRatioConfig,
+		)
+	}
+
+	// Database not available or wrong type, return defaults
+	return decision.GetDefaultStrategyConfig()
+}
+
 // SetOverrideBasePrompt set whether to override base prompt
 func (at *AutoTrader) SetOverrideBasePrompt(override bool) {
 	at.overrideBasePrompt = override
@@ -2709,6 +2760,48 @@ func (at *AutoTrader) checkPositionDrawdown() {
 	}
 }
 
+// updatePositionSnapshot updates the previousPositions snapshot with current positions
+// This ensures closure detection can properly track position changes
+func (at *AutoTrader) updatePositionSnapshot() {
+	currentPositions, err := at.trader.GetPositions()
+	if err != nil {
+		log.Printf("⚠️ Position snapshot update: failed to get positions: %v", err)
+		return
+	}
+
+	// Build current position keys map (symbol_side -> position data)
+	currentPositionsMap := make(map[string]map[string]interface{})
+	for _, pos := range currentPositions {
+		symbol, ok := pos["symbol"].(string)
+		if !ok || symbol == "" {
+			continue
+		}
+		side, ok := pos["side"].(string)
+		if !ok || side == "" {
+			continue
+		}
+		quantity, ok := pos["positionAmt"].(float64)
+		if !ok {
+			continue
+		}
+		if quantity < 0 {
+			quantity = -quantity
+		}
+		// Skip closed positions (quantity = 0)
+		if quantity == 0 {
+			continue
+		}
+
+		posKey := symbol + "_" + side
+		currentPositionsMap[posKey] = pos
+	}
+
+	// Update snapshot
+	at.previousPositionsMutex.Lock()
+	at.previousPositions = currentPositionsMap
+	at.previousPositionsMutex.Unlock()
+}
+
 // detectAndLogPositionClosures detects positions that were closed by SL/TP and logs them as auto-close actions
 func (at *AutoTrader) detectAndLogPositionClosures() {
 	// Get current positions
@@ -2783,8 +2876,8 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 		return
 	}
 
-	// Check for closures within last 10 minutes
-	timeWindow := 10 * time.Minute
+	// Check for closures within last 30 minutes (extended to catch delayed detections)
+	timeWindow := 30 * time.Minute
 	cutoffTime := time.Now().Add(-timeWindow)
 
 	// Get recent position history
@@ -2907,6 +3000,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 
 		// Update database position record with closure information
 		// First, try to find the open position record in database
+		// Also check closed positions in case it was already closed but not logged
 		openPositions, err := db.GetOpenPositions(at.id)
 		var dbPosition *cfg.PositionRecord
 		if err == nil {
@@ -2917,7 +3011,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 				}
 			}
 		}
-
+		
 		// Determine close time
 		closeTime := time.Now()
 		if closedPosition.ClosedAt != nil {
@@ -3287,6 +3381,13 @@ func (at *AutoTrader) processTradingViewAlerts(record *logger.DecisionRecord) er
 		log.Printf("⚠ Failed to save decision record: %v", err)
 	}
 
+	// Update position snapshot after processing alerts to track new positions
+	at.updatePositionSnapshot()
+
+	// Immediately check for position closures (SL/TP hits) after processing TradingView alerts
+	// This ensures closures are detected quickly even if they happen right after position opens
+	at.detectAndLogPositionClosures()
+
 	return nil
 }
 
@@ -3417,6 +3518,9 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 	// Build user prompt (contains TradingView signal data)
 	userPrompt := at.buildTradingViewUserPrompt(tradingCtx, alert)
 
+	// Load strategy config
+	strategyConfig := at.getStrategyConfig()
+
 	// Build system prompt (contains TradingView signal analysis instructions)
 	systemPrompt := decision.BuildSystemPromptWithTradingView(
 		tradingCtx.Account.TotalEquity,
@@ -3426,6 +3530,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		at.overrideBasePrompt,
 		at.systemPromptTemplate,
 		tradingCtx.PromptVariant,
+		strategyConfig,
 	)
 
 	// Call AI
@@ -3445,7 +3550,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 	record.RawResponse = aiResponse // Save raw AI response for debugging parse failures
 
 	// Parse AI response
-	fullDecision, err := decision.ParseFullDecisionResponse(tradingCtx, aiResponse)
+	fullDecision, err := decision.ParseFullDecisionResponse(tradingCtx, aiResponse, strategyConfig)
 	if err != nil {
 		log.Printf("❌ [%s] failed to parse AI response: %v", at.name, err)
 		record.ErrorMessage = fmt.Sprintf("failed to parse AI response: %v", err)
@@ -3642,6 +3747,9 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 	// Build user prompt with parent signal info
 	userPrompt := at.buildParentSignalUserPrompt(tradingCtx, signal)
 
+	// Load strategy config
+	strategyConfig := at.getStrategyConfig()
+
 	// Build system prompt using risk_management template
 	systemPrompt := decision.BuildSystemPromptWithParentSignal(
 		tradingCtx.Account.TotalEquity,
@@ -3651,6 +3759,7 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 		at.overrideBasePrompt,
 		"risk_management",
 		tradingCtx.PromptVariant,
+		strategyConfig,
 	)
 
 	// Call AI
@@ -3669,7 +3778,7 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 	record.RawResponse = aiResponse // Save raw AI response for debugging parse failures
 
 	// Parse AI response
-	fullDecision, err := decision.ParseFullDecisionResponse(tradingCtx, aiResponse)
+	fullDecision, err := decision.ParseFullDecisionResponse(tradingCtx, aiResponse, strategyConfig)
 	if err != nil {
 		log.Printf("❌ [%s] Failed to parse AI response: %v", at.name, err)
 		record.ErrorMessage = fmt.Sprintf("Failed to parse: %v", err)

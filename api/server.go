@@ -565,6 +565,23 @@ type CreateStrategyRequest struct {
 	EnableFunding        bool   `json:"enable_funding"`
 	IndicatorTimeframe   string `json:"indicator_timeframe"`
 	QuantDataURL         string `json:"quant_data_url"`
+	// Risk Management Configuration
+	MinRiskRewardRatio    *float64 `json:"min_risk_reward_ratio"`    // Default: 3.0 (1:3)
+	MaxPositions           *int     `json:"max_positions"`            // Default: 3
+	MarginUsageLimit       *float64 `json:"margin_usage_limit"`      // Default: 90.0
+	MinOpeningAmount       *float64 `json:"min_opening_amount"`      // Default: 12.0
+	MinOpeningAmountBTCETH *float64 `json:"min_opening_amount_btc_eth"` // Default: 60.0
+	// Position Sizing Configuration
+	AltcoinPositionMin      *float64 `json:"altcoin_position_min"`    // Default: 0.8
+	AltcoinPositionMax      *float64 `json:"altcoin_position_max"`    // Default: 1.5
+	BTCETHPositionMin       *float64 `json:"btc_eth_position_min"`    // Default: 5.0
+	BTCETHPositionMax       *float64 `json:"btc_eth_position_max"`    // Default: 10.0
+	AvailableMarginMultiplier *float64 `json:"available_margin_multiplier"` // Default: 0.88
+	// Trading Rules Configuration
+	MinConfidenceForEntry *int     `json:"min_confidence_for_entry"` // Default: 75
+	MinHoldingTimeMinutes *int     `json:"min_holding_time_minutes"` // Default: 30
+	// Sharpe Ratio Configuration (JSON string)
+	SharpeRatioConfig *string `json:"sharpe_ratio_config"` // JSON: { thresholds: [...] }
 }
 
 type UpdateStrategyRequest struct {
@@ -590,6 +607,23 @@ type UpdateStrategyRequest struct {
 	EnableFunding        bool   `json:"enable_funding"`
 	IndicatorTimeframe   string `json:"indicator_timeframe"`
 	QuantDataURL         string `json:"quant_data_url"`
+	// Risk Management Configuration
+	MinRiskRewardRatio    *float64 `json:"min_risk_reward_ratio"`    // Default: 3.0 (1:3)
+	MaxPositions           *int     `json:"max_positions"`            // Default: 3
+	MarginUsageLimit       *float64 `json:"margin_usage_limit"`      // Default: 90.0
+	MinOpeningAmount       *float64 `json:"min_opening_amount"`      // Default: 12.0
+	MinOpeningAmountBTCETH *float64 `json:"min_opening_amount_btc_eth"` // Default: 60.0
+	// Position Sizing Configuration
+	AltcoinPositionMin      *float64 `json:"altcoin_position_min"`    // Default: 0.8
+	AltcoinPositionMax      *float64 `json:"altcoin_position_max"`    // Default: 1.5
+	BTCETHPositionMin       *float64 `json:"btc_eth_position_min"`    // Default: 5.0
+	BTCETHPositionMax       *float64 `json:"btc_eth_position_max"`    // Default: 10.0
+	AvailableMarginMultiplier *float64 `json:"available_margin_multiplier"` // Default: 0.88
+	// Trading Rules Configuration
+	MinConfidenceForEntry *int     `json:"min_confidence_for_entry"` // Default: 75
+	MinHoldingTimeMinutes *int     `json:"min_holding_time_minutes"` // Default: 30
+	// Sharpe Ratio Configuration (JSON string)
+	SharpeRatioConfig *string `json:"sharpe_ratio_config"` // JSON: { thresholds: [...] }
 }
 
 type ImportStrategyRequest struct {
@@ -830,30 +864,43 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 								// Create a copy of the strategy for the follower
 								newStrategyID := fmt.Sprintf("strategy_%s_%d", userID, time.Now().UnixNano())
 								copiedStrategy := &config.StrategyRecord{
-									ID:                   newStrategyID,
-									UserID:               userID,
-									Name:                 parentStrategy.Name + " (Copy)",
-									Description:          parentStrategy.Description,
-									SystemPromptTemplate: parentStrategy.SystemPromptTemplate,
-									CustomPrompt:         parentStrategy.CustomPrompt,
-									OverrideBasePrompt:   parentStrategy.OverrideBasePrompt,
-									BTCETHLeverage:       parentStrategy.BTCETHLeverage,
-									AltcoinLeverage:      parentStrategy.AltcoinLeverage,
-									TradingSymbols:       parentStrategy.TradingSymbols,
-									IsCrossMargin:        parentStrategy.IsCrossMargin,
-									UseCoinPool:          parentStrategy.UseCoinPool,
-									UseOITop:             parentStrategy.UseOITop,
-									UseTradingView:       parentStrategy.UseTradingView,
-									EnableRawKlines:      parentStrategy.EnableRawKlines,
-									EnableEMA:            parentStrategy.EnableEMA,
-									EnableMACD:           parentStrategy.EnableMACD,
-									EnableRSI:            parentStrategy.EnableRSI,
-									EnableATR:            parentStrategy.EnableATR,
-									EnableVolume:         parentStrategy.EnableVolume,
-									EnableOI:             parentStrategy.EnableOI,
-									EnableFunding:        parentStrategy.EnableFunding,
-									IndicatorTimeframe:   parentStrategy.IndicatorTimeframe,
-									QuantDataURL:         parentStrategy.QuantDataURL,
+									ID:                     newStrategyID,
+									UserID:                 userID,
+									Name:                   parentStrategy.Name + " (Copy)",
+									Description:            parentStrategy.Description,
+									SystemPromptTemplate:   parentStrategy.SystemPromptTemplate,
+									CustomPrompt:           parentStrategy.CustomPrompt,
+									OverrideBasePrompt:     parentStrategy.OverrideBasePrompt,
+									BTCETHLeverage:         parentStrategy.BTCETHLeverage,
+									AltcoinLeverage:         parentStrategy.AltcoinLeverage,
+									TradingSymbols:         parentStrategy.TradingSymbols,
+									IsCrossMargin:          parentStrategy.IsCrossMargin,
+									UseCoinPool:            parentStrategy.UseCoinPool,
+									UseOITop:               parentStrategy.UseOITop,
+									UseTradingView:          parentStrategy.UseTradingView,
+									EnableRawKlines:        parentStrategy.EnableRawKlines,
+									EnableEMA:              parentStrategy.EnableEMA,
+									EnableMACD:             parentStrategy.EnableMACD,
+									EnableRSI:              parentStrategy.EnableRSI,
+									EnableATR:              parentStrategy.EnableATR,
+									EnableVolume:           parentStrategy.EnableVolume,
+									EnableOI:               parentStrategy.EnableOI,
+									EnableFunding:          parentStrategy.EnableFunding,
+									IndicatorTimeframe:     parentStrategy.IndicatorTimeframe,
+									QuantDataURL:           parentStrategy.QuantDataURL,
+									MinRiskRewardRatio:     parentStrategy.MinRiskRewardRatio,
+									MaxPositions:            parentStrategy.MaxPositions,
+									MarginUsageLimit:       parentStrategy.MarginUsageLimit,
+									MinOpeningAmount:        parentStrategy.MinOpeningAmount,
+									MinOpeningAmountBTCETH:  parentStrategy.MinOpeningAmountBTCETH,
+									AltcoinPositionMin:     parentStrategy.AltcoinPositionMin,
+									AltcoinPositionMax:     parentStrategy.AltcoinPositionMax,
+									BTCETHPositionMin:      parentStrategy.BTCETHPositionMin,
+									BTCETHPositionMax:      parentStrategy.BTCETHPositionMax,
+									AvailableMarginMultiplier: parentStrategy.AvailableMarginMultiplier,
+									MinConfidenceForEntry:  parentStrategy.MinConfidenceForEntry,
+									MinHoldingTimeMinutes:  parentStrategy.MinHoldingTimeMinutes,
+									SharpeRatioConfig:      parentStrategy.SharpeRatioConfig,
 								}
 								if err := s.database.CreateStrategy(copiedStrategy); err == nil {
 									req.StrategyID = newStrategyID
@@ -868,30 +915,44 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 							// Parent trader has no strategy_id (embedded config), create strategy from parent's config
 							newStrategyID := fmt.Sprintf("strategy_%s_%d", userID, time.Now().UnixNano())
 							extractedStrategy := &config.StrategyRecord{
-								ID:                   newStrategyID,
-								UserID:               userID,
-								Name:                 trader.Name + " Strategy",
-								Description:          "Strategy extracted from trader configuration",
-								SystemPromptTemplate: trader.SystemPromptTemplate,
-								CustomPrompt:         trader.CustomPrompt,
-								OverrideBasePrompt:   trader.OverrideBasePrompt,
-								BTCETHLeverage:       trader.BTCETHLeverage,
-								AltcoinLeverage:      trader.AltcoinLeverage,
-								TradingSymbols:       trader.TradingSymbols,
-								IsCrossMargin:        trader.IsCrossMargin,
-								UseCoinPool:          trader.UseCoinPool,
-								UseOITop:             trader.UseOITop,
-								UseTradingView:       trader.UseTradingView,
-								EnableRawKlines:      trader.EnableRawKlines,
-								EnableEMA:            trader.EnableEMA,
-								EnableMACD:           trader.EnableMACD,
-								EnableRSI:            trader.EnableRSI,
-								EnableATR:            trader.EnableATR,
-								EnableVolume:         trader.EnableVolume,
-								EnableOI:             trader.EnableOI,
-								EnableFunding:        trader.EnableFunding,
-								IndicatorTimeframe:   trader.IndicatorTimeframe,
-								QuantDataURL:         trader.QuantDataURL,
+								ID:                     newStrategyID,
+								UserID:                 userID,
+								Name:                   trader.Name + " Strategy",
+								Description:            "Strategy extracted from trader configuration",
+								SystemPromptTemplate:   trader.SystemPromptTemplate,
+								CustomPrompt:           trader.CustomPrompt,
+								OverrideBasePrompt:     trader.OverrideBasePrompt,
+								BTCETHLeverage:         trader.BTCETHLeverage,
+								AltcoinLeverage:        trader.AltcoinLeverage,
+								TradingSymbols:         trader.TradingSymbols,
+								IsCrossMargin:          trader.IsCrossMargin,
+								UseCoinPool:            trader.UseCoinPool,
+								UseOITop:               trader.UseOITop,
+								UseTradingView:         trader.UseTradingView,
+								EnableRawKlines:        trader.EnableRawKlines,
+								EnableEMA:              trader.EnableEMA,
+								EnableMACD:             trader.EnableMACD,
+								EnableRSI:              trader.EnableRSI,
+								EnableATR:              trader.EnableATR,
+								EnableVolume:           trader.EnableVolume,
+								EnableOI:               trader.EnableOI,
+								EnableFunding:          trader.EnableFunding,
+								IndicatorTimeframe:     trader.IndicatorTimeframe,
+								QuantDataURL:           trader.QuantDataURL,
+								// Use default values for new configuration fields (trader doesn't have these)
+								MinRiskRewardRatio:     3.0,
+								MaxPositions:            3,
+								MarginUsageLimit:       90.0,
+								MinOpeningAmount:        12.0,
+								MinOpeningAmountBTCETH:  60.0,
+								AltcoinPositionMin:      0.8,
+								AltcoinPositionMax:      1.5,
+								BTCETHPositionMin:       5.0,
+								BTCETHPositionMax:       10.0,
+								AvailableMarginMultiplier: 0.88,
+								MinConfidenceForEntry:   75,
+								MinHoldingTimeMinutes:   30,
+								SharpeRatioConfig:       "",
 							}
 							if err := s.database.CreateStrategy(extractedStrategy); err == nil {
 								req.StrategyID = newStrategyID
@@ -1154,57 +1215,134 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 		log.Printf("⚠️  WARNING: Quant data API URL missing {symbol} placeholder: %s", quantDataURL)
 	}
 
-	// Handle strategy resolution: if strategy_id is provided, load strategy and merge with request
-	if req.StrategyID != "" {
-		strategy, err := s.database.GetStrategy(req.StrategyID, userID)
-		if err == nil {
-			// Merge strategy config into request (request values take precedence)
-			if req.SystemPromptTemplate == "" {
-				req.SystemPromptTemplate = strategy.SystemPromptTemplate
+	// Handle strategy_id: if provided, validate it exists but don't merge settings
+	// When strategy_id is set, we only save the reference - settings will be loaded from strategy when needed
+	strategyID := req.StrategyID
+	// #region agent log
+	if strategyID != "" {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"api/server.go:1220","message":"CreateTrader received strategy_id","data":{"strategyID":"%s","userID":"%s"},"timestamp":%d}`+"\n", strategyID, userID, time.Now().UnixMilli())
+			logFile.WriteString(logEntry)
+			logFile.Close()
+		}
+	}
+	// #endregion
+	if strategyID != "" {
+		_, err := s.database.GetStrategy(strategyID, userID)
+		if err != nil {
+			log.Printf("⚠️ Failed to load strategy %s: %v, proceeding without strategy", strategyID, err)
+			// #region agent log
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"api/server.go:1228","message":"Strategy validation failed","data":{"strategyID":"%s","error":"%v"},"timestamp":%d}`+"\n", strategyID, err, time.Now().UnixMilli())
+				logFile.WriteString(logEntry)
+				logFile.Close()
 			}
-			if req.CustomPrompt == "" {
-				req.CustomPrompt = strategy.CustomPrompt
-			}
-			req.OverrideBasePrompt = strategy.OverrideBasePrompt
-			if req.BTCETHLeverage == 0 {
-				req.BTCETHLeverage = strategy.BTCETHLeverage
-			}
-			if req.AltcoinLeverage == 0 {
-				req.AltcoinLeverage = strategy.AltcoinLeverage
-			}
-			if req.TradingSymbols == "" {
-				req.TradingSymbols = strategy.TradingSymbols
-			}
-			if req.IsCrossMargin == nil {
-				isCross := strategy.IsCrossMargin
-				req.IsCrossMargin = &isCross
-			}
-			req.UseCoinPool = strategy.UseCoinPool
-			req.UseOITop = strategy.UseOITop
-			req.UseTradingView = strategy.UseTradingView
-			req.EnableRawKlines = strategy.EnableRawKlines
-			req.EnableEMA = strategy.EnableEMA
-			req.EnableMACD = strategy.EnableMACD
-			req.EnableRSI = strategy.EnableRSI
-			req.EnableATR = strategy.EnableATR
-			req.EnableVolume = strategy.EnableVolume
-			req.EnableOI = strategy.EnableOI
-			req.EnableFunding = strategy.EnableFunding
-			if req.IndicatorTimeframe == "" {
-				req.IndicatorTimeframe = strategy.IndicatorTimeframe
-			}
-			if req.QuantDataURL == "" {
-				req.QuantDataURL = strategy.QuantDataURL
-			}
-			log.Printf("✓ Merged strategy %s config into trader request", req.StrategyID)
+			// #endregion
+			strategyID = "" // Clear invalid strategy_id
 		} else {
-			log.Printf("⚠️ Failed to load strategy %s: %v, proceeding without strategy", req.StrategyID, err)
-			req.StrategyID = "" // Clear invalid strategy_id
+			log.Printf("✓ Validated strategy %s - settings will be loaded from strategy when needed", strategyID)
+			// #region agent log
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"api/server.go:1233","message":"Strategy validated successfully","data":{"strategyID":"%s"},"timestamp":%d}`+"\n", strategyID, time.Now().UnixMilli())
+				logFile.WriteString(logEntry)
+				logFile.Close()
+			}
+			// #endregion
 		}
 	}
 
+	// Set isCrossMargin: if strategy_id is set, use default (will be loaded from strategy)
+	// Otherwise, use provided value or default
+	if strategyID != "" {
+		isCrossMargin = true // Default value, will be loaded from strategy
+	} else if req.IsCrossMargin != nil {
+		isCrossMargin = *req.IsCrossMargin
+	}
+
 	// Create trader configuration (database entity)
-	log.Printf("🔧 DEBUG [CreateTrader]: Starting to create trader configuration, ID=%s, Name=%s, AIModel=%s, Exchange=%s, FollowedTraderID='%s', StrategyID='%s', SystemPromptTemplate='%s'", traderID, req.Name, req.AIModelID, req.ExchangeID, req.FollowedTraderID, req.StrategyID, systemPromptTemplate)
+	// If strategy_id is set, use defaults/empty for strategy-related fields (they'll be loaded from strategy)
+	// If strategy_id is not set, use the provided values
+	var traderStrategySettings struct {
+		BTCETHLeverage      int
+		AltcoinLeverage     int
+		TradingSymbols      string
+		CustomPrompt        string
+		OverrideBasePrompt  bool
+		SystemPromptTpl     string
+		UseCoinPool         bool
+		UseOITop            bool
+		UseTradingView      bool
+		EnableRawKlines     bool
+		EnableEMA           bool
+		EnableMACD          bool
+		EnableRSI           bool
+		EnableATR           bool
+		EnableVolume        bool
+		EnableOI            bool
+		EnableFunding       bool
+		IndicatorTimeframe  string
+		QuantDataURL        string
+	}
+
+	if strategyID != "" {
+		// Strategy reference mode: use defaults/empty values
+		// Settings will be loaded from strategy when trader config is retrieved
+		traderStrategySettings.BTCETHLeverage = 0
+		traderStrategySettings.AltcoinLeverage = 0
+		traderStrategySettings.TradingSymbols = ""
+		traderStrategySettings.CustomPrompt = ""
+		traderStrategySettings.OverrideBasePrompt = false
+		traderStrategySettings.SystemPromptTpl = ""
+		traderStrategySettings.UseCoinPool = false
+		traderStrategySettings.UseOITop = false
+		traderStrategySettings.UseTradingView = false
+		traderStrategySettings.EnableRawKlines = true // Required field
+		traderStrategySettings.EnableEMA = false
+		traderStrategySettings.EnableMACD = false
+		traderStrategySettings.EnableRSI = false
+		traderStrategySettings.EnableATR = false
+		traderStrategySettings.EnableVolume = true
+		traderStrategySettings.EnableOI = true
+		traderStrategySettings.EnableFunding = true
+		traderStrategySettings.IndicatorTimeframe = ""
+		traderStrategySettings.QuantDataURL = ""
+		log.Printf("✓ Using strategy reference mode - strategy settings will be loaded from strategy %s", strategyID)
+	} else {
+		// Custom config mode: use provided values
+		traderStrategySettings.BTCETHLeverage = btcEthLeverage
+		traderStrategySettings.AltcoinLeverage = altcoinLeverage
+		traderStrategySettings.TradingSymbols = req.TradingSymbols
+		traderStrategySettings.CustomPrompt = req.CustomPrompt
+		traderStrategySettings.OverrideBasePrompt = req.OverrideBasePrompt
+		traderStrategySettings.SystemPromptTpl = systemPromptTemplate
+		traderStrategySettings.UseCoinPool = req.UseCoinPool
+		traderStrategySettings.UseOITop = req.UseOITop
+		traderStrategySettings.UseTradingView = req.UseTradingView
+		traderStrategySettings.EnableRawKlines = enableRawKlines
+		traderStrategySettings.EnableEMA = enableEMA
+		traderStrategySettings.EnableMACD = enableMACD
+		traderStrategySettings.EnableRSI = enableRSI
+		traderStrategySettings.EnableATR = enableATR
+		traderStrategySettings.EnableVolume = enableVolume
+		traderStrategySettings.EnableOI = enableOI
+		traderStrategySettings.EnableFunding = enableFunding
+		traderStrategySettings.IndicatorTimeframe = indicatorTimeframe
+		traderStrategySettings.QuantDataURL = quantDataURL
+		log.Printf("✓ Using custom config mode - saving individual settings")
+	}
+
+	log.Printf("🔧 DEBUG [CreateTrader]: Starting to create trader configuration, ID=%s, Name=%s, AIModel=%s, Exchange=%s, FollowedTraderID='%s', StrategyID='%s'", traderID, req.Name, req.AIModelID, req.ExchangeID, req.FollowedTraderID, strategyID)
+	// #region agent log
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"api/server.go:1311","message":"Creating TraderRecord with strategy_id","data":{"traderID":"%s","strategyID":"%s","reqStrategyID":"%s"},"timestamp":%d}`+"\n", traderID, strategyID, req.StrategyID, time.Now().UnixMilli())
+		logFile.WriteString(logEntry)
+		logFile.Close()
+	}
+	// #endregion
 	trader := &config.TraderRecord{
 		ID:                   traderID,
 		UserID:               userID,
@@ -1212,42 +1350,66 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 		AIModelID:            req.AIModelID,
 		ExchangeID:           req.ExchangeID,
 		InitialBalance:       actualBalance, // Use actual queried balance
-		BTCETHLeverage:       btcEthLeverage,
-		AltcoinLeverage:      altcoinLeverage,
-		TradingSymbols:       req.TradingSymbols,
-		UseCoinPool:          req.UseCoinPool,
-		UseOITop:             req.UseOITop,
-		UseTradingView:       req.UseTradingView,
+		BTCETHLeverage:       traderStrategySettings.BTCETHLeverage,
+		AltcoinLeverage:      traderStrategySettings.AltcoinLeverage,
+		TradingSymbols:       traderStrategySettings.TradingSymbols,
+		UseCoinPool:          traderStrategySettings.UseCoinPool,
+		UseOITop:             traderStrategySettings.UseOITop,
+		UseTradingView:        traderStrategySettings.UseTradingView,
 		FollowedTraderID:     req.FollowedTraderID,
-		CustomPrompt:         req.CustomPrompt,
-		OverrideBasePrompt:   req.OverrideBasePrompt,
-		SystemPromptTemplate: systemPromptTemplate,
+		CustomPrompt:         traderStrategySettings.CustomPrompt,
+		OverrideBasePrompt:   traderStrategySettings.OverrideBasePrompt,
+		SystemPromptTemplate: traderStrategySettings.SystemPromptTpl,
 		IsCrossMargin:        isCrossMargin,
 		ShowInCompetition:    showInCompetition,
-		StrategyID:           req.StrategyID,
+		StrategyID:           strategyID,
 		ScanIntervalMinutes:  scanIntervalMinutes,
-		EnableRawKlines:      enableRawKlines,
-		EnableEMA:            enableEMA,
-		EnableMACD:           enableMACD,
-		EnableRSI:            enableRSI,
-		EnableATR:            enableATR,
-		EnableVolume:         enableVolume,
-		EnableOI:             enableOI,
-		EnableFunding:        enableFunding,
-		IndicatorTimeframe:   indicatorTimeframe,
-		QuantDataURL:         quantDataURL,
+		EnableRawKlines:      traderStrategySettings.EnableRawKlines,
+		EnableEMA:            traderStrategySettings.EnableEMA,
+		EnableMACD:           traderStrategySettings.EnableMACD,
+		EnableRSI:            traderStrategySettings.EnableRSI,
+		EnableATR:            traderStrategySettings.EnableATR,
+		EnableVolume:         traderStrategySettings.EnableVolume,
+		EnableOI:             traderStrategySettings.EnableOI,
+		EnableFunding:        traderStrategySettings.EnableFunding,
+		IndicatorTimeframe:   traderStrategySettings.IndicatorTimeframe,
+		QuantDataURL:         traderStrategySettings.QuantDataURL,
 		IsRunning:            false,
 	}
 
 	// Save to database
 	log.Printf("🔧 DEBUG: Preparing to call CreateTrader")
+	// #region agent log
+	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"api/server.go:1348","message":"About to save trader to database","data":{"traderID":"%s","traderStrategyID":"%s"},"timestamp":%d}`+"\n", trader.ID, trader.StrategyID, time.Now().UnixMilli())
+		logFile.WriteString(logEntry)
+		logFile.Close()
+	}
+	// #endregion
 	err = s.database.CreateTrader(trader)
 	if err != nil {
 		log.Printf("❌ Failed to create trader: %v", err)
+		// #region agent log
+		logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"api/server.go:1351","message":"CreateTrader database error","data":{"error":"%v","traderID":"%s"},"timestamp":%d}`+"\n", err, trader.ID, time.Now().UnixMilli())
+			logFile.WriteString(logEntry)
+			logFile.Close()
+		}
+		// #endregion
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create trader: %v", err)})
 		return
 	}
 	log.Printf("✓ DEBUG [CreateTrader]: Trader saved to database successfully, FollowedTraderID='%s', SystemPromptTemplate='%s'", trader.FollowedTraderID, trader.SystemPromptTemplate)
+	// #region agent log
+	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"api/server.go:1354","message":"Trader saved successfully","data":{"traderID":"%s","traderStrategyID":"%s"},"timestamp":%d}`+"\n", trader.ID, trader.StrategyID, time.Now().UnixMilli())
+		logFile.WriteString(logEntry)
+		logFile.Close()
+	}
+	// #endregion
 
 	// Invalidate competition cache to ensure new traders (including followers) are correctly displayed/filtered
 	s.traderManager.InvalidateCompetitionCache()
@@ -1377,67 +1539,75 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		scanIntervalMinutes = 3
 	}
 
-	// Handle strategy resolution: if strategy_id is provided, load strategy and merge with request
+	// Handle strategy_id: determine if we're using strategy reference or custom config
+	// If strategy_id changed from existing, use the new value (could be clearing it)
+	// If strategy_id is same as existing, keep it
 	strategyID := req.StrategyID
-	if strategyID == "" {
-		strategyID = existingTrader.StrategyID // Keep existing strategy_id if not provided
+	// #region agent log
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1487","message":"UpdateTrader received strategy_id","data":{"reqStrategyID":"%s","existingStrategyID":"%s","traderID":"%s"},"timestamp":%d}`+"\n", req.StrategyID, existingTrader.StrategyID, traderID, time.Now().UnixMilli())
+		logFile.WriteString(logEntry)
+		logFile.Close()
 	}
+	// #endregion
+	if strategyID == existingTrader.StrategyID {
+		// StrategyID unchanged, keep existing
+		strategyID = existingTrader.StrategyID
+	}
+	// Otherwise, strategyID is already set from req.StrategyID (could be new value or empty to clear)
+
+	// Validate strategy_id if it's set
 	if strategyID != "" {
-		strategy, err := s.database.GetStrategy(strategyID, userID)
-		if err == nil {
-			// Merge strategy config into request (request values take precedence)
-			if req.SystemPromptTemplate == "" {
-				req.SystemPromptTemplate = strategy.SystemPromptTemplate
+		_, err := s.database.GetStrategy(strategyID, userID)
+		if err != nil {
+			log.Printf("⚠️ Failed to load strategy %s: %v, clearing strategy_id", strategyID, err)
+			// #region agent log
+			logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1498","message":"Strategy validation failed in UpdateTrader","data":{"strategyID":"%s","error":"%v"},"timestamp":%d}`+"\n", strategyID, err, time.Now().UnixMilli())
+				logFile.WriteString(logEntry)
+				logFile.Close()
 			}
-			if req.CustomPrompt == "" {
-				req.CustomPrompt = strategy.CustomPrompt
-			}
-			req.OverrideBasePrompt = strategy.OverrideBasePrompt
-			if req.BTCETHLeverage == 0 {
-				req.BTCETHLeverage = strategy.BTCETHLeverage
-			}
-			if req.AltcoinLeverage == 0 {
-				req.AltcoinLeverage = strategy.AltcoinLeverage
-			}
-			if req.TradingSymbols == "" {
-				req.TradingSymbols = strategy.TradingSymbols
-			}
-			if req.IsCrossMargin == nil {
-				isCross := strategy.IsCrossMargin
-				req.IsCrossMargin = &isCross
-			}
-			req.UseCoinPool = strategy.UseCoinPool
-			req.UseOITop = strategy.UseOITop
-			req.UseTradingView = strategy.UseTradingView
-			req.EnableRawKlines = strategy.EnableRawKlines
-			req.EnableEMA = strategy.EnableEMA
-			req.EnableMACD = strategy.EnableMACD
-			req.EnableRSI = strategy.EnableRSI
-			req.EnableATR = strategy.EnableATR
-			req.EnableVolume = strategy.EnableVolume
-			req.EnableOI = strategy.EnableOI
-			req.EnableFunding = strategy.EnableFunding
-			if req.IndicatorTimeframe == "" {
-				req.IndicatorTimeframe = strategy.IndicatorTimeframe
-			}
-			if req.QuantDataURL == "" {
-				req.QuantDataURL = strategy.QuantDataURL
-			}
-			log.Printf("✓ Merged strategy %s config into trader update request", strategyID)
+			// #endregion
+			strategyID = "" // Clear invalid strategy_id
 		} else {
-			log.Printf("⚠️ Failed to load strategy %s: %v, proceeding without strategy", strategyID, err)
-			strategyID = existingTrader.StrategyID // Fallback to existing strategy_id
+			log.Printf("✓ Validated strategy %s - settings will be loaded from strategy when needed", strategyID)
+			// #region agent log
+			logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1501","message":"Strategy validated successfully in UpdateTrader","data":{"strategyID":"%s"},"timestamp":%d}`+"\n", strategyID, time.Now().UnixMilli())
+				logFile.WriteString(logEntry)
+				logFile.Close()
+			}
+			// #endregion
 		}
 	}
 
-	// Set system prompt template, keep original value if empty
-	log.Printf("🔍 DEBUG [UpdateTrader]: Received system_prompt_template: '%s' (existing: '%s')", req.SystemPromptTemplate, existingTrader.SystemPromptTemplate)
-	systemPromptTemplate := req.SystemPromptTemplate
-	if systemPromptTemplate == "" {
-		systemPromptTemplate = existingTrader.SystemPromptTemplate // Keep original value
-		log.Printf("⚠️ DEBUG [UpdateTrader]: system_prompt_template was empty, keeping existing value: '%s'", systemPromptTemplate)
+	// Determine if we're in strategy reference mode or custom config mode
+	usingStrategy := strategyID != ""
+	
+	// Set isCrossMargin: if strategy_id is set, use default (will be loaded from strategy)
+	// Otherwise, use provided value or keep existing
+	if usingStrategy {
+		isCrossMargin = true // Default value, will be loaded from strategy
+	} else if req.IsCrossMargin != nil {
+		isCrossMargin = *req.IsCrossMargin
+	}
+	
+	// Set system prompt template based on mode
+	var systemPromptTemplate string
+	if usingStrategy {
+		// Strategy reference mode: use empty/default (will be loaded from strategy)
+		systemPromptTemplate = ""
+		log.Printf("✓ Using strategy reference mode - strategy settings will be loaded from strategy %s", strategyID)
 	} else {
-		log.Printf("✓ DEBUG [UpdateTrader]: Updating system_prompt_template to: '%s'", systemPromptTemplate)
+		// Custom config mode: use provided value or keep existing
+		systemPromptTemplate = req.SystemPromptTemplate
+		if systemPromptTemplate == "" {
+			systemPromptTemplate = existingTrader.SystemPromptTemplate // Keep original value
+		}
+		log.Printf("✓ Using custom config mode - saving individual settings")
 	}
 
 	// Validate quant data URL if present (check for {symbol} placeholder)
@@ -1450,52 +1620,117 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 	// Note: Call validateQuantDataURL(req.QuantDataURL) when quant_data_url field is added to UpdateTraderRequest
 	_ = validateQuantDataURL // Suppress unused variable warning until field is added
 
-	// Set indicator configuration - use existing values if not provided, but always ensure enable_raw_klines is true
-	enableRawKlines := true // Always true, required
-	enableEMA := req.EnableEMA
-	if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
-		// If no indicator config provided, use existing values
-		enableEMA = existingTrader.EnableEMA
-	}
-	enableMACD := req.EnableMACD
-	if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
-		enableMACD = existingTrader.EnableMACD
-	}
-	enableRSI := req.EnableRSI
-	if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
-		enableRSI = existingTrader.EnableRSI
-	}
-	enableATR := req.EnableATR
-	if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
-		enableATR = existingTrader.EnableATR
-	}
-	enableVolume := req.EnableVolume
-	if !req.EnableVolume && !req.EnableOI && !req.EnableFunding && req.QuantDataURL == "" {
-		enableVolume = existingTrader.EnableVolume
-	}
-	enableOI := req.EnableOI
-	if !req.EnableVolume && !req.EnableOI && !req.EnableFunding && req.QuantDataURL == "" {
-		enableOI = existingTrader.EnableOI
-	}
-	enableFunding := req.EnableFunding
-	if !req.EnableVolume && !req.EnableOI && !req.EnableFunding && req.QuantDataURL == "" {
-		enableFunding = existingTrader.EnableFunding
-	}
-	indicatorTimeframe := req.IndicatorTimeframe
-	if indicatorTimeframe == "" {
-		indicatorTimeframe = existingTrader.IndicatorTimeframe
-		if indicatorTimeframe == "" {
-			indicatorTimeframe = "3m"
-		}
-	}
-	quantDataURL := req.QuantDataURL
-	if quantDataURL == "" {
-		quantDataURL = existingTrader.QuantDataURL
+	// Set indicator configuration based on mode
+	var traderStrategySettings struct {
+		BTCETHLeverage     int
+		AltcoinLeverage    int
+		TradingSymbols      string
+		CustomPrompt        string
+		OverrideBasePrompt  bool
+		UseCoinPool         bool
+		UseOITop            bool
+		UseTradingView      bool
+		EnableRawKlines     bool
+		EnableEMA           bool
+		EnableMACD          bool
+		EnableRSI           bool
+		EnableATR           bool
+		EnableVolume        bool
+		EnableOI            bool
+		EnableFunding       bool
+		IndicatorTimeframe  string
+		QuantDataURL        string
 	}
 
-	// Validate quant data URL if present (check for {symbol} placeholder)
-	if quantDataURL != "" && !strings.Contains(quantDataURL, "{symbol}") {
-		log.Printf("⚠️  WARNING: Quant data API URL missing {symbol} placeholder: %s", quantDataURL)
+	if usingStrategy {
+		// Strategy reference mode: use defaults/empty values
+		// Settings will be loaded from strategy when trader config is retrieved
+		traderStrategySettings.BTCETHLeverage = 0
+		traderStrategySettings.AltcoinLeverage = 0
+		traderStrategySettings.TradingSymbols = ""
+		traderStrategySettings.CustomPrompt = ""
+		traderStrategySettings.OverrideBasePrompt = false
+		traderStrategySettings.UseCoinPool = false
+		traderStrategySettings.UseOITop = false
+		traderStrategySettings.UseTradingView = false
+		traderStrategySettings.EnableRawKlines = true // Required field
+		traderStrategySettings.EnableEMA = false
+		traderStrategySettings.EnableMACD = false
+		traderStrategySettings.EnableRSI = false
+		traderStrategySettings.EnableATR = false
+		traderStrategySettings.EnableVolume = true
+		traderStrategySettings.EnableOI = true
+		traderStrategySettings.EnableFunding = true
+		traderStrategySettings.IndicatorTimeframe = ""
+		traderStrategySettings.QuantDataURL = ""
+	} else {
+		// Custom config mode: use provided values or keep existing
+		traderStrategySettings.BTCETHLeverage = btcEthLeverage
+		traderStrategySettings.AltcoinLeverage = altcoinLeverage
+		traderStrategySettings.TradingSymbols = req.TradingSymbols
+		traderStrategySettings.CustomPrompt = req.CustomPrompt
+		traderStrategySettings.OverrideBasePrompt = req.OverrideBasePrompt
+		traderStrategySettings.UseCoinPool = req.UseCoinPool
+		traderStrategySettings.UseOITop = req.UseOITop
+		traderStrategySettings.UseTradingView = req.UseTradingView
+		
+		// Set indicator configuration - use existing values if not provided
+		enableRawKlines := true // Always true, required
+		enableEMA := req.EnableEMA
+		if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
+			enableEMA = existingTrader.EnableEMA
+		}
+		enableMACD := req.EnableMACD
+		if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
+			enableMACD = existingTrader.EnableMACD
+		}
+		enableRSI := req.EnableRSI
+		if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
+			enableRSI = existingTrader.EnableRSI
+		}
+		enableATR := req.EnableATR
+		if !req.EnableEMA && !req.EnableMACD && !req.EnableRSI && !req.EnableATR && req.QuantDataURL == "" {
+			enableATR = existingTrader.EnableATR
+		}
+		enableVolume := req.EnableVolume
+		if !req.EnableVolume && !req.EnableOI && !req.EnableFunding && req.QuantDataURL == "" {
+			enableVolume = existingTrader.EnableVolume
+		}
+		enableOI := req.EnableOI
+		if !req.EnableVolume && !req.EnableOI && !req.EnableFunding && req.QuantDataURL == "" {
+			enableOI = existingTrader.EnableOI
+		}
+		enableFunding := req.EnableFunding
+		if !req.EnableVolume && !req.EnableOI && !req.EnableFunding && req.QuantDataURL == "" {
+			enableFunding = existingTrader.EnableFunding
+		}
+		indicatorTimeframe := req.IndicatorTimeframe
+		if indicatorTimeframe == "" {
+			indicatorTimeframe = existingTrader.IndicatorTimeframe
+			if indicatorTimeframe == "" {
+				indicatorTimeframe = "3m"
+			}
+		}
+		quantDataURL := req.QuantDataURL
+		if quantDataURL == "" {
+			quantDataURL = existingTrader.QuantDataURL
+		}
+
+		// Validate quant data URL if present
+		if quantDataURL != "" && !strings.Contains(quantDataURL, "{symbol}") {
+			log.Printf("⚠️  WARNING: Quant data API URL missing {symbol} placeholder: %s", quantDataURL)
+		}
+
+		traderStrategySettings.EnableRawKlines = enableRawKlines
+		traderStrategySettings.EnableEMA = enableEMA
+		traderStrategySettings.EnableMACD = enableMACD
+		traderStrategySettings.EnableRSI = enableRSI
+		traderStrategySettings.EnableATR = enableATR
+		traderStrategySettings.EnableVolume = enableVolume
+		traderStrategySettings.EnableOI = enableOI
+		traderStrategySettings.EnableFunding = enableFunding
+		traderStrategySettings.IndicatorTimeframe = indicatorTimeframe
+		traderStrategySettings.QuantDataURL = quantDataURL
 	}
 
 	// Update trader configuration
@@ -1506,41 +1741,65 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		AIModelID:            req.AIModelID,
 		ExchangeID:           req.ExchangeID,
 		InitialBalance:       req.InitialBalance,
-		BTCETHLeverage:       btcEthLeverage,
-		AltcoinLeverage:      altcoinLeverage,
-		TradingSymbols:       req.TradingSymbols,
-		UseCoinPool:          req.UseCoinPool,
-		UseOITop:             req.UseOITop,
-		UseTradingView:       req.UseTradingView,
+		BTCETHLeverage:       traderStrategySettings.BTCETHLeverage,
+		AltcoinLeverage:      traderStrategySettings.AltcoinLeverage,
+		TradingSymbols:       traderStrategySettings.TradingSymbols,
+		UseCoinPool:          traderStrategySettings.UseCoinPool,
+		UseOITop:             traderStrategySettings.UseOITop,
+		UseTradingView:        traderStrategySettings.UseTradingView,
 		FollowedTraderID:     req.FollowedTraderID,
-		CustomPrompt:         req.CustomPrompt,
-		OverrideBasePrompt:   req.OverrideBasePrompt,
+		CustomPrompt:         traderStrategySettings.CustomPrompt,
+		OverrideBasePrompt:   traderStrategySettings.OverrideBasePrompt,
 		SystemPromptTemplate: systemPromptTemplate,
 		IsCrossMargin:        isCrossMargin,
 		ShowInCompetition:    showInCompetition,
 		StrategyID:           strategyID,
 		ScanIntervalMinutes:  scanIntervalMinutes,
 		IsRunning:            existingTrader.IsRunning, // Keep original value
-		EnableRawKlines:      enableRawKlines,
-		EnableEMA:            enableEMA,
-		EnableMACD:           enableMACD,
-		EnableRSI:            enableRSI,
-		EnableATR:            enableATR,
-		EnableVolume:         enableVolume,
-		EnableOI:             enableOI,
-		EnableFunding:        enableFunding,
-		IndicatorTimeframe:   indicatorTimeframe,
-		QuantDataURL:         quantDataURL,
+		EnableRawKlines:      traderStrategySettings.EnableRawKlines,
+		EnableEMA:            traderStrategySettings.EnableEMA,
+		EnableMACD:           traderStrategySettings.EnableMACD,
+		EnableRSI:            traderStrategySettings.EnableRSI,
+		EnableATR:            traderStrategySettings.EnableATR,
+		EnableVolume:         traderStrategySettings.EnableVolume,
+		EnableOI:             traderStrategySettings.EnableOI,
+		EnableFunding:        traderStrategySettings.EnableFunding,
+		IndicatorTimeframe:   traderStrategySettings.IndicatorTimeframe,
+		QuantDataURL:         traderStrategySettings.QuantDataURL,
 	}
 
 	// Update database
+	// #region agent log
+	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1690","message":"About to update trader in database","data":{"traderID":"%s","traderStrategyID":"%s"},"timestamp":%d}`+"\n", trader.ID, trader.StrategyID, time.Now().UnixMilli())
+		logFile.WriteString(logEntry)
+		logFile.Close()
+	}
+	// #endregion
 	err = s.database.UpdateTrader(trader)
 	if err != nil {
 		log.Printf("❌ DEBUG [UpdateTrader]: Database update failed: %v", err)
+		// #region agent log
+		logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1693","message":"UpdateTrader database error","data":{"error":"%v","traderID":"%s"},"timestamp":%d}`+"\n", err, trader.ID, time.Now().UnixMilli())
+			logFile.WriteString(logEntry)
+			logFile.Close()
+		}
+		// #endregion
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update trader: %v", err)})
 		return
 	}
 	log.Printf("✓ DEBUG [UpdateTrader]: Database update succeeded for trader %s, system_prompt_template: '%s'", traderID, systemPromptTemplate)
+	// #region agent log
+	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1696","message":"Trader updated successfully","data":{"traderID":"%s","traderStrategyID":"%s"},"timestamp":%d}`+"\n", trader.ID, trader.StrategyID, time.Now().UnixMilli())
+		logFile.WriteString(logEntry)
+		logFile.Close()
+	}
+	// #endregion
 
 	// Reload trader into memory to ensure latest configuration (including UseTradingView) takes effect
 	if reloadErr := s.traderManager.ReloadTraderFromDB(s.database, userID, traderID); reloadErr != nil {
@@ -2907,29 +3166,18 @@ func (s *Server) handleGetTraderConfig(c *gin.Context) {
 		return
 	}
 
-	// Resolve strategy if strategy_id exists
+	// Load strategy settings if strategy_id exists (pure reference model)
 	if traderConfig.StrategyID != "" {
 		strategy, err := s.database.GetStrategy(traderConfig.StrategyID, userID)
 		if err == nil {
-			// Merge strategy config into trader config (trader config takes precedence for fields that are set)
-			if traderConfig.SystemPromptTemplate == "" || traderConfig.SystemPromptTemplate == "default" {
-				traderConfig.SystemPromptTemplate = strategy.SystemPromptTemplate
-			}
-			if traderConfig.CustomPrompt == "" {
-				traderConfig.CustomPrompt = strategy.CustomPrompt
-			}
-			if !traderConfig.OverrideBasePrompt {
-				traderConfig.OverrideBasePrompt = strategy.OverrideBasePrompt
-			}
-			if traderConfig.BTCETHLeverage == 0 || traderConfig.BTCETHLeverage == 5 {
-				traderConfig.BTCETHLeverage = strategy.BTCETHLeverage
-			}
-			if traderConfig.AltcoinLeverage == 0 || traderConfig.AltcoinLeverage == 5 {
-				traderConfig.AltcoinLeverage = strategy.AltcoinLeverage
-			}
-			if traderConfig.TradingSymbols == "" {
-				traderConfig.TradingSymbols = strategy.TradingSymbols
-			}
+			// Use strategy settings directly - trader record only stores trader-specific fields
+			traderConfig.SystemPromptTemplate = strategy.SystemPromptTemplate
+			traderConfig.CustomPrompt = strategy.CustomPrompt
+			traderConfig.OverrideBasePrompt = strategy.OverrideBasePrompt
+			traderConfig.BTCETHLeverage = strategy.BTCETHLeverage
+			traderConfig.AltcoinLeverage = strategy.AltcoinLeverage
+			traderConfig.TradingSymbols = strategy.TradingSymbols
+			traderConfig.IsCrossMargin = strategy.IsCrossMargin
 			traderConfig.UseCoinPool = strategy.UseCoinPool
 			traderConfig.UseOITop = strategy.UseOITop
 			traderConfig.UseTradingView = strategy.UseTradingView
@@ -2941,15 +3189,12 @@ func (s *Server) handleGetTraderConfig(c *gin.Context) {
 			traderConfig.EnableVolume = strategy.EnableVolume
 			traderConfig.EnableOI = strategy.EnableOI
 			traderConfig.EnableFunding = strategy.EnableFunding
-			if traderConfig.IndicatorTimeframe == "" || traderConfig.IndicatorTimeframe == "3m" {
-				traderConfig.IndicatorTimeframe = strategy.IndicatorTimeframe
-			}
-			if traderConfig.QuantDataURL == "" {
-				traderConfig.QuantDataURL = strategy.QuantDataURL
-			}
-			log.Printf("✓ Resolved strategy %s config for trader %s", traderConfig.StrategyID, traderID)
+			traderConfig.IndicatorTimeframe = strategy.IndicatorTimeframe
+			traderConfig.QuantDataURL = strategy.QuantDataURL
+			log.Printf("✓ Loaded strategy %s settings for trader %s (pure reference mode)", traderConfig.StrategyID, traderID)
 		} else {
-			log.Printf("⚠️ Failed to resolve strategy %s for trader %s: %v", traderConfig.StrategyID, traderID, err)
+			log.Printf("⚠️ Failed to load strategy %s for trader %s: %v, using trader's stored settings", traderConfig.StrategyID, traderID, err)
+			// Fallback: if strategy fails to load, use trader's stored settings (for backward compatibility)
 		}
 	}
 
@@ -4415,40 +4660,116 @@ func (s *Server) handleCreateStrategy(c *gin.Context) {
 		req.AltcoinLeverage = 3
 	}
 
+	// Set default values for new configuration fields
+	minRiskRewardRatio := 3.0
+	if req.MinRiskRewardRatio != nil {
+		minRiskRewardRatio = *req.MinRiskRewardRatio
+	}
+	maxPositions := 3
+	if req.MaxPositions != nil {
+		maxPositions = *req.MaxPositions
+	}
+	marginUsageLimit := 90.0
+	if req.MarginUsageLimit != nil {
+		marginUsageLimit = *req.MarginUsageLimit
+	}
+	minOpeningAmount := 12.0
+	if req.MinOpeningAmount != nil {
+		minOpeningAmount = *req.MinOpeningAmount
+	}
+	minOpeningAmountBTCETH := 60.0
+	if req.MinOpeningAmountBTCETH != nil {
+		minOpeningAmountBTCETH = *req.MinOpeningAmountBTCETH
+	}
+	altcoinPositionMin := 0.8
+	if req.AltcoinPositionMin != nil {
+		altcoinPositionMin = *req.AltcoinPositionMin
+	}
+	altcoinPositionMax := 1.5
+	if req.AltcoinPositionMax != nil {
+		altcoinPositionMax = *req.AltcoinPositionMax
+	}
+	btcEthPositionMin := 5.0
+	if req.BTCETHPositionMin != nil {
+		btcEthPositionMin = *req.BTCETHPositionMin
+	}
+	btcEthPositionMax := 10.0
+	if req.BTCETHPositionMax != nil {
+		btcEthPositionMax = *req.BTCETHPositionMax
+	}
+	availableMarginMultiplier := 0.88
+	if req.AvailableMarginMultiplier != nil {
+		availableMarginMultiplier = *req.AvailableMarginMultiplier
+	}
+	minConfidenceForEntry := 75
+	if req.MinConfidenceForEntry != nil {
+		minConfidenceForEntry = *req.MinConfidenceForEntry
+	}
+	minHoldingTimeMinutes := 30
+	if req.MinHoldingTimeMinutes != nil {
+		minHoldingTimeMinutes = *req.MinHoldingTimeMinutes
+	}
+	sharpeRatioConfig := ""
+	if req.SharpeRatioConfig != nil {
+		sharpeRatioConfig = *req.SharpeRatioConfig
+	}
+
 	strategy := &config.StrategyRecord{
-		ID:                   strategyID,
-		UserID:               userID,
-		Name:                 req.Name,
-		Description:          req.Description,
-		SystemPromptTemplate: req.SystemPromptTemplate,
-		CustomPrompt:         req.CustomPrompt,
-		OverrideBasePrompt:   req.OverrideBasePrompt,
-		BTCETHLeverage:       req.BTCETHLeverage,
-		AltcoinLeverage:      req.AltcoinLeverage,
-		TradingSymbols:       req.TradingSymbols,
-		IsCrossMargin:        req.IsCrossMargin,
-		UseCoinPool:          req.UseCoinPool,
-		UseOITop:             req.UseOITop,
-		UseTradingView:       req.UseTradingView,
-		EnableRawKlines:      req.EnableRawKlines,
-		EnableEMA:            req.EnableEMA,
-		EnableMACD:           req.EnableMACD,
-		EnableRSI:            req.EnableRSI,
-		EnableATR:            req.EnableATR,
-		EnableVolume:         req.EnableVolume,
-		EnableOI:             req.EnableOI,
-		EnableFunding:        req.EnableFunding,
-		IndicatorTimeframe:   req.IndicatorTimeframe,
-		QuantDataURL:         req.QuantDataURL,
+		ID:                     strategyID,
+		UserID:                 userID,
+		Name:                   req.Name,
+		Description:            req.Description,
+		SystemPromptTemplate:   req.SystemPromptTemplate,
+		CustomPrompt:           req.CustomPrompt,
+		OverrideBasePrompt:     req.OverrideBasePrompt,
+		BTCETHLeverage:         req.BTCETHLeverage,
+		AltcoinLeverage:        req.AltcoinLeverage,
+		TradingSymbols:         req.TradingSymbols,
+		IsCrossMargin:          req.IsCrossMargin,
+		UseCoinPool:            req.UseCoinPool,
+		UseOITop:               req.UseOITop,
+		UseTradingView:         req.UseTradingView,
+		EnableRawKlines:        req.EnableRawKlines,
+		EnableEMA:              req.EnableEMA,
+		EnableMACD:             req.EnableMACD,
+		EnableRSI:              req.EnableRSI,
+		EnableATR:              req.EnableATR,
+		EnableVolume:           req.EnableVolume,
+		EnableOI:               req.EnableOI,
+		EnableFunding:           req.EnableFunding,
+		IndicatorTimeframe:     req.IndicatorTimeframe,
+		QuantDataURL:           req.QuantDataURL,
+		MinRiskRewardRatio:     minRiskRewardRatio,
+		MaxPositions:            maxPositions,
+		MarginUsageLimit:       marginUsageLimit,
+		MinOpeningAmount:        minOpeningAmount,
+		MinOpeningAmountBTCETH:  minOpeningAmountBTCETH,
+		AltcoinPositionMin:     altcoinPositionMin,
+		AltcoinPositionMax:     altcoinPositionMax,
+		BTCETHPositionMin:      btcEthPositionMin,
+		BTCETHPositionMax:      btcEthPositionMax,
+		AvailableMarginMultiplier: availableMarginMultiplier,
+		MinConfidenceForEntry:  minConfidenceForEntry,
+		MinHoldingTimeMinutes:  minHoldingTimeMinutes,
+		SharpeRatioConfig:      sharpeRatioConfig,
 	}
 
 	err := s.database.CreateStrategy(strategy)
 	if err != nil {
+		log.Printf("❌ Failed to create strategy: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create strategy: %v", err)})
 		return
 	}
 
-	c.JSON(http.StatusCreated, strategy)
+	// Reload strategy from database to ensure we return exactly what was saved
+	createdStrategy, err := s.database.GetStrategy(strategy.ID, userID)
+	if err != nil {
+		log.Printf("❌ Failed to reload strategy after creation: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to reload strategy: %v", err)})
+		return
+	}
+	
+	c.JSON(http.StatusCreated, createdStrategy)
 }
 
 // handleUpdateStrategy update strategy
@@ -4495,6 +4816,46 @@ func (s *Server) handleUpdateStrategy(c *gin.Context) {
 	existingStrategy.EnableFunding = req.EnableFunding
 	existingStrategy.IndicatorTimeframe = req.IndicatorTimeframe
 	existingStrategy.QuantDataURL = req.QuantDataURL
+	// Update new configuration fields (only if provided)
+	if req.MinRiskRewardRatio != nil {
+		existingStrategy.MinRiskRewardRatio = *req.MinRiskRewardRatio
+	}
+	if req.MaxPositions != nil {
+		existingStrategy.MaxPositions = *req.MaxPositions
+	}
+	if req.MarginUsageLimit != nil {
+		existingStrategy.MarginUsageLimit = *req.MarginUsageLimit
+	}
+	if req.MinOpeningAmount != nil {
+		existingStrategy.MinOpeningAmount = *req.MinOpeningAmount
+	}
+	if req.MinOpeningAmountBTCETH != nil {
+		existingStrategy.MinOpeningAmountBTCETH = *req.MinOpeningAmountBTCETH
+	}
+	if req.AltcoinPositionMin != nil {
+		existingStrategy.AltcoinPositionMin = *req.AltcoinPositionMin
+	}
+	if req.AltcoinPositionMax != nil {
+		existingStrategy.AltcoinPositionMax = *req.AltcoinPositionMax
+	}
+	if req.BTCETHPositionMin != nil {
+		existingStrategy.BTCETHPositionMin = *req.BTCETHPositionMin
+	}
+	if req.BTCETHPositionMax != nil {
+		existingStrategy.BTCETHPositionMax = *req.BTCETHPositionMax
+	}
+	if req.AvailableMarginMultiplier != nil {
+		existingStrategy.AvailableMarginMultiplier = *req.AvailableMarginMultiplier
+	}
+	if req.MinConfidenceForEntry != nil {
+		existingStrategy.MinConfidenceForEntry = *req.MinConfidenceForEntry
+	}
+	if req.MinHoldingTimeMinutes != nil {
+		existingStrategy.MinHoldingTimeMinutes = *req.MinHoldingTimeMinutes
+	}
+	if req.SharpeRatioConfig != nil {
+		existingStrategy.SharpeRatioConfig = *req.SharpeRatioConfig
+	}
 
 	err = s.database.UpdateStrategy(existingStrategy)
 	if err != nil {
