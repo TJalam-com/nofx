@@ -147,6 +147,7 @@ export interface TraderInfo {
   use_tradingview?: boolean
   system_prompt_template?: string
   followed_trader_id?: string // 跟随的交易员ID（用于follower角色）
+  strategy_id?: string // Strategy ID associated with this trader
 }
 
 // Running Trader interface for follower signal source selection

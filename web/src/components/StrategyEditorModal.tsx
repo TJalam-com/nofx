@@ -32,7 +32,6 @@ export function StrategyEditorModal({
   const [showRiskManagement, setShowRiskManagement] = useState(false)
   const [showPositionSizing, setShowPositionSizing] = useState(false)
   const [showTradingRules, setShowTradingRules] = useState(false)
-  const [showSharpeRatio, setShowSharpeRatio] = useState(false)
 
   const [formData, setFormData] = useState<CreateStrategyRequest>({
     name: '',
