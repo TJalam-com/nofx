@@ -148,6 +148,12 @@ func NewDatabase(dbPath string) (*Database, error) {
 		// Don't return error, allow system to continue running
 	}
 
+	// Migrate trader_positions table to add SL/TP price columns
+	if err := database.migrateTraderPositionsSLTP(); err != nil {
+		log.Printf("⚠️  Trader positions SL/TP migration failed: %v", err)
+		// Don't return error, allow system to continue running
+	}
+
 	log.Printf("✅ Database WAL mode and FULL synchronous enabled, data persistence guaranteed")
 	return database, nil
 }
@@ -531,6 +537,8 @@ func (d *Database) createTables() error {
 			closed_at DATETIME,
 			order_id_open TEXT,
 			order_id_close TEXT,
+			stop_loss_price REAL,
+			take_profit_price REAL,
 			FOREIGN KEY (trader_id) REFERENCES traders(id) ON DELETE CASCADE
 		)`,
 
@@ -1209,6 +1217,37 @@ func (d *Database) migratePromptTemplatesFromFiles() error {
 	}
 
 	log.Printf("✅ Prompt template migration completed, migrated %d templates", migratedCount)
+	return nil
+}
+
+// migrateTraderPositionsSLTP adds stop_loss_price and take_profit_price columns to trader_positions table
+func (d *Database) migrateTraderPositionsSLTP() error {
+	// Check if stop_loss_price column already exists
+	exists, err := d.columnExists("trader_positions", "stop_loss_price")
+	if err != nil {
+		return fmt.Errorf("failed to check for stop_loss_price column: %w", err)
+	}
+
+	if exists {
+		// Columns already exist, skip migration
+		return nil
+	}
+
+	log.Printf("🔄 Adding stop_loss_price and take_profit_price columns to trader_positions table...")
+
+	// Add stop_loss_price column
+	_, err = d.db.Exec(`ALTER TABLE trader_positions ADD COLUMN stop_loss_price REAL`)
+	if err != nil {
+		return fmt.Errorf("failed to add stop_loss_price column: %w", err)
+	}
+
+	// Add take_profit_price column
+	_, err = d.db.Exec(`ALTER TABLE trader_positions ADD COLUMN take_profit_price REAL`)
+	if err != nil {
+		return fmt.Errorf("failed to add take_profit_price column: %w", err)
+	}
+
+	log.Printf("✅ Successfully added stop_loss_price and take_profit_price columns to trader_positions table")
 	return nil
 }
 
@@ -4592,25 +4631,27 @@ func (d *Database) GetBetaCodeStats() (total, used int, err error) {
 
 // PositionRecord represents a position record in the database
 type PositionRecord struct {
-	ID           string
-	TraderID     string
-	Symbol       string
-	Side         string
-	EntryPrice   float64
-	ExitPrice    float64
-	Quantity     float64
-	EntryFee     float64
-	ExitFee      float64
-	RealizedPnL  float64
-	Leverage     int
-	OpenedAt     time.Time
-	ClosedAt     *time.Time
-	OrderIDOpen  string
-	OrderIDClose string
+	ID            string
+	TraderID      string
+	Symbol        string
+	Side          string
+	EntryPrice    float64
+	ExitPrice     float64
+	Quantity      float64
+	EntryFee      float64
+	ExitFee       float64
+	RealizedPnL   float64
+	Leverage      int
+	OpenedAt      time.Time
+	ClosedAt      *time.Time
+	OrderIDOpen   string
+	OrderIDClose  string
+	StopLossPrice float64
+	TakeProfitPrice float64
 }
 
 // SavePosition save position record to database
-func (d *Database) SavePosition(traderID, symbol, side string, entryPrice, exitPrice, quantity, entryFee, exitFee, realizedPnL float64, leverage int, orderIDOpen, orderIDClose string, openedAt time.Time, closedAt *time.Time) error {
+func (d *Database) SavePosition(traderID, symbol, side string, entryPrice, exitPrice, quantity, entryFee, exitFee, realizedPnL float64, leverage int, orderIDOpen, orderIDClose string, openedAt time.Time, closedAt *time.Time, stopLossPrice, takeProfitPrice float64) error {
 	id := fmt.Sprintf("%s_%s_%d", traderID, symbol, openedAt.Unix())
 
 	var closedAtStr interface{}
@@ -4628,20 +4669,30 @@ func (d *Database) SavePosition(traderID, symbol, side string, entryPrice, exitP
 		realizedPnLVal = realizedPnL
 	}
 
+	var stopLossPriceVal interface{}
+	if stopLossPrice > 0 {
+		stopLossPriceVal = stopLossPrice
+	}
+
+	var takeProfitPriceVal interface{}
+	if takeProfitPrice > 0 {
+		takeProfitPriceVal = takeProfitPrice
+	}
+
 	query := `
 		INSERT OR REPLACE INTO trader_positions 
-		(id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		(id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close, stop_loss_price, take_profit_price)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := d.db.Exec(query, id, traderID, symbol, side, entryPrice, exitPriceVal, quantity, entryFee, exitFee, realizedPnLVal, leverage, openedAt.Format("2006-01-02 15:04:05"), closedAtStr, orderIDOpen, orderIDClose)
+	_, err := d.db.Exec(query, id, traderID, symbol, side, entryPrice, exitPriceVal, quantity, entryFee, exitFee, realizedPnLVal, leverage, openedAt.Format("2006-01-02 15:04:05"), closedAtStr, orderIDOpen, orderIDClose, stopLossPriceVal, takeProfitPriceVal)
 	return err
 }
 
 // GetPositionHistory get position history for a trader
 func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*PositionRecord, error) {
 	query := `
-		SELECT id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close
+		SELECT id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close, stop_loss_price, take_profit_price
 		FROM trader_positions
 		WHERE trader_id = ?
 		ORDER BY opened_at DESC
@@ -4658,8 +4709,10 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 	for rows.Next() {
 		var pos PositionRecord
 		var closedAtStr sql.NullString
+		var stopLossPrice sql.NullFloat64
+		var takeProfitPrice sql.NullFloat64
 
-		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &pos.ExitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &pos.RealizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose)
+		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &pos.ExitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &pos.RealizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose, &stopLossPrice, &takeProfitPrice)
 		if err != nil {
 			return nil, err
 		}
@@ -4669,6 +4722,14 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 			if err == nil {
 				pos.ClosedAt = &closedAt
 			}
+		}
+
+		if stopLossPrice.Valid {
+			pos.StopLossPrice = stopLossPrice.Float64
+		}
+
+		if takeProfitPrice.Valid {
+			pos.TakeProfitPrice = takeProfitPrice.Float64
 		}
 
 		positions = append(positions, &pos)
@@ -4893,7 +4954,7 @@ func (d *Database) BatchSaveEquityHistory(records []*EquityHistoryRecord) error 
 // GetOpenPositions get open positions for a trader
 func (d *Database) GetOpenPositions(traderID string) ([]*PositionRecord, error) {
 	query := `
-		SELECT id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close
+		SELECT id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close, stop_loss_price, take_profit_price
 		FROM trader_positions
 		WHERE trader_id = ? AND closed_at IS NULL
 		ORDER BY opened_at DESC
@@ -4909,8 +4970,10 @@ func (d *Database) GetOpenPositions(traderID string) ([]*PositionRecord, error) 
 	for rows.Next() {
 		var pos PositionRecord
 		var closedAtStr sql.NullString
+		var stopLossPrice sql.NullFloat64
+		var takeProfitPrice sql.NullFloat64
 
-		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &pos.ExitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &pos.RealizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose)
+		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &pos.ExitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &pos.RealizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose, &stopLossPrice, &takeProfitPrice)
 		if err != nil {
 			return nil, err
 		}
@@ -4920,6 +4983,14 @@ func (d *Database) GetOpenPositions(traderID string) ([]*PositionRecord, error) 
 			if err == nil {
 				pos.ClosedAt = &closedAt
 			}
+		}
+
+		if stopLossPrice.Valid {
+			pos.StopLossPrice = stopLossPrice.Float64
+		}
+
+		if takeProfitPrice.Valid {
+			pos.TakeProfitPrice = takeProfitPrice.Float64
 		}
 
 		positions = append(positions, &pos)

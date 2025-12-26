@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, memo } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { ChevronDown, TrendingUp, X } from 'lucide-react'
+import { api } from '../lib/api'
+import type { Position } from '../types'
 
 const logIngest = (_data: any) => {
   // Debug logging removed - no-op function to prevent errors if called
@@ -51,40 +53,111 @@ interface TradingViewChartProps {
   height?: number
   showToolbar?: boolean
   embedded?: boolean // Embedded mode (hide header controls)
+  traderId?: string // Optional trader ID to fetch open positions
 }
 
 function TradingViewChartComponent({
-  defaultSymbol = 'BTCUSDT',
+  defaultSymbol,
   defaultExchange = 'BINANCE',
   height = 400,
   showToolbar = true,
   embedded = false,
+  traderId,
 }: TradingViewChartProps) {
   const { language } = useLanguage()
   const containerRef = useRef<HTMLDivElement>(null)
   const [exchange, setExchange] = useState(defaultExchange)
-  const [symbol, setSymbol] = useState(defaultSymbol)
+  // Initialize symbol with defaultSymbol if provided, otherwise use BTCUSDT as fallback
+  const [symbol, setSymbol] = useState(defaultSymbol || 'BTCUSDT')
   const [timeInterval, setTimeInterval] = useState('60')
   const [customSymbol, setCustomSymbol] = useState('')
   const [showExchangeDropdown, setShowExchangeDropdown] = useState(false)
   const [showSymbolDropdown, setShowSymbolDropdown] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [positions, setPositions] = useState<Position[]>([])
+  const userSelectedSymbol = useRef<string | null>(null)
 
-  // When defaultSymbol changes, update local symbol
+  // Fetch positions if traderId is provided
   useEffect(() => {
-    logIngest({
-      location: 'TradingViewChart.tsx:70',
-      message: 'Default symbol effect',
-      data: { defaultSymbol, currentSymbol: symbol, willUpdate: defaultSymbol && defaultSymbol !== symbol },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId: 'E'
-    })
-    if (defaultSymbol && defaultSymbol !== symbol) {
-      setSymbol(defaultSymbol)
+    if (!traderId) return
+
+    const loadPositions = async () => {
+      try {
+        const data = await api.getPositions(traderId)
+        setPositions(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Failed to load positions for chart:', error)
+        setPositions([])
+      }
     }
-  }, [defaultSymbol])
+
+    loadPositions()
+
+    // Poll for position updates every 5 seconds
+    const interval = setInterval(loadPositions, 5000)
+    return () => clearInterval(interval)
+  }, [traderId])
+
+  // Determine the symbol to use: user selection > open position symbol > defaultSymbol > BTCUSDT
+  useEffect(() => {
+    let targetSymbol: string
+
+    // Priority 1: User explicitly selected a symbol (from dropdown or external selection)
+    if (userSelectedSymbol.current) {
+      targetSymbol = userSelectedSymbol.current
+    }
+    // Priority 2: Use open position symbol if available
+    else if (positions.length > 0) {
+      targetSymbol = positions[0].symbol
+    }
+    // Priority 3: Use provided defaultSymbol or fallback to BTCUSDT
+    else {
+      targetSymbol = defaultSymbol || 'BTCUSDT'
+    }
+
+    if (targetSymbol && targetSymbol !== symbol) {
+      setSymbol(targetSymbol)
+    }
+  }, [positions, defaultSymbol, symbol])
+
+  // Track when defaultSymbol is explicitly provided (from external source like ChartTabs)
+  // When positions exist, ignore defaultSymbol='BTCUSDT' (treat as default, not explicit selection)
+  // This allows position symbols to take precedence over the default BTCUSDT value
+  useEffect(() => {
+    // If we have positions, prioritize position symbol over default 'BTCUSDT'
+    if (positions.length > 0) {
+      const positionSymbol = positions[0].symbol
+      
+      // If defaultSymbol matches position symbol, clear selection to allow position updates
+      if (defaultSymbol === positionSymbol) {
+        userSelectedSymbol.current = null
+      } 
+      // If defaultSymbol is 'BTCUSDT' (the default), ignore it and allow position symbol
+      else if (defaultSymbol === 'BTCUSDT') {
+        userSelectedSymbol.current = null
+      }
+      // If defaultSymbol is provided and different from position, treat as explicit selection
+      else if (defaultSymbol && defaultSymbol !== positionSymbol) {
+        userSelectedSymbol.current = defaultSymbol
+        if (defaultSymbol !== symbol) {
+          setSymbol(defaultSymbol)
+        }
+      } else {
+        // No defaultSymbol provided, clear selection to allow position symbol
+        userSelectedSymbol.current = null
+      }
+    } else {
+      // No positions: use defaultSymbol if provided, otherwise clear selection
+      if (defaultSymbol) {
+        userSelectedSymbol.current = defaultSymbol
+        if (defaultSymbol !== symbol) {
+          setSymbol(defaultSymbol)
+        }
+      } else {
+        userSelectedSymbol.current = null
+      }
+    }
+  }, [defaultSymbol, positions, symbol])
 
   // When defaultExchange changes, update local exchange
   useEffect(() => {
@@ -269,6 +342,7 @@ function TradingViewChartComponent({
         runId: 'run1',
         hypothesisId: 'A'
       })
+      userSelectedSymbol.current = sym // Mark as user selection
       setSymbol(sym)
       setCustomSymbol('')
       setShowSymbolDropdown(false)
@@ -424,6 +498,7 @@ function TradingViewChartComponent({
                       <button
                         key={sym}
                         onClick={() => {
+                          userSelectedSymbol.current = sym // Mark as user selection
                           setSymbol(sym)
                           setShowSymbolDropdown(false)
                         }}

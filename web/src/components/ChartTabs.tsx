@@ -123,6 +123,7 @@ export function ChartTabs({
                 embedded
                 defaultSymbol={chartSymbol}
                 defaultExchange={exchangeId}
+                traderId={traderId}
                 key={`${chartSymbol}-${exchangeId}-${updateKey || ''}`}
               />
             </motion.div>

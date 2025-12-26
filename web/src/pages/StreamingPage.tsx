@@ -119,6 +119,10 @@ export default function StreamingPage() {
         let checkTimeoutId: ReturnType<typeof setTimeout> | null = null
         let aiScrollWaited = false
         let chartCycleWaited = false
+        const aiScrollStartTime = performance.now()
+        let chartAnimationStartTime = performance.now()
+        const AI_SCROLL_TIMEOUT = 5000 // 5 seconds timeout for AI scroll
+        const CHART_ANIMATION_TIMEOUT = 10000 // 10 seconds timeout for chart animation
         
         const checkAnimations = () => {
           // Check if auto-scroll was disabled - cancel if so
@@ -129,9 +133,20 @@ export default function StreamingPage() {
           }
 
           // Step 1: Wait for AI scroll to complete first (individual window auto-scroll)
+          // Add timeout: if AI scroll doesn't complete within 5 seconds, skip it
           if (!aiScrollWaited) {
+            const elapsed = performance.now() - aiScrollStartTime
+            if (elapsed >= AI_SCROLL_TIMEOUT) {
+              // Timeout reached, skip AI scroll wait
+              aiScrollWaited = true
+              chartAnimationStartTime = performance.now() // Start timing chart animation when AI scroll times out
+              checkAnimations()
+              return
+            }
+            
             if (aiScrollComplete) {
               aiScrollWaited = true
+              chartAnimationStartTime = performance.now() // Start timing chart animation when AI scroll completes
               // Wait a moment for scroll to fully settle
               checkTimeoutId = setTimeout(() => {
                 if (autoScrollEnabledRef.current) {
@@ -155,7 +170,24 @@ export default function StreamingPage() {
           }
           
           // Step 2: After AI scroll completes, wait for 1 cycle of tab switch to complete
+          // Add timeout: if chart animation doesn't complete within 10 seconds, skip it
           if (!chartCycleWaited) {
+            const chartElapsed = performance.now() - chartAnimationStartTime
+            if (chartElapsed >= CHART_ANIMATION_TIMEOUT) {
+              // Timeout reached, skip chart animation wait but still wait 2 seconds before resolving
+              chartCycleWaited = true
+              // Wait 2 seconds before resolving (same as when chart animation completes)
+              checkTimeoutId = setTimeout(() => {
+                if (autoScrollEnabledRef.current) {
+                  resolve()
+                } else {
+                  reject(new Error('Auto-scroll disabled'))
+                }
+              }, 2000)
+              waitForAnimationsTimeoutRef.current = checkTimeoutId
+              return
+            }
+            
             if (chartAnimationComplete) {
               chartCycleWaited = true
               // Step 3: Wait 2 seconds after tab switch cycle completion
@@ -188,7 +220,6 @@ export default function StreamingPage() {
     const scrollSegment = async () => {
       const maxScroll = getDocumentHeight() - window.innerHeight
       const current = window.scrollY
-
 
       // If near bottom, pause then jump to top and wait for next animation cycle
       if (current >= maxScroll - 50) {
@@ -227,7 +258,6 @@ export default function StreamingPage() {
         if (progress < 1) {
           rafId = requestAnimationFrame(animate)
         } else {
-
           // After scrolling segment, reset flags and wait for next animation cycle
           setChartAnimationComplete(false)
           setAiAnalysisComplete(false)

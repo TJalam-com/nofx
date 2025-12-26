@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -533,6 +534,13 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 								pnlPct = (accumulatedPnL / marginUsed) * 100
 							}
 
+							// Partial close doesn't typically involve SL/TP, but check anyway
+							wasStopLoss := false
+							if accumulatedPnL < 0 {
+								// Negative PnL from partial close might indicate SL, but usually partial closes are manual
+								wasStopLoss = false // Partial closes are typically manual, not SL/TP
+							}
+
 							outcome := TradeOutcome{
 								Symbol:        symbol,
 								Side:          side,
@@ -547,6 +555,7 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 								Duration:      action.Timestamp.Sub(openTime).String(),
 								OpenTime:      openTime,
 								CloseTime:     action.Timestamp,
+								WasStopLoss:   wasStopLoss,
 							}
 
 							analysis.RecentTrades = append(analysis.RecentTrades, outcome)
@@ -593,6 +602,22 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 							pnlPct = (totalPnL / marginUsed) * 100
 						}
 
+						// Determine if this was a stop loss by checking execution log
+						wasStopLoss := false
+						if action.Action == "auto_close_long" || action.Action == "auto_close_short" {
+							// Check execution log for stop loss indication
+							for _, logMsg := range record.ExecutionLog {
+								if strings.Contains(strings.ToLower(logMsg), "stop loss") {
+									wasStopLoss = true
+									break
+								}
+							}
+							// If not found in execution log, infer from PnL (negative = likely SL)
+							if !wasStopLoss && totalPnL < 0 {
+								wasStopLoss = true
+							}
+						}
+
 						outcome := TradeOutcome{
 							Symbol:        symbol,
 							Side:          side,
@@ -607,6 +632,7 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 							Duration:      action.Timestamp.Sub(openTime).String(),
 							OpenTime:      openTime,
 							CloseTime:     action.Timestamp,
+							WasStopLoss:   wasStopLoss,
 						}
 
 						analysis.RecentTrades = append(analysis.RecentTrades, outcome)
