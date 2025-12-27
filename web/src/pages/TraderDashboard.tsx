@@ -223,18 +223,18 @@ export default function TraderDashboard() {
   // Process initial position history data (only on initial load per trader)
   useEffect(() => {
     if (positionHistory && selectedTraderId && initializedTraderRef.current !== selectedTraderId) {
-      const closed = positionHistory
-        .filter((pos) => pos.is_closed && pos.closed_at)
+      // Include both open and closed positions, sorted by opened_at descending
+      const allPositions = positionHistory
         .sort((a, b) => {
-          // Sort by closed_at descending (most recent first)
-          const timeA = new Date(a.closed_at).getTime()
-          const timeB = new Date(b.closed_at).getTime()
+          // Sort by opened_at descending (most recent first)
+          const timeA = new Date(a.opened_at).getTime()
+          const timeB = new Date(b.opened_at).getTime()
           return timeB - timeA
         })
       
-      setAllClosedPositions(closed)
+      setAllClosedPositions(allPositions)
       // If we got less than 20 items, there are no more positions
-      setHasMoreClosedPositions(closed.length >= 20)
+      setHasMoreClosedPositions(allPositions.length >= 20)
       initializedTraderRef.current = selectedTraderId // Mark as initialized for this trader
     }
   }, [positionHistory, selectedTraderId])
@@ -249,19 +249,19 @@ export default function TraderDashboard() {
       const offset = nextPage * 20
       const newData = await api.getPositionHistory(selectedTraderId!, 20, offset)
       
-      const closed = newData
-        .filter((pos) => pos.is_closed && pos.closed_at)
+      // Include both open and closed positions, sorted by opened_at descending
+      const allPositions = newData
         .sort((a, b) => {
-          const timeA = new Date(a.closed_at).getTime()
-          const timeB = new Date(b.closed_at).getTime()
+          const timeA = new Date(a.opened_at).getTime()
+          const timeB = new Date(b.opened_at).getTime()
           return timeB - timeA
         })
       
-      if (closed.length > 0) {
-        setAllClosedPositions((prev) => [...prev, ...closed])
+      if (allPositions.length > 0) {
+        setAllClosedPositions((prev) => [...prev, ...allPositions])
         setClosedPositionsPage(nextPage)
         // If we got less than 20 items, there are no more positions
-        setHasMoreClosedPositions(closed.length >= 20)
+        setHasMoreClosedPositions(allPositions.length >= 20)
       } else {
         setHasMoreClosedPositions(false)
       }
@@ -1083,18 +1083,30 @@ export default function TraderDashboard() {
               style={{ color: '#EAECEF' }}
             >
               <History className="w-5 h-5" style={{ color: '#848E9C' }} />
-              {language === 'zh' ? '已平仓记录' : 'Closed Positions'}
+              {language === 'zh' ? '持仓历史' : 'Position History'}
             </h2>
             {closedPositions.length > 0 && (
-              <div
-                className="text-xs px-3 py-1 rounded"
-                style={{
-                  background: 'rgba(132, 142, 156, 0.1)',
-                  color: '#848E9C',
-                  border: '1px solid rgba(132, 142, 156, 0.2)',
-                }}
-              >
-                {closedPositions.length} {language === 'zh' ? '已关闭' : 'closed'}
+              <div className="flex gap-2">
+                <div
+                  className="text-xs px-3 py-1 rounded"
+                  style={{
+                    background: 'rgba(132, 142, 156, 0.1)',
+                    color: '#848E9C',
+                    border: '1px solid rgba(132, 142, 156, 0.2)',
+                  }}
+                >
+                  {closedPositions.filter((p) => p.status === 'open').length} {language === 'zh' ? '持仓中' : 'open'}
+                </div>
+                <div
+                  className="text-xs px-3 py-1 rounded"
+                  style={{
+                    background: 'rgba(132, 142, 156, 0.1)',
+                    color: '#848E9C',
+                    border: '1px solid rgba(132, 142, 156, 0.2)',
+                  }}
+                >
+                  {closedPositions.filter((p) => p.status === 'closed').length} {language === 'zh' ? '已关闭' : 'closed'}
+                </div>
               </div>
             )}
           </div>
@@ -1127,6 +1139,9 @@ export default function TraderDashboard() {
                     </th>
                     <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '120px' }}>
                       {language === 'zh' ? '已实现盈亏' : 'Realized P&L'}
+                    </th>
+                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '100px' }}>
+                      {language === 'zh' ? '状态' : 'Status'}
                     </th>
                     <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '150px' }}>
                       {language === 'zh' ? '平仓时间' : 'Closed At'}
@@ -1182,6 +1197,24 @@ export default function TraderDashboard() {
                         >
                           {(pos.realized_pnl || 0) >= 0 ? '+' : ''}
                           {(pos.realized_pnl || 0).toFixed(2)} USDT
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 whitespace-nowrap">
+                        <span
+                          className="px-2 py-1 rounded text-xs font-bold"
+                          style={
+                            pos.status === 'open'
+                              ? {
+                                  background: 'rgba(14, 203, 129, 0.1)',
+                                  color: '#0ECB81',
+                                }
+                              : {
+                                  background: 'rgba(132, 142, 156, 0.1)',
+                                  color: '#848E9C',
+                                }
+                          }
+                        >
+                          {pos.status === 'open' ? (language === 'zh' ? '持仓中' : 'Open') : (language === 'zh' ? '已关闭' : 'Closed')}
                         </span>
                       </td>
                       <td className="py-3 px-2 whitespace-nowrap" style={{ color: '#848E9C' }}>
@@ -1263,6 +1296,27 @@ export default function TraderDashboard() {
                       </div>
                     </div>
                     <div>
+                      <div style={{ color: '#848E9C' }}>{language === 'zh' ? '状态' : 'Status'}</div>
+                      <div>
+                        <span
+                          className="px-2 py-1 rounded text-xs font-bold"
+                          style={
+                            pos.status === 'open'
+                              ? {
+                                  background: 'rgba(14, 203, 129, 0.1)',
+                                  color: '#0ECB81',
+                                }
+                              : {
+                                  background: 'rgba(132, 142, 156, 0.1)',
+                                  color: '#848E9C',
+                                }
+                          }
+                        >
+                          {pos.status === 'open' ? (language === 'zh' ? '持仓中' : 'Open') : (language === 'zh' ? '已关闭' : 'Closed')}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
                       <div style={{ color: '#848E9C' }}>{language === 'zh' ? '平仓时间' : 'Closed At'}</div>
                       <div className="font-semibold" style={{ color: '#848E9C' }}>
                         {pos.closed_at
@@ -1317,10 +1371,10 @@ export default function TraderDashboard() {
                 <History className="w-16 h-16" />
               </div>
               <div className="text-lg font-semibold mb-2" style={{ color: '#EAECEF' }}>
-                {language === 'zh' ? '暂无已平仓记录' : 'No Closed Positions Yet'}
+                {language === 'zh' ? '暂无持仓记录' : 'No Positions Yet'}
               </div>
               <div className="text-sm">
-                {language === 'zh' ? '已平仓的持仓将显示在这里' : 'Closed positions will appear here'}
+                {language === 'zh' ? '持仓记录将显示在这里' : 'Position history will appear here'}
               </div>
             </div>
           )}

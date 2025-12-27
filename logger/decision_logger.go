@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -210,8 +211,30 @@ func (l *DecisionLogger) GetLatestRecords(n int) ([]*DecisionRecord, error) {
 
 // convertPositionToTradeOutcome converts a PositionRecord from database to TradeOutcome
 func convertPositionToTradeOutcome(pos *cfg.PositionRecord) *TradeOutcome {
-	if pos.ClosedAt == nil {
+	// Consider position closed if ClosedAt is set OR if we have realized PnL/exit price
+	isClosed := pos.ClosedAt != nil || (pos.RealizedPnL != 0 && pos.ExitPrice > 0)
+	if !isClosed {
 		return nil // Only convert closed positions
+	}
+
+	// If ClosedAt is not set but we have realized PnL, create a synthetic closed time
+	var closedTime time.Time
+	if pos.ClosedAt != nil {
+		closedTime = *pos.ClosedAt
+	} else {
+		// Use opened_at + 1 hour as fallback if ClosedAt is missing
+		closedTime = pos.OpenedAt.Add(1 * time.Hour)
+		log.Printf("⚠️ [convertPositionToTradeOutcome] Position %s %s missing ClosedAt, using opened_at+1h as fallback", 
+			pos.Symbol, pos.Side)
+	}
+
+	// Validate that we have essential data: we have either ExitPrice or RealizedPnL
+	// ExitPrice can be 0 in some edge cases, but if RealizedPnL is set, we can still process the trade
+	if pos.RealizedPnL == 0 && pos.ExitPrice == 0 {
+		// If both are zero, try to infer exit price from entry price (for break-even trades)
+		log.Printf("⚠️ [convertPositionToTradeOutcome] Position %s %s has both ExitPrice=0 and RealizedPnL=0, using entry price as fallback", 
+			pos.Symbol, pos.Side)
+		// We'll use entry price as a fallback, but this is not ideal
 	}
 
 	positionValue := pos.Quantity * pos.EntryPrice
@@ -221,11 +244,11 @@ func convertPositionToTradeOutcome(pos *cfg.PositionRecord) *TradeOutcome {
 		pnlPct = (pos.RealizedPnL / marginUsed) * 100
 	}
 
-	duration := pos.ClosedAt.Sub(pos.OpenedAt).String()
+	duration := closedTime.Sub(pos.OpenedAt).String()
 
 	// Determine if this was a stop loss (if exit price matches stop loss price, or if PnL is negative and close was recent)
 	wasStopLoss := false
-	if pos.StopLossPrice > 0 {
+	if pos.StopLossPrice > 0 && pos.ExitPrice > 0 {
 		// Check if exit price is close to stop loss price (within 0.1% tolerance)
 		priceDiff := absFloat(pos.ExitPrice - pos.StopLossPrice)
 		if priceDiff/pos.StopLossPrice < 0.001 {
@@ -237,20 +260,28 @@ func convertPositionToTradeOutcome(pos *cfg.PositionRecord) *TradeOutcome {
 		wasStopLoss = true
 	}
 
+	// Use entry price as fallback if exit price is 0 (for break-even or data quality issues)
+	closePrice := pos.ExitPrice
+	if closePrice == 0 && pos.EntryPrice > 0 {
+		closePrice = pos.EntryPrice
+		log.Printf("⚠️ [convertPositionToTradeOutcome] Using entry price %.8f as fallback for exit price (position: %s %s)", 
+			pos.EntryPrice, pos.Symbol, pos.Side)
+	}
+
 	return &TradeOutcome{
 		Symbol:        pos.Symbol,
 		Side:          pos.Side,
 		Quantity:      pos.Quantity,
 		Leverage:      pos.Leverage,
 		OpenPrice:     pos.EntryPrice,
-		ClosePrice:    pos.ExitPrice,
+		ClosePrice:    closePrice,
 		PositionValue: positionValue,
 		MarginUsed:    marginUsed,
 		PnL:           pos.RealizedPnL,
 		PnLPct:        pnlPct,
 		Duration:      duration,
 		OpenTime:      pos.OpenedAt,
-		CloseTime:     *pos.ClosedAt,
+		CloseTime:     closedTime,
 		WasStopLoss:   wasStopLoss,
 	}
 }
@@ -785,26 +816,66 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int, traderID string,
 	if database != nil && traderID != "" {
 		// Try to cast database to *cfg.Database
 		if db, ok := database.(*cfg.Database); ok && db != nil {
+			log.Printf("📊 [AnalyzePerformance] Querying database for closed positions (traderID: %s)", traderID)
 			// Get closed positions from database (last 200 to cover extended time window)
 			positionHistory, err := db.GetPositionHistory(traderID, 200, 0)
 			if err == nil {
+				log.Printf("📊 [AnalyzePerformance] Retrieved %d positions from database", len(positionHistory))
+				
 				// Create a map to track trades from decision records (for deduplication)
+				// Use more precise key: symbol_side_entryPrice_quantity_closeTime to avoid false duplicates
 				recordTradeKeys := make(map[string]bool)
 				for _, trade := range analysis.RecentTrades {
-					// Use symbol_side_closeTime as key for deduplication
-					key := fmt.Sprintf("%s_%s_%d", trade.Symbol, trade.Side, trade.CloseTime.Unix())
+					// Include entry price and quantity in key for better deduplication
+					key := fmt.Sprintf("%s_%s_%.8f_%.8f_%d", trade.Symbol, trade.Side, trade.OpenPrice, trade.Quantity, trade.CloseTime.Unix())
 					recordTradeKeys[key] = true
 				}
+				log.Printf("📊 [AnalyzePerformance] Found %d trades from decision records for deduplication", len(recordTradeKeys))
 
+				closedCount := 0
+				skippedOpen := 0
+				skippedDuplicate := 0
+				skippedConversion := 0
+				
 				// Convert database positions to trades
 				for _, pos := range positionHistory {
-					if pos.ClosedAt == nil {
+					// Consider a position closed if:
+					// 1. ClosedAt is set, OR
+					// 2. RealizedPnL is non-zero (indicates position was closed and PnL was realized)
+					// 3. ExitPrice is set (indicates position was closed)
+					isClosed := pos.ClosedAt != nil || (pos.RealizedPnL != 0 && pos.ExitPrice > 0)
+					
+					if !isClosed {
+						skippedOpen++
+						log.Printf("📊 [AnalyzePerformance] Skipping open position: %s %s (closed_at: %v, exit_price: %.8f, realized_pnl: %.2f)", 
+							pos.Symbol, pos.Side, pos.ClosedAt != nil, pos.ExitPrice, pos.RealizedPnL)
 						continue // Skip open positions
+					}
+					closedCount++
+
+					// For deduplication, use ClosedAt timestamp if available, otherwise use a fallback
+					var closeTimeUnix int64
+					if pos.ClosedAt != nil {
+						closeTimeUnix = pos.ClosedAt.Unix()
+					} else {
+						// Use opened_at + a small offset if ClosedAt is not set but position is closed
+						// This helps avoid false duplicates while still allowing the position to be processed
+						closeTimeUnix = pos.OpenedAt.Unix() + 1
+						log.Printf("⚠️ [AnalyzePerformance] Position %s %s has no ClosedAt, using opened_at+1 for deduplication key", 
+							pos.Symbol, pos.Side)
 					}
 
 					// Check if this trade is already in decision records (deduplicate)
-					key := fmt.Sprintf("%s_%s_%d", pos.Symbol, pos.Side, pos.ClosedAt.Unix())
+					// Use more precise key: symbol_side_entryPrice_quantity_closeTime
+					key := fmt.Sprintf("%s_%s_%.8f_%.8f_%d", pos.Symbol, pos.Side, pos.EntryPrice, pos.Quantity, closeTimeUnix)
 					if recordTradeKeys[key] {
+						skippedDuplicate++
+						closedAtStr := "N/A"
+						if pos.ClosedAt != nil {
+							closedAtStr = pos.ClosedAt.Format("2006-01-02 15:04:05")
+						}
+						log.Printf("📊 [AnalyzePerformance] Skipping duplicate trade: %s %s (entry: %.8f, qty: %.8f, closed: %s)", 
+							pos.Symbol, pos.Side, pos.EntryPrice, pos.Quantity, closedAtStr)
 						continue // Skip if already in decision records
 					}
 
@@ -812,13 +883,36 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int, traderID string,
 					trade := convertPositionToTradeOutcome(pos)
 					if trade != nil {
 						dbTrades = append(dbTrades, trade)
+						log.Printf("📊 [AnalyzePerformance] Added database trade: %s %s (PnL: %.2f, exit: %.8f, closed_at: %v)", 
+							trade.Symbol, trade.Side, trade.PnL, trade.ClosePrice, pos.ClosedAt != nil)
+					} else {
+						skippedConversion++
+						log.Printf("⚠️ [AnalyzePerformance] Failed to convert position to trade: %s %s (closed_at: %v, exit_price: %.8f, realized_pnl: %.2f)", 
+							pos.Symbol, pos.Side, pos.ClosedAt != nil, pos.ExitPrice, pos.RealizedPnL)
 					}
 				}
+				
+				log.Printf("📊 [AnalyzePerformance] Database processing summary: total=%d, closed=%d, skipped_open=%d, skipped_duplicate=%d, skipped_conversion=%d, added=%d", 
+					len(positionHistory), closedCount, skippedOpen, skippedDuplicate, skippedConversion, len(dbTrades))
+			} else {
+				log.Printf("⚠️ [AnalyzePerformance] Failed to get position history from database: %v", err)
 			}
+		} else {
+			log.Printf("⚠️ [AnalyzePerformance] Database type assertion failed or database is nil (traderID: %s)", traderID)
+		}
+	} else {
+		if database == nil {
+			log.Printf("⚠️ [AnalyzePerformance] Database parameter is nil (traderID: %s)", traderID)
+		}
+		if traderID == "" {
+			log.Printf("⚠️ [AnalyzePerformance] TraderID is empty")
 		}
 	}
 
 	// Merge database trades with decision record trades
+	log.Printf("📊 [AnalyzePerformance] Before merge: decision_record_trades=%d, database_trades=%d, current_total_trades=%d", 
+		len(analysis.RecentTrades), len(dbTrades), analysis.TotalTrades)
+	
 	allTrades := make([]TradeOutcome, 0, len(analysis.RecentTrades)+len(dbTrades))
 	allTrades = append(allTrades, analysis.RecentTrades...)
 	for _, trade := range dbTrades {
@@ -826,6 +920,7 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int, traderID string,
 
 		// Update analysis metrics for database trades
 		analysis.TotalTrades++
+		
 		if trade.PnL > 0 {
 			analysis.WinningTrades++
 			analysis.AvgWin += trade.PnL
@@ -849,6 +944,9 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int, traderID string,
 			stats.LosingTrades++
 		}
 	}
+	
+	log.Printf("📊 [AnalyzePerformance] After merge: total_trades=%d, winning=%d, losing=%d, all_trades_count=%d", 
+		analysis.TotalTrades, analysis.WinningTrades, analysis.LosingTrades, len(allTrades))
 
 	// Recalculate metrics with merged data
 	if analysis.TotalTrades > 0 {
@@ -984,3 +1082,4 @@ func (l *DecisionLogger) calculateSharpeRatio(records []*DecisionRecord) float64
 	sharpeRatio := meanReturn / stdDev
 	return sharpeRatio
 }
+

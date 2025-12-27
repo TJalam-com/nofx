@@ -2606,6 +2606,11 @@ func (at *AutoTrader) GetPositions() ([]map[string]interface{}, error) {
 	return result, nil
 }
 
+// GetUserTrades get user trade history (delegates to underlying trader)
+func (at *AutoTrader) GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	return at.trader.GetUserTrades(symbol, limit, startTime, endTime)
+}
+
 // calculatePnLPercentage calculates profit/loss percentage (based on margin, automatically considers leverage)
 // Return rate = unrealized profit/loss / margin × 100%
 func calculatePnLPercentage(unrealizedPnl, marginUsed float64) float64 {
@@ -3134,22 +3139,101 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 		// Determine close time
 		closeTime := time.Now()
 
-		// Get actual exit price - try to get from exchange or use market price
+		// Get actual exit price - try to get from historical trades (LTP), fallback to market price
 		var actualExitPrice float64
-		marketData, err := market.Get(symbol)
-		if err == nil {
-			actualExitPrice = marketData.CurrentPrice
-		} else {
-			log.Printf("⚠️ Position closure detection: failed to get market data for %s: %v, using entry price as fallback", symbol, err)
-			// Last resort fallback
-			if dbPosition != nil {
-				actualExitPrice = dbPosition.EntryPrice
-			} else if closedPosition != nil {
-				actualExitPrice = closedPosition.EntryPrice
-			} else {
-				log.Printf("⚠️ Position closure detection: cannot determine exit price for %s %s, skipping", symbol, side)
-				continue
+		var exitFee float64
+		var latestCloseTime time.Time
+
+		// Try to get exit price from historical trades if dbPosition is available
+		if dbPosition != nil {
+			// Query historical trades for this symbol
+			endTime := time.Now()
+			startTime := dbPosition.OpenedAt.Add(-24 * time.Hour) // Start from 24h before position opened
+
+			trades, err := at.trader.GetUserTrades(symbol, 100, &startTime, &endTime)
+			if err == nil && len(trades) > 0 {
+				// Find matching closure trades
+				// For LONG position, look for SELL trades (isBuyer=false)
+				// For SHORT position, look for BUY trades (isBuyer=true)
+				var totalClosedQty float64
+				var totalExitValue float64
+				var totalFees float64
+
+				for _, trade := range trades {
+					tradeTime, ok := trade["time"].(int64)
+					if !ok {
+						continue
+					}
+					tradeTimestamp := time.Unix(tradeTime/1000, 0)
+
+					// Only consider trades after position was opened
+					if tradeTimestamp.Before(dbPosition.OpenedAt) {
+						continue
+					}
+
+					// Check if trade matches closure direction
+					isBuyer, _ := trade["isBuyer"].(bool)
+					tradeQty, _ := trade["qty"].(float64)
+					tradePrice, _ := trade["price"].(float64)
+					commission, _ := trade["commission"].(float64)
+
+					matchesClosure := false
+					if side == "long" && !isBuyer {
+						// Closing long position with sell trade
+						matchesClosure = true
+					} else if side == "short" && isBuyer {
+						// Closing short position with buy trade
+						matchesClosure = true
+					}
+
+					if matchesClosure {
+						// Aggregate trades that close the position
+						totalClosedQty += tradeQty
+						totalExitValue += tradeQty * tradePrice
+						totalFees += commission
+						if tradeTimestamp.After(latestCloseTime) {
+							latestCloseTime = tradeTimestamp
+						}
+					}
+				}
+
+				// Check if we found enough trades to close the position (within 10% tolerance)
+				if totalClosedQty >= dbPosition.Quantity*0.9 || (totalClosedQty > 0 && totalClosedQty < dbPosition.Quantity*0.9) {
+					// Calculate average exit price from trades
+					avgExitPrice := totalExitValue / totalClosedQty
+					if avgExitPrice > 0 {
+						actualExitPrice = avgExitPrice
+						exitFee = totalFees
+						if !latestCloseTime.IsZero() {
+							closeTime = latestCloseTime
+						}
+						log.Printf("✅ Position closure detection: found exit price from historical trades for %s %s (exit=%.4f, qty=%.4f, fees=%.4f)", symbol, side, actualExitPrice, totalClosedQty, totalFees)
+					}
+				}
 			}
+
+			// Fallback to market price if historical trades didn't provide exit price
+			if actualExitPrice <= 0 {
+				log.Printf("⚠️ Position closure detection: no matching trades found for %s %s, falling back to market price", symbol, side)
+				marketData, err := market.Get(symbol)
+				if err == nil {
+					actualExitPrice = marketData.CurrentPrice
+				} else {
+					log.Printf("⚠️ Position closure detection: failed to get market data for %s: %v, using entry price as fallback", symbol, err)
+					actualExitPrice = dbPosition.EntryPrice
+				}
+			}
+		} else if closedPosition != nil {
+			// Fallback: use data from snapshot or history
+			marketData, err := market.Get(symbol)
+			if err == nil {
+				actualExitPrice = marketData.CurrentPrice
+			} else {
+				actualExitPrice = closedPosition.EntryPrice
+			}
+		} else {
+			log.Printf("⚠️ Position closure detection: cannot determine exit price for %s %s, skipping", symbol, side)
+			continue
 		}
 
 		// Validate exit price is reasonable
@@ -3240,7 +3324,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 		var quantity float64
 		var leverage int
 		var entryFee float64
-		var exitFee float64
+		// exitFee already declared above
 		var openedAt time.Time
 
 		if dbPosition != nil {
@@ -3249,7 +3333,10 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 			quantity = dbPosition.Quantity
 			leverage = dbPosition.Leverage
 			entryFee = dbPosition.EntryFee
-			exitFee = dbPosition.ExitFee
+			// Use exitFee from historical trades if available, otherwise use from dbPosition
+			if exitFee == 0 {
+				exitFee = dbPosition.ExitFee
+			}
 			openedAt = dbPosition.OpenedAt
 
 			// Calculate realized PnL: (exitPrice - entryPrice) * quantity - fees

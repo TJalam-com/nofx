@@ -18,6 +18,7 @@ import (
 	"nofx/manager"
 	"nofx/trader"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -3392,6 +3393,15 @@ func (s *Server) handlePositions(c *gin.Context) {
 
 // handlePositionHistory get position history (all positions including closed)
 func (s *Server) handlePositionHistory(c *gin.Context) {
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "api/server.go:3394", "message": "handlePositionHistory entry", "data": map[string]interface{}{"traderID": c.Query("trader_id"), "limit": c.Query("limit"), "offset": c.Query("offset")}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
 	_, traderID, err := s.getTraderFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -3413,6 +3423,16 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 		}
 	}
 
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "api/server.go:3423", "message": "Before GetPositionHistory call", "data": map[string]interface{}{"traderID": traderID, "limit": limit, "offset": offset, "databaseNil": s.database == nil}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
+
 	// Get position history from database
 	if s.database == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -3421,12 +3441,57 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 		return
 	}
 
-	positionHistory, err := s.database.GetPositionHistory(traderID, limit, offset)
+	// Get closed positions (with pagination)
+	closedPositions, err := s.database.GetPositionHistory(traderID, limit, offset)
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A,B", "location": "api/server.go:3443", "message": "After GetPositionHistory call", "data": map[string]interface{}{"traderID": traderID, "err": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "closedPositionCount": len(closedPositions)}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
 	if err != nil {
+		log.Printf("❌ Failed to get position history for trader %s (limit=%d, offset=%d): %v", traderID, limit, offset, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("Failed to get position history: %v", err),
 		})
 		return
+	}
+
+	// Get open positions (all of them, no pagination needed for open positions)
+	openPositions, err := s.database.GetOpenPositions(traderID)
+	if err != nil {
+		log.Printf("❌ Failed to get open positions for trader %s: %v", traderID, err)
+		// Continue with closed positions only if open positions query fails
+		openPositions = []*config.PositionRecord{}
+	}
+
+	// Get actual current positions from exchange to verify which are really open
+	var exchangePositionsMap map[string]bool
+	trader, err := s.traderManager.GetTrader(traderID)
+	if err == nil {
+		currentPositions, err := trader.GetPositions()
+		if err == nil {
+			// Build a map of symbol_side -> true for positions that exist on exchange
+			exchangePositionsMap = make(map[string]bool)
+			for _, pos := range currentPositions {
+				symbol, ok1 := pos["symbol"].(string)
+				side, ok2 := pos["side"].(string)
+				quantity, ok3 := pos["positionAmt"].(float64)
+				if ok1 && ok2 && ok3 {
+					// Only consider positions with non-zero quantity
+					if quantity < 0 {
+						quantity = -quantity
+					}
+					if quantity > 0.0001 {
+						key := symbol + "_" + side
+						exchangePositionsMap[key] = true
+					}
+				}
+			}
+		}
 	}
 
 	// Convert to JSON-friendly format
@@ -3449,13 +3514,140 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 		StopLossPrice   float64   `json:"stop_loss_price"`
 		TakeProfitPrice float64   `json:"take_profit_price"`
 		IsClosed        bool      `json:"is_closed"`
+		Status          string    `json:"status"` // "open" or "closed"
 	}
 
-	result := make([]PositionHistoryItem, 0, len(positionHistory))
-	for _, pos := range positionHistory {
+	// Merge closed and open positions, then sort by opened_at DESC
+	allPositions := make([]*config.PositionRecord, 0, len(closedPositions)+len(openPositions))
+	allPositions = append(allPositions, closedPositions...)
+	allPositions = append(allPositions, openPositions...)
+
+	// Sort by opened_at DESC (most recent first)
+	sort.Slice(allPositions, func(i, j int) bool {
+		return allPositions[i].OpenedAt.After(allPositions[j].OpenedAt)
+	})
+
+	// Apply pagination after merging (if needed, but typically we want all open positions)
+	// For now, we'll include all open positions and apply limit/offset to the merged result
+	startIdx := offset
+	endIdx := offset + limit
+	if startIdx > len(allPositions) {
+		startIdx = len(allPositions)
+	}
+	if endIdx > len(allPositions) {
+		endIdx = len(allPositions)
+	}
+	paginatedPositions := allPositions[startIdx:endIdx]
+
+	result := make([]PositionHistoryItem, 0, len(paginatedPositions))
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C,D", "location": "api/server.go:3483", "message": "Before result conversion loop", "data": map[string]interface{}{"totalPositionCount": len(allPositions), "closedCount": len(closedPositions), "openCount": len(openPositions), "paginatedCount": len(paginatedPositions)}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
+	for i, pos := range paginatedPositions {
+		// #region agent log
+		func() {
+			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if f != nil {
+				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "api/server.go:3457", "message": "Processing position", "data": map[string]interface{}{"index": i, "id": pos.ID, "openedAtZero": pos.OpenedAt.IsZero(), "closedAtNil": pos.ClosedAt == nil}, "timestamp": time.Now().UnixMilli()})
+				f.Close()
+			}
+		}()
+		// #endregion
 		closedAtStr := ""
 		if pos.ClosedAt != nil {
 			closedAtStr = pos.ClosedAt.Format("2006-01-02 15:04:05")
+		}
+
+		openedAtStr := pos.OpenedAt.Format("2006-01-02 15:04:05")
+		// #region agent log
+		func() {
+			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if f != nil {
+				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "api/server.go:3461", "message": "After time formatting", "data": map[string]interface{}{"index": i, "openedAtStr": openedAtStr, "closedAtStr": closedAtStr}, "timestamp": time.Now().UnixMilli()})
+				f.Close()
+			}
+		}()
+		// #endregion
+
+		// Determine status based on whether position is closed in database AND still open on exchange
+		status := "closed"
+		exitPrice := pos.ExitPrice
+		
+		// If position is closed but exit_price is 0, try to get it from historical trades
+		if (pos.ClosedAt != nil || exitPrice == 0) && trader != nil && exitPrice == 0 {
+			// Only query if position was opened recently (within last 7 days) to avoid too many API calls
+			if time.Since(pos.OpenedAt) < 7*24*time.Hour {
+				endTime := time.Now()
+				startTime := pos.OpenedAt.Add(-24 * time.Hour)
+				
+				trades, err := trader.GetUserTrades(pos.Symbol, 100, &startTime, &endTime)
+				if err == nil && len(trades) > 0 {
+					// Find matching closure trades
+					var totalClosedQty float64
+					var totalExitValue float64
+					
+					for _, trade := range trades {
+						tradeTime, ok := trade["time"].(int64)
+						if !ok {
+							continue
+						}
+						tradeTimestamp := time.Unix(tradeTime/1000, 0)
+						
+						// Only consider trades after position was opened
+						if tradeTimestamp.Before(pos.OpenedAt) {
+							continue
+						}
+						
+						// Check if trade matches closure direction
+						isBuyer, _ := trade["isBuyer"].(bool)
+						tradeQty, _ := trade["qty"].(float64)
+						tradePrice, _ := trade["price"].(float64)
+						
+						matchesClosure := false
+						if pos.Side == "long" && !isBuyer {
+							// Closing long position with sell trade
+							matchesClosure = true
+						} else if pos.Side == "short" && isBuyer {
+							// Closing short position with buy trade
+							matchesClosure = true
+						}
+						
+						if matchesClosure {
+							totalClosedQty += tradeQty
+							totalExitValue += tradeQty * tradePrice
+						}
+					}
+					
+					// Calculate average exit price if we found matching trades
+					if totalClosedQty > 0 {
+						avgExitPrice := totalExitValue / totalClosedQty
+						if avgExitPrice > 0 {
+							exitPrice = avgExitPrice
+							log.Printf("✅ Found exit price from historical trades for %s %s: %.4f", pos.Symbol, pos.Side, exitPrice)
+						}
+					}
+				}
+			}
+		}
+		
+		if pos.ClosedAt == nil {
+			// Position is marked as open in database, but check if it's actually open on exchange
+			status = "open"
+			if exchangePositionsMap != nil {
+				// Check if this position exists in exchange positions
+				posKey := pos.Symbol + "_" + pos.Side
+				if !exchangePositionsMap[posKey] {
+					// Position is not in exchange, so it's actually closed
+					status = "closed"
+					log.Printf("🔍 Position %s %s marked as open in DB but not found on exchange, marking as closed", pos.Symbol, pos.Side)
+				}
+			}
 		}
 
 		result = append(result, PositionHistoryItem{
@@ -3464,23 +3656,42 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 			Symbol:          pos.Symbol,
 			Side:            pos.Side,
 			EntryPrice:      pos.EntryPrice,
-			ExitPrice:       pos.ExitPrice,
+			ExitPrice:       exitPrice,
 			Quantity:        pos.Quantity,
 			EntryFee:        pos.EntryFee,
 			ExitFee:         pos.ExitFee,
 			RealizedPnL:     pos.RealizedPnL,
 			Leverage:        pos.Leverage,
-			OpenedAt:         pos.OpenedAt.Format("2006-01-02 15:04:05"),
+			OpenedAt:         openedAtStr,
 			ClosedAt:        &closedAtStr,
 			OrderIDOpen:     pos.OrderIDOpen,
 			OrderIDClose:    pos.OrderIDClose,
 			StopLossPrice:   pos.StopLossPrice,
 			TakeProfitPrice: pos.TakeProfitPrice,
 			IsClosed:        pos.ClosedAt != nil,
+			Status:          status,
 		})
 	}
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "D", "location": "api/server.go:3483", "message": "Before JSON response", "data": map[string]interface{}{"resultCount": len(result)}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
 
 	c.JSON(http.StatusOK, result)
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "D", "location": "api/server.go:3485", "message": "After JSON response", "data": map[string]interface{}{}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
 }
 
 // handleClosePosition manual close position
@@ -3842,16 +4053,23 @@ func (s *Server) handlePerformance(c *gin.Context) {
 	var database interface{}
 	if s.database != nil {
 		database = s.database
+		log.Printf("📊 [handlePerformance] Database available for trader %s", traderID)
+	} else {
+		log.Printf("⚠️ [handlePerformance] Database is nil for trader %s - performance analysis will only use decision records", traderID)
 	}
 	
 	performance, err := trader.GetDecisionLogger().AnalyzePerformance(500, traderID, database)
 	if err != nil {
+		log.Printf("❌ [handlePerformance] Failed to analyze performance for trader %s: %v", traderID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("Failed to analyze historical performance: %v", err),
 		})
 		return
 	}
 
+	log.Printf("📊 [handlePerformance] Performance analysis complete for trader %s: total_trades=%d, winning=%d, losing=%d", 
+		traderID, performance.TotalTrades, performance.WinningTrades, performance.LosingTrades)
+	
 	c.JSON(http.StatusOK, performance)
 }
 

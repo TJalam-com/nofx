@@ -4720,6 +4720,15 @@ func (d *Database) SavePosition(traderID, symbol, side string, entryPrice, exitP
 
 // GetPositionHistory get position history for a trader
 func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*PositionRecord, error) {
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "config/database.go:4722", "message": "GetPositionHistory entry", "data": map[string]interface{}{"traderID": traderID, "limit": limit, "offset": offset, "dbNil": d.db == nil}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
 	query := `
 		SELECT id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close, stop_loss_price, take_profit_price
 		FROM trader_positions
@@ -4729,25 +4738,80 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 	`
 
 	rows, err := d.db.Query(query, traderID, limit, offset)
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "config/database.go:4731", "message": "After Query execution", "data": map[string]interface{}{"traderID": traderID, "err": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "rowsNil": rows == nil}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
 	if err != nil {
+		log.Printf("❌ GetPositionHistory: Query failed for trader %s (limit=%d, offset=%d): %v", traderID, limit, offset, err)
 		return nil, err
 	}
 	defer rows.Close()
 
 	var positions []*PositionRecord
+	rowIndex := 0
 	for rows.Next() {
+		// #region agent log
+		func() {
+			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if f != nil {
+				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "config/database.go:4738", "message": "Before row scan", "data": map[string]interface{}{"traderID": traderID, "rowIndex": rowIndex}, "timestamp": time.Now().UnixMilli()})
+				f.Close()
+			}
+		}()
+		// #endregion
 		var pos PositionRecord
 		var closedAtStr sql.NullString
+		var exitPrice sql.NullFloat64
+		var realizedPnL sql.NullFloat64
 		var stopLossPrice sql.NullFloat64
 		var takeProfitPrice sql.NullFloat64
 
-		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &pos.ExitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &pos.RealizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose, &stopLossPrice, &takeProfitPrice)
+		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &exitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &realizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose, &stopLossPrice, &takeProfitPrice)
+		// #region agent log
+		func() {
+			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if f != nil {
+				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "post-fix", "hypothesisId": "B", "location": "config/database.go:4773", "message": "After row scan", "data": map[string]interface{}{"traderID": traderID, "rowIndex": rowIndex, "err": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "openedAtZero": pos.OpenedAt.IsZero(), "closedAtStrValid": closedAtStr.Valid, "exitPriceValid": exitPrice.Valid, "realizedPnLValid": realizedPnL.Valid}, "timestamp": time.Now().UnixMilli()})
+				f.Close()
+			}
+		}()
+		// #endregion
 		if err != nil {
+			log.Printf("❌ GetPositionHistory: Scan failed for trader %s: %v", traderID, err)
 			return nil, err
+		}
+
+		// Handle nullable exit_price
+		if exitPrice.Valid {
+			pos.ExitPrice = exitPrice.Float64
+		} else {
+			pos.ExitPrice = 0
+		}
+
+		// Handle nullable realized_pnl
+		if realizedPnL.Valid {
+			pos.RealizedPnL = realizedPnL.Float64
+		} else {
+			pos.RealizedPnL = 0
 		}
 
 		if closedAtStr.Valid {
 			closedAt, err := time.Parse("2006-01-02 15:04:05", closedAtStr.String)
+			// #region agent log
+			func() {
+				f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if f != nil {
+					json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "post-fix", "hypothesisId": "C", "location": "config/database.go:4795", "message": "After closedAt parse", "data": map[string]interface{}{"traderID": traderID, "rowIndex": rowIndex, "parseErr": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "closedAtStr": closedAtStr.String}, "timestamp": time.Now().UnixMilli()})
+					f.Close()
+				}
+			}()
+			// #endregion
 			if err == nil {
 				pos.ClosedAt = &closedAt
 			}
@@ -4762,9 +4826,42 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 		}
 
 		positions = append(positions, &pos)
+		rowIndex++
 	}
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "config/database.go:4767", "message": "After rows iteration", "data": map[string]interface{}{"traderID": traderID, "positionCount": len(positions)}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
 
-	return positions, rows.Err()
+	if err := rows.Err(); err != nil {
+		// #region agent log
+		func() {
+			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if f != nil {
+				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "config/database.go:4769", "message": "rows.Err() returned error", "data": map[string]interface{}{"traderID": traderID, "err": err.Error()}, "timestamp": time.Now().UnixMilli()})
+				f.Close()
+			}
+		}()
+		// #endregion
+		log.Printf("❌ GetPositionHistory: Error iterating rows for trader %s: %v", traderID, err)
+		return nil, err
+	}
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A,B", "location": "config/database.go:4776", "message": "GetPositionHistory success", "data": map[string]interface{}{"traderID": traderID, "positionCount": len(positions)}, "timestamp": time.Now().UnixMilli()})
+			f.Close()
+		}
+	}()
+	// #endregion
+
+	return positions, nil
 }
 
 // EquityHistoryRecord represents an equity history point in the database
@@ -4999,12 +5096,28 @@ func (d *Database) GetOpenPositions(traderID string) ([]*PositionRecord, error) 
 	for rows.Next() {
 		var pos PositionRecord
 		var closedAtStr sql.NullString
+		var exitPrice sql.NullFloat64
+		var realizedPnL sql.NullFloat64
 		var stopLossPrice sql.NullFloat64
 		var takeProfitPrice sql.NullFloat64
 
-		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &pos.ExitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &pos.RealizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose, &stopLossPrice, &takeProfitPrice)
+		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &exitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &realizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose, &stopLossPrice, &takeProfitPrice)
 		if err != nil {
 			return nil, err
+		}
+
+		// Handle nullable exit_price
+		if exitPrice.Valid {
+			pos.ExitPrice = exitPrice.Float64
+		} else {
+			pos.ExitPrice = 0
+		}
+
+		// Handle nullable realized_pnl
+		if realizedPnL.Valid {
+			pos.RealizedPnL = realizedPnL.Float64
+		} else {
+			pos.RealizedPnL = 0
 		}
 
 		if closedAtStr.Valid {
