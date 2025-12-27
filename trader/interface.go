@@ -1,5 +1,7 @@
 package trader
 
+import "time"
+
 // Trader 交易器统一接口
 // 支持多个交易平台（币安、Hyperliquid等）
 type Trader interface {
@@ -54,4 +56,16 @@ type Trader interface {
 	// GetOrderStatus Get order status from exchange
 	// Returns map with: avgPrice (float64), executedQty (float64), commission (float64), status (string)
 	GetOrderStatus(symbol string, orderID string) (map[string]interface{}, error)
+
+	// GetOrderHistory Get order history from exchange (all orders, including filled)
+	// Returns orders sorted by time (newest first)
+	// limit: maximum number of orders to return (0 = use exchange default)
+	// startTime, endTime: optional time range filters (nil = no filter)
+	GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error)
+
+	// GetUserTrades Get user trade history (executed trades)
+	// Returns trades sorted by time (newest first)
+	// limit: maximum number of trades to return (0 = use exchange default)
+	// startTime, endTime: optional time range filters (nil = no filter)
+	GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error)
 }

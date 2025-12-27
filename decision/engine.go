@@ -8,6 +8,7 @@ import (
 	"nofx/market"
 	"nofx/mcp"
 	"nofx/pool"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -345,8 +346,30 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 		ctx.OITopDataMap = make(map[string]*OITopData)
 	}
 
+	// #region agent log
+	// Log what template and prompts are being used in decision engine
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData := map[string]interface{}{
+			"location": "engine.go:349",
+			"message": "Building system prompt with strategy settings",
+			"data": map[string]interface{}{
+				"template_name": templateName,
+				"custom_prompt": customPrompt,
+				"override_base": overrideBase,
+			},
+			"timestamp": time.Now().UnixMilli(),
+			"sessionId": "debug-session",
+			"runId": "run1",
+			"hypothesisId": "D",
+		}
+		json.NewEncoder(logFile).Encode(logData)
+		logFile.Close()
+	}
+	// #endregion
+
 	// 2. Build System Prompt (fixed rules) and User Prompt (dynamic data)
-	systemPrompt := buildSystemPromptWithCustom(
+	systemPrompt, err := buildSystemPromptWithCustom(
 		ctx.Account.TotalEquity,
 		ctx.BTCETHLeverage,
 		ctx.AltcoinLeverage,
@@ -357,6 +380,9 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 		PromptTypeStandard,
 		config,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build system prompt: %w", err)
+	}
 	userPrompt := buildUserPrompt(ctx)
 
 	// 3. Call AI API (using system + user prompt)
@@ -497,22 +523,26 @@ func calculateMaxCandidates(ctx *Context) int {
 }
 
 // buildSystemPromptWithCustom Builds System Prompt with custom content
-func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, promptType PromptType, config StrategyConfig) string {
+func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, promptType PromptType, config StrategyConfig) (string, error) {
 	// If override base prompt and have custom prompt, use only custom prompt
 	if overrideBase && customPrompt != "" {
 		// Ensure format section is included when overriding base prompt
 		enhancedPrompt := EnsureFormatSection(customPrompt, promptType, accountEquity, btcEthLeverage, altcoinLeverage)
 		// Validate and warn if format is incomplete
 		ValidateAndWarn(enhancedPrompt, promptType, accountEquity, btcEthLeverage, altcoinLeverage)
-		return enhancedPrompt
+		return enhancedPrompt, nil
 	}
 
 	// Get base prompt (using specified template)
-	basePrompt := buildSystemPrompt(accountEquity, btcEthLeverage, altcoinLeverage, templateName, variant, config)
+	basePrompt, err := buildSystemPrompt(accountEquity, btcEthLeverage, altcoinLeverage, templateName, variant, config)
+	if err != nil {
+		// If template loading fails, return error
+		return "", err
+	}
 
 	// If no custom prompt, return base prompt directly (which already includes format)
 	if customPrompt == "" {
-		return basePrompt
+		return basePrompt, nil
 	}
 
 	// Add custom prompt section to base prompt
@@ -524,13 +554,16 @@ func buildSystemPromptWithCustom(accountEquity float64, btcEthLeverage, altcoinL
 	sb.WriteString("\n\n")
 	sb.WriteString("Note: The above custom strategy supplements the base rules and must not violate the fundamental risk control principles.\n")
 
-	return sb.String()
+	return sb.String(), nil
 }
 
 // BuildSystemPromptWithTradingView Builds System Prompt with TradingView signal analysis
-func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, config StrategyConfig) string {
+func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, config StrategyConfig) (string, error) {
 	// Build base prompt first
-	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeTradingView, config)
+	basePrompt, err := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeTradingView, config)
+	if err != nil {
+		return "", err
+	}
 
 	// Add TradingView signal analysis section
 	var sb strings.Builder
@@ -560,13 +593,16 @@ func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, alt
 	sb.WriteString("- If signal direction is correct but parameters are unreasonable, use \"modify\" and provide optimized parameters\n")
 	sb.WriteString("- If signal completely does not align with strategy or risk is too high, use \"reject\" and explain the reason\n\n")
 
-	return sb.String()
+	return sb.String(), nil
 }
 
 // BuildSystemPromptWithParentSignal Builds System Prompt with parent trader signal analysis
-func BuildSystemPromptWithParentSignal(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, config StrategyConfig) string {
+func BuildSystemPromptWithParentSignal(accountEquity float64, btcEthLeverage, altcoinLeverage int, customPrompt string, overrideBase bool, templateName string, variant string, config StrategyConfig) (string, error) {
 	// Build base prompt first (using risk_management template)
-	basePrompt := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeParent, config)
+	basePrompt, err := buildSystemPromptWithCustom(accountEquity, btcEthLeverage, altcoinLeverage, customPrompt, overrideBase, templateName, variant, PromptTypeParent, config)
+	if err != nil {
+		return "", err
+	}
 
 	// Add parent trader signal analysis section
 	var sb strings.Builder
@@ -612,11 +648,11 @@ func BuildSystemPromptWithParentSignal(accountEquity float64, btcEthLeverage, al
 	sb.WriteString("- Better to skip a trade (reject) than take excessive risk\n")
 	sb.WriteString("- For TradingView instant signals: prioritize speed while maintaining safety - make efficient decisions without over-analyzing\n\n")
 
-	return sb.String()
+	return sb.String(), nil
 }
 
 // buildSystemPrompt Builds System Prompt (using template + dynamic parts)
-func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage int, templateName string, variant string, config StrategyConfig) string {
+func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage int, templateName string, variant string, config StrategyConfig) (string, error) {
 	var sb strings.Builder
 
 	// 1. Load prompt template (core trading strategy part)
@@ -624,23 +660,63 @@ func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage in
 		templateName = "default" // Default to default template
 	}
 
+	// #region agent log
+	// Log template loading attempt
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData := map[string]interface{}{
+			"location": "engine.go:650",
+			"message": "Loading prompt template from database",
+			"data": map[string]interface{}{
+				"template_name": templateName,
+			},
+			"timestamp": time.Now().UnixMilli(),
+			"sessionId": "debug-session",
+			"runId": "run1",
+			"hypothesisId": "E",
+		}
+		json.NewEncoder(logFile).Encode(logData)
+		logFile.Close()
+	}
+	// #endregion
+
 	template, err := GetPromptTemplate(templateName)
 	if err != nil {
-		// If template does not exist, log error and use default
-		log.Printf("⚠️  Prompt template '%s' does not exist, using default: %v", templateName, err)
+		// Template must exist in database - fail if not found (no hardcoded fallback)
+		log.Printf("❌ Prompt template '%s' does not exist in database: %v", templateName, err)
+		// Try default template as last resort
 		template, err = GetPromptTemplate("default")
 		if err != nil {
-			// If even default does not exist, use built-in simplified version
-			log.Printf("❌ Unable to load any prompt template, using built-in simplified version")
-			sb.WriteString("You are a professional cryptocurrency trading AI. Please make trading decisions based on market data.\n\n")
-		} else {
-			sb.WriteString(template.Content)
-			sb.WriteString("\n\n")
+			// If even default does not exist, this is a critical error
+			log.Printf("❌ CRITICAL: Default prompt template does not exist in database. Please ensure templates are loaded from strategy-studio.")
+			return "", fmt.Errorf("prompt template '%s' and 'default' template not found in database. Templates must be loaded from strategy-studio (http://localhost:3000/strategy-studio). Error: %w", templateName, err)
 		}
-	} else {
-		sb.WriteString(template.Content)
-		sb.WriteString("\n\n")
+		log.Printf("⚠️  Using 'default' template as fallback for '%s'", templateName)
 	}
+	
+	// #region agent log
+	// Log successful template load
+	logFile2, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile2 != nil {
+		logData2 := map[string]interface{}{
+			"location": "engine.go:675",
+			"message": "Template loaded successfully from database",
+			"data": map[string]interface{}{
+				"template_name": templateName,
+				"template_content_length": len(template.Content),
+			},
+			"timestamp": time.Now().UnixMilli(),
+			"sessionId": "debug-session",
+			"runId": "run1",
+			"hypothesisId": "E",
+		}
+		json.NewEncoder(logFile2).Encode(logData2)
+		logFile2.Close()
+	}
+	// #endregion
+
+	sb.WriteString(template.Content)
+	sb.WriteString("\n\n")
 
 	// 2. Trading mode variants
 	switch strings.ToLower(strings.TrimSpace(variant)) {
@@ -712,7 +788,7 @@ func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage in
 	// 7. Output format - use modular template
 	sb.WriteString(GetStandardJSONFormat(accountEquity, btcEthLeverage, altcoinLeverage))
 
-	return sb.String()
+	return sb.String(), nil
 }
 
 // buildUserPrompt Builds User Prompt (dynamic data)

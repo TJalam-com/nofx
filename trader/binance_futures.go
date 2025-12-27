@@ -217,7 +217,9 @@ func (t *FuturesTrader) GetPositions() ([]map[string]interface{}, error) {
 		log.Printf("⚠️ GetRecentTrades not yet implemented for Binance Futures (checking %d symbols), using position API only", len(symbolsToCheck))
 	}
 	for symbol := range symbolsToCheck {
-		recentTrades, err := t.GetRecentTrades(symbol, 50)
+		// Use GetUserTrades instead of GetRecentTrades
+		startTime := time.Now().Add(-24 * time.Hour)
+		recentTrades, err := t.GetUserTrades(symbol, 50, &startTime, nil)
 		if err != nil {
 			// Trade query failed, skip enhancement but don't break existing behavior
 			log.Printf("⚠️ Failed to query trades for %s (using position API only): %v", symbol, err)
@@ -609,14 +611,21 @@ func (t *FuturesTrader) GetOrderStatus(symbol string, orderID string) (map[strin
 	}, nil
 }
 
-// GetRecentTrades Get recent trades from Binance Futures API for position closure detection
-// Note: This is a placeholder implementation. The actual Binance Futures SDK may have different method names.
-// For now, this returns an empty slice to avoid breaking existing code.
-// Position closure detection will fall back to using position API only.
-func (t *FuturesTrader) GetRecentTrades(symbol string, limit int) ([]map[string]interface{}, error) {
-	// TODO: Implement using correct Binance Futures API method when available
-	// For now, return empty slice - position closure detection will use position API only
-	// Note: Warning logged at GetPositions level to avoid spam
+// GetOrderHistory Get all orders (including filled) from Binance Futures
+// Note: Binance Futures SDK may not have this method - using placeholder
+// Position closure detection will use position snapshots as fallback
+func (t *FuturesTrader) GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	// TODO: Check Binance Futures SDK for correct method name
+	// For now, return empty - position closure detection will use position snapshots
+	return []map[string]interface{}{}, nil
+}
+
+// GetUserTrades Get user trade history (executed trades) from Binance Futures
+// Note: Binance Futures SDK may not have this method - using placeholder
+// Position closure detection will use position snapshots as fallback
+func (t *FuturesTrader) GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	// TODO: Check Binance Futures SDK for correct method name
+	// For now, return empty - position closure detection will use position snapshots
 	return []map[string]interface{}{}, nil
 }
 

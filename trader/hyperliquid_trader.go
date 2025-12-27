@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonirico/go-hyperliquid"
@@ -844,6 +845,25 @@ func (t *HyperliquidTrader) GetOrderStatus(symbol string, orderID string) (map[s
 	// For filled orders, we'd need to query user fills, but that's complex
 	// Return error indicating order not found
 	return nil, fmt.Errorf("order not found (Hyperliquid limitation: order IDs not available)")
+}
+
+// GetOrderHistory Get all orders (including filled) from Hyperliquid
+// Note: Hyperliquid doesn't have a direct order history API, so we return empty
+// Position closure detection will rely on position snapshots instead
+func (t *HyperliquidTrader) GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	// Hyperliquid doesn't provide order history API
+	// We can only query open orders, not historical filled orders
+	// Return empty slice - position closure detection will use position snapshots
+	return []map[string]interface{}{}, nil
+}
+
+// GetUserTrades Get user trade history (executed trades) from Hyperliquid
+// Note: Hyperliquid API doesn't provide easy access to historical trades
+// Position closure detection will rely on position snapshots instead
+func (t *HyperliquidTrader) GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	// Hyperliquid doesn't provide easy access to historical trades via SDK
+	// Return empty slice - position closure detection will use position snapshots
+	return []map[string]interface{}{}, nil
 }
 
 // FormatQuantity 格式化数量到正确的精度

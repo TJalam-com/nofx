@@ -1343,6 +1343,133 @@ func (t *AsterTrader) GetOrderStatus(symbol string, orderID string) (map[string]
 	}, nil
 }
 
+// GetOrderHistory Get all orders (including filled) from Aster API (Binance-compatible)
+func (t *AsterTrader) GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	params := map[string]interface{}{
+		"symbol": symbol,
+	}
+
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	if startTime != nil {
+		params["startTime"] = startTime.UnixMilli()
+	}
+	if endTime != nil {
+		params["endTime"] = endTime.UnixMilli()
+	}
+
+	body, err := t.request("GET", "/fapi/v3/allOrders", params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order history: %w", err)
+	}
+
+	var orders []map[string]interface{}
+	if err := json.Unmarshal(body, &orders); err != nil {
+		return nil, fmt.Errorf("failed to parse order history: %w", err)
+	}
+
+	// Normalize order data to match Binance format
+	result := make([]map[string]interface{}, 0, len(orders))
+	for _, order := range orders {
+		// Extract and convert values
+		avgPrice, _ := parseFloatFromInterface(order["avgPrice"])
+		executedQty, _ := parseFloatFromInterface(order["executedQty"])
+		price, _ := parseFloatFromInterface(order["price"])
+		stopPrice, _ := parseFloatFromInterface(order["stopPrice"])
+		origQty, _ := parseFloatFromInterface(order["origQty"])
+
+		result = append(result, map[string]interface{}{
+			"orderId":      order["orderId"],
+			"symbol":       order["symbol"],
+			"status":       order["status"],
+			"type":         order["type"],
+			"side":         order["side"],
+			"positionSide": order["positionSide"],
+			"avgPrice":     avgPrice,
+			"executedQty":  executedQty,
+			"price":        price,
+			"stopPrice":    stopPrice,
+			"origQty":      origQty,
+			"time":         order["time"],
+			"updateTime":   order["updateTime"],
+			"clientOrderId": order["clientOrderId"],
+		})
+	}
+
+	return result, nil
+}
+
+// GetUserTrades Get user trade history (executed trades) from Aster API (Binance-compatible)
+func (t *AsterTrader) GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	params := map[string]interface{}{
+		"symbol": symbol,
+	}
+
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	if startTime != nil {
+		params["startTime"] = startTime.UnixMilli()
+	}
+	if endTime != nil {
+		params["endTime"] = endTime.UnixMilli()
+	}
+
+	body, err := t.request("GET", "/fapi/v3/userTrades", params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user trades: %w", err)
+	}
+
+	var trades []map[string]interface{}
+	if err := json.Unmarshal(body, &trades); err != nil {
+		return nil, fmt.Errorf("failed to parse user trades: %w", err)
+	}
+
+	// Normalize trade data
+	result := make([]map[string]interface{}, 0, len(trades))
+	for _, trade := range trades {
+		price, _ := parseFloatFromInterface(trade["price"])
+		qty, _ := parseFloatFromInterface(trade["qty"])
+		commission, _ := parseFloatFromInterface(trade["commission"])
+
+		result = append(result, map[string]interface{}{
+			"id":              trade["id"],
+			"orderId":         trade["orderId"],
+			"symbol":          trade["symbol"],
+			"price":           price,
+			"qty":             qty,
+			"commission":      commission,
+			"commissionAsset": trade["commissionAsset"],
+			"time":            trade["time"],
+			"isBuyer":         trade["isBuyer"],
+			"isMaker":         trade["isMaker"],
+			"positionSide":    trade["positionSide"],
+		})
+	}
+
+	return result, nil
+}
+
+// parseFloatFromInterface helper to parse float from interface{}
+func parseFloatFromInterface(v interface{}) (float64, error) {
+	if v == nil {
+		return 0, nil
+	}
+	switch val := v.(type) {
+	case float64:
+		return val, nil
+	case string:
+		return strconv.ParseFloat(val, 64)
+	case int:
+		return float64(val), nil
+	case int64:
+		return float64(val), nil
+	default:
+		return 0, fmt.Errorf("cannot convert %T to float64", v)
+	}
+}
+
 // FormatQuantity 格式化数量（实现Trader接口）
 func (t *AsterTrader) FormatQuantity(symbol string, quantity float64) (string, error) {
 	formatted, err := t.formatQuantity(symbol, quantity)

@@ -33,11 +33,7 @@ Update the formData initialization `useEffect` to:
 
 ### 1. Update formData Initialization useEffect
 
-**File**: `web/src/components/TraderConfigModal.tsx`
-
-**Location**: Lines 264-303
-
-**Changes**:
+**File**: `web/src/components/TraderConfigModal.tsx`**Location**: Lines 264-303**Changes**:
 
 - Replace `defaultModels[0]?.id || '' `with `getDefaultRiskModel()` for followers
 - Add `userIsFollower` and `filteredModels.length` to the dependency array
@@ -81,5 +77,6 @@ The separate `useEffect` at line 113-123 can be removed or simplified since the 
 - Verify the model is selected even if models load after modal opens
 - Verify no validation error appears for AI Model field
 - Verify the model selection persists when modal is reopened
+
 
 ````

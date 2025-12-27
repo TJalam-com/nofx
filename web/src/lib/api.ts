@@ -101,16 +101,10 @@ export const api = {
   },
 
   async createTrader(request: CreateTraderRequest): Promise<TraderInfo> {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:103',message:'createTrader API call - request payload',data:{strategy_id:request.strategy_id,hasStrategyId:!!request.strategy_id,requestKeys:Object.keys(request),fullRequest:request},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     const result = await httpClient.post<TraderInfo>(
       `${API_BASE}/traders`,
       request
     )
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:109',message:'createTrader API response',data:{success:result.success,hasData:!!result.data,traderId:result.data?.trader_id,strategyId:result.data?.strategy_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     if (!result.success) throw new Error('创建交易员失败')
     return result.data!
   },
@@ -170,9 +164,6 @@ export const api = {
     traderId: string,
     request: CreateTraderRequest
   ): Promise<TraderInfo> {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:163',message:'updateTrader API call - request payload',data:{traderId,strategy_id:request.strategy_id,hasStrategyId:!!request.strategy_id,hasIndicatorConfig:!!request.enable_raw_klines,fullRequest:request},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     const result = await httpClient.put<TraderInfo>(
       `${API_BASE}/traders/${traderId}`,
       request
@@ -482,6 +473,18 @@ export const api = {
     return Array.isArray(result.data) ? result.data : []
   },
 
+  // 获取持仓历史（包括已关闭的持仓，用于调试）
+  async getPositionHistory(
+    traderId: string,
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<any[]> {
+    const url = `${API_BASE}/position-history?trader_id=${traderId}&limit=${limit}&offset=${offset}`
+    const result = await httpClient.get<any[]>(url)
+    if (!result.success) throw new Error('获取持仓历史失败')
+    return Array.isArray(result.data) ? result.data : []
+  },
+
   // 手动平仓
   async closePosition(
     traderId: string,
@@ -500,6 +503,45 @@ export const api = {
     })
     if (!result.success) {
       throw new Error(result.message || '平仓失败')
+    }
+    return result.data!
+  },
+
+  // 获取持仓历史（包括已关闭的持仓）
+  async getPositionHistory(
+    traderId: string,
+    limit?: number,
+    offset?: number
+  ): Promise<any[]> {
+    let url = `${API_BASE}/position-history?trader_id=${traderId}`
+    if (limit !== undefined) {
+      url += `&limit=${limit}`
+    }
+    if (offset !== undefined) {
+      url += `&offset=${offset}`
+    }
+    const result = await httpClient.get<any[]>(url)
+    if (!result.success) throw new Error('获取持仓历史失败')
+    return Array.isArray(result.data) ? result.data : []
+  },
+
+  // 触发检测已关闭的持仓（从交易所订单历史）
+  async detectClosedPositions(traderId: string): Promise<{
+    message: string
+    open_positions: number
+    total_positions: number
+    closed_positions: number
+    detection_time: string
+  }> {
+    const result = await httpClient.post<{
+      message: string
+      open_positions: number
+      total_positions: number
+      closed_positions: number
+      detection_time: string
+    }>(`${API_BASE}/detect-closed-positions?trader_id=${traderId}`)
+    if (!result.success) {
+      throw new Error(result.message || '检测已关闭持仓失败')
     }
     return result.data!
   },

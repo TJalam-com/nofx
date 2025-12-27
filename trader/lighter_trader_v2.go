@@ -459,3 +459,64 @@ func (t *LighterTraderV2) GetTrades(startTime time.Time, limit int) ([]TradeReco
 
 	return result, nil
 }
+
+// GetOrderHistory Get all orders (including filled) from Lighter
+// Note: Lighter doesn't have a direct order history API, so we return empty
+// Position closure detection will rely on trade history (GetUserTrades) instead
+func (t *LighterTraderV2) GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	// Lighter doesn't provide order history API
+	// We can use GetUserTrades to detect closures instead
+	// Return empty slice - position closure detection will use GetUserTrades
+	return []map[string]interface{}{}, nil
+}
+
+// GetUserTrades Get user trade history (executed trades) from Lighter
+func (t *LighterTraderV2) GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	// Use existing GetTrades method
+	var start time.Time
+	if startTime != nil {
+		start = *startTime
+	} else {
+		// Default to 24 hours ago
+		start = time.Now().Add(-24 * time.Hour)
+	}
+
+	trades, err := t.GetTrades(start, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user trades: %w", err)
+	}
+
+	// Filter by symbol and time range
+	result := make([]map[string]interface{}, 0)
+	for _, trade := range trades {
+		// Filter by symbol
+		if trade.Symbol != symbol {
+			continue
+		}
+
+		// Filter by time range
+		if startTime != nil && trade.Time.Before(*startTime) {
+			continue
+		}
+		if endTime != nil && trade.Time.After(*endTime) {
+			continue
+		}
+
+		// Convert to unified format
+		result = append(result, map[string]interface{}{
+			"id":              trade.TradeID,
+			"orderId":         "", // Lighter doesn't provide order ID in trades
+			"symbol":          trade.Symbol,
+			"price":           trade.Price,
+			"qty":             trade.Quantity,
+			"commission":      trade.Fee,
+			"commissionAsset": "USDT",
+			"time":            trade.Time.UnixMilli(),
+			"isBuyer":         trade.Side == "BUY",
+			"isMaker":         false, // Lighter doesn't provide this
+			"positionSide":    trade.PositionSide,
+		})
+	}
+
+	return result, nil
+}

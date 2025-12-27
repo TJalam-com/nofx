@@ -772,6 +772,56 @@ func (t *BybitTrader) GetOrderStatus(symbol string, orderID string) (map[string]
 	}, nil
 }
 
+// GetOrderHistory Get all orders (including filled) from Bybit API
+func (t *BybitTrader) GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	params := map[string]interface{}{
+		"category": "linear",
+		"symbol":   symbol,
+	}
+
+	if limit > 0 {
+		params["limit"] = limit
+	} else {
+		params["limit"] = 50 // Bybit default
+	}
+	if startTime != nil {
+		params["startTime"] = startTime.UnixMilli()
+	}
+	if endTime != nil {
+		params["endTime"] = endTime.UnixMilli()
+	}
+
+	// Bybit SDK doesn't have GetHistoricOrders method
+	// Position closure detection will use position snapshots instead
+	// TODO: Implement Bybit order history when SDK supports it or use direct API calls
+	return []map[string]interface{}{}, nil
+}
+
+// GetUserTrades Get user trade history (executed trades) from Bybit API
+func (t *BybitTrader) GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	params := map[string]interface{}{
+		"category": "linear",
+		"symbol":   symbol,
+	}
+
+	if limit > 0 {
+		params["limit"] = limit
+	} else {
+		params["limit"] = 50 // Bybit default
+	}
+	if startTime != nil {
+		params["startTime"] = startTime.UnixMilli()
+	}
+	if endTime != nil {
+		params["endTime"] = endTime.UnixMilli()
+	}
+
+	// Bybit SDK doesn't have GetHistoricTrades method
+	// Position closure detection will use position snapshots instead
+	// TODO: Implement Bybit trade history when SDK supports it or use direct API calls
+	return []map[string]interface{}{}, nil
+}
+
 // Helper methods
 
 func (t *BybitTrader) clearCache() {

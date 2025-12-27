@@ -13,6 +13,7 @@ import {
   Trophy,
   ScrollText,
   Lightbulb,
+  RefreshCw,
 } from 'lucide-react'
 
 interface TradeOutcome {
@@ -63,6 +64,7 @@ interface AILearningProps {
 
 export default function AILearning({ traderId }: AILearningProps) {
   const { language } = useLanguage()
+
   const { data: performance, error } = useSWR<PerformanceAnalysis>(
     traderId ? `performance-${traderId}` : 'performance',
     () => api.getPerformance(traderId),
@@ -111,7 +113,9 @@ export default function AILearning({ traderId }: AILearningProps) {
             {t('aiLearning', language)}
           </h2>
         </div>
-        <div style={{ color: '#60A5FA' }}>{t('noCompleteData', language)}</div>
+        <div style={{ color: '#60A5FA' }}>
+          {t('noCompleteData', language)}
+        </div>
       </div>
     )
   }

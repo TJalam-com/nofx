@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	cfg "nofx/config"
 )
 
 // DecisionRecord Decision record
@@ -82,9 +84,12 @@ type IDecisionLogger interface {
 	// GetStatistics Gets statistics
 	GetStatistics() (*Statistics, error)
 	// AnalyzePerformance Analyzes trading performance for the last N cycles
-	AnalyzePerformance(lookbackCycles int) (*PerformanceAnalysis, error)
+	// database can be nil or a database interface that provides GetPositionHistory method
+	AnalyzePerformance(lookbackCycles int, traderID string, database interface{}) (*PerformanceAnalysis, error)
 	// SetCycleNumber Allows restoring internal counter (for backtest recovery)
 	SetCycleNumber(n int)
+	// GetCycleNumber Gets the current cycle number
+	GetCycleNumber() int
 }
 
 // DecisionLogger Decision logger
@@ -120,6 +125,11 @@ func (l *DecisionLogger) SetCycleNumber(n int) {
 	if n > 0 {
 		l.cycleNumber = n
 	}
+}
+
+// GetCycleNumber Gets the current cycle number
+func (l *DecisionLogger) GetCycleNumber() int {
+	return l.cycleNumber
 }
 
 // LogDecision Logs a decision
@@ -196,6 +206,61 @@ func (l *DecisionLogger) GetLatestRecords(n int) ([]*DecisionRecord, error) {
 	}
 
 	return records, nil
+}
+
+// convertPositionToTradeOutcome converts a PositionRecord from database to TradeOutcome
+func convertPositionToTradeOutcome(pos *cfg.PositionRecord) *TradeOutcome {
+	if pos.ClosedAt == nil {
+		return nil // Only convert closed positions
+	}
+
+	positionValue := pos.Quantity * pos.EntryPrice
+	marginUsed := positionValue / float64(pos.Leverage)
+	pnlPct := 0.0
+	if marginUsed > 0 {
+		pnlPct = (pos.RealizedPnL / marginUsed) * 100
+	}
+
+	duration := pos.ClosedAt.Sub(pos.OpenedAt).String()
+
+	// Determine if this was a stop loss (if exit price matches stop loss price, or if PnL is negative and close was recent)
+	wasStopLoss := false
+	if pos.StopLossPrice > 0 {
+		// Check if exit price is close to stop loss price (within 0.1% tolerance)
+		priceDiff := absFloat(pos.ExitPrice - pos.StopLossPrice)
+		if priceDiff/pos.StopLossPrice < 0.001 {
+			wasStopLoss = true
+		}
+	}
+	// If not determined by price match, infer from negative PnL
+	if !wasStopLoss && pos.RealizedPnL < 0 {
+		wasStopLoss = true
+	}
+
+	return &TradeOutcome{
+		Symbol:        pos.Symbol,
+		Side:          pos.Side,
+		Quantity:      pos.Quantity,
+		Leverage:      pos.Leverage,
+		OpenPrice:     pos.EntryPrice,
+		ClosePrice:    pos.ExitPrice,
+		PositionValue: positionValue,
+		MarginUsed:    marginUsed,
+		PnL:           pos.RealizedPnL,
+		PnLPct:        pnlPct,
+		Duration:      duration,
+		OpenTime:      pos.OpenedAt,
+		CloseTime:     *pos.ClosedAt,
+		WasStopLoss:   wasStopLoss,
+	}
+}
+
+// absFloat returns absolute value of float64
+func absFloat(x float64) float64 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 // GetRecordByDate Gets all records for a specific date
@@ -364,7 +429,8 @@ type SymbolPerformance struct {
 }
 
 // AnalyzePerformance Analyzes trading performance for the last N cycles
-func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAnalysis, error) {
+// database can be nil or a database interface that provides GetPositionHistory method
+func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int, traderID string, database interface{}) (*PerformanceAnalysis, error) {
 	records, err := l.GetLatestRecords(lookbackCycles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read historical records: %w", err)
@@ -714,17 +780,134 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 		}
 	}
 
-	// Keep only recent trades (reverse order: newest first)
-	if len(analysis.RecentTrades) > 10 {
-		// Reverse array to put newest first
-		for i, j := 0, len(analysis.RecentTrades)-1; i < j; i, j = i+1, j-1 {
-			analysis.RecentTrades[i], analysis.RecentTrades[j] = analysis.RecentTrades[j], analysis.RecentTrades[i]
+	// Query database for closed positions as fallback/supplement
+	dbTrades := make([]*TradeOutcome, 0)
+	if database != nil && traderID != "" {
+		// Try to cast database to *cfg.Database
+		if db, ok := database.(*cfg.Database); ok && db != nil {
+			// Get closed positions from database (last 200 to cover extended time window)
+			positionHistory, err := db.GetPositionHistory(traderID, 200, 0)
+			if err == nil {
+				// Create a map to track trades from decision records (for deduplication)
+				recordTradeKeys := make(map[string]bool)
+				for _, trade := range analysis.RecentTrades {
+					// Use symbol_side_closeTime as key for deduplication
+					key := fmt.Sprintf("%s_%s_%d", trade.Symbol, trade.Side, trade.CloseTime.Unix())
+					recordTradeKeys[key] = true
+				}
+
+				// Convert database positions to trades
+				for _, pos := range positionHistory {
+					if pos.ClosedAt == nil {
+						continue // Skip open positions
+					}
+
+					// Check if this trade is already in decision records (deduplicate)
+					key := fmt.Sprintf("%s_%s_%d", pos.Symbol, pos.Side, pos.ClosedAt.Unix())
+					if recordTradeKeys[key] {
+						continue // Skip if already in decision records
+					}
+
+					// Convert to TradeOutcome
+					trade := convertPositionToTradeOutcome(pos)
+					if trade != nil {
+						dbTrades = append(dbTrades, trade)
+					}
+				}
+			}
 		}
-		analysis.RecentTrades = analysis.RecentTrades[:10]
-	} else if len(analysis.RecentTrades) > 0 {
-		// Reverse array
-		for i, j := 0, len(analysis.RecentTrades)-1; i < j; i, j = i+1, j-1 {
-			analysis.RecentTrades[i], analysis.RecentTrades[j] = analysis.RecentTrades[j], analysis.RecentTrades[i]
+	}
+
+	// Merge database trades with decision record trades
+	allTrades := make([]TradeOutcome, 0, len(analysis.RecentTrades)+len(dbTrades))
+	allTrades = append(allTrades, analysis.RecentTrades...)
+	for _, trade := range dbTrades {
+		allTrades = append(allTrades, *trade)
+
+		// Update analysis metrics for database trades
+		analysis.TotalTrades++
+		if trade.PnL > 0 {
+			analysis.WinningTrades++
+			analysis.AvgWin += trade.PnL
+		} else if trade.PnL < 0 {
+			analysis.LosingTrades++
+			analysis.AvgLoss += trade.PnL
+		}
+
+		// Update symbol statistics
+		if _, exists := analysis.SymbolStats[trade.Symbol]; !exists {
+			analysis.SymbolStats[trade.Symbol] = &SymbolPerformance{
+				Symbol: trade.Symbol,
+			}
+		}
+		stats := analysis.SymbolStats[trade.Symbol]
+		stats.TotalTrades++
+		stats.TotalPnL += trade.PnL
+		if trade.PnL > 0 {
+			stats.WinningTrades++
+		} else if trade.PnL < 0 {
+			stats.LosingTrades++
+		}
+	}
+
+	// Recalculate metrics with merged data
+	if analysis.TotalTrades > 0 {
+		analysis.WinRate = (float64(analysis.WinningTrades) / float64(analysis.TotalTrades)) * 100
+
+		// Recalculate total profit and total loss
+		totalWinAmount := analysis.AvgWin   // Currently accumulated sum
+		totalLossAmount := analysis.AvgLoss // Currently accumulated sum (negative)
+
+		if analysis.WinningTrades > 0 {
+			analysis.AvgWin /= float64(analysis.WinningTrades)
+		}
+		if analysis.LosingTrades > 0 {
+			analysis.AvgLoss /= float64(analysis.LosingTrades)
+		}
+
+		// Profit Factor = Total Profit / Total Loss (absolute value)
+		if totalLossAmount != 0 {
+			analysis.ProfitFactor = totalWinAmount / (-totalLossAmount)
+		} else if totalWinAmount > 0 {
+			analysis.ProfitFactor = 999.0
+		}
+
+		// Recalculate symbol statistics
+		bestPnL := -999999.0
+		worstPnL := 999999.0
+		for symbol, stats := range analysis.SymbolStats {
+			if stats.TotalTrades > 0 {
+				stats.WinRate = (float64(stats.WinningTrades) / float64(stats.TotalTrades)) * 100
+				stats.AvgPnL = stats.TotalPnL / float64(stats.TotalTrades)
+
+				if stats.TotalPnL > bestPnL {
+					bestPnL = stats.TotalPnL
+					analysis.BestSymbol = symbol
+				}
+				if stats.TotalPnL < worstPnL {
+					worstPnL = stats.TotalPnL
+					analysis.WorstSymbol = symbol
+				}
+			}
+		}
+	}
+
+	// Sort all trades by close time (newest first) and keep top 10
+	if len(allTrades) > 0 {
+		// Sort by CloseTime descending (newest first)
+		for i := 0; i < len(allTrades)-1; i++ {
+			for j := i + 1; j < len(allTrades); j++ {
+				if allTrades[i].CloseTime.Before(allTrades[j].CloseTime) {
+					allTrades[i], allTrades[j] = allTrades[j], allTrades[i]
+				}
+			}
+		}
+
+		// Keep only top 10
+		if len(allTrades) > 10 {
+			analysis.RecentTrades = allTrades[:10]
+		} else {
+			analysis.RecentTrades = allTrades
 		}
 	}
 

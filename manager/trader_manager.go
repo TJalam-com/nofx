@@ -9,6 +9,7 @@ import (
 	dec "nofx/decision"
 	"nofx/logger"
 	"nofx/trader"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -327,10 +328,99 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		tm.ReplicateTradeToFollowers(traderID, decision, database)
 	})
 
+	// #region agent log
+	// Log strategy settings before applying
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData := map[string]interface{}{
+			"location": "trader_manager.go:330",
+			"message":  "Before setting strategy settings on AutoTrader",
+			"data": map[string]interface{}{
+				"trader_id":              traderCfg.ID,
+				"strategy_id":            traderCfg.StrategyID,
+				"system_prompt_template": traderCfg.SystemPromptTemplate,
+				"custom_prompt":          traderCfg.CustomPrompt,
+				"override_base_prompt":   traderCfg.OverrideBasePrompt,
+			},
+			"timestamp":    time.Now().UnixMilli(),
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "A",
+		}
+		json.NewEncoder(logFile).Encode(logData)
+		logFile.Close()
+	}
+	// #endregion
+
+	// Set system prompt template (ALWAYS set, even if empty, to ensure strategy settings are respected)
+	if traderCfg.SystemPromptTemplate != "" {
+		at.SetSystemPromptTemplate(traderCfg.SystemPromptTemplate)
+		// #region agent log
+		logFile2, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile2 != nil {
+			logData2 := map[string]interface{}{
+				"location": "trader_manager.go:350",
+				"message":  "System prompt template set on AutoTrader",
+				"data": map[string]interface{}{
+					"trader_id": traderCfg.ID,
+					"template":  traderCfg.SystemPromptTemplate,
+				},
+				"timestamp":    time.Now().UnixMilli(),
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "A",
+			}
+			json.NewEncoder(logFile2).Encode(logData2)
+			logFile2.Close()
+		}
+		// #endregion
+		log.Printf("✓ System prompt template set: %s", traderCfg.SystemPromptTemplate)
+	} else {
+		// #region agent log
+		logFile3, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile3 != nil {
+			logData3 := map[string]interface{}{
+				"location": "trader_manager.go:365",
+				"message":  "System prompt template is empty, not setting",
+				"data": map[string]interface{}{
+					"trader_id":   traderCfg.ID,
+					"strategy_id": traderCfg.StrategyID,
+				},
+				"timestamp":    time.Now().UnixMilli(),
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "A",
+			}
+			json.NewEncoder(logFile3).Encode(logData3)
+			logFile3.Close()
+		}
+		// #endregion
+	}
+
 	// Set custom prompt (if any)
 	if traderCfg.CustomPrompt != "" {
 		at.SetCustomPrompt(traderCfg.CustomPrompt)
 		at.SetOverrideBasePrompt(traderCfg.OverrideBasePrompt)
+		// #region agent log
+		logFile4, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile4 != nil {
+			logData4 := map[string]interface{}{
+				"location": "trader_manager.go:380",
+				"message":  "Custom prompt set on AutoTrader",
+				"data": map[string]interface{}{
+					"trader_id":            traderCfg.ID,
+					"override_base":        traderCfg.OverrideBasePrompt,
+					"custom_prompt_length": len(traderCfg.CustomPrompt),
+				},
+				"timestamp":    time.Now().UnixMilli(),
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "B",
+			}
+			json.NewEncoder(logFile4).Encode(logData4)
+			logFile4.Close()
+		}
+		// #endregion
 		if traderCfg.OverrideBasePrompt {
 			log.Printf("✓ Custom trading strategy prompt set (override base prompt)")
 		} else {
@@ -470,6 +560,36 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 	at.SetTradeReplicationCallback(func(traderID string, decision *dec.Decision) {
 		tm.ReplicateTradeToFollowers(traderID, decision, database)
 	})
+
+	// #region agent log
+	// Log strategy settings before applying
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData := map[string]interface{}{
+			"location": "trader_manager.go:474",
+			"message":  "Before setting strategy settings on AutoTrader (AddTraderFromDB)",
+			"data": map[string]interface{}{
+				"trader_id":              traderCfg.ID,
+				"strategy_id":            traderCfg.StrategyID,
+				"system_prompt_template": traderCfg.SystemPromptTemplate,
+				"custom_prompt":          traderCfg.CustomPrompt,
+				"override_base_prompt":   traderCfg.OverrideBasePrompt,
+			},
+			"timestamp":    time.Now().UnixMilli(),
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "A",
+		}
+		json.NewEncoder(logFile).Encode(logData)
+		logFile.Close()
+	}
+	// #endregion
+
+	// Set system prompt template (ALWAYS set, even if empty, to ensure strategy settings are respected)
+	if traderCfg.SystemPromptTemplate != "" {
+		at.SetSystemPromptTemplate(traderCfg.SystemPromptTemplate)
+		log.Printf("✓ System prompt template set: %s", traderCfg.SystemPromptTemplate)
+	}
 
 	// Set custom prompt (if any)
 	if traderCfg.CustomPrompt != "" {
@@ -768,7 +888,7 @@ func (tm *TraderManager) GetCompetitionData(database *config.Database) (map[stri
 		} else {
 			traders[i]["followers_count"] = 0
 		}
-		
+
 		// Verify equity history exists in database for persistence
 		// This ensures data survives deployments
 		historyCount, err := database.GetEquityHistoryCount(traderID)
@@ -1335,6 +1455,27 @@ func (tm *TraderManager) ReloadTraderFromDB(database *config.Database, userID, t
 		return fmt.Errorf("failed to get trader configuration: %w", err)
 	}
 
+	// #region agent log
+	// Log before loading strategy settings in ReloadTraderFromDB
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData := map[string]interface{}{
+			"location": "trader_manager.go:1459",
+			"message":  "ReloadTraderFromDB - before loading strategy settings",
+			"data": map[string]interface{}{
+				"trader_id":   traderID,
+				"strategy_id": traderCfg.StrategyID,
+			},
+			"timestamp":    time.Now().UnixMilli(),
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "C",
+		}
+		json.NewEncoder(logFile).Encode(logData)
+		logFile.Close()
+	}
+	// #endregion
+
 	// Load strategy settings if strategy_id is set (Strategy Studio is single source of truth)
 	if traderCfg.StrategyID != "" {
 		if err := database.LoadStrategyIntoTrader(traderCfg); err != nil {
@@ -1452,7 +1593,7 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		DefaultCoins:         defaultCoins,
 		TradingCoins:         tradingCoins,
 		SystemPromptTemplate: traderCfg.SystemPromptTemplate, // System prompt template
-		StrategyID:           traderCfg.StrategyID,         // Strategy ID
+		StrategyID:           traderCfg.StrategyID,           // Strategy ID
 		UseTradingView:       traderCfg.UseTradingView,       // TradingView signal source
 		HyperliquidTestnet:   exchangeCfg.Testnet,            // Hyperliquid testnet
 	}
@@ -1508,6 +1649,60 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 	at.SetTradeReplicationCallback(func(traderID string, decision *dec.Decision) {
 		tm.ReplicateTradeToFollowers(traderID, decision, database)
 	})
+
+	// #region agent log
+	// Log strategy settings before applying
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData := map[string]interface{}{
+			"location": "trader_manager.go:1512",
+			"message":  "Before setting strategy settings on AutoTrader (LoadTradersForUser)",
+			"data": map[string]interface{}{
+				"trader_id":              traderCfg.ID,
+				"strategy_id":            traderCfg.StrategyID,
+				"system_prompt_template": traderCfg.SystemPromptTemplate,
+				"custom_prompt":          traderCfg.CustomPrompt,
+				"override_base_prompt":   traderCfg.OverrideBasePrompt,
+			},
+			"timestamp":    time.Now().UnixMilli(),
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "A",
+		}
+		json.NewEncoder(logFile).Encode(logData)
+		logFile.Close()
+	}
+	// #endregion
+
+	// Set system prompt template (ALWAYS set to ensure strategy settings are respected)
+	// If empty, it will default to "default" in NewAutoTrader, but we should set it explicitly
+	templateToUse := traderCfg.SystemPromptTemplate
+	if templateToUse == "" {
+		templateToUse = "default"
+	}
+	at.SetSystemPromptTemplate(templateToUse)
+	// #region agent log
+	logFile5, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile5 != nil {
+		logData5 := map[string]interface{}{
+			"location": "trader_manager.go:1679",
+			"message":  "System prompt template set in loadSingleTrader",
+			"data": map[string]interface{}{
+				"trader_id":         traderCfg.ID,
+				"strategy_id":       traderCfg.StrategyID,
+				"template":          templateToUse,
+				"original_template": traderCfg.SystemPromptTemplate,
+			},
+			"timestamp":    time.Now().UnixMilli(),
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "A",
+		}
+		json.NewEncoder(logFile5).Encode(logData5)
+		logFile5.Close()
+	}
+	// #endregion
+	log.Printf("✓ System prompt template set: %s", templateToUse)
 
 	// Set custom prompt (if any)
 	if traderCfg.CustomPrompt != "" {

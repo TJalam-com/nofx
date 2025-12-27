@@ -11,6 +11,7 @@ import (
 	"nofx/market"
 	"nofx/mcp"
 	"nofx/pool"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -169,10 +170,10 @@ type AutoTrader struct {
 	followedTraderID         string                                             // Cached parent trader ID
 	processedSignals         map[string]time.Time                               // Deduplication cache (signal_id -> timestamp)
 	processedSignalsMutex    sync.RWMutex                                       // Mutex for signal cache
-	previousPositions        map[string]map[string]interface{}                   // Previous position snapshot (symbol_side -> position data)
+	previousPositions        map[string]map[string]interface{}                  // Previous position snapshot (symbol_side -> position data)
 	previousPositionsMutex   sync.RWMutex                                       // Mutex for previous positions
 	loggedClosures           map[string]time.Time                               // Track logged closures to avoid duplicates (symbol_side -> timestamp)
-	loggedClosuresMutex     sync.RWMutex                                       // Mutex for logged closures
+	loggedClosuresMutex      sync.RWMutex                                       // Mutex for logged closures
 }
 
 // NewAutoTrader create automatic trader
@@ -378,8 +379,8 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 	// Set default system prompt template
 	systemPromptTemplate := config.SystemPromptTemplate
 	if systemPromptTemplate == "" {
-		// feature/partial-close-dynamic-tpsl branch defaults to adaptive (supports dynamic take profit/stop loss)
-		systemPromptTemplate = "adaptive"
+		// Default to "default" template if not specified (strategy settings should override this)
+		systemPromptTemplate = "default"
 	}
 
 	// Check if this trader is a follower and cache the status
@@ -427,7 +428,7 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		followedTraderID:      followedTraderID,
 		processedSignals:      make(map[string]time.Time),
 		previousPositions:     make(map[string]map[string]interface{}),
-		loggedClosures:         make(map[string]time.Time),
+		loggedClosures:        make(map[string]time.Time),
 	}, nil
 }
 
@@ -698,6 +699,30 @@ func (at *AutoTrader) runCycle() error {
 
 	// 5. Load strategy config
 	strategyConfig := at.getStrategyConfig()
+
+	// #region agent log
+	// Log what template and prompts are being used
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData := map[string]interface{}{
+			"location": "auto_trader.go:704",
+			"message":  "Before calling AI with strategy settings",
+			"data": map[string]interface{}{
+				"trader_id":              at.id,
+				"strategy_id":            at.strategyID,
+				"system_prompt_template": at.systemPromptTemplate,
+				"custom_prompt":          at.customPrompt,
+				"override_base_prompt":   at.overrideBasePrompt,
+			},
+			"timestamp":    time.Now().UnixMilli(),
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "D",
+		}
+		json.NewEncoder(logFile).Encode(logData)
+		logFile.Close()
+	}
+	// #endregion
 
 	// 6. Call AI to get full decision
 	log.Printf("🤖 Requesting AI analysis and decision... [Template: %s]", at.systemPromptTemplate)
@@ -976,9 +1001,14 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 		marginUsedPct = (totalMarginUsed / totalEquity) * 100
 	}
 
-	// 5. Analyze historical performance (last 100 cycles, avoid losing trading records of long-term positions)
-	// Assuming 3 minutes per cycle, 100 cycles = 5 hours, sufficient to cover most trades
-	performance, err := at.decisionLogger.AnalyzePerformance(100)
+	// 5. Analyze historical performance (last 500 cycles, avoid losing trading records of long-term positions)
+	// Assuming 3 minutes per cycle, 500 cycles = ~25 hours, sufficient to cover most trades
+	// Also use database positions as fallback/supplement for complete data
+	var database interface{}
+	if db, ok := at.database.(*cfg.Database); ok && db != nil {
+		database = db
+	}
+	performance, err := at.decisionLogger.AnalyzePerformance(500, at.id, database)
 	if err != nil {
 		log.Printf("⚠️  Failed to analyze historical performance: %v", err)
 		// Don't affect main flow, continue execution (but set performance to nil to avoid passing incorrect data)
@@ -1293,6 +1323,9 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 	// Update position snapshot immediately for closure detection
 	at.updatePositionSnapshot()
 
+	// Check if position was immediately closed (e.g., by SL/TP) and update database
+	at.checkAndUpdatePositionClosure(decision.Symbol, "long")
+
 	return nil
 }
 
@@ -1501,6 +1534,9 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 
 	// Update position snapshot immediately for closure detection
 	at.updatePositionSnapshot()
+
+	// Check if position was immediately closed (e.g., by SL/TP) and update database
+	at.checkAndUpdatePositionClosure(decision.Symbol, "short")
 
 	return nil
 }
@@ -3094,10 +3130,10 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 			log.Printf("⚠️ Position closure detection: no position data found for %s %s (not in DB, snapshot, or history), skipping", symbol, side)
 			continue
 		}
-		
+
 		// Determine close time
 		closeTime := time.Now()
-		
+
 		// Get actual exit price - try to get from exchange or use market price
 		var actualExitPrice float64
 		marketData, err := market.Get(symbol)
@@ -3135,13 +3171,13 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 		if dbPosition != nil && dbPosition.StopLossPrice > 0 && dbPosition.TakeProfitPrice > 0 {
 			// Compare exit price to SL and TP with tolerance (0.1% to account for slippage)
 			const priceTolerance = 0.001 // 0.1%
-			
+
 			// For LONG positions: SL is below entry, TP is above entry
 			// For SHORT positions: SL is above entry, TP is below entry
 			if side == "long" {
 				// Check if exit price is close to stop loss (should be <= stop loss)
 				if actualExitPrice <= dbPosition.StopLossPrice {
-					priceDiff := math.Abs(actualExitPrice - dbPosition.StopLossPrice) / dbPosition.StopLossPrice
+					priceDiff := math.Abs(actualExitPrice-dbPosition.StopLossPrice) / dbPosition.StopLossPrice
 					if priceDiff < priceTolerance || actualExitPrice <= dbPosition.StopLossPrice {
 						closureReason = "stop_loss"
 						log.Printf("🔍 Position closure detection: %s %s closed by STOP LOSS (exit=%.4f, SL=%.4f)", symbol, side, actualExitPrice, dbPosition.StopLossPrice)
@@ -3149,7 +3185,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 				}
 				// Check if exit price is close to take profit (should be >= take profit)
 				if closureReason == "" && actualExitPrice >= dbPosition.TakeProfitPrice {
-					priceDiff := math.Abs(actualExitPrice - dbPosition.TakeProfitPrice) / dbPosition.TakeProfitPrice
+					priceDiff := math.Abs(actualExitPrice-dbPosition.TakeProfitPrice) / dbPosition.TakeProfitPrice
 					if priceDiff < priceTolerance || actualExitPrice >= dbPosition.TakeProfitPrice {
 						closureReason = "take_profit"
 						log.Printf("🔍 Position closure detection: %s %s closed by TAKE PROFIT (exit=%.4f, TP=%.4f)", symbol, side, actualExitPrice, dbPosition.TakeProfitPrice)
@@ -3159,7 +3195,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 				// For SHORT: SL is above entry, TP is below entry
 				// Check if exit price is close to stop loss (should be >= stop loss)
 				if actualExitPrice >= dbPosition.StopLossPrice {
-					priceDiff := math.Abs(actualExitPrice - dbPosition.StopLossPrice) / dbPosition.StopLossPrice
+					priceDiff := math.Abs(actualExitPrice-dbPosition.StopLossPrice) / dbPosition.StopLossPrice
 					if priceDiff < priceTolerance || actualExitPrice >= dbPosition.StopLossPrice {
 						closureReason = "stop_loss"
 						log.Printf("🔍 Position closure detection: %s %s closed by STOP LOSS (exit=%.4f, SL=%.4f)", symbol, side, actualExitPrice, dbPosition.StopLossPrice)
@@ -3167,14 +3203,14 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 				}
 				// Check if exit price is close to take profit (should be <= take profit)
 				if closureReason == "" && actualExitPrice <= dbPosition.TakeProfitPrice {
-					priceDiff := math.Abs(actualExitPrice - dbPosition.TakeProfitPrice) / dbPosition.TakeProfitPrice
+					priceDiff := math.Abs(actualExitPrice-dbPosition.TakeProfitPrice) / dbPosition.TakeProfitPrice
 					if priceDiff < priceTolerance || actualExitPrice <= dbPosition.TakeProfitPrice {
 						closureReason = "take_profit"
 						log.Printf("🔍 Position closure detection: %s %s closed by TAKE PROFIT (exit=%.4f, TP=%.4f)", symbol, side, actualExitPrice, dbPosition.TakeProfitPrice)
 					}
 				}
 			}
-			
+
 			// If couldn't determine, default based on PnL (negative = likely SL, positive = likely TP)
 			if closureReason == "" {
 				// Calculate PnL to infer
@@ -3218,9 +3254,9 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 
 			// Calculate realized PnL: (exitPrice - entryPrice) * quantity - fees
 			if side == "long" {
-				realizedPnL = (actualExitPrice - entryPrice) * quantity - entryFee - exitFee
+				realizedPnL = (actualExitPrice-entryPrice)*quantity - entryFee - exitFee
 			} else {
-				realizedPnL = (entryPrice - actualExitPrice) * quantity - entryFee - exitFee
+				realizedPnL = (entryPrice-actualExitPrice)*quantity - entryFee - exitFee
 			}
 
 			// Update database position record with closure information
@@ -3238,7 +3274,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 				realizedPnL,
 				leverage,
 				dbPosition.OrderIDOpen,
-				"", // OrderIDClose not available for auto-closed positions
+				"",       // OrderIDClose not available for auto-closed positions
 				openedAt, // Use original openedAt to match position ID
 				&closeTime,
 				dbPosition.StopLossPrice,   // Preserve SL price
@@ -3248,7 +3284,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 				log.Printf("⚠️ Position closure detection: failed to update database position record for %s %s: %v", symbol, side, err)
 				continue // Skip logging decision if DB update fails
 			} else {
-				log.Printf("✅ Updated database position record for %s %s (entry=%.4f, exit=%.4f, pnl=%.4f, closed_at=%s)", 
+				log.Printf("✅ Updated database position record for %s %s (entry=%.4f, exit=%.4f, pnl=%.4f, closed_at=%s)",
 					symbol, side, entryPrice, actualExitPrice, realizedPnL, closeTime.Format("2006-01-02 15:04:05"))
 			}
 		} else if closedPosition != nil {
@@ -3299,7 +3335,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 				log.Printf("⚠️ Position closure detection: failed to create database position record for %s %s: %v", symbol, side, err)
 				continue // Skip logging decision if DB update fails
 			} else {
-				log.Printf("✅ Created database position record for %s %s (estimated open_time=%s, entry=%.4f, exit=%.4f, pnl=%.4f, closed_at=%s)", 
+				log.Printf("✅ Created database position record for %s %s (estimated open_time=%s, entry=%.4f, exit=%.4f, pnl=%.4f, closed_at=%s)",
 					symbol, side, openedAt.Format("2006-01-02 15:04:05"), entryPrice, actualExitPrice, realizedPnL, closeTime.Format("2006-01-02 15:04:05"))
 			}
 		} else {
@@ -3364,10 +3400,13 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 			Success:   true,
 		}
 
+		// Get current cycle number from decision logger (will be incremented when logged)
+		currentCycle := at.decisionLogger.GetCycleNumber()
+		
 		// Create minimal decision record
 		record := &logger.DecisionRecord{
 			Timestamp:    closeTime,
-			CycleNumber:  0, // Auto-close doesn't belong to a cycle
+			CycleNumber:  currentCycle + 1, // Will be set correctly by LogDecision, but set here for consistency
 			Decisions:    []logger.DecisionAction{decisionAction},
 			ExecutionLog: []string{executionLogMsg},
 			Success:      true,
@@ -3401,6 +3440,423 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 	at.previousPositionsMutex.Lock()
 	at.previousPositions = currentPositionsMap
 	at.previousPositionsMutex.Unlock()
+}
+
+// DetectAndLogPositionClosuresFromOrderHistory detects positions closed by SL/TP by querying exchange order history
+// This is a more reliable method than position snapshots as it directly queries filled orders from the exchange
+// This is a public method that can be called from API handlers
+func (at *AutoTrader) DetectAndLogPositionClosuresFromOrderHistory() {
+	// Get database reference
+	db, ok := at.database.(*cfg.Database)
+	if !ok {
+		return
+	}
+
+	// Get open positions from database
+	openPositions, err := db.GetOpenPositions(at.id)
+	if err != nil {
+		log.Printf("⚠️ Position closure detection (order history): failed to get open positions: %v", err)
+		return
+	}
+
+	if len(openPositions) == 0 {
+		return // No open positions to check
+	}
+
+	// Group positions by symbol to batch query order history
+	symbols := make(map[string]bool)
+	for _, pos := range openPositions {
+		symbols[pos.Symbol] = true
+	}
+
+	// Check last 24 hours for order history
+	endTime := time.Now()
+	startTime := endTime.Add(-24 * time.Hour)
+
+	// Query order history for each symbol
+	for symbol := range symbols {
+		// Try to get order history (if method exists)
+		orders, err := at.trader.GetOrderHistory(symbol, 100, &startTime, &endTime)
+		if err != nil {
+			// Some exchanges don't support order history (e.g., Hyperliquid)
+			// Skip silently - we'll use position snapshot method instead
+			continue
+		}
+
+		if len(orders) == 0 {
+			continue
+		}
+
+		// Find filled STOP_MARKET or TAKE_PROFIT_MARKET orders
+		for _, order := range orders {
+			orderType, _ := order["type"].(string)
+			status, _ := order["status"].(string)
+			positionSide, _ := order["positionSide"].(string)
+
+			// Only process filled stop loss or take profit orders
+			if status != "FILLED" {
+				continue
+			}
+
+			isStopOrder := orderType == "STOP_MARKET" || orderType == "STOP" ||
+				orderType == "TAKE_PROFIT_MARKET" || orderType == "TAKE_PROFIT" ||
+				orderType == "STOP_LOSS" || orderType == "TAKE_PROFIT_LOSS"
+
+			if !isStopOrder {
+				continue
+			}
+
+			// Match to open position
+			side := strings.ToLower(positionSide)
+			if side == "" {
+				// Infer side from order side
+				orderSide, _ := order["side"].(string)
+				if strings.ToUpper(orderSide) == "SELL" {
+					side = "long" // Closing long position
+				} else if strings.ToUpper(orderSide) == "BUY" {
+					side = "short" // Closing short position
+				}
+			}
+
+			// Find matching open position
+			var matchedPosition *cfg.PositionRecord
+			for _, pos := range openPositions {
+				if pos.Symbol == symbol && pos.Side == side {
+					matchedPosition = pos
+					break
+				}
+			}
+
+			if matchedPosition == nil {
+				continue // No matching open position
+			}
+
+			// Get order execution details
+			avgPrice, _ := order["avgPrice"].(float64)
+			executedQty, _ := order["executedQty"].(float64)
+			updateTime, ok := order["updateTime"].(int64)
+			if !ok {
+				// Try time field
+				updateTime, _ = order["time"].(int64)
+			}
+			closeTime := time.Unix(updateTime/1000, 0)
+
+			// Check if this closure was already logged (within last 30 minutes)
+			at.loggedClosuresMutex.RLock()
+			posKey := symbol + "_" + side
+			lastLogged, alreadyLogged := at.loggedClosures[posKey]
+			at.loggedClosuresMutex.RUnlock()
+
+			if alreadyLogged && time.Since(lastLogged) < 30*time.Minute {
+				continue // Already logged recently
+			}
+
+			// Calculate realized PnL
+			var realizedPnL float64
+			if side == "long" {
+				realizedPnL = executedQty*(avgPrice-matchedPosition.EntryPrice) - matchedPosition.EntryFee
+			} else {
+				realizedPnL = executedQty*(matchedPosition.EntryPrice-avgPrice) - matchedPosition.EntryFee
+			}
+
+			// Determine closure reason
+			closureReason := "unknown"
+			if orderType == "STOP_MARKET" || orderType == "STOP" || orderType == "STOP_LOSS" {
+				closureReason = "stop_loss"
+			} else if orderType == "TAKE_PROFIT_MARKET" || orderType == "TAKE_PROFIT" || orderType == "TAKE_PROFIT_LOSS" {
+				closureReason = "take_profit"
+			}
+
+			// Update database position record
+			err := db.SavePosition(
+				at.id,
+				symbol,
+				side,
+				matchedPosition.EntryPrice,
+				avgPrice,
+				executedQty,
+				matchedPosition.EntryFee,
+				0, // Exit fee (could get from trade history)
+				realizedPnL,
+				matchedPosition.Leverage,
+				matchedPosition.OrderIDOpen,
+				"", // OrderIDClose (could extract from order)
+				matchedPosition.OpenedAt,
+				&closeTime,
+				matchedPosition.StopLossPrice,
+				matchedPosition.TakeProfitPrice,
+			)
+
+			if err != nil {
+				log.Printf("⚠️ Position closure detection (order history): failed to update database for %s %s: %v", symbol, side, err)
+				continue
+			}
+
+			log.Printf("✅ Position closure detected from order history: %s %s closed by %s (exit=%.4f, pnl=%.4f)",
+				symbol, side, closureReason, avgPrice, realizedPnL)
+
+			// Mark as logged
+			at.loggedClosuresMutex.Lock()
+			at.loggedClosures[posKey] = time.Now()
+			at.loggedClosuresMutex.Unlock()
+
+			// Log as decision record (similar to existing detectAndLogPositionClosures)
+			action := "auto_close_long"
+			if side == "short" {
+				action = "auto_close_short"
+			}
+
+			executionLogMsg := "Auto-closed by SL/TP"
+			if closureReason == "stop_loss" {
+				executionLogMsg = "Auto-closed by Stop Loss"
+			} else if closureReason == "take_profit" {
+				executionLogMsg = "Auto-closed by Take Profit"
+			}
+
+			decisionAction := logger.DecisionAction{
+				Action:    action,
+				Symbol:    symbol,
+				Quantity:  executedQty,
+				Price:     avgPrice,
+				Timestamp: closeTime,
+				Success:   true,
+			}
+
+			// Get current cycle number from decision logger (will be incremented when logged)
+			currentCycle := at.decisionLogger.GetCycleNumber()
+			
+			record := &logger.DecisionRecord{
+				Timestamp:    closeTime,
+				CycleNumber:  currentCycle + 1, // Will be set correctly by LogDecision, but set here for consistency
+				Decisions:    []logger.DecisionAction{decisionAction},
+				ExecutionLog: []string{executionLogMsg},
+				Success:      true,
+			}
+
+			if err := at.logDecisionAndSaveEquity(record); err != nil {
+				log.Printf("⚠️ Position closure detection (order history): failed to log auto-close for %s: %v", posKey, err)
+			}
+		}
+	}
+}
+
+// checkAndUpdatePositionClosure checks if a position is still open on the exchange after being saved
+// If not found in open positions and not closed in database, queries historical trades to find closure
+func (at *AutoTrader) checkAndUpdatePositionClosure(symbol, side string) {
+	// Get database reference
+	db, ok := at.database.(*cfg.Database)
+	if !ok {
+		return
+	}
+
+	// Get current open positions from exchange
+	currentPositions, err := at.trader.GetPositions()
+	if err != nil {
+		log.Printf("⚠️ Position closure check: failed to get positions for %s %s: %v", symbol, side, err)
+		return
+	}
+
+	// Check if position exists in open positions
+	positionStillOpen := false
+	for _, pos := range currentPositions {
+		posSymbol, _ := pos["symbol"].(string)
+		posSide, _ := pos["side"].(string)
+		quantity, _ := pos["positionAmt"].(float64)
+		if quantity < 0 {
+			quantity = -quantity
+		}
+
+		if posSymbol == symbol && posSide == side && quantity > 0.0001 {
+			positionStillOpen = true
+			break
+		}
+	}
+
+	// If position is still open, no action needed
+	if positionStillOpen {
+		log.Printf("✓ Position closure check: %s %s is still open on exchange", symbol, side)
+		return
+	}
+
+	// Position not found in open positions - check if already closed in database
+	openPositions, err := db.GetOpenPositions(at.id)
+	if err != nil {
+		log.Printf("⚠️ Position closure check: failed to get open positions from database: %v", err)
+		return
+	}
+
+	// Find the position in database
+	var dbPosition *cfg.PositionRecord
+	for _, pos := range openPositions {
+		if pos.Symbol == symbol && pos.Side == side {
+			// Check if already closed
+			if pos.ClosedAt != nil {
+				log.Printf("✓ Position closure check: %s %s already marked as closed in database", symbol, side)
+				return
+			}
+			dbPosition = pos
+			break
+		}
+	}
+
+	// If position not found in database, nothing to update
+	if dbPosition == nil {
+		log.Printf("⚠️ Position closure check: %s %s not found in database", symbol, side)
+		return
+	}
+
+	// Position is not open on exchange and not closed in database - need to find closure trade
+	log.Printf("🔍 Position closure check: %s %s not found in open positions, checking historical trades...", symbol, side)
+
+	// Query historical trades for this symbol
+	// Check last 48 hours to catch closures that happened before position was saved
+	endTime := time.Now()
+	startTime := dbPosition.OpenedAt.Add(-24 * time.Hour) // Start from 24h before position opened (in case closed before save)
+
+	trades, err := at.trader.GetUserTrades(symbol, 100, &startTime, &endTime)
+	if err != nil {
+		// Exchange might not support GetUserTrades - fallback to existing detection
+		log.Printf("⚠️ Position closure check: GetUserTrades not available for %s, will rely on periodic detection", symbol)
+		return
+	}
+
+	if len(trades) == 0 {
+		log.Printf("⚠️ Position closure check: no trades found for %s in time range", symbol)
+		return
+	}
+
+	// Find matching closure trades
+	// For LONG position, look for SELL trades (isBuyer=false)
+	// For SHORT position, look for BUY trades (isBuyer=true)
+	var totalClosedQty float64
+	var totalExitValue float64
+	var totalFees float64
+	var latestCloseTime time.Time
+
+	for _, trade := range trades {
+		tradeTime, ok := trade["time"].(int64)
+		if !ok {
+			continue
+		}
+		tradeTimestamp := time.Unix(tradeTime/1000, 0)
+
+		// Only consider trades after position was opened
+		if tradeTimestamp.Before(dbPosition.OpenedAt) {
+			continue
+		}
+
+		// Check if trade matches closure direction
+		isBuyer, _ := trade["isBuyer"].(bool)
+		tradeQty, _ := trade["qty"].(float64)
+		tradePrice, _ := trade["price"].(float64)
+		commission, _ := trade["commission"].(float64)
+
+		matchesClosure := false
+		if side == "long" && !isBuyer {
+			// Closing long position with sell trade
+			matchesClosure = true
+		} else if side == "short" && isBuyer {
+			// Closing short position with buy trade
+			matchesClosure = true
+		}
+
+		if matchesClosure {
+			// Aggregate trades that close the position
+			totalClosedQty += tradeQty
+			totalExitValue += tradeQty * tradePrice
+			totalFees += commission
+			if tradeTimestamp.After(latestCloseTime) {
+				latestCloseTime = tradeTimestamp
+			}
+		}
+	}
+
+	// Check if we found enough trades to close the position (within 10% tolerance)
+	if totalClosedQty < dbPosition.Quantity*0.9 {
+		log.Printf("⚠️ Position closure check: found trades but quantity mismatch (position=%.4f, trades=%.4f)", dbPosition.Quantity, totalClosedQty)
+		// Still proceed if we found any matching trades (might be partial closure or rounding)
+		if totalClosedQty == 0 {
+			return
+		}
+	}
+
+	// Calculate average exit price
+	avgExitPrice := totalExitValue / totalClosedQty
+	if avgExitPrice <= 0 {
+		log.Printf("⚠️ Position closure check: invalid exit price calculated")
+		return
+	}
+
+	// Use latest close time or current time if no trades found
+	if latestCloseTime.IsZero() {
+		latestCloseTime = time.Now()
+	}
+
+	// Calculate realized PnL
+	var realizedPnL float64
+	if side == "long" {
+		realizedPnL = totalClosedQty*(avgExitPrice-dbPosition.EntryPrice) - dbPosition.EntryFee - totalFees
+	} else {
+		realizedPnL = totalClosedQty*(dbPosition.EntryPrice-avgExitPrice) - dbPosition.EntryFee - totalFees
+	}
+
+	// Update database with closure information
+	err = db.SavePosition(
+		at.id,
+		symbol,
+		side,
+		dbPosition.EntryPrice,
+		avgExitPrice,
+		totalClosedQty,
+		dbPosition.EntryFee,
+		totalFees,
+		realizedPnL,
+		dbPosition.Leverage,
+		dbPosition.OrderIDOpen,
+		"", // OrderIDClose (could extract from trade if available)
+		dbPosition.OpenedAt,
+		&latestCloseTime,
+		dbPosition.StopLossPrice,
+		dbPosition.TakeProfitPrice,
+	)
+
+	if err != nil {
+		log.Printf("⚠️ Position closure check: failed to update database for %s %s: %v", symbol, side, err)
+		return
+	}
+
+	log.Printf("✅ Position closure detected and updated: %s %s (entry=%.4f, exit=%.4f, pnl=%.4f, closed_at=%s)",
+		symbol, side, dbPosition.EntryPrice, avgExitPrice, realizedPnL, latestCloseTime.Format("2006-01-02 15:04:05"))
+
+	// Log as decision record for AI learning
+	action := "auto_close_long"
+	if side == "short" {
+		action = "auto_close_short"
+	}
+
+	decisionAction := logger.DecisionAction{
+		Action:    action,
+		Symbol:    symbol,
+		Quantity:  totalClosedQty,
+		Price:     avgExitPrice,
+		Timestamp: latestCloseTime,
+		Success:   true,
+	}
+
+	// Get current cycle number from decision logger (will be incremented when logged)
+	currentCycle := at.decisionLogger.GetCycleNumber()
+	
+	record := &logger.DecisionRecord{
+		Timestamp:    latestCloseTime,
+		CycleNumber:  currentCycle + 1, // Will be set correctly by LogDecision, but set here for consistency
+		Decisions:    []logger.DecisionAction{decisionAction},
+		ExecutionLog: []string{"Auto-closed (detected from historical trades)"},
+		Success:      true,
+	}
+
+	if err := at.logDecisionAndSaveEquity(record); err != nil {
+		log.Printf("⚠️ Position closure check: failed to log auto-close for %s %s: %v", symbol, side, err)
+	}
 }
 
 // Emergency close position function
@@ -3602,6 +4058,9 @@ func (at *AutoTrader) processTradingViewAlerts(record *logger.DecisionRecord) er
 	// This ensures closures are detected quickly even if they happen right after position opens
 	at.detectAndLogPositionClosures()
 
+	// Also check order history for more reliable detection (for exchanges that support it)
+	at.DetectAndLogPositionClosuresFromOrderHistory()
+
 	return nil
 }
 
@@ -3736,7 +4195,7 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 	strategyConfig := at.getStrategyConfig()
 
 	// Build system prompt (contains TradingView signal analysis instructions)
-	systemPrompt := decision.BuildSystemPromptWithTradingView(
+	systemPrompt, err := decision.BuildSystemPromptWithTradingView(
 		tradingCtx.Account.TotalEquity,
 		tradingCtx.BTCETHLeverage,
 		tradingCtx.AltcoinLeverage,
@@ -3746,6 +4205,12 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		tradingCtx.PromptVariant,
 		strategyConfig,
 	)
+	if err != nil {
+		log.Printf("❌ [%s] Failed to build system prompt: %v", at.name, err)
+		record.ErrorMessage = fmt.Sprintf("Failed to build system prompt: %v", err)
+		at.logDecisionAndSaveEquity(record)
+		return
+	}
 
 	// Call AI
 	aiCallStart := time.Now()
@@ -3965,7 +4430,7 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 	strategyConfig := at.getStrategyConfig()
 
 	// Build system prompt using risk_management template
-	systemPrompt := decision.BuildSystemPromptWithParentSignal(
+	systemPrompt, err := decision.BuildSystemPromptWithParentSignal(
 		tradingCtx.Account.TotalEquity,
 		tradingCtx.BTCETHLeverage,
 		tradingCtx.AltcoinLeverage,
@@ -3975,6 +4440,12 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 		tradingCtx.PromptVariant,
 		strategyConfig,
 	)
+	if err != nil {
+		log.Printf("❌ [%s] Failed to build system prompt: %v", at.name, err)
+		record.ErrorMessage = fmt.Sprintf("Failed to build system prompt: %v", err)
+		at.logDecisionAndSaveEquity(record)
+		return
+	}
 
 	// Call AI
 	aiCallStart := time.Now()

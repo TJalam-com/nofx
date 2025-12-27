@@ -359,9 +359,6 @@ export function TraderConfigModal({
 
   // Handle strategy selection - pure reference model: only set strategy_id
   const handleStrategyChange = async (strategyId: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:365',message:'handleStrategyChange called',data:{strategyId,selectedStrategyId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     setSelectedStrategyId(strategyId)
     if (!strategyId) {
       // Clearing strategy - restore custom config fields (keep current values or defaults)
@@ -400,9 +397,6 @@ export function TraderConfigModal({
       // Strategy selected - clear strategy-related fields from formData
       // Strategy Studio is the single source of truth
       setFormData((prev) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:403',message:'Setting strategy_id in formData',data:{strategyId,prevStrategyId:prev.strategy_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         return {
         ...prev,
         strategy_id: strategyId,
@@ -429,9 +423,6 @@ export function TraderConfigModal({
         quant_data_url: '',
         }
       })
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:428',message:'Strategy selected successfully',data:{strategyId,strategyName:strategy.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       toast.success(language === 'zh' ? `策略 "${strategy.name}" 已选择，设置将从策略加载` : `Strategy "${strategy.name}" selected, settings will be loaded from strategy`)
     } catch (error: any) {
       toast.error(error.message || (language === 'zh' ? '加载策略失败' : 'Failed to load strategy'))
@@ -446,9 +437,6 @@ export function TraderConfigModal({
 
   useEffect(() => {
     if (traderData) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:451',message:'Loading traderData in useEffect',data:{trader_id:traderData.trader_id,strategy_id:traderData.strategy_id,hasStrategyId:!!traderData.strategy_id,isEditMode,currentFormDataStrategyId:formData.strategy_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       console.log('🔍 DEBUG [TraderConfigModal]: Loading traderData:', {
         system_prompt_template: traderData.system_prompt_template,
         trader_id: traderData.trader_id,
@@ -459,9 +447,6 @@ export function TraderConfigModal({
       
       // If trader has strategy_id, only load trader-specific fields (Strategy Studio is single source of truth)
       if (traderData.strategy_id) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:461',message:'Setting formData with strategy_id',data:{strategy_id:traderData.strategy_id,trader_id:traderData.trader_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         setFormData({
           trader_id: traderData.trader_id,
           trader_name: traderData.trader_name,
@@ -495,9 +480,6 @@ export function TraderConfigModal({
         })
         setSelectedStrategyId(traderData.strategy_id)
       } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:494',message:'Setting formData without strategy_id (custom config)',data:{trader_id:traderData.trader_id,hasStrategyId:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         // No strategy_id - load all fields (custom configuration)
         setFormData({
           ...traderData,
@@ -539,9 +521,6 @@ export function TraderConfigModal({
       // Preserve followed_trader_id if it was already set (from copy trader flow)
       // Use functional update to avoid clearing it when dependencies change
       setFormData((prev) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:536',message:'Resetting formData in useEffect (create mode)',data:{prevStrategyId:prev.strategy_id,prevFollowedTraderId:prev.followed_trader_id,hasFollowedTraderId:!!prev.followed_trader_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         // Only reset if followed_trader_id is not already set
         if (prev.followed_trader_id) {
           console.log('🔍 DEBUG [TraderConfigModal]: Preserving followed_trader_id:', prev.followed_trader_id)
@@ -730,9 +709,6 @@ export function TraderConfigModal({
     setIsSaving(true)
     try {
       const hasStrategy = !!formData.strategy_id
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:786',message:'handleSave called - formData check',data:{strategy_id:formData.strategy_id,hasStrategy,selectedStrategyId,isEditMode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       console.log('🔍 DEBUG [TraderConfigModal]: Form data before save:', {
         strategy_id: formData.strategy_id,
         hasStrategy,
@@ -752,9 +728,6 @@ export function TraderConfigModal({
       if (hasStrategy) {
         // Strategy reference mode: only send strategy_id
         saveData.strategy_id = formData.strategy_id
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:805',message:'Strategy reference mode - setting strategy_id in saveData',data:{strategy_id:formData.strategy_id,saveDataStrategyId:saveData.strategy_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         console.log('✓ Using strategy reference mode - sending only strategy_id:', formData.strategy_id)
       } else {
         // Custom config mode: send individual settings (only for followers or existing traders without strategy)
@@ -787,9 +760,6 @@ export function TraderConfigModal({
         saveData.initial_balance = formData.initial_balance
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:840',message:'Save data before API call',data:{strategy_id:saveData.strategy_id,hasStrategy,isEditMode,fullSaveData:saveData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       console.log('🔍 DEBUG [TraderConfigModal]: Save data being sent:', {
         strategy_id: saveData.strategy_id,
         hasStrategy,
@@ -1103,9 +1073,6 @@ export function TraderConfigModal({
                   <select
                     value={selectedStrategyId}
                     onChange={(e) => {
-                      // #region agent log
-                      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TraderConfigModal.tsx:1167',message:'Strategy select onChange triggered',data:{selectedValue:e.target.value,currentSelectedStrategyId:selectedStrategyId,currentFormDataStrategyId:formData.strategy_id,isEditMode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                      // #endregion
                       handleStrategyChange(e.target.value)
                     }}
                     className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"

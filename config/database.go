@@ -3268,9 +3268,38 @@ func (d *Database) LoadStrategyIntoTrader(trader *TraderRecord) error {
 		return fmt.Errorf("failed to load strategy %s: %w", trader.StrategyID, err)
 	}
 
+	// #region agent log
+	// Log strategy settings being loaded
+	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData := map[string]interface{}{
+			"location": "database.go:3273",
+			"message": "Loading strategy settings into trader",
+			"data": map[string]interface{}{
+				"trader_id": trader.ID,
+				"strategy_id": trader.StrategyID,
+				"strategy_system_prompt_template": strategy.SystemPromptTemplate,
+				"strategy_custom_prompt": strategy.CustomPrompt,
+				"strategy_override_base_prompt": strategy.OverrideBasePrompt,
+			},
+			"timestamp": time.Now().UnixMilli(),
+			"sessionId": "debug-session",
+			"runId": "run1",
+			"hypothesisId": "C",
+		}
+		json.NewEncoder(logFile).Encode(logData)
+		logFile.Close()
+	}
+	// #endregion
+
 	// Merge strategy settings into trader record
 	// These settings come from Strategy Studio (single source of truth)
-	trader.SystemPromptTemplate = strategy.SystemPromptTemplate
+	// Ensure SystemPromptTemplate has a default value if empty
+	if strategy.SystemPromptTemplate == "" {
+		trader.SystemPromptTemplate = "default"
+	} else {
+		trader.SystemPromptTemplate = strategy.SystemPromptTemplate
+	}
 	trader.CustomPrompt = strategy.CustomPrompt
 	trader.OverrideBasePrompt = strategy.OverrideBasePrompt
 	trader.BTCETHLeverage = strategy.BTCETHLeverage

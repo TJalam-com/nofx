@@ -909,6 +909,158 @@ func (t *BitgetTrader) GetOrderStatus(symbol string, orderID string) (map[string
 	}, nil
 }
 
+// GetOrderHistory Get all orders (including filled) from Bitget API
+func (t *BitgetTrader) GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	path := "/api/v2/mix/order/orders-history"
+	params := map[string]interface{}{
+		"symbol":      symbol,
+		"productType": "USDT-FUTURES",
+	}
+
+	if limit > 0 {
+		params["pageSize"] = limit
+	} else {
+		params["pageSize"] = 50
+	}
+	if startTime != nil {
+		params["startTime"] = startTime.UnixMilli()
+	}
+	if endTime != nil {
+		params["endTime"] = endTime.UnixMilli()
+	}
+
+	data, err := t.doRequest("GET", path, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order history: %w", err)
+	}
+
+	var response struct {
+		Data struct {
+			Orders []struct {
+				OrderId    string `json:"orderId"`
+				Symbol     string `json:"symbol"`
+				Status     string `json:"status"`
+				AvgPrice   string `json:"avgPrice"`
+				FilledQty  string `json:"filledQty"`
+				Price      string `json:"price"`
+				StopPrice  string `json:"stopPrice"`
+				Size       string `json:"size"`
+				Side       string `json:"side"`
+				OrderType  string `json:"orderType"`
+				CTime      string `json:"cTime"`
+				UTime      string `json:"uTime"`
+				PosSide    string `json:"posSide"`
+			} `json:"orders"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse order history: %w", err)
+	}
+
+	result := make([]map[string]interface{}, 0, len(response.Data.Orders))
+	for _, order := range response.Data.Orders {
+		avgPrice, _ := strconv.ParseFloat(order.AvgPrice, 64)
+		executedQty, _ := strconv.ParseFloat(order.FilledQty, 64)
+		price, _ := strconv.ParseFloat(order.Price, 64)
+		stopPrice, _ := strconv.ParseFloat(order.StopPrice, 64)
+		origQty, _ := strconv.ParseFloat(order.Size, 64)
+		cTime, _ := strconv.ParseInt(order.CTime, 10, 64)
+		uTime, _ := strconv.ParseInt(order.UTime, 10, 64)
+
+		status := strings.ToUpper(order.Status)
+		if status == "FILLED" {
+			status = "FILLED"
+		}
+
+		result = append(result, map[string]interface{}{
+			"orderId":      order.OrderId,
+			"symbol":       order.Symbol,
+			"status":       status,
+			"type":         order.OrderType,
+			"side":         order.Side,
+			"positionSide": order.PosSide,
+			"avgPrice":     avgPrice,
+			"executedQty":  executedQty,
+			"price":        price,
+			"stopPrice":    stopPrice,
+			"origQty":      origQty,
+			"time":         cTime,
+			"updateTime":   uTime,
+		})
+	}
+
+	return result, nil
+}
+
+// GetUserTrades Get user trade history (executed trades) from Bitget API
+func (t *BitgetTrader) GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	path := "/api/v2/mix/order/fills"
+	params := map[string]interface{}{
+		"symbol":      symbol,
+		"productType": "USDT-FUTURES",
+	}
+
+	if limit > 0 {
+		params["pageSize"] = limit
+	} else {
+		params["pageSize"] = 50
+	}
+	if startTime != nil {
+		params["startTime"] = startTime.UnixMilli()
+	}
+	if endTime != nil {
+		params["endTime"] = endTime.UnixMilli()
+	}
+
+	data, err := t.doRequest("GET", path, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user trades: %w", err)
+	}
+
+	var response struct {
+		Data []struct {
+			TradeId string `json:"tradeId"`
+			OrderId string `json:"orderId"`
+			Symbol  string `json:"symbol"`
+			Price   string `json:"price"`
+			Size    string `json:"size"`
+			Fee     string `json:"fee"`
+			Side    string `json:"side"`
+			CTime   string `json:"cTime"`
+			PosSide string `json:"posSide"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse user trades: %w", err)
+	}
+
+	result := make([]map[string]interface{}, 0, len(response.Data))
+	for _, trade := range response.Data {
+		price, _ := strconv.ParseFloat(trade.Price, 64)
+		qty, _ := strconv.ParseFloat(trade.Size, 64)
+		commission, _ := strconv.ParseFloat(trade.Fee, 64)
+		cTime, _ := strconv.ParseInt(trade.CTime, 10, 64)
+
+		result = append(result, map[string]interface{}{
+			"id":              trade.TradeId,
+			"orderId":         trade.OrderId,
+			"symbol":          trade.Symbol,
+			"price":           price,
+			"qty":             qty,
+			"commission":      commission,
+			"commissionAsset": "USDT",
+			"time":            cTime,
+			"isBuyer":         trade.Side == "open_long" || trade.Side == "close_short",
+			"isMaker":         false, // Bitget doesn't provide this
+			"positionSide":    trade.PosSide,
+		})
+	}
+
+	return result, nil
+}
+
 // Helper methods
 
 func (t *BitgetTrader) clearCache() {

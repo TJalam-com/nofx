@@ -1172,6 +1172,159 @@ func (t *OKXTrader) GetOrderStatus(symbol string, orderID string) (map[string]in
 	}, nil
 }
 
+// GetOrderHistory Get all orders (including filled) from OKX API
+func (t *OKXTrader) GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	instId := t.convertSymbol(symbol)
+	path := fmt.Sprintf("/api/v5/trade/orders-history-archive?instId=%s", instId)
+
+	if limit > 0 {
+		path += fmt.Sprintf("&limit=%d", limit)
+	}
+	if startTime != nil {
+		path += fmt.Sprintf("&begin=%d", startTime.UnixMilli())
+	}
+	if endTime != nil {
+		path += fmt.Sprintf("&end=%d", endTime.UnixMilli())
+	}
+
+	data, err := t.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order history: %w", err)
+	}
+
+	var response struct {
+		Data []struct {
+			OrdId     string `json:"ordId"`
+			InstId    string `json:"instId"`
+			State     string `json:"state"`
+			AvgPx     string `json:"avgPx"`
+			AccFillSz string `json:"accFillSz"`
+			Fee       string `json:"fee"`
+			Side      string `json:"side"`
+			OrdType   string `json:"ordType"`
+			CTime     string `json:"cTime"`
+			UTime     string `json:"uTime"`
+			StopPx    string `json:"stopPx"`
+			Sz        string `json:"sz"`
+			PosSide   string `json:"posSide"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse order history: %w", err)
+	}
+
+	inst, err := t.getInstrument(symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get instrument info: %w", err)
+	}
+
+	result := make([]map[string]interface{}, 0, len(response.Data))
+	for _, order := range response.Data {
+		avgPrice, _ := strconv.ParseFloat(order.AvgPx, 64)
+		fillSz, _ := strconv.ParseFloat(order.AccFillSz, 64)
+		executedQty := fillSz * inst.CtVal
+		price, _ := strconv.ParseFloat(order.AvgPx, 64)
+		stopPrice, _ := strconv.ParseFloat(order.StopPx, 64)
+		sz, _ := strconv.ParseFloat(order.Sz, 64)
+		origQty := sz * inst.CtVal
+		cTime, _ := strconv.ParseInt(order.CTime, 10, 64)
+		uTime, _ := strconv.ParseInt(order.UTime, 10, 64)
+
+		status := strings.ToUpper(order.State)
+		if status == "FILLED" {
+			status = "FILLED"
+		}
+
+		result = append(result, map[string]interface{}{
+			"orderId":      order.OrdId,
+			"symbol":       symbol,
+			"status":       status,
+			"type":         order.OrdType,
+			"side":         order.Side,
+			"positionSide": order.PosSide,
+			"avgPrice":     avgPrice,
+			"executedQty":  executedQty,
+			"price":        price,
+			"stopPrice":    stopPrice,
+			"origQty":      origQty,
+			"time":         cTime,
+			"updateTime":   uTime,
+		})
+	}
+
+	return result, nil
+}
+
+// GetUserTrades Get user trade history (executed trades) from OKX API
+func (t *OKXTrader) GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	instId := t.convertSymbol(symbol)
+	path := fmt.Sprintf("/api/v5/trade/fills?instId=%s", instId)
+
+	if limit > 0 {
+		path += fmt.Sprintf("&limit=%d", limit)
+	}
+	if startTime != nil {
+		path += fmt.Sprintf("&begin=%d", startTime.UnixMilli())
+	}
+	if endTime != nil {
+		path += fmt.Sprintf("&end=%d", endTime.UnixMilli())
+	}
+
+	data, err := t.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user trades: %w", err)
+	}
+
+	var response struct {
+		Data []struct {
+			TradeId string `json:"tradeId"`
+			OrdId   string `json:"ordId"`
+			InstId  string `json:"instId"`
+			Px      string `json:"px"`
+			Sz      string `json:"sz"`
+			Fee     string `json:"fee"`
+			Side    string `json:"side"`
+			TS      string `json:"ts"`
+			PosSide string `json:"posSide"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse user trades: %w", err)
+	}
+
+	inst, err := t.getInstrument(symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get instrument info: %w", err)
+	}
+
+	result := make([]map[string]interface{}, 0, len(response.Data))
+	for _, trade := range response.Data {
+		price, _ := strconv.ParseFloat(trade.Px, 64)
+		sz, _ := strconv.ParseFloat(trade.Sz, 64)
+		qty := sz * inst.CtVal
+		commission, _ := strconv.ParseFloat(trade.Fee, 64)
+		ts, _ := strconv.ParseInt(trade.TS, 10, 64)
+
+		result = append(result, map[string]interface{}{
+			"id":              trade.TradeId,
+			"orderId":         trade.OrdId,
+			"symbol":          symbol,
+			"price":           price,
+			"qty":             qty,
+			"commission":      commission,
+			"commissionAsset": "USDT",
+			"time":            ts,
+			"isBuyer":         trade.Side == "buy",
+			"isMaker":         false, // OKX doesn't provide this in fills
+			"positionSide":    trade.PosSide,
+		})
+	}
+
+	return result, nil
+}
+
 // OKX order tag
 var okxTag = func() string {
 	b, _ := base64.StdEncoding.DecodeString("NGMzNjNjODFlZGM1QkNERQ==")

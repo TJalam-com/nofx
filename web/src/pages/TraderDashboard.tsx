@@ -15,12 +15,14 @@ import {
   Brain,
   RefreshCw,
   TrendingUp,
+  TrendingDown,
   PieChart,
   Inbox,
   Send,
   Check,
   X,
   XCircle,
+  History,
 } from 'lucide-react'
 import { stripLeadingIcons } from '../lib/text'
 import { confirmToast, notify } from '../lib/notify'
@@ -186,6 +188,31 @@ export default function TraderDashboard() {
       dedupingInterval: 20000,
     }
   )
+
+  // Fetch closed positions from database
+  const { data: positionHistory } = useSWR<any[]>(
+    user && token && selectedTraderId ? `position-history-${selectedTraderId}` : null,
+    () => api.getPositionHistory(selectedTraderId, 20, 0), // Get last 20 closed positions
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: false,
+      dedupingInterval: 20000,
+    }
+  )
+
+  // Filter to only show closed positions
+  const closedPositions = useMemo(() => {
+    if (!positionHistory) return []
+    return positionHistory
+      .filter((pos) => pos.is_closed && pos.closed_at)
+      .sort((a, b) => {
+        // Sort by closed_at descending (most recent first)
+        const timeA = new Date(a.closed_at).getTime()
+        const timeB = new Date(b.closed_at).getTime()
+        return timeB - timeA
+      })
+      .slice(0, 10) // Show last 10 closed positions
+  }, [positionHistory])
 
   // Sort decisions by timestamp descending (most recent first) - cycle_number is not reliable
   const sortedDecisions = useMemo(() => {
@@ -982,6 +1009,214 @@ export default function TraderDashboard() {
             )}
         </div>
       </div>
+
+      {/* Recently Closed Positions */}
+      {closedPositions && closedPositions.length > 0 && (
+        <div className="mb-6">
+          <div
+            className="binance-card p-6 animate-slide-in"
+            style={{ animationDelay: '0.2s' }}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2
+                className="text-xl font-bold flex items-center gap-2"
+                style={{ color: '#EAECEF' }}
+              >
+                <History className="w-5 h-5" style={{ color: '#848E9C' }} />
+                {language === 'zh' ? '最近已平仓' : 'Recently Closed Positions'}
+              </h2>
+              <div
+                className="text-xs px-3 py-1 rounded"
+                style={{
+                  background: 'rgba(132, 142, 156, 0.1)',
+                  color: '#848E9C',
+                  border: '1px solid rgba(132, 142, 156, 0.2)',
+                }}
+              >
+                {closedPositions.length} {language === 'zh' ? '已关闭' : 'closed'}
+              </div>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-xs" style={{ tableLayout: 'auto', minWidth: '1000px' }}>
+                <thead className="text-left border-b" style={{ borderColor: 'var(--navy-light)' }}>
+                  <tr>
+                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '90px' }}>
+                      {t('symbol', language)}
+                    </th>
+                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '70px' }}>
+                      {t('side', language)}
+                    </th>
+                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '100px' }}>
+                      {t('entryPrice', language)}
+                    </th>
+                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '100px' }}>
+                      {language === 'zh' ? '平仓价格' : 'Exit Price'}
+                    </th>
+                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '90px' }}>
+                      {t('quantity', language)}
+                    </th>
+                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '70px' }}>
+                      {t('leverage', language)}
+                    </th>
+                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '120px' }}>
+                      {language === 'zh' ? '已实现盈亏' : 'Realized P&L'}
+                    </th>
+                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '150px' }}>
+                      {language === 'zh' ? '平仓时间' : 'Closed At'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {closedPositions.map((pos, i) => (
+                    <tr
+                      key={pos.id || i}
+                      className="border-b last:border-0 hover:bg-opacity-50 transition-colors"
+                      style={{ borderColor: 'var(--navy-light)' }}
+                    >
+                      <td className="py-3 px-2 font-mono font-semibold whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                        {pos.symbol}
+                      </td>
+                      <td className="py-3 px-2 whitespace-nowrap">
+                        <span
+                          className="px-2 py-1 rounded text-xs font-bold"
+                          style={
+                            pos.side === 'long'
+                              ? {
+                                  background: 'rgba(14, 203, 129, 0.1)',
+                                  color: '#0ECB81',
+                                }
+                              : {
+                                  background: 'rgba(246, 70, 93, 0.1)',
+                                  color: '#F6465D',
+                                }
+                          }
+                        >
+                          {t(pos.side === 'long' ? 'long' : 'short', language)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                        {pos.entry_price?.toFixed(4) || '-'}
+                      </td>
+                      <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                        {pos.exit_price?.toFixed(4) || '-'}
+                      </td>
+                      <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                        {pos.quantity?.toFixed(4) || '-'}
+                      </td>
+                      <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: 'var(--green-primary)' }}>
+                        {pos.leverage}x
+                      </td>
+                      <td className="py-3 px-2 font-mono whitespace-nowrap">
+                        <span
+                          style={{
+                            color: (pos.realized_pnl || 0) >= 0 ? '#0ECB81' : '#F6465D',
+                            fontWeight: 'bold',
+                          }}
+                        >
+                          {(pos.realized_pnl || 0) >= 0 ? '+' : ''}
+                          {(pos.realized_pnl || 0).toFixed(2)} USDT
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 whitespace-nowrap" style={{ color: '#848E9C' }}>
+                        {pos.closed_at
+                          ? new Date(pos.closed_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', {
+                              month: 'short',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-3">
+              {closedPositions.map((pos, i) => (
+                <div
+                  key={pos.id || i}
+                  className="p-4 rounded-lg border"
+                  style={{
+                    background: 'rgba(30, 35, 41, 0.5)',
+                    borderColor: 'var(--navy-light)',
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold" style={{ color: '#EAECEF' }}>
+                        {pos.symbol}
+                      </span>
+                      <span
+                        className="px-2 py-1 rounded text-xs font-bold"
+                        style={
+                          pos.side === 'long'
+                            ? {
+                                background: 'rgba(14, 203, 129, 0.1)',
+                                color: '#0ECB81',
+                              }
+                            : {
+                                background: 'rgba(246, 70, 93, 0.1)',
+                                color: '#F6465D',
+                              }
+                        }
+                      >
+                        {t(pos.side === 'long' ? 'long' : 'short', language)}
+                      </span>
+                    </div>
+                    <span
+                      className="font-mono font-bold text-sm"
+                      style={{
+                        color: (pos.realized_pnl || 0) >= 0 ? '#0ECB81' : '#F6465D',
+                      }}
+                    >
+                      {(pos.realized_pnl || 0) >= 0 ? '+' : ''}
+                      {(pos.realized_pnl || 0).toFixed(2)} USDT
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <div style={{ color: '#848E9C' }}>{t('entryPrice', language)}</div>
+                      <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+                        {pos.entry_price?.toFixed(4) || '-'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: '#848E9C' }}>{language === 'zh' ? '平仓价格' : 'Exit Price'}</div>
+                      <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+                        {pos.exit_price?.toFixed(4) || '-'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: '#848E9C' }}>{t('quantity', language)}</div>
+                      <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+                        {pos.quantity?.toFixed(4) || '-'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: '#848E9C' }}>{language === 'zh' ? '平仓时间' : 'Closed At'}</div>
+                      <div className="font-semibold" style={{ color: '#848E9C' }}>
+                        {pos.closed_at
+                          ? new Date(pos.closed_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', {
+                              month: 'short',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : '-'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Learning & Performance Analysis */}
       <div className="mb-6 animate-slide-in" style={{ animationDelay: '0.3s' }}>

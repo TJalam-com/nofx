@@ -1,6 +1,7 @@
 package decision
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"nofx/config"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // PromptTemplate system prompt template
@@ -101,37 +103,51 @@ func (pm *PromptManager) LoadTemplates(dir string) error {
 	return nil
 }
 
-// GetTemplate gets prompt template by name (prioritize database, then file system)
+// GetTemplate gets prompt template by name (ONLY from database - no filesystem fallback)
 func (pm *PromptManager) GetTemplate(name string) (*PromptTemplate, error) {
 	pm.mu.RLock()
 	db := pm.database
 	pm.mu.RUnlock()
 
-	// Prioritize database (if available)
+	// ONLY load from database - templates must come from strategy-studio
 	if db != nil {
 		// Use default user to get system templates, or current user to get their own templates
 		// Here we use "default" as fallback, actual usage should pass correct userID
 		// But since this is a global function, temporarily use default
 		templateConfig, err := db.GetPromptTemplate("default", name)
 		if err == nil {
+			// #region agent log
+			// Log successful database template load
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				logData := map[string]interface{}{
+					"location": "prompt_manager.go:115",
+					"message": "Template loaded from database",
+					"data": map[string]interface{}{
+						"template_name": name,
+						"template_id": templateConfig.ID,
+						"is_system": templateConfig.IsSystem,
+					},
+					"timestamp": time.Now().UnixMilli(),
+					"sessionId": "debug-session",
+					"runId": "run1",
+					"hypothesisId": "E",
+				}
+				json.NewEncoder(logFile).Encode(logData)
+				logFile.Close()
+			}
+			// #endregion
 			return &PromptTemplate{
 				Name:    templateConfig.Name,
 				Content: templateConfig.Content,
 			}, nil
 		}
-		// If not found in database, continue trying file system
+		// If not found in database, return error (no filesystem fallback)
+		return nil, fmt.Errorf("prompt template '%s' not found in database. Please ensure templates are loaded from strategy-studio (http://localhost:3000/strategy-studio): %w", name, err)
 	}
 
-	// Get from file system (fallback)
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	template, exists := pm.templates[name]
-	if !exists {
-		return nil, fmt.Errorf("prompt template does not exist: %s", name)
-	}
-
-	return template, nil
+	// Database not available - this should not happen in production
+	return nil, fmt.Errorf("database not available - cannot load prompt template '%s'. Templates must be loaded from strategy-studio", name)
 }
 
 // GetAllTemplateNames gets all template names list (merge database and file system)

@@ -267,6 +267,7 @@ func (s *Server) setupRoutes() {
 			protected.GET("/status", s.handleStatus)
 			protected.GET("/account", s.handleAccount)
 			protected.GET("/positions", s.handlePositions)
+			protected.GET("/position-history", s.handlePositionHistory)
 			protected.POST("/positions/close", s.handleClosePosition)
 			protected.GET("/decisions", s.handleDecisions)
 			protected.GET("/decisions/latest", s.handleLatestDecisions)
@@ -1801,9 +1802,68 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 	}
 	// #endregion
 
+	// #region agent log
+	// Log before reloading trader
+	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData := map[string]interface{}{
+			"location": "api/server.go:1805",
+			"message": "About to reload trader after update",
+			"data": map[string]interface{}{
+				"trader_id": traderID,
+				"user_id": userID,
+			},
+			"timestamp": time.Now().UnixMilli(),
+			"sessionId": "debug-session",
+			"runId": "run1",
+			"hypothesisId": "C",
+		}
+		json.NewEncoder(logFile).Encode(logData)
+		logFile.Close()
+	}
+	// #endregion
+
 	// Reload trader into memory to ensure latest configuration (including UseTradingView) takes effect
 	if reloadErr := s.traderManager.ReloadTraderFromDB(s.database, userID, traderID); reloadErr != nil {
 		log.Printf("⚠️ Failed to reload trader into memory: %v", reloadErr)
+		// #region agent log
+		logFile2, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile2 != nil {
+			logData2 := map[string]interface{}{
+				"location": "api/server.go:1820",
+				"message": "Failed to reload trader",
+				"data": map[string]interface{}{
+					"trader_id": traderID,
+					"error": reloadErr.Error(),
+				},
+				"timestamp": time.Now().UnixMilli(),
+				"sessionId": "debug-session",
+				"runId": "run1",
+				"hypothesisId": "C",
+			}
+			json.NewEncoder(logFile2).Encode(logData2)
+			logFile2.Close()
+		}
+		// #endregion
+	} else {
+		// #region agent log
+		logFile3, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile3 != nil {
+			logData3 := map[string]interface{}{
+				"location": "api/server.go:1840",
+				"message": "Trader reloaded successfully",
+				"data": map[string]interface{}{
+					"trader_id": traderID,
+				},
+				"timestamp": time.Now().UnixMilli(),
+				"sessionId": "debug-session",
+				"runId": "run1",
+				"hypothesisId": "C",
+			}
+			json.NewEncoder(logFile3).Encode(logData3)
+			logFile3.Close()
+		}
+		// #endregion
 	}
 
 	log.Printf("INFO: Trader config reloaded into memory (trader=%s, UseTradingView=%v, scan_interval=%d)", traderID, req.UseTradingView, scanIntervalMinutes)
@@ -3330,6 +3390,99 @@ func (s *Server) handlePositions(c *gin.Context) {
 	c.JSON(http.StatusOK, positions)
 }
 
+// handlePositionHistory get position history (all positions including closed)
+func (s *Server) handlePositionHistory(c *gin.Context) {
+	_, traderID, err := s.getTraderFromQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get limit and offset from query parameters
+	limit := 100 // Default limit
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	offset := 0 // Default offset
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	// Get position history from database
+	if s.database == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Database not available",
+		})
+		return
+	}
+
+	positionHistory, err := s.database.GetPositionHistory(traderID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Failed to get position history: %v", err),
+		})
+		return
+	}
+
+	// Convert to JSON-friendly format
+	type PositionHistoryItem struct {
+		ID              string    `json:"id"`
+		TraderID        string    `json:"trader_id"`
+		Symbol          string    `json:"symbol"`
+		Side            string    `json:"side"`
+		EntryPrice      float64   `json:"entry_price"`
+		ExitPrice       float64   `json:"exit_price"`
+		Quantity        float64   `json:"quantity"`
+		EntryFee        float64   `json:"entry_fee"`
+		ExitFee         float64   `json:"exit_fee"`
+		RealizedPnL     float64   `json:"realized_pnl"`
+		Leverage        int       `json:"leverage"`
+		OpenedAt        string    `json:"opened_at"`
+		ClosedAt        *string   `json:"closed_at,omitempty"`
+		OrderIDOpen     string    `json:"order_id_open"`
+		OrderIDClose    string    `json:"order_id_close"`
+		StopLossPrice   float64   `json:"stop_loss_price"`
+		TakeProfitPrice float64   `json:"take_profit_price"`
+		IsClosed        bool      `json:"is_closed"`
+	}
+
+	result := make([]PositionHistoryItem, 0, len(positionHistory))
+	for _, pos := range positionHistory {
+		closedAtStr := ""
+		if pos.ClosedAt != nil {
+			closedAtStr = pos.ClosedAt.Format("2006-01-02 15:04:05")
+		}
+
+		result = append(result, PositionHistoryItem{
+			ID:              pos.ID,
+			TraderID:        pos.TraderID,
+			Symbol:          pos.Symbol,
+			Side:            pos.Side,
+			EntryPrice:      pos.EntryPrice,
+			ExitPrice:       pos.ExitPrice,
+			Quantity:        pos.Quantity,
+			EntryFee:        pos.EntryFee,
+			ExitFee:         pos.ExitFee,
+			RealizedPnL:     pos.RealizedPnL,
+			Leverage:        pos.Leverage,
+			OpenedAt:         pos.OpenedAt.Format("2006-01-02 15:04:05"),
+			ClosedAt:        &closedAtStr,
+			OrderIDOpen:     pos.OrderIDOpen,
+			OrderIDClose:    pos.OrderIDClose,
+			StopLossPrice:   pos.StopLossPrice,
+			TakeProfitPrice: pos.TakeProfitPrice,
+			IsClosed:        pos.ClosedAt != nil,
+		})
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 // handleClosePosition manual close position
 func (s *Server) handleClosePosition(c *gin.Context) {
 	userID := c.GetString("user_id")
@@ -3683,9 +3836,15 @@ func (s *Server) handlePerformance(c *gin.Context) {
 		return
 	}
 
-	// Analyze trading performance of last 100 cycles (to avoid losing trade records for long-term positions)
-	// Assuming 3 minutes per cycle, 100 cycles = 5 hours, sufficient to cover most trades
-	performance, err := trader.GetDecisionLogger().AnalyzePerformance(100)
+	// Analyze trading performance of last 500 cycles (to avoid losing trade records for long-term positions)
+	// Assuming 3 minutes per cycle, 500 cycles = ~25 hours, sufficient to cover most trades
+	// Also use database positions as fallback/supplement for complete data
+	var database interface{}
+	if s.database != nil {
+		database = s.database
+	}
+	
+	performance, err := trader.GetDecisionLogger().AnalyzePerformance(500, traderID, database)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("Failed to analyze historical performance: %v", err),
