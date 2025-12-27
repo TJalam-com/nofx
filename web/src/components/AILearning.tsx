@@ -13,7 +13,6 @@ import {
   Trophy,
   ScrollText,
   Lightbulb,
-  RefreshCw,
 } from 'lucide-react'
 
 interface TradeOutcome {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useNavigate, useSearchParams, useParams } from 'react-router-dom'
 import useSWR, { mutate } from 'swr'
 import { api } from '../lib/api'
@@ -15,7 +15,6 @@ import {
   Brain,
   RefreshCw,
   TrendingUp,
-  TrendingDown,
   PieChart,
   Inbox,
   Send,
@@ -60,6 +59,13 @@ export default function TraderDashboard() {
   const [closingPositions, setClosingPositions] = useState<Set<string>>(new Set())
   const [selectedChartSymbol, setSelectedChartSymbol] = useState<string | undefined>(undefined)
   const [chartUpdateKey, setChartUpdateKey] = useState(0)
+  
+  // Closed positions pagination state
+  const [closedPositionsPage, setClosedPositionsPage] = useState(0)
+  const [allClosedPositions, setAllClosedPositions] = useState<any[]>([])
+  const [hasMoreClosedPositions, setHasMoreClosedPositions] = useState(true)
+  const [isLoadingMoreClosedPositions, setIsLoadingMoreClosedPositions] = useState(false)
+  const initializedTraderRef = useRef<string | null>(null)
 
   // Decision record limit selection (read from localStorage, default 5)
   const [decisionLimit, setDecisionLimit] = useState<number>(() => {
@@ -189,10 +195,13 @@ export default function TraderDashboard() {
     }
   )
 
-  // Fetch closed positions from database
+  // Fetch closed positions from database (initial load)
   const { data: positionHistory } = useSWR<any[]>(
-    user && token && selectedTraderId ? `position-history-${selectedTraderId}` : null,
-    () => api.getPositionHistory(selectedTraderId, 20, 0), // Get last 20 closed positions
+    user && token && selectedTraderId ? `position-history-${selectedTraderId}-page-0` : null,
+    () => {
+      if (!selectedTraderId) throw new Error('Trader ID is required')
+      return api.getPositionHistory(selectedTraderId!, 20, 0) // Get first 20 closed positions
+    },
     {
       refreshInterval: 30000,
       revalidateOnFocus: false,
@@ -200,19 +209,71 @@ export default function TraderDashboard() {
     }
   )
 
-  // Filter to only show closed positions
-  const closedPositions = useMemo(() => {
-    if (!positionHistory) return []
-    return positionHistory
-      .filter((pos) => pos.is_closed && pos.closed_at)
-      .sort((a, b) => {
-        // Sort by closed_at descending (most recent first)
-        const timeA = new Date(a.closed_at).getTime()
-        const timeB = new Date(b.closed_at).getTime()
-        return timeB - timeA
-      })
-      .slice(0, 10) // Show last 10 closed positions
-  }, [positionHistory])
+  // Reset pagination when trader changes
+  useEffect(() => {
+    if (selectedTraderId && initializedTraderRef.current !== selectedTraderId) {
+      setClosedPositionsPage(0)
+      setAllClosedPositions([])
+      setHasMoreClosedPositions(true)
+      setIsLoadingMoreClosedPositions(false)
+      initializedTraderRef.current = null // Reset to allow initialization for new trader
+    }
+  }, [selectedTraderId])
+
+  // Process initial position history data (only on initial load per trader)
+  useEffect(() => {
+    if (positionHistory && selectedTraderId && initializedTraderRef.current !== selectedTraderId) {
+      const closed = positionHistory
+        .filter((pos) => pos.is_closed && pos.closed_at)
+        .sort((a, b) => {
+          // Sort by closed_at descending (most recent first)
+          const timeA = new Date(a.closed_at).getTime()
+          const timeB = new Date(b.closed_at).getTime()
+          return timeB - timeA
+        })
+      
+      setAllClosedPositions(closed)
+      // If we got less than 20 items, there are no more positions
+      setHasMoreClosedPositions(closed.length >= 20)
+      initializedTraderRef.current = selectedTraderId // Mark as initialized for this trader
+    }
+  }, [positionHistory, selectedTraderId])
+
+  // Load more closed positions
+  const loadMoreClosedPositions = async () => {
+    if (!selectedTraderId || isLoadingMoreClosedPositions || !hasMoreClosedPositions) return
+
+    setIsLoadingMoreClosedPositions(true)
+    try {
+      const nextPage = closedPositionsPage + 1
+      const offset = nextPage * 20
+      const newData = await api.getPositionHistory(selectedTraderId!, 20, offset)
+      
+      const closed = newData
+        .filter((pos) => pos.is_closed && pos.closed_at)
+        .sort((a, b) => {
+          const timeA = new Date(a.closed_at).getTime()
+          const timeB = new Date(b.closed_at).getTime()
+          return timeB - timeA
+        })
+      
+      if (closed.length > 0) {
+        setAllClosedPositions((prev) => [...prev, ...closed])
+        setClosedPositionsPage(nextPage)
+        // If we got less than 20 items, there are no more positions
+        setHasMoreClosedPositions(closed.length >= 20)
+      } else {
+        setHasMoreClosedPositions(false)
+      }
+    } catch (error) {
+      console.error('Failed to load more closed positions:', error)
+    } finally {
+      setIsLoadingMoreClosedPositions(false)
+    }
+  }
+
+  // Use accumulated closed positions
+  const closedPositions = allClosedPositions
 
   // Sort decisions by timestamp descending (most recent first) - cycle_number is not reliable
   const sortedDecisions = useMemo(() => {
@@ -1010,21 +1071,21 @@ export default function TraderDashboard() {
         </div>
       </div>
 
-      {/* Recently Closed Positions */}
-      {closedPositions && closedPositions.length > 0 && (
-        <div className="mb-6">
-          <div
-            className="binance-card p-6 animate-slide-in"
-            style={{ animationDelay: '0.2s' }}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <h2
-                className="text-xl font-bold flex items-center gap-2"
-                style={{ color: '#EAECEF' }}
-              >
-                <History className="w-5 h-5" style={{ color: '#848E9C' }} />
-                {language === 'zh' ? '最近已平仓' : 'Recently Closed Positions'}
-              </h2>
+      {/* Closed Positions */}
+      <div className="mb-6">
+        <div
+          className="binance-card p-6 animate-slide-in"
+          style={{ animationDelay: '0.2s' }}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <h2
+              className="text-xl font-bold flex items-center gap-2"
+              style={{ color: '#EAECEF' }}
+            >
+              <History className="w-5 h-5" style={{ color: '#848E9C' }} />
+              {language === 'zh' ? '已平仓记录' : 'Closed Positions'}
+            </h2>
+            {closedPositions.length > 0 && (
               <div
                 className="text-xs px-3 py-1 rounded"
                 style={{
@@ -1035,7 +1096,11 @@ export default function TraderDashboard() {
               >
                 {closedPositions.length} {language === 'zh' ? '已关闭' : 'closed'}
               </div>
-            </div>
+            )}
+          </div>
+
+          {closedPositions.length > 0 ? (
+            <>
 
             {/* Desktop Table View */}
             <div className="hidden lg:block overflow-x-auto">
@@ -1214,9 +1279,53 @@ export default function TraderDashboard() {
                 </div>
               ))}
             </div>
-          </div>
+
+            {/* Pagination Controls */}
+            {hasMoreClosedPositions && (
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={loadMoreClosedPositions}
+                  disabled={isLoadingMoreClosedPositions}
+                  className="px-6 py-2 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: isLoadingMoreClosedPositions
+                      ? 'rgba(132, 142, 156, 0.2)'
+                      : 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+                    color: isLoadingMoreClosedPositions ? '#848E9C' : '#0B0E11',
+                    boxShadow: isLoadingMoreClosedPositions
+                      ? 'none'
+                      : '0 4px 12px rgba(0, 255, 127, 0.3)',
+                  }}
+                >
+                  {isLoadingMoreClosedPositions ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 inline-block animate-spin mr-2" />
+                      {language === 'zh' ? '加载中...' : 'Loading...'}
+                    </>
+                  ) : (
+                    <>
+                      {language === 'zh' ? '加载更多' : 'Load More'}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+            </>
+          ) : (
+            <div className="text-center py-16" style={{ color: '#848E9C' }}>
+              <div className="mb-4 opacity-50 flex justify-center">
+                <History className="w-16 h-16" />
+              </div>
+              <div className="text-lg font-semibold mb-2" style={{ color: '#EAECEF' }}>
+                {language === 'zh' ? '暂无已平仓记录' : 'No Closed Positions Yet'}
+              </div>
+              <div className="text-sm">
+                {language === 'zh' ? '已平仓的持仓将显示在这里' : 'Closed positions will appear here'}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* AI Learning & Performance Analysis */}
       <div className="mb-6 animate-slide-in" style={{ animationDelay: '0.3s' }}>

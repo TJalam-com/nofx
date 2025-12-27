@@ -473,18 +473,6 @@ export const api = {
     return Array.isArray(result.data) ? result.data : []
   },
 
-  // 获取持仓历史（包括已关闭的持仓，用于调试）
-  async getPositionHistory(
-    traderId: string,
-    limit: number = 100,
-    offset: number = 0
-  ): Promise<any[]> {
-    const url = `${API_BASE}/position-history?trader_id=${traderId}&limit=${limit}&offset=${offset}`
-    const result = await httpClient.get<any[]>(url)
-    if (!result.success) throw new Error('获取持仓历史失败')
-    return Array.isArray(result.data) ? result.data : []
-  },
-
   // 手动平仓
   async closePosition(
     traderId: string,
