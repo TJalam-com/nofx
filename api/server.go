@@ -4003,31 +4003,46 @@ func (s *Server) handleEquityHistory(c *gin.Context) {
 		currentPositionCount, _ := accountInfo["position_count"].(int)
 		currentMarginUsedPct, _ := accountInfo["margin_used_pct"].(float64)
 
-		// Use current timestamp for real-time data point
-		currentTimestamp := time.Now().Format("2006-01-02 15:04:05")
+		// VALIDATION: Only add real-time data point if total_equity is valid (> 1)
+		// This prevents adding invalid data points when API fails or returns 0
+		if currentTotalEquity > 1 {
+			// Use current timestamp for real-time data point
+			currentTimestamp := time.Now().Format("2006-01-02 15:04:05")
 
-		// Calculate PnL percentage if not provided or recalculate using initial balance
-		if currentTotalPnLPct == 0 && initialBalance > 0 && currentTotalEquity > 0 {
-			currentTotalPnL = currentTotalEquity - initialBalance
-			currentTotalPnLPct = (currentTotalPnL / initialBalance) * 100
+			// Calculate PnL percentage if not provided or recalculate using initial balance
+			if currentTotalPnLPct == 0 && initialBalance > 0 && currentTotalEquity > 0 {
+				currentTotalPnL = currentTotalEquity - initialBalance
+				currentTotalPnLPct = (currentTotalPnL / initialBalance) * 100
+			}
+
+			// Guard against extreme PnL values that indicate data errors
+			// PnL percentage should not exceed -100% (total loss) in normal scenarios
+			if currentTotalPnLPct < -99.9 {
+				log.Printf("⚠️ Equity history: PnL percentage abnormally low: %.2f%%, clamping to -99.9%% for trader %s",
+					currentTotalPnLPct, traderID)
+				currentTotalPnLPct = -99.9
+			}
+
+			// Get the last cycle number and increment it, or use 0 if no history
+			lastCycleNumber := 0
+			if len(history) > 0 {
+				lastCycleNumber = history[len(history)-1].CycleNumber + 1
+			}
+
+			history = append(history, EquityPoint{
+				Timestamp:        currentTimestamp,
+				TotalEquity:      currentTotalEquity,
+				AvailableBalance: currentAvailableBalance,
+				TotalPnL:         currentTotalPnL,
+				TotalPnLPct:      currentTotalPnLPct,
+				PositionCount:    currentPositionCount,
+				MarginUsedPct:    currentMarginUsedPct,
+				CycleNumber:      lastCycleNumber,
+			})
+		} else {
+			log.Printf("⚠️ Equity history: skipping invalid real-time data point for trader %s (total_equity=%.2f)",
+				traderID, currentTotalEquity)
 		}
-
-		// Get the last cycle number and increment it, or use 0 if no history
-		lastCycleNumber := 0
-		if len(history) > 0 {
-			lastCycleNumber = history[len(history)-1].CycleNumber + 1
-		}
-
-		history = append(history, EquityPoint{
-			Timestamp:        currentTimestamp,
-			TotalEquity:      currentTotalEquity,
-			AvailableBalance: currentAvailableBalance,
-			TotalPnL:         currentTotalPnL,
-			TotalPnLPct:      currentTotalPnLPct,
-			PositionCount:    currentPositionCount,
-			MarginUsedPct:    currentMarginUsedPct,
-			CycleNumber:      lastCycleNumber,
-		})
 	}
 
 	c.JSON(http.StatusOK, history)

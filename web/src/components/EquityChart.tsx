@@ -142,20 +142,34 @@ export function EquityChart({ traderId }: EquityChartProps) {
       : undefined) || // 备选：淨值 - 盈亏
     1000 // 默认值（与创建交易员时的默认配置一致）
 
-  // 转换数据格式
+  // 转换数据格式 (with validation to prevent -100% display bug)
   const chartData = displayHistory.map((point) => {
     const pnl = point.total_equity - initialBalance
-    const pnlPct = ((pnl / initialBalance) * 100).toFixed(2)
+    // Guard against division by zero and invalid values
+    let pnlPct = 0
+    if (initialBalance > 0 && isFinite(pnl)) {
+      pnlPct = (pnl / initialBalance) * 100
+      // Clamp extreme values to prevent chart display issues
+      // PnL should not be below -99.9% (total loss) in normal scenarios
+      if (pnlPct < -99.9) {
+        pnlPct = -99.9
+      }
+      // Also cap extremely high values to prevent chart scaling issues
+      if (pnlPct > 1000) {
+        pnlPct = 1000
+      }
+    }
+    const pnlPctStr = pnlPct.toFixed(2)
     return {
       time: new Date(point.timestamp).toLocaleTimeString('zh-CN', {
         hour: '2-digit',
         minute: '2-digit',
       }),
-      value: displayMode === 'dollar' ? point.total_equity : parseFloat(pnlPct),
+      value: displayMode === 'dollar' ? point.total_equity : parseFloat(pnlPctStr),
       cycle: point.cycle_number,
       raw_equity: point.total_equity,
       raw_pnl: pnl,
-      raw_pnl_pct: parseFloat(pnlPct),
+      raw_pnl_pct: parseFloat(pnlPctStr),
     }
   })
 

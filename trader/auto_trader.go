@@ -2503,12 +2503,28 @@ func (at *AutoTrader) GetAccountInfo() (map[string]interface{}, error) {
 			totalUnrealizedProfit, totalUnrealizedPnLCalculated, diff)
 	}
 
-	totalPnL := totalEquity - at.initialBalance
+	// Validate totalEquity before calculating PnL
+	// If totalEquity is 0 or negative (API failure), skip PnL calculation
+	totalPnL := 0.0
 	totalPnLPct := 0.0
-	if at.initialBalance > 0 {
+	if totalEquity > 0 && at.initialBalance > 0 {
+		totalPnL = totalEquity - at.initialBalance
 		totalPnLPct = (totalPnL / at.initialBalance) * 100
-	} else {
+		// Guard against extreme values (likely data errors)
+		// PnL percentage should not exceed -100% (total loss) or +1000% (10x gain) in normal trading
+		if totalPnLPct < -99.9 {
+			log.Printf("⚠️ PnL percentage abnormally low: %.2f%%, clamping to -99.9%% (totalEquity=%.2f, initialBalance=%.2f)",
+				totalPnLPct, totalEquity, at.initialBalance)
+			totalPnLPct = -99.9
+		}
+		if totalPnLPct > 1000 {
+			log.Printf("⚠️ PnL percentage abnormally high: %.2f%%, likely data error (totalEquity=%.2f, initialBalance=%.2f)",
+				totalPnLPct, totalEquity, at.initialBalance)
+		}
+	} else if at.initialBalance <= 0 {
 		log.Printf("⚠️ Initial Balance abnormal: %.2f, unable to calculate PNL percentage", at.initialBalance)
+	} else if totalEquity <= 0 {
+		log.Printf("⚠️ Total Equity abnormal: %.2f (API may have failed), skipping PNL calculation", totalEquity)
 	}
 
 	marginUsedPct := 0.0
@@ -3339,6 +3355,12 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 			}
 			openedAt = dbPosition.OpenedAt
 
+			// VALIDATION: Don't update with exit_price = 0 (indicates data fetch failure)
+			if actualExitPrice <= 0 {
+				log.Printf("⚠️ Position closure detection: invalid exit price (%.4f) for %s %s, skipping database update", actualExitPrice, symbol, side)
+				continue
+			}
+
 			// Calculate realized PnL: (exitPrice - entryPrice) * quantity - fees
 			if side == "long" {
 				realizedPnL = (actualExitPrice-entryPrice)*quantity - entryFee - exitFee
@@ -3392,6 +3414,48 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 				}
 			}
 
+			// VALIDATION: Don't create records with exit_price = 0 (indicates data fetch failure)
+			if actualExitPrice <= 0 {
+				log.Printf("⚠️ Position closure detection: invalid exit price (%.4f) for %s %s, skipping record creation", actualExitPrice, symbol, side)
+				continue
+			}
+
+			// IDEMPOTENCY CHECK: Before creating a new record, check if a closed position
+			// already exists in history for this symbol/side within the time window
+			// This prevents duplicate records when closure detection runs multiple times
+			// Use database-level check for more reliable deduplication
+			hasRecentlyClosed, err := db.HasRecentlyClosedPosition(at.id, symbol, side, 30) // 30 minute window
+			if err != nil {
+				log.Printf("⚠️ Position closure detection: failed to check for recently closed position %s %s: %v", symbol, side, err)
+			}
+
+			duplicateFound := hasRecentlyClosed
+			if !duplicateFound {
+				// Fallback: also check in-memory history
+				for _, histPos := range recentHistory {
+					if histPos.Symbol == symbol && histPos.Side == side && histPos.ClosedAt != nil {
+						// Check if there's a recently closed position (within 30 minutes)
+						if histPos.ClosedAt.After(cutoffTime) {
+							log.Printf("🔍 Position closure detection: duplicate check - found existing closed position for %s %s (closed_at=%s), skipping new record creation",
+								symbol, side, histPos.ClosedAt.Format("2006-01-02 15:04:05"))
+							duplicateFound = true
+							break
+						}
+					}
+				}
+			} else {
+				log.Printf("🔍 Position closure detection: duplicate check (DB) - found existing closed position for %s %s within 30 minutes, skipping new record creation",
+					symbol, side)
+			}
+
+			if duplicateFound {
+				// Mark as logged to prevent future duplicate attempts
+				at.loggedClosuresMutex.Lock()
+				at.loggedClosures[posKey] = time.Now()
+				at.loggedClosuresMutex.Unlock()
+				continue
+			}
+
 			// Determine openedAt - use from closedPosition if available, otherwise estimate
 			if closedPosition.ClosedAt != nil {
 				closeTime = *closedPosition.ClosedAt
@@ -3400,7 +3464,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 
 			// Create new position record in database
 			// SL/TP prices not available from snapshot, set to 0
-			err := db.SavePosition(
+			saveErr := db.SavePosition(
 				at.id,
 				symbol,
 				side,
@@ -3418,8 +3482,8 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 				0, // StopLossPrice not available from snapshot
 				0, // TakeProfitPrice not available from snapshot
 			)
-			if err != nil {
-				log.Printf("⚠️ Position closure detection: failed to create database position record for %s %s: %v", symbol, side, err)
+			if saveErr != nil {
+				log.Printf("⚠️ Position closure detection: failed to create database position record for %s %s: %v", symbol, side, saveErr)
 				continue // Skip logging decision if DB update fails
 			} else {
 				log.Printf("✅ Created database position record for %s %s (estimated open_time=%s, entry=%.4f, exit=%.4f, pnl=%.4f, closed_at=%s)",
