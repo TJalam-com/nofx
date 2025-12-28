@@ -22,6 +22,7 @@ import {
   X,
   XCircle,
   History,
+  Clock,
 } from 'lucide-react'
 import { stripLeadingIcons } from '../lib/text'
 import { confirmToast, notify } from '../lib/notify'
@@ -32,6 +33,7 @@ import type {
   DecisionRecord,
   Statistics,
   TraderInfo,
+  PendingOrder,
 } from '../types'
 
 // 获取友好的AI模型名称
@@ -180,6 +182,17 @@ export default function TraderDashboard() {
       refreshInterval: 15000,
       revalidateOnFocus: false,
       dedupingInterval: 10000,
+    }
+  )
+
+  // Fetch pending orders (unfilled SL/TP/limit orders)
+  const { data: pendingOrders } = useSWR<PendingOrder[]>(
+    user && token && selectedTraderId ? `pending-orders-${selectedTraderId}` : null,
+    () => api.getPendingOrders(selectedTraderId!),
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: false,
+      dedupingInterval: 20000,
     }
   )
 
@@ -1068,6 +1081,197 @@ export default function TraderDashboard() {
                 </div>
               </div>
             )}
+        </div>
+      </div>
+
+      {/* Pending Orders - Below Current Positions */}
+      <div className="mb-6">
+        <div
+          className="binance-card p-6 animate-slide-in"
+          style={{ animationDelay: '0.175s' }}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <h2
+              className="text-xl font-bold flex items-center gap-2"
+              style={{ color: '#EAECEF' }}
+            >
+              <Clock className="w-5 h-5" style={{ color: '#F0B90B' }} />
+              {t('pendingOrders', language)}
+            </h2>
+            {pendingOrders && pendingOrders.length > 0 && (
+              <div
+                className="text-xs px-3 py-1 rounded"
+                style={{
+                  background: 'rgba(240, 185, 11, 0.1)',
+                  color: '#F0B90B',
+                  border: '1px solid rgba(240, 185, 11, 0.2)',
+                }}
+              >
+                {pendingOrders.length} {language === 'zh' ? '待执行' : 'Pending'}
+              </div>
+            )}
+          </div>
+          {pendingOrders && pendingOrders.length > 0 ? (
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-xs" style={{ tableLayout: 'auto' }}>
+                  <thead className="text-left border-b" style={{ borderColor: 'var(--navy-light)' }}>
+                    <tr>
+                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                        {t('symbol', language)}
+                      </th>
+                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                        {t('side', language)}
+                      </th>
+                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                        {t('orderType', language)}
+                      </th>
+                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                        {t('triggerPrice', language)}
+                      </th>
+                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                        {t('quantity', language)}
+                      </th>
+                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                        {language === 'zh' ? '创建时间' : 'Created'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingOrders.map((order, i) => (
+                      <tr
+                        key={order.id || i}
+                        className="border-b last:border-0 hover:bg-opacity-50 transition-colors"
+                        style={{ borderColor: 'var(--navy-light)' }}
+                      >
+                        <td className="py-3 px-2 font-mono font-semibold whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                          {order.symbol}
+                        </td>
+                        <td className="py-3 px-2 whitespace-nowrap">
+                          <span
+                            className="px-2 py-1 rounded text-xs font-bold"
+                            style={
+                              order.side === 'long'
+                                ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
+                                : { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
+                            }
+                          >
+                            {t(order.side === 'long' ? 'long' : 'short', language)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 whitespace-nowrap">
+                          <span
+                            className="px-2 py-1 rounded text-xs font-semibold"
+                            style={
+                              order.order_type === 'stop_loss'
+                                ? { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
+                                : order.order_type === 'take_profit'
+                                ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
+                                : { background: 'rgba(240, 185, 11, 0.1)', color: '#F0B90B' }
+                            }
+                          >
+                            {order.order_type === 'stop_loss'
+                              ? t('stopLoss', language)
+                              : order.order_type === 'take_profit'
+                              ? t('takeProfit', language)
+                              : t('limitOrder', language)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                          {order.trigger_price?.toFixed(4) || '-'}
+                        </td>
+                        <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                          {order.quantity?.toFixed(4) || '-'}
+                        </td>
+                        <td className="py-3 px-2 whitespace-nowrap" style={{ color: '#848E9C' }}>
+                          {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="lg:hidden space-y-3">
+                {pendingOrders.map((order, i) => (
+                  <div
+                    key={order.id || i}
+                    className="rounded-lg p-4 border"
+                    style={{
+                      background: 'var(--navy-dark)',
+                      borderColor: 'var(--navy-light)',
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-mono font-bold" style={{ color: '#EAECEF' }}>
+                        {order.symbol}
+                      </span>
+                      <div className="flex gap-2">
+                        <span
+                          className="px-2 py-1 rounded text-xs font-bold"
+                          style={
+                            order.side === 'long'
+                              ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
+                              : { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
+                          }
+                        >
+                          {t(order.side === 'long' ? 'long' : 'short', language)}
+                        </span>
+                        <span
+                          className="px-2 py-1 rounded text-xs font-semibold"
+                          style={
+                            order.order_type === 'stop_loss'
+                              ? { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
+                              : order.order_type === 'take_profit'
+                              ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
+                              : { background: 'rgba(240, 185, 11, 0.1)', color: '#F0B90B' }
+                          }
+                        >
+                          {order.order_type === 'stop_loss'
+                            ? t('stopLoss', language)
+                            : order.order_type === 'take_profit'
+                            ? t('takeProfit', language)
+                            : t('limitOrder', language)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
+                          {t('triggerPrice', language)}
+                        </div>
+                        <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+                          {order.trigger_price?.toFixed(4) || '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
+                          {t('quantity', language)}
+                        </div>
+                        <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+                          {order.quantity?.toFixed(4) || '-'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-10" style={{ color: '#848E9C' }}>
+              <div className="mb-3 opacity-50 flex justify-center">
+                <Clock className="w-12 h-12" />
+              </div>
+              <div className="text-lg font-semibold mb-1">
+                {t('noPendingOrders', language)}
+              </div>
+              <div className="text-sm">
+                {t('noPendingOrdersDesc', language)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

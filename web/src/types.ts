@@ -56,6 +56,21 @@ export interface Position {
   margin_used: number
 }
 
+export interface PendingOrder {
+  id: string
+  trader_id: string
+  symbol: string
+  side: string
+  order_type: string // "stop_loss", "take_profit", "limit"
+  trigger_price: number
+  quantity: number
+  filled_quantity: number
+  status: string // "pending", "partially_filled", "cancelled"
+  parent_position_id: string
+  exchange_order_id: string
+  created_at: string
+}
+
 export interface DecisionAction {
   action: string
   symbol: string

@@ -269,6 +269,7 @@ func (s *Server) setupRoutes() {
 			protected.GET("/account", s.handleAccount)
 			protected.GET("/positions", s.handlePositions)
 			protected.GET("/position-history", s.handlePositionHistory)
+			protected.GET("/pending-orders", s.handleGetPendingOrders)
 			protected.POST("/positions/close", s.handleClosePosition)
 			protected.GET("/decisions", s.handleDecisions)
 			protected.GET("/decisions/latest", s.handleLatestDecisions)
@@ -3389,6 +3390,66 @@ func (s *Server) handlePositions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, positions)
+}
+
+// PendingOrderResponse represents a pending order for API response
+type PendingOrderResponse struct {
+	ID              string  `json:"id"`
+	TraderID        string  `json:"trader_id"`
+	Symbol          string  `json:"symbol"`
+	Side            string  `json:"side"`
+	OrderType       string  `json:"order_type"`
+	TriggerPrice    float64 `json:"trigger_price"`
+	Quantity        float64 `json:"quantity"`
+	FilledQuantity  float64 `json:"filled_quantity"`
+	Status          string  `json:"status"`
+	ParentPositionID string `json:"parent_position_id"`
+	ExchangeOrderID string  `json:"exchange_order_id"`
+	CreatedAt       string  `json:"created_at"`
+}
+
+// handleGetPendingOrders get pending orders (unfilled SL/TP/limit orders)
+func (s *Server) handleGetPendingOrders(c *gin.Context) {
+	_, traderID, err := s.getTraderFromQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if s.database == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database not available"})
+		return
+	}
+
+	// Get pending orders from database
+	pendingOrders, err := s.database.GetPendingOrders(traderID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Failed to get pending orders: %v", err),
+		})
+		return
+	}
+
+	// Convert to response format
+	result := make([]PendingOrderResponse, 0, len(pendingOrders))
+	for _, order := range pendingOrders {
+		result = append(result, PendingOrderResponse{
+			ID:              order.ID,
+			TraderID:        order.TraderID,
+			Symbol:          order.Symbol,
+			Side:            order.Side,
+			OrderType:       order.OrderType,
+			TriggerPrice:    order.TriggerPrice,
+			Quantity:        order.Quantity,
+			FilledQuantity:  order.FilledQuantity,
+			Status:          order.Status,
+			ParentPositionID: order.ParentPositionID,
+			ExchangeOrderID: order.ExchangeOrderID,
+			CreatedAt:       order.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // handlePositionHistory get position history (all positions including closed)

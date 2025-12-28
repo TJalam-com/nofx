@@ -513,6 +513,15 @@ export const api = {
     return Array.isArray(result.data) ? result.data : []
   },
 
+  // Get pending orders (unfilled SL/TP/limit orders)
+  async getPendingOrders(traderId: string): Promise<any[]> {
+    const result = await httpClient.get<any[]>(
+      `${API_BASE}/pending-orders?trader_id=${traderId}`
+    )
+    if (!result.success) throw new Error('Failed to get pending orders')
+    return Array.isArray(result.data) ? result.data : []
+  },
+
   // 触发检测已关闭的持仓（从交易所订单历史）
   async detectClosedPositions(traderId: string): Promise<{
     message: string

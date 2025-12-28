@@ -346,6 +346,15 @@ export const translations = {
     positionClosed: 'Successfully closed {side} position for {symbol}',
     closePositionFailed: 'Failed to close position',
     selectTraderFirst: 'Please select a trader first',
+    
+    // Pending Orders
+    pendingOrders: 'Pending Orders',
+    orderType: 'Order Type',
+    triggerPrice: 'Trigger Price',
+    limitOrder: 'Limit',
+    noPendingOrders: 'No Pending Orders',
+    noPendingOrdersDesc: 'No pending SL/TP orders at this time',
+    
     equityChart: 'Equity Chart',
     performanceChart: 'Performance',
     comingSoon: 'Coming soon...',
@@ -1934,6 +1943,15 @@ export const translations = {
     positionClosed: '成功平掉 {symbol} 的 {side} 仓位',
     closePositionFailed: '平仓失败',
     selectTraderFirst: '请先选择交易员',
+    
+    // Pending Orders
+    pendingOrders: '挂单',
+    orderType: '订单类型',
+    triggerPrice: '触发价格',
+    limitOrder: '限价单',
+    noPendingOrders: '无挂单',
+    noPendingOrdersDesc: '当前没有待执行的止损/止盈订单',
+    
     equityChart: '净值曲线',
     performanceChart: '性能',
     comingSoon: '即将推出...',
