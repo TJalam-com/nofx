@@ -587,6 +587,8 @@ func (d *Database) createTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_trader ON trader_positions(trader_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_symbol ON trader_positions(symbol)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_closed_at ON trader_positions(closed_at)`,
+		// Composite index for faster duplicate position closure detection
+		`CREATE INDEX IF NOT EXISTS idx_trader_positions_closure_check ON trader_positions(trader_id, symbol, side, closed_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_equity_history_trader_ts ON trader_equity_history(trader_id, timestamp)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_equity_history_cycle ON trader_equity_history(trader_id, cycle_number)`,
 		`CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(slug)`,
@@ -4890,6 +4892,62 @@ func (d *Database) HasRecentlyClosedPosition(traderID, symbol, side string, time
 	}
 
 	return count > 0, nil
+}
+
+// IsPositionClosedByID checks if a specific position (by ID) is already marked as closed.
+// This provides precise idempotency checking using the unique position ID.
+func (d *Database) IsPositionClosedByID(positionID string) (bool, error) {
+	if d.db == nil {
+		return false, fmt.Errorf("database not initialized")
+	}
+
+	query := `
+		SELECT closed_at FROM trader_positions
+		WHERE id = ?
+	`
+
+	var closedAt sql.NullString
+	err := d.db.QueryRow(query, positionID).Scan(&closedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil // Position not found, so not closed
+		}
+		return false, fmt.Errorf("failed to check position status: %w", err)
+	}
+
+	return closedAt.Valid && closedAt.String != "", nil
+}
+
+// HasClosedPositionWithPnL checks if a closed position exists with valid PnL (non-zero).
+// This helps identify legitimate closures vs potentially erroneous 0-PnL records.
+func (d *Database) HasClosedPositionWithPnL(traderID, symbol, side string, openedAt time.Time) (bool, error) {
+	if d.db == nil {
+		return false, fmt.Errorf("database not initialized")
+	}
+
+	// Generate expected position ID
+	positionID := fmt.Sprintf("%s_%s_%d", traderID, symbol, openedAt.Unix())
+
+	query := `
+		SELECT realized_pnl, exit_price FROM trader_positions
+		WHERE id = ? AND closed_at IS NOT NULL
+	`
+
+	var realizedPnL sql.NullFloat64
+	var exitPrice sql.NullFloat64
+	err := d.db.QueryRow(query, positionID).Scan(&realizedPnL, &exitPrice)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil // Position not found
+		}
+		return false, fmt.Errorf("failed to check position PnL: %w", err)
+	}
+
+	// Consider valid if either PnL is non-zero OR exit price is set
+	hasValidPnL := realizedPnL.Valid && realizedPnL.Float64 != 0
+	hasValidExitPrice := exitPrice.Valid && exitPrice.Float64 > 0
+
+	return hasValidPnL || hasValidExitPrice, nil
 }
 
 // EquityHistoryRecord represents an equity history point in the database

@@ -3650,6 +3650,32 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 			}
 		}
 
+		// SAFETY FILTER: Skip suspicious closed positions with 0 PnL and no valid exit price
+		// These are likely erroneous records from SL/TP events that didn't actually close the position
+		if pos.ClosedAt != nil && status == "closed" {
+			// Check for suspicious 0-PnL closed positions
+			hasZeroPnL := pos.RealizedPnL == 0
+			hasNoExitPrice := exitPrice == 0 || exitPrice == pos.EntryPrice
+			
+			if hasZeroPnL && hasNoExitPrice {
+				// This looks like a potentially erroneous record
+				// Log it for debugging but skip it from the response
+				log.Printf("⚠️ Filtering suspicious 0-PnL closed position: %s %s (entry=%.4f, exit=%.4f, pnl=%.4f)",
+					pos.Symbol, pos.Side, pos.EntryPrice, exitPrice, pos.RealizedPnL)
+				continue
+			}
+			
+			// Also filter out closed positions where exit price equals entry price (unlikely real trade)
+			if exitPrice > 0 && pos.EntryPrice > 0 {
+				priceDiff := (exitPrice - pos.EntryPrice) / pos.EntryPrice
+				if priceDiff > -0.0001 && priceDiff < 0.0001 && pos.RealizedPnL == 0 {
+					log.Printf("⚠️ Filtering suspicious identical entry/exit closed position: %s %s (entry=%.4f, exit=%.4f)",
+						pos.Symbol, pos.Side, pos.EntryPrice, exitPrice)
+					continue
+				}
+			}
+		}
+
 		result = append(result, PositionHistoryItem{
 			ID:              pos.ID,
 			TraderID:        pos.TraderID,

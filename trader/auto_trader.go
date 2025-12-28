@@ -2911,6 +2911,114 @@ func (at *AutoTrader) updatePositionSnapshot() {
 	at.previousPositionsMutex.Unlock()
 }
 
+// validatePositionClosureWithTrades checks if there are actual filled trades that closed the position.
+// Returns (isValid, exitPrice, exitQty, exitFee, closeTime) - isValid is true only if real trades were found.
+// This prevents creating closure records for SL/TP placements or other non-closing events.
+func (at *AutoTrader) validatePositionClosureWithTrades(symbol, side string, position *cfg.PositionRecord) (bool, float64, float64, float64, time.Time) {
+	if position == nil {
+		return false, 0, 0, 0, time.Time{}
+	}
+
+	// Query historical trades for this symbol
+	endTime := time.Now()
+	startTime := position.OpenedAt.Add(-1 * time.Hour) // Start from 1h before position opened
+
+	trades, err := at.trader.GetUserTrades(symbol, 100, &startTime, &endTime)
+	if err != nil || len(trades) == 0 {
+		log.Printf("🔍 validatePositionClosureWithTrades: no trades found for %s %s: %v", symbol, side, err)
+		return false, 0, 0, 0, time.Time{}
+	}
+
+	// Find matching closure trades
+	// For LONG position, look for SELL trades (isBuyer=false)
+	// For SHORT position, look for BUY trades (isBuyer=true)
+	var totalClosedQty float64
+	var totalExitValue float64
+	var totalFees float64
+	var latestCloseTime time.Time
+
+	for _, trade := range trades {
+		tradeTime, ok := trade["time"].(int64)
+		if !ok {
+			continue
+		}
+		tradeTimestamp := time.Unix(tradeTime/1000, 0)
+
+		// Only consider trades after position was opened
+		if tradeTimestamp.Before(position.OpenedAt) {
+			continue
+		}
+
+		// Check if trade matches closure direction
+		isBuyer, _ := trade["isBuyer"].(bool)
+		tradeQty, _ := trade["qty"].(float64)
+		tradePrice, _ := trade["price"].(float64)
+		commission, _ := trade["commission"].(float64)
+
+		matchesClosure := false
+		if side == "long" && !isBuyer {
+			// Closing long position with sell trade
+			matchesClosure = true
+		} else if side == "short" && isBuyer {
+			// Closing short position with buy trade
+			matchesClosure = true
+		}
+
+		if matchesClosure {
+			totalClosedQty += tradeQty
+			totalExitValue += tradeQty * tradePrice
+			totalFees += commission
+			if tradeTimestamp.After(latestCloseTime) {
+				latestCloseTime = tradeTimestamp
+			}
+		}
+	}
+
+	// Validate: must have closed at least 90% of position quantity to be considered a real close
+	if totalClosedQty < position.Quantity*0.9 {
+		log.Printf("🔍 validatePositionClosureWithTrades: insufficient closure qty for %s %s (position=%.4f, closed=%.4f)", 
+			symbol, side, position.Quantity, totalClosedQty)
+		return false, 0, 0, 0, time.Time{}
+	}
+
+	// Calculate average exit price
+	avgExitPrice := totalExitValue / totalClosedQty
+	if avgExitPrice <= 0 {
+		log.Printf("🔍 validatePositionClosureWithTrades: invalid exit price for %s %s", symbol, side)
+		return false, 0, 0, 0, time.Time{}
+	}
+
+	log.Printf("✅ validatePositionClosureWithTrades: validated closure for %s %s (exit=%.4f, qty=%.4f, fees=%.4f)", 
+		symbol, side, avgExitPrice, totalClosedQty, totalFees)
+	return true, avgExitPrice, totalClosedQty, totalFees, latestCloseTime
+}
+
+// isPositionAlreadyClosedInDB checks if a position with the same ID is already marked as closed in the database.
+// Uses position ID (trader_symbol_openedAtUnix) for precise matching to prevent duplicates.
+func (at *AutoTrader) isPositionAlreadyClosedInDB(db *cfg.Database, position *cfg.PositionRecord) bool {
+	if position == nil || db == nil {
+		return false
+	}
+
+	// Generate the expected position ID
+	positionID := fmt.Sprintf("%s_%s_%d", at.id, position.Symbol, position.OpenedAt.Unix())
+
+	// Query database for this specific position
+	history, err := db.GetPositionHistory(at.id, 100, 0)
+	if err != nil {
+		return false
+	}
+
+	for _, pos := range history {
+		if pos.ID == positionID && pos.ClosedAt != nil {
+			log.Printf("🔍 isPositionAlreadyClosedInDB: position %s already closed at %s", positionID, pos.ClosedAt.Format("2006-01-02 15:04:05"))
+			return true
+		}
+	}
+
+	return false
+}
+
 // detectAndLogPositionClosures detects positions that were closed by SL/TP and logs them as auto-close actions
 func (at *AutoTrader) detectAndLogPositionClosures() {
 	// Get current positions
@@ -3152,105 +3260,85 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 			continue
 		}
 
+		// CRITICAL VALIDATION: Check if position is already closed in database to prevent duplicates
+		if dbPosition != nil && at.isPositionAlreadyClosedInDB(db, dbPosition) {
+			log.Printf("🔍 Position closure detection: position %s %s already closed in database, skipping duplicate", symbol, side)
+			// Mark as logged to prevent future attempts
+			at.loggedClosuresMutex.Lock()
+			at.loggedClosures[posKey] = time.Now()
+			at.loggedClosuresMutex.Unlock()
+			continue
+		}
+
 		// Determine close time
 		closeTime := time.Now()
 
-		// Get actual exit price - try to get from historical trades (LTP), fallback to market price
+		// Get actual exit price - MUST validate with actual filled trades
 		var actualExitPrice float64
 		var exitFee float64
+		var actualClosedQty float64
 		var latestCloseTime time.Time
 
-		// Try to get exit price from historical trades if dbPosition is available
-		if dbPosition != nil {
-			// Query historical trades for this symbol
-			endTime := time.Now()
-			startTime := dbPosition.OpenedAt.Add(-24 * time.Hour) // Start from 24h before position opened
+		// CRITICAL: Use validatePositionClosureWithTrades to ensure we have real filled trades
+		// This prevents SL/TP placements or non-closing events from creating false closure records
+		positionToValidate := dbPosition
+		if positionToValidate == nil {
+			positionToValidate = closedPosition
+		}
 
-			trades, err := at.trader.GetUserTrades(symbol, 100, &startTime, &endTime)
-			if err == nil && len(trades) > 0 {
-				// Find matching closure trades
-				// For LONG position, look for SELL trades (isBuyer=false)
-				// For SHORT position, look for BUY trades (isBuyer=true)
-				var totalClosedQty float64
-				var totalExitValue float64
-				var totalFees float64
+		if positionToValidate != nil {
+			isValidClosure, validExitPrice, validClosedQty, validExitFee, validCloseTime := at.validatePositionClosureWithTrades(symbol, side, positionToValidate)
 
-				for _, trade := range trades {
-					tradeTime, ok := trade["time"].(int64)
-					if !ok {
-						continue
-					}
-					tradeTimestamp := time.Unix(tradeTime/1000, 0)
+			if isValidClosure {
+				// Use validated data from actual trades
+				actualExitPrice = validExitPrice
+				exitFee = validExitFee
+				actualClosedQty = validClosedQty
+				if !validCloseTime.IsZero() {
+					closeTime = validCloseTime
+					latestCloseTime = validCloseTime
+				}
+				log.Printf("✅ Position closure detection: validated with trades for %s %s (exit=%.4f, qty=%.4f, fees=%.4f)", symbol, side, actualExitPrice, actualClosedQty, exitFee)
+			} else {
+				// No valid filled trades found - this might be a SL/TP placement event, not an actual close
+				// Only proceed if we can verify the position is truly gone from exchange
+				log.Printf("⚠️ Position closure detection: no valid closure trades found for %s %s, verifying position status", symbol, side)
 
-					// Only consider trades after position was opened
-					if tradeTimestamp.Before(dbPosition.OpenedAt) {
-						continue
-					}
-
-					// Check if trade matches closure direction
-					isBuyer, _ := trade["isBuyer"].(bool)
-					tradeQty, _ := trade["qty"].(float64)
-					tradePrice, _ := trade["price"].(float64)
-					commission, _ := trade["commission"].(float64)
-
-					matchesClosure := false
-					if side == "long" && !isBuyer {
-						// Closing long position with sell trade
-						matchesClosure = true
-					} else if side == "short" && isBuyer {
-						// Closing short position with buy trade
-						matchesClosure = true
-					}
-
-					if matchesClosure {
-						// Aggregate trades that close the position
-						totalClosedQty += tradeQty
-						totalExitValue += tradeQty * tradePrice
-						totalFees += commission
-						if tradeTimestamp.After(latestCloseTime) {
-							latestCloseTime = tradeTimestamp
+				// Double-check: query exchange positions one more time
+				recheckPositions, recheckErr := at.trader.GetPositions()
+				if recheckErr == nil {
+					for _, pos := range recheckPositions {
+						recheckSymbol, _ := pos["symbol"].(string)
+						recheckSide, _ := pos["side"].(string)
+						recheckQty, _ := pos["positionAmt"].(float64)
+						if recheckQty < 0 {
+							recheckQty = -recheckQty
+						}
+						if recheckSymbol == symbol && recheckSide == side && recheckQty > 0.0001 {
+							// Position still exists on exchange - this was NOT a real closure
+							log.Printf("🔍 Position closure detection: position %s %s still exists on exchange (qty=%.4f), skipping false closure", symbol, side, recheckQty)
+							continue
 						}
 					}
 				}
 
-				// Check if we found enough trades to close the position (within 10% tolerance)
-				if totalClosedQty >= dbPosition.Quantity*0.9 || (totalClosedQty > 0 && totalClosedQty < dbPosition.Quantity*0.9) {
-					// Calculate average exit price from trades
-					avgExitPrice := totalExitValue / totalClosedQty
-					if avgExitPrice > 0 {
-						actualExitPrice = avgExitPrice
-						exitFee = totalFees
-						if !latestCloseTime.IsZero() {
-							closeTime = latestCloseTime
-						}
-						log.Printf("✅ Position closure detection: found exit price from historical trades for %s %s (exit=%.4f, qty=%.4f, fees=%.4f)", symbol, side, actualExitPrice, totalClosedQty, totalFees)
-					}
-				}
-			}
-
-			// Fallback to market price if historical trades didn't provide exit price
-			if actualExitPrice <= 0 {
-				log.Printf("⚠️ Position closure detection: no matching trades found for %s %s, falling back to market price", symbol, side)
+				// Position is gone but no trades found - use market price as fallback but log warning
+				log.Printf("⚠️ Position closure detection: position %s %s gone but no closure trades found, using market price fallback (may be inaccurate)", symbol, side)
 				marketData, err := market.Get(symbol)
 				if err == nil {
 					actualExitPrice = marketData.CurrentPrice
+				} else if positionToValidate.EntryPrice > 0 {
+					actualExitPrice = positionToValidate.EntryPrice
 				} else {
-					log.Printf("⚠️ Position closure detection: failed to get market data for %s: %v, using entry price as fallback", symbol, err)
-					actualExitPrice = dbPosition.EntryPrice
+					log.Printf("⚠️ Position closure detection: cannot determine exit price for %s %s, skipping", symbol, side)
+					continue
 				}
-			}
-		} else if closedPosition != nil {
-			// Fallback: use data from snapshot or history
-			marketData, err := market.Get(symbol)
-			if err == nil {
-				actualExitPrice = marketData.CurrentPrice
-			} else {
-				actualExitPrice = closedPosition.EntryPrice
 			}
 		} else {
 			log.Printf("⚠️ Position closure detection: cannot determine exit price for %s %s, skipping", symbol, side)
 			continue
 		}
+		_ = latestCloseTime // Used for logging, suppress unused warning
 
 		// Validate exit price is reasonable
 		if actualExitPrice <= 0 {
@@ -3700,6 +3788,29 @@ func (at *AutoTrader) DetectAndLogPositionClosuresFromOrderHistory() {
 
 			if alreadyLogged && time.Since(lastLogged) < 30*time.Minute {
 				continue // Already logged recently
+			}
+
+			// CRITICAL: Check if position is already closed in database to prevent duplicates
+			if at.isPositionAlreadyClosedInDB(db, matchedPosition) {
+				log.Printf("🔍 Position closure detection (order history): position %s %s already closed in database, skipping", symbol, side)
+				at.loggedClosuresMutex.Lock()
+				at.loggedClosures[posKey] = time.Now()
+				at.loggedClosuresMutex.Unlock()
+				continue
+			}
+
+			// VALIDATION: Verify that executedQty actually matches position quantity (at least 90%)
+			// This prevents partial fills from being treated as full closures
+			if executedQty < matchedPosition.Quantity*0.9 {
+				log.Printf("⚠️ Position closure detection (order history): order qty (%.4f) < 90%% of position qty (%.4f) for %s %s, skipping",
+					executedQty, matchedPosition.Quantity, symbol, side)
+				continue
+			}
+
+			// VALIDATION: Ensure avgPrice is valid and non-zero
+			if avgPrice <= 0 {
+				log.Printf("⚠️ Position closure detection (order history): invalid avgPrice (%.4f) for %s %s, skipping", avgPrice, symbol, side)
+				continue
 			}
 
 			// Calculate realized PnL
