@@ -4864,6 +4864,34 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 	return positions, nil
 }
 
+// HasRecentlyClosedPosition checks if there's already a closed position for the given symbol/side
+// within the specified time window. This helps prevent duplicate closed position records.
+func (d *Database) HasRecentlyClosedPosition(traderID, symbol, side string, timeWindowMinutes int) (bool, error) {
+	if d.db == nil {
+		return false, fmt.Errorf("database not initialized")
+	}
+
+	// Calculate cutoff time
+	cutoffTime := time.Now().Add(-time.Duration(timeWindowMinutes) * time.Minute)
+
+	query := `
+		SELECT COUNT(*) FROM trader_positions
+		WHERE trader_id = ? 
+		AND symbol = ? 
+		AND side = ? 
+		AND closed_at IS NOT NULL
+		AND closed_at >= ?
+	`
+
+	var count int
+	err := d.db.QueryRow(query, traderID, symbol, side, cutoffTime.Format("2006-01-02 15:04:05")).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check for recently closed position: %w", err)
+	}
+
+	return count > 0, nil
+}
+
 // EquityHistoryRecord represents an equity history point in the database
 type EquityHistoryRecord struct {
 	ID              int64
