@@ -2627,6 +2627,11 @@ func (at *AutoTrader) GetUserTrades(symbol string, limit int, startTime, endTime
 	return at.trader.GetUserTrades(symbol, limit, startTime, endTime)
 }
 
+// GetOpenOrders get open orders (pending SL/TP/limit orders) from the exchange
+func (at *AutoTrader) GetOpenOrders(symbol string) ([]map[string]interface{}, error) {
+	return at.trader.GetOpenOrders(symbol)
+}
+
 // calculatePnLPercentage calculates profit/loss percentage (based on margin, automatically considers leverage)
 // Return rate = unrealized profit/loss / margin × 100%
 func calculatePnLPercentage(unrealizedPnl, marginUsed float64) float64 {

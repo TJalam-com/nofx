@@ -629,6 +629,75 @@ func (t *FuturesTrader) GetUserTrades(symbol string, limit int, startTime, endTi
 	return []map[string]interface{}{}, nil
 }
 
+// GetOpenOrders Get all open (unfilled) orders from Binance Futures
+// Returns pending orders including SL/TP/limit orders
+func (t *FuturesTrader) GetOpenOrders(symbol string) ([]map[string]interface{}, error) {
+	var orders []*futures.Order
+	var err error
+
+	if symbol != "" {
+		orders, err = t.client.NewListOpenOrdersService().
+			Symbol(symbol).
+			Do(context.Background())
+	} else {
+		// Get all open orders for all symbols
+		orders, err = t.client.NewListOpenOrdersService().
+			Do(context.Background())
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open orders: %w", err)
+	}
+
+	result := make([]map[string]interface{}, 0, len(orders))
+	for _, order := range orders {
+		orderType := string(order.Type)
+		// Determine order category
+		orderCategory := "limit"
+		if orderType == "STOP_MARKET" || orderType == "STOP" || orderType == "STOP_LOSS" || orderType == "STOP_LOSS_LIMIT" {
+			orderCategory = "stop_loss"
+		} else if orderType == "TAKE_PROFIT_MARKET" || orderType == "TAKE_PROFIT" || orderType == "TAKE_PROFIT_LIMIT" {
+			orderCategory = "take_profit"
+		} else if orderType == "LIMIT" {
+			orderCategory = "limit"
+		}
+
+		// Determine position side
+		side := strings.ToLower(string(order.PositionSide))
+		if side == "" || side == "both" {
+			// For one-way mode, infer side from order side
+			if string(order.Side) == "SELL" {
+				side = "long" // Selling closes long
+			} else {
+				side = "short" // Buying closes short
+			}
+		}
+
+		// Get trigger price (stopPrice for SL/TP orders)
+		triggerPrice, _ := strconv.ParseFloat(order.StopPrice, 64)
+		if triggerPrice == 0 {
+			triggerPrice, _ = strconv.ParseFloat(order.Price, 64)
+		}
+		origQty, _ := strconv.ParseFloat(order.OrigQuantity, 64)
+		executedQty, _ := strconv.ParseFloat(order.ExecutedQuantity, 64)
+
+		result = append(result, map[string]interface{}{
+			"id":              fmt.Sprintf("%d", order.OrderID),
+			"symbol":          order.Symbol,
+			"side":            side,
+			"order_type":      orderCategory,
+			"trigger_price":   triggerPrice,
+			"quantity":        origQty,
+			"filled_quantity": executedQty,
+			"status":          string(order.Status),
+			"exchange_order_id": fmt.Sprintf("%d", order.OrderID),
+			"created_at":      time.Unix(order.Time/1000, 0).Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	return result, nil
+}
+
 // CancelStopLossOrders cancels only stop-loss orders (doesn't affect take-profit orders)
 func (t *FuturesTrader) CancelStopLossOrders(symbol string) error {
 	canceledCount := 0

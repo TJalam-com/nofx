@@ -866,6 +866,15 @@ func (t *HyperliquidTrader) GetUserTrades(symbol string, limit int, startTime, e
 	return []map[string]interface{}{}, nil
 }
 
+// GetOpenOrders Get all open (unfilled) orders from Hyperliquid
+// Note: Hyperliquid SDK may not directly expose open orders API
+func (t *HyperliquidTrader) GetOpenOrders(symbol string) ([]map[string]interface{}, error) {
+	// Hyperliquid doesn't provide easy access to open orders via current SDK
+	// Return empty slice for now - pending orders will show as empty
+	// TODO: Implement when Hyperliquid SDK supports open orders query
+	return []map[string]interface{}{}, nil
+}
+
 // FormatQuantity 格式化数量到正确的精度
 func (t *HyperliquidTrader) FormatQuantity(symbol string, quantity float64) (string, error) {
 	coin := convertSymbolToHyperliquid(symbol)

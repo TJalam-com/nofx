@@ -822,6 +822,76 @@ func (t *BybitTrader) GetUserTrades(symbol string, limit int, startTime, endTime
 	return []map[string]interface{}{}, nil
 }
 
+// GetOpenOrders Get all open (unfilled) orders from Bybit
+func (t *BybitTrader) GetOpenOrders(symbol string) ([]map[string]interface{}, error) {
+	params := map[string]interface{}{
+		"category": "linear",
+	}
+	if symbol != "" {
+		params["symbol"] = symbol
+	}
+
+	result, err := t.client.NewUtaBybitServiceWithParams(params).GetOpenOrders(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open orders: %w", err)
+	}
+
+	if result.RetCode != 0 {
+		return nil, fmt.Errorf("bybit API error: %s", result.RetMsg)
+	}
+
+	orders := make([]map[string]interface{}, 0)
+	// Parse result.Result.List if available
+	if resultMap, ok := result.Result.(map[string]interface{}); ok {
+		if list, ok := resultMap["list"].([]interface{}); ok {
+			for _, item := range list {
+				if order, ok := item.(map[string]interface{}); ok {
+					orderType, _ := order["orderType"].(string)
+					orderCategory := "limit"
+					if orderType == "Stop" || orderType == "StopLoss" {
+						orderCategory = "stop_loss"
+					} else if orderType == "TakeProfit" {
+						orderCategory = "take_profit"
+					}
+
+					side := "long"
+					if posSide, ok := order["side"].(string); ok {
+						if posSide == "Sell" {
+							side = "long"
+						} else {
+							side = "short"
+						}
+					}
+
+					triggerPrice := 0.0
+					if tp, ok := order["triggerPrice"].(string); ok {
+						triggerPrice, _ = strconv.ParseFloat(tp, 64)
+					}
+					qty := 0.0
+					if q, ok := order["qty"].(string); ok {
+						qty, _ = strconv.ParseFloat(q, 64)
+					}
+
+					orders = append(orders, map[string]interface{}{
+						"id":              order["orderId"],
+						"symbol":          order["symbol"],
+						"side":            side,
+						"order_type":      orderCategory,
+						"trigger_price":   triggerPrice,
+						"quantity":        qty,
+						"filled_quantity": 0.0,
+						"status":          order["orderStatus"],
+						"exchange_order_id": order["orderId"],
+						"created_at":      order["createdTime"],
+					})
+				}
+			}
+		}
+	}
+
+	return orders, nil
+}
+
 // Helper methods
 
 func (t *BybitTrader) clearCache() {

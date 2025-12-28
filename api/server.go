@@ -3391,6 +3391,94 @@ func (s *Server) handlePositions(c *gin.Context) {
 	c.JSON(http.StatusOK, positions)
 }
 
+// PendingOrderResponse represents a pending order for API response
+type PendingOrderResponse struct {
+	ID              string  `json:"id"`
+	TraderID        string  `json:"trader_id"`
+	Symbol          string  `json:"symbol"`
+	Side            string  `json:"side"`
+	OrderType       string  `json:"order_type"`
+	TriggerPrice    float64 `json:"trigger_price"`
+	Quantity        float64 `json:"quantity"`
+	FilledQuantity  float64 `json:"filled_quantity"`
+	Status          string  `json:"status"`
+	ParentPositionID string `json:"parent_position_id"`
+	ExchangeOrderID string  `json:"exchange_order_id"`
+	CreatedAt       string  `json:"created_at"`
+}
+
+// handleGetPendingOrders get pending orders (unfilled SL/TP/limit orders)
+// Fetches directly from the exchange API for real-time data
+func (s *Server) handleGetPendingOrders(c *gin.Context) {
+	_, traderID, err := s.getTraderFromQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get the trader instance to query exchange
+	trader, err := s.traderManager.GetTrader(traderID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Trader not found: %v", err)})
+		return
+	}
+
+	// Get open orders directly from exchange (real-time)
+	exchangeOrders, err := trader.GetOpenOrders("")
+	if err != nil {
+		log.Printf("⚠️ Failed to get open orders from exchange for trader %s: %v", traderID, err)
+		// Return empty array instead of error - some exchanges may not support this
+		c.JSON(http.StatusOK, []PendingOrderResponse{})
+		return
+	}
+
+	// Convert to response format
+	result := make([]PendingOrderResponse, 0, len(exchangeOrders))
+	for _, order := range exchangeOrders {
+		// Extract values from map
+		id, _ := order["id"].(string)
+		if id == "" {
+			if idFloat, ok := order["id"].(float64); ok {
+				id = fmt.Sprintf("%.0f", idFloat)
+			}
+		}
+		symbol, _ := order["symbol"].(string)
+		side, _ := order["side"].(string)
+		orderType, _ := order["order_type"].(string)
+		triggerPrice, _ := order["trigger_price"].(float64)
+		quantity, _ := order["quantity"].(float64)
+		filledQuantity, _ := order["filled_quantity"].(float64)
+		status, _ := order["status"].(string)
+		exchangeOrderID, _ := order["exchange_order_id"].(string)
+		if exchangeOrderID == "" {
+			if eidFloat, ok := order["exchange_order_id"].(float64); ok {
+				exchangeOrderID = fmt.Sprintf("%.0f", eidFloat)
+			}
+		}
+		createdAt, _ := order["created_at"].(string)
+
+		// Only include SL/TP orders (filter out regular limit orders if needed)
+		if orderType == "stop_loss" || orderType == "take_profit" || orderType == "limit" {
+			result = append(result, PendingOrderResponse{
+				ID:              id,
+				TraderID:        traderID,
+				Symbol:          symbol,
+				Side:            side,
+				OrderType:       orderType,
+				TriggerPrice:    triggerPrice,
+				Quantity:        quantity,
+				FilledQuantity:  filledQuantity,
+				Status:          status,
+				ParentPositionID: "",
+				ExchangeOrderID: exchangeOrderID,
+				CreatedAt:       createdAt,
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 // handlePositionHistory get position history (all positions including closed)
 func (s *Server) handlePositionHistory(c *gin.Context) {
 	// #region agent log

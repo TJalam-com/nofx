@@ -1061,6 +1061,75 @@ func (t *BitgetTrader) GetUserTrades(symbol string, limit int, startTime, endTim
 	return result, nil
 }
 
+// GetOpenOrders Get all open (unfilled) orders from Bitget
+func (t *BitgetTrader) GetOpenOrders(symbol string) ([]map[string]interface{}, error) {
+	path := "/api/v2/mix/order/orders-pending"
+	params := map[string]interface{}{
+		"productType": "USDT-FUTURES",
+	}
+	if symbol != "" {
+		params["symbol"] = symbol
+	}
+
+	data, err := t.doRequest("GET", path, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open orders: %w", err)
+	}
+
+	var response struct {
+		Data []struct {
+			OrderId   string `json:"orderId"`
+			Symbol    string `json:"symbol"`
+			OrderType string `json:"orderType"`
+			Side      string `json:"side"`
+			Price     string `json:"price"`
+			Size      string `json:"size"`
+			FilledQty string `json:"filledQty"`
+			Status    string `json:"status"`
+			CTime     string `json:"cTime"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse open orders: %w", err)
+	}
+
+	result := make([]map[string]interface{}, 0, len(response.Data))
+	for _, order := range response.Data {
+		orderCategory := "limit"
+		if order.OrderType == "stop" {
+			orderCategory = "stop_loss"
+		} else if order.OrderType == "profit" {
+			orderCategory = "take_profit"
+		}
+
+		side := "long"
+		if order.Side == "open_short" || order.Side == "close_long" {
+			side = "short"
+		}
+
+		triggerPrice, _ := strconv.ParseFloat(order.Price, 64)
+		qty, _ := strconv.ParseFloat(order.Size, 64)
+		filledQty, _ := strconv.ParseFloat(order.FilledQty, 64)
+		cTime, _ := strconv.ParseInt(order.CTime, 10, 64)
+
+		result = append(result, map[string]interface{}{
+			"id":              order.OrderId,
+			"symbol":          order.Symbol,
+			"side":            side,
+			"order_type":      orderCategory,
+			"trigger_price":   triggerPrice,
+			"quantity":        qty,
+			"filled_quantity": filledQty,
+			"status":          order.Status,
+			"exchange_order_id": order.OrderId,
+			"created_at":      time.Unix(cTime/1000, 0).Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	return result, nil
+}
+
 // Helper methods
 
 func (t *BitgetTrader) clearCache() {

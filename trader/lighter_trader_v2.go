@@ -520,3 +520,12 @@ func (t *LighterTraderV2) GetUserTrades(symbol string, limit int, startTime, end
 
 	return result, nil
 }
+
+// GetOpenOrders Get all open (unfilled) orders from Lighter
+// Note: Lighter DEX may not support traditional SL/TP orders
+func (t *LighterTraderV2) GetOpenOrders(symbol string) ([]map[string]interface{}, error) {
+	// Lighter DEX doesn't support traditional SL/TP orders in the same way as CEX
+	// Return empty slice for now
+	// TODO: Implement when Lighter API supports open orders query
+	return []map[string]interface{}{}, nil
+}

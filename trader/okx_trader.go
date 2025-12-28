@@ -1,4 +1,4 @@
-﻿package trader
+package trader
 
 import (
 	"bytes"
@@ -1319,6 +1319,77 @@ func (t *OKXTrader) GetUserTrades(symbol string, limit int, startTime, endTime *
 			"isBuyer":         trade.Side == "buy",
 			"isMaker":         false, // OKX doesn't provide this in fills
 			"positionSide":    trade.PosSide,
+		})
+	}
+
+	return result, nil
+}
+
+// GetOpenOrders Get all open (unfilled) orders from OKX
+func (t *OKXTrader) GetOpenOrders(symbol string) ([]map[string]interface{}, error) {
+	path := "/api/v5/trade/orders-pending?instType=SWAP"
+	if symbol != "" {
+		instId := t.convertSymbol(symbol)
+		path += "&instId=" + instId
+	}
+
+	data, err := t.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open orders: %w", err)
+	}
+
+	var response struct {
+		Data []struct {
+			OrdId   string `json:"ordId"`
+			InstId  string `json:"instId"`
+			State   string `json:"state"`
+			OrdType string `json:"ordType"`
+			Side    string `json:"side"`
+			PosSide string `json:"posSide"`
+			Px      string `json:"px"`
+			Sz      string `json:"sz"`
+			FillSz  string `json:"fillSz"`
+			CTime   string `json:"cTime"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse open orders: %w", err)
+	}
+
+	result := make([]map[string]interface{}, 0, len(response.Data))
+	for _, order := range response.Data {
+		orderCategory := "limit"
+		if order.OrdType == "trigger" || order.OrdType == "conditional" {
+			// Determine if SL or TP based on context
+			orderCategory = "stop_loss" // Default, could be refined
+		}
+
+		side := strings.ToLower(order.PosSide)
+		if side == "" || side == "net" {
+			if order.Side == "sell" {
+				side = "long"
+			} else {
+				side = "short"
+			}
+		}
+
+		triggerPrice, _ := strconv.ParseFloat(order.Px, 64)
+		qty, _ := strconv.ParseFloat(order.Sz, 64)
+		filledQty, _ := strconv.ParseFloat(order.FillSz, 64)
+		ts, _ := strconv.ParseInt(order.CTime, 10, 64)
+
+		result = append(result, map[string]interface{}{
+			"id":              order.OrdId,
+			"symbol":          t.convertSymbolBack(order.InstId),
+			"side":            side,
+			"order_type":      orderCategory,
+			"trigger_price":   triggerPrice,
+			"quantity":        qty,
+			"filled_quantity": filledQty,
+			"status":          order.State,
+			"exchange_order_id": order.OrdId,
+			"created_at":      time.Unix(ts/1000, 0).Format("2006-01-02 15:04:05"),
 		})
 	}
 

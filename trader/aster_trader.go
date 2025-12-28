@@ -1451,6 +1451,70 @@ func (t *AsterTrader) GetUserTrades(symbol string, limit int, startTime, endTime
 	return result, nil
 }
 
+// GetOpenOrders Get all open (unfilled) orders from Aster (Binance-compatible)
+func (t *AsterTrader) GetOpenOrders(symbol string) ([]map[string]interface{}, error) {
+	params := map[string]interface{}{}
+	if symbol != "" {
+		params["symbol"] = symbol
+	}
+
+	body, err := t.request("GET", "/fapi/v3/openOrders", params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open orders: %w", err)
+	}
+
+	var orders []map[string]interface{}
+	if err := json.Unmarshal(body, &orders); err != nil {
+		return nil, fmt.Errorf("failed to parse open orders: %w", err)
+	}
+
+	result := make([]map[string]interface{}, 0, len(orders))
+	for _, order := range orders {
+		orderType, _ := order["type"].(string)
+		orderCategory := "limit"
+		if orderType == "STOP_MARKET" || orderType == "STOP" || orderType == "STOP_LOSS" {
+			orderCategory = "stop_loss"
+		} else if orderType == "TAKE_PROFIT_MARKET" || orderType == "TAKE_PROFIT" {
+			orderCategory = "take_profit"
+		}
+
+		side := "long"
+		if posSide, ok := order["positionSide"].(string); ok {
+			side = strings.ToLower(posSide)
+		}
+		if side == "" || side == "both" {
+			if orderSide, ok := order["side"].(string); ok && orderSide == "SELL" {
+				side = "long"
+			} else {
+				side = "short"
+			}
+		}
+
+		triggerPrice, _ := parseFloatFromInterface(order["stopPrice"])
+		if triggerPrice == 0 {
+			triggerPrice, _ = parseFloatFromInterface(order["price"])
+		}
+		qty, _ := parseFloatFromInterface(order["origQty"])
+		filledQty, _ := parseFloatFromInterface(order["executedQty"])
+		orderTime, _ := order["time"].(float64)
+
+		result = append(result, map[string]interface{}{
+			"id":              order["orderId"],
+			"symbol":          order["symbol"],
+			"side":            side,
+			"order_type":      orderCategory,
+			"trigger_price":   triggerPrice,
+			"quantity":        qty,
+			"filled_quantity": filledQty,
+			"status":          order["status"],
+			"exchange_order_id": order["orderId"],
+			"created_at":      time.Unix(int64(orderTime)/1000, 0).Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	return result, nil
+}
+
 // parseFloatFromInterface helper to parse float from interface{}
 func parseFloatFromInterface(v interface{}) (float64, error) {
 	if v == nil {

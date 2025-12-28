@@ -68,4 +68,9 @@ type Trader interface {
 	// limit: maximum number of trades to return (0 = use exchange default)
 	// startTime, endTime: optional time range filters (nil = no filter)
 	GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error)
+
+	// GetOpenOrders Get all open (unfilled) orders from exchange
+	// Returns pending orders including SL/TP/limit orders
+	// If symbol is empty, returns orders for all symbols
+	GetOpenOrders(symbol string) ([]map[string]interface{}, error)
 }
