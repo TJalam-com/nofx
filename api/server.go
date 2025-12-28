@@ -5949,8 +5949,15 @@ func (s *Server) getEquityHistoryForTraders(traderIDs []string) map[string]inter
 			dbRecords, err := s.database.GetEquityHistory(traderID, 500)
 			if err == nil && len(dbRecords) > 0 {
 				// Convert database records to history format
+				// CRITICAL: Apply additional validation to prevent -100% PnL in competition chart
 				history = make([]map[string]interface{}, 0, len(dbRecords))
 				for _, dbRec := range dbRecords {
+					// Skip invalid records (double-check even though DB query filters)
+					if dbRec.TotalEquity <= 0 || dbRec.TotalPnLPct <= -100 {
+						log.Printf("⚠️ getEquityHistoryForTraders: Filtering invalid record for trader %s (equity=%.4f, pnl_pct=%.2f%%)",
+							traderID, dbRec.TotalEquity, dbRec.TotalPnLPct)
+						continue
+					}
 					history = append(history, map[string]interface{}{
 						"timestamp":     dbRec.Timestamp.Format("2006-01-02 15:04:05"),
 						"total_equity":  dbRec.TotalEquity,

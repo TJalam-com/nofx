@@ -542,6 +542,27 @@ func (d *Database) createTables() error {
 			FOREIGN KEY (trader_id) REFERENCES traders(id) ON DELETE CASCADE
 		)`,
 
+		// Pending orders table - stores unfilled limit/SL/TP orders separately from positions
+		// These orders should NOT appear in closed positions or affect realized PnL calculations
+		`CREATE TABLE IF NOT EXISTS pending_orders (
+			id TEXT PRIMARY KEY,
+			trader_id TEXT NOT NULL,
+			symbol TEXT NOT NULL,
+			side TEXT NOT NULL,
+			order_type TEXT NOT NULL,
+			trigger_price REAL,
+			quantity REAL NOT NULL,
+			filled_quantity REAL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'pending',
+			parent_position_id TEXT,
+			exchange_order_id TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			filled_at DATETIME,
+			cancelled_at DATETIME,
+			FOREIGN KEY (trader_id) REFERENCES traders(id) ON DELETE CASCADE
+		)`,
+
 		// Trader equity history table (for persistent equity curve data)
 		`CREATE TABLE IF NOT EXISTS trader_equity_history (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -591,6 +612,11 @@ func (d *Database) createTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_trader_positions_closure_check ON trader_positions(trader_id, symbol, side, closed_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_equity_history_trader_ts ON trader_equity_history(trader_id, timestamp)`,
 		`CREATE INDEX IF NOT EXISTS idx_trader_equity_history_cycle ON trader_equity_history(trader_id, cycle_number)`,
+		// Pending orders indexes
+		`CREATE INDEX IF NOT EXISTS idx_pending_orders_trader ON pending_orders(trader_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_pending_orders_symbol ON pending_orders(symbol)`,
+		`CREATE INDEX IF NOT EXISTS idx_pending_orders_status ON pending_orders(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_pending_orders_parent ON pending_orders(parent_position_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(slug)`,
 		`CREATE INDEX IF NOT EXISTS idx_articles_status_published ON articles(status, published_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_articles_author ON articles(author_id)`,
@@ -4950,6 +4976,185 @@ func (d *Database) HasClosedPositionWithPnL(traderID, symbol, side string, opene
 	return hasValidPnL || hasValidExitPrice, nil
 }
 
+// PendingOrderRecord represents a pending/unfilled order in the database
+type PendingOrderRecord struct {
+	ID              string
+	TraderID        string
+	Symbol          string
+	Side            string
+	OrderType       string // "stop_loss", "take_profit", "limit", "market"
+	TriggerPrice    float64
+	Quantity        float64
+	FilledQuantity  float64
+	Status          string // "pending", "filled", "cancelled", "rejected"
+	ParentPositionID string
+	ExchangeOrderID string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	FilledAt        *time.Time
+	CancelledAt     *time.Time
+}
+
+// SavePendingOrder saves or updates a pending order in the database
+func (d *Database) SavePendingOrder(order *PendingOrderRecord) error {
+	if d.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	query := `
+		INSERT OR REPLACE INTO pending_orders 
+		(id, trader_id, symbol, side, order_type, trigger_price, quantity, filled_quantity, status, parent_position_id, exchange_order_id, created_at, updated_at, filled_at, cancelled_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	var filledAtStr, cancelledAtStr interface{}
+	if order.FilledAt != nil {
+		filledAtStr = order.FilledAt.Format("2006-01-02 15:04:05")
+	}
+	if order.CancelledAt != nil {
+		cancelledAtStr = order.CancelledAt.Format("2006-01-02 15:04:05")
+	}
+
+	_, err := d.db.Exec(query,
+		order.ID,
+		order.TraderID,
+		order.Symbol,
+		order.Side,
+		order.OrderType,
+		order.TriggerPrice,
+		order.Quantity,
+		order.FilledQuantity,
+		order.Status,
+		order.ParentPositionID,
+		order.ExchangeOrderID,
+		order.CreatedAt.Format("2006-01-02 15:04:05"),
+		time.Now().Format("2006-01-02 15:04:05"),
+		filledAtStr,
+		cancelledAtStr,
+	)
+	return err
+}
+
+// GetPendingOrders retrieves pending orders for a trader
+func (d *Database) GetPendingOrders(traderID string) ([]*PendingOrderRecord, error) {
+	if d.db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	query := `
+		SELECT id, trader_id, symbol, side, order_type, trigger_price, quantity, filled_quantity, status, parent_position_id, exchange_order_id, created_at, updated_at, filled_at, cancelled_at
+		FROM pending_orders
+		WHERE trader_id = ? AND status = 'pending'
+		ORDER BY created_at DESC
+	`
+
+	rows, err := d.db.Query(query, traderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []*PendingOrderRecord
+	for rows.Next() {
+		var order PendingOrderRecord
+		var filledAtStr, cancelledAtStr sql.NullString
+		err := rows.Scan(
+			&order.ID, &order.TraderID, &order.Symbol, &order.Side,
+			&order.OrderType, &order.TriggerPrice, &order.Quantity, &order.FilledQuantity,
+			&order.Status, &order.ParentPositionID, &order.ExchangeOrderID,
+			&order.CreatedAt, &order.UpdatedAt, &filledAtStr, &cancelledAtStr,
+		)
+		if err != nil {
+			continue
+		}
+		if filledAtStr.Valid {
+			t, _ := time.Parse("2006-01-02 15:04:05", filledAtStr.String)
+			order.FilledAt = &t
+		}
+		if cancelledAtStr.Valid {
+			t, _ := time.Parse("2006-01-02 15:04:05", cancelledAtStr.String)
+			order.CancelledAt = &t
+		}
+		orders = append(orders, &order)
+	}
+
+	return orders, nil
+}
+
+// UpdatePendingOrderStatus updates the status of a pending order
+func (d *Database) UpdatePendingOrderStatus(orderID, status string, filledAt *time.Time) error {
+	if d.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	var query string
+	var args []interface{}
+
+	if status == "filled" && filledAt != nil {
+		query = `UPDATE pending_orders SET status = ?, filled_at = ?, updated_at = ? WHERE id = ?`
+		args = []interface{}{status, filledAt.Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"), orderID}
+	} else if status == "cancelled" {
+		query = `UPDATE pending_orders SET status = ?, cancelled_at = ?, updated_at = ? WHERE id = ?`
+		args = []interface{}{status, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"), orderID}
+	} else {
+		query = `UPDATE pending_orders SET status = ?, updated_at = ? WHERE id = ?`
+		args = []interface{}{status, time.Now().Format("2006-01-02 15:04:05"), orderID}
+	}
+
+	_, err := d.db.Exec(query, args...)
+	return err
+}
+
+// GetPendingOrderByExchangeID retrieves a pending order by exchange order ID
+func (d *Database) GetPendingOrderByExchangeID(traderID, exchangeOrderID string) (*PendingOrderRecord, error) {
+	if d.db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	query := `
+		SELECT id, trader_id, symbol, side, order_type, trigger_price, quantity, filled_quantity, status, parent_position_id, exchange_order_id, created_at, updated_at, filled_at, cancelled_at
+		FROM pending_orders
+		WHERE trader_id = ? AND exchange_order_id = ?
+		LIMIT 1
+	`
+
+	var order PendingOrderRecord
+	var filledAtStr, cancelledAtStr sql.NullString
+	err := d.db.QueryRow(query, traderID, exchangeOrderID).Scan(
+		&order.ID, &order.TraderID, &order.Symbol, &order.Side,
+		&order.OrderType, &order.TriggerPrice, &order.Quantity, &order.FilledQuantity,
+		&order.Status, &order.ParentPositionID, &order.ExchangeOrderID,
+		&order.CreatedAt, &order.UpdatedAt, &filledAtStr, &cancelledAtStr,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if filledAtStr.Valid {
+		t, _ := time.Parse("2006-01-02 15:04:05", filledAtStr.String)
+		order.FilledAt = &t
+	}
+	if cancelledAtStr.Valid {
+		t, _ := time.Parse("2006-01-02 15:04:05", cancelledAtStr.String)
+		order.CancelledAt = &t
+	}
+
+	return &order, nil
+}
+
+// DeletePendingOrdersForPosition deletes all pending orders associated with a position
+func (d *Database) DeletePendingOrdersForPosition(traderID, symbol, side string) error {
+	if d.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	query := `DELETE FROM pending_orders WHERE trader_id = ? AND symbol = ? AND side = ? AND status = 'pending'`
+	_, err := d.db.Exec(query, traderID, symbol, side)
+	return err
+}
+
 // EquityHistoryRecord represents an equity history point in the database
 type EquityHistoryRecord struct {
 	ID              int64
@@ -4966,7 +5171,30 @@ type EquityHistoryRecord struct {
 }
 
 // SaveEquityHistory saves an equity history point to the database with retry logic
+// CRITICAL: Validates data to prevent invalid snapshots that cause -100% PnL in competition chart
 func (d *Database) SaveEquityHistory(traderID string, timestamp time.Time, totalEquity, availableBalance, totalPnL, totalPnLPct float64, positionCount int, marginUsedPct float64, cycleNumber int) error {
+	// VALIDATION: Prevent saving invalid equity snapshots
+	// These checks prevent -100% PnL errors in competition chart
+	if totalEquity <= 0 {
+		log.Printf("⚠️ SaveEquityHistory: Skipping invalid snapshot for trader %s - totalEquity is %.4f (must be > 0)", traderID, totalEquity)
+		return nil // Skip silently - don't save invalid data
+	}
+	if availableBalance < 0 {
+		log.Printf("⚠️ SaveEquityHistory: Skipping invalid snapshot for trader %s - availableBalance is %.4f (must be >= 0)", traderID, availableBalance)
+		return nil
+	}
+	// Check for extreme PnL values that indicate data errors
+	if totalPnLPct <= -100 {
+		log.Printf("⚠️ SaveEquityHistory: Skipping invalid snapshot for trader %s - totalPnLPct is %.2f%% (indicates data error, equity=%.4f, balance=%.4f)",
+			traderID, totalPnLPct, totalEquity, availableBalance)
+		return nil
+	}
+	// Validate timestamp is reasonable
+	if timestamp.IsZero() || timestamp.Before(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		log.Printf("⚠️ SaveEquityHistory: Skipping invalid snapshot for trader %s - timestamp is invalid: %v", traderID, timestamp)
+		return nil
+	}
+
 	query := `
 		INSERT INTO trader_equity_history 
 		(trader_id, timestamp, total_equity, available_balance, total_pnl, total_pnl_pct, position_count, margin_used_pct, cycle_number)
@@ -5003,15 +5231,20 @@ func (d *Database) SaveEquityHistory(traderID string, timestamp time.Time, total
 }
 
 // GetEquityHistory retrieves equity history for a trader (latest N records, oldest to newest)
+// CRITICAL: Filters out invalid records to prevent -100% PnL in competition chart
 func (d *Database) GetEquityHistory(traderID string, limit int) ([]*EquityHistoryRecord, error) {
 	if limit <= 0 {
 		limit = 10000 // Default to 10000 records
 	}
 	
+	// Query with validation filters to exclude invalid snapshots
+	// This prevents -100% PnL errors in competition chart
 	query := `
 		SELECT id, trader_id, timestamp, total_equity, available_balance, total_pnl, total_pnl_pct, position_count, margin_used_pct, cycle_number, created_at
 		FROM trader_equity_history
 		WHERE trader_id = ?
+			AND total_equity > 0
+			AND total_pnl_pct > -100
 		ORDER BY timestamp ASC, cycle_number ASC
 		LIMIT ?
 	`
@@ -5048,6 +5281,33 @@ func (d *Database) GetEquityHistory(traderID string, limit int) ([]*EquityHistor
 	}
 
 	return records, rows.Err()
+}
+
+// CleanupInvalidEquityHistory removes invalid equity history records
+// This should be run once to clean up historical bad data
+func (d *Database) CleanupInvalidEquityHistory() (int64, error) {
+	if d.db == nil {
+		return 0, fmt.Errorf("database not initialized")
+	}
+
+	// Delete records with invalid equity or extreme PnL
+	query := `
+		DELETE FROM trader_equity_history 
+		WHERE total_equity <= 0 
+			OR total_pnl_pct <= -100
+			OR available_balance < 0
+	`
+	
+	result, err := d.db.Exec(query)
+	if err != nil {
+		return 0, err
+	}
+	
+	deleted, _ := result.RowsAffected()
+	if deleted > 0 {
+		log.Printf("🧹 CleanupInvalidEquityHistory: Deleted %d invalid equity history records", deleted)
+	}
+	return deleted, nil
 }
 
 // VerifyDatabaseHealth checks if database file exists and is accessible

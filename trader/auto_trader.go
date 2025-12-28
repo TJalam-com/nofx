@@ -3483,6 +3483,8 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 			} else {
 				log.Printf("✅ Updated database position record for %s %s (entry=%.4f, exit=%.4f, pnl=%.4f, closed_at=%s)",
 					symbol, side, entryPrice, actualExitPrice, realizedPnL, closeTime.Format("2006-01-02 15:04:05"))
+				// Cleanup pending orders for this position (SL/TP orders no longer needed)
+				at.cleanupPendingOrdersForPosition(symbol, side)
 			}
 		} else if closedPosition != nil {
 			// Fallback: use data from snapshot or history
@@ -3576,6 +3578,8 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 			} else {
 				log.Printf("✅ Created database position record for %s %s (estimated open_time=%s, entry=%.4f, exit=%.4f, pnl=%.4f, closed_at=%s)",
 					symbol, side, openedAt.Format("2006-01-02 15:04:05"), entryPrice, actualExitPrice, realizedPnL, closeTime.Format("2006-01-02 15:04:05"))
+				// Cleanup pending orders for this position (SL/TP orders no longer needed)
+				at.cleanupPendingOrdersForPosition(symbol, side)
 			}
 		} else {
 			// This should not happen due to check above, but handle it anyway
@@ -3681,6 +3685,53 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 	at.previousPositionsMutex.Unlock()
 }
 
+// savePendingOrderToDB saves a pending order (unfilled SL/TP/limit) to the pending_orders table
+// This ensures unfilled orders are tracked separately from positions
+func (at *AutoTrader) savePendingOrderToDB(symbol, side, orderType string, triggerPrice, quantity float64, exchangeOrderID, parentPositionID string) {
+	db, ok := at.database.(*cfg.Database)
+	if !ok || db == nil {
+		return
+	}
+
+	orderID := fmt.Sprintf("%s_%s_%s_%d", at.id, symbol, orderType, time.Now().UnixNano())
+	order := &cfg.PendingOrderRecord{
+		ID:               orderID,
+		TraderID:         at.id,
+		Symbol:           symbol,
+		Side:             side,
+		OrderType:        orderType,
+		TriggerPrice:     triggerPrice,
+		Quantity:         quantity,
+		FilledQuantity:   0,
+		Status:           "pending",
+		ParentPositionID: parentPositionID,
+		ExchangeOrderID:  exchangeOrderID,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+
+	if err := db.SavePendingOrder(order); err != nil {
+		log.Printf("⚠️ Failed to save pending order to database: %v", err)
+	} else {
+		log.Printf("✓ Saved pending order to database: %s %s %s (trigger=%.4f, qty=%.4f)", symbol, side, orderType, triggerPrice, quantity)
+	}
+}
+
+// cleanupPendingOrdersForPosition removes all pending orders for a position when it's closed
+// This should be called when a position is fully closed (by SL/TP, manual close, or other means)
+func (at *AutoTrader) cleanupPendingOrdersForPosition(symbol, side string) {
+	db, ok := at.database.(*cfg.Database)
+	if !ok || db == nil {
+		return
+	}
+
+	if err := db.DeletePendingOrdersForPosition(at.id, symbol, side); err != nil {
+		log.Printf("⚠️ Failed to cleanup pending orders for %s %s: %v", symbol, side, err)
+	} else {
+		log.Printf("✓ Cleaned up pending orders for %s %s", symbol, side)
+	}
+}
+
 // DetectAndLogPositionClosuresFromOrderHistory detects positions closed by SL/TP by querying exchange order history
 // This is a more reliable method than position snapshots as it directly queries filled orders from the exchange
 // This is a public method that can be called from API handlers
@@ -3726,22 +3777,48 @@ func (at *AutoTrader) DetectAndLogPositionClosuresFromOrderHistory() {
 			continue
 		}
 
-		// Find filled STOP_MARKET or TAKE_PROFIT_MARKET orders
+		// Process STOP_MARKET or TAKE_PROFIT_MARKET orders
 		for _, order := range orders {
 			orderType, _ := order["type"].(string)
 			status, _ := order["status"].(string)
 			positionSide, _ := order["positionSide"].(string)
-
-			// Only process filled stop loss or take profit orders
-			if status != "FILLED" {
-				continue
-			}
 
 			isStopOrder := orderType == "STOP_MARKET" || orderType == "STOP" ||
 				orderType == "TAKE_PROFIT_MARKET" || orderType == "TAKE_PROFIT" ||
 				orderType == "STOP_LOSS" || orderType == "TAKE_PROFIT_LOSS"
 
 			if !isStopOrder {
+				continue
+			}
+
+			// CRITICAL: Only process FILLED orders as position closures
+			// Unfilled orders should be tracked in pending_orders table, NOT as closed positions
+			if status != "FILLED" {
+				// Track unfilled orders in pending_orders table (for reference only)
+				// This ensures they don't appear as closed positions
+				if status == "NEW" || status == "PENDING" || status == "PARTIALLY_FILLED" {
+					// Determine order type for pending_orders
+					pendingOrderType := "stop_loss"
+					if orderType == "TAKE_PROFIT_MARKET" || orderType == "TAKE_PROFIT" || orderType == "TAKE_PROFIT_LOSS" {
+						pendingOrderType = "take_profit"
+					}
+					// Get order details for tracking
+					stopPrice, _ := order["stopPrice"].(float64)
+					origQty, _ := order["origQty"].(float64)
+					orderID, _ := order["orderId"].(string)
+					// Determine side
+					orderSide, _ := order["side"].(string)
+					positionSideForOrder := strings.ToLower(positionSide)
+					if positionSideForOrder == "" {
+						if strings.ToUpper(orderSide) == "SELL" {
+							positionSideForOrder = "long"
+						} else {
+							positionSideForOrder = "short"
+						}
+					}
+					// Save to pending_orders for tracking (won't affect closed positions)
+					at.savePendingOrderToDB(symbol, positionSideForOrder, pendingOrderType, stopPrice, origQty, orderID, "")
+				}
 				continue
 			}
 
@@ -3856,6 +3933,9 @@ func (at *AutoTrader) DetectAndLogPositionClosuresFromOrderHistory() {
 
 			log.Printf("✅ Position closure detected from order history: %s %s closed by %s (exit=%.4f, pnl=%.4f)",
 				symbol, side, closureReason, avgPrice, realizedPnL)
+
+			// Cleanup pending orders for this position (SL/TP orders no longer needed)
+			at.cleanupPendingOrdersForPosition(symbol, side)
 
 			// Mark as logged
 			at.loggedClosuresMutex.Lock()
