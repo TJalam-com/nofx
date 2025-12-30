@@ -285,8 +285,81 @@ export default function TraderDashboard() {
     }
   }
 
-  // Use accumulated closed positions
-  const closedPositions = allClosedPositions
+  // Deduplicate and clean closed positions
+  const closedPositions = useMemo(() => {
+    if (!allClosedPositions || allClosedPositions.length === 0) return []
+
+    // Filter out invalid positions first
+    const validPositions = allClosedPositions.filter((pos) => {
+      // Must have required fields
+      if (!pos.symbol || !pos.side || pos.entry_price == null || pos.quantity == null) {
+        return false
+      }
+      
+      // For closed positions, exit_price must be valid and non-zero
+      if (pos.status === 'closed' || pos.closed_at) {
+        if (!pos.exit_price || pos.exit_price === 0) {
+          return false
+        }
+      }
+      
+      // Entry price must be valid and non-zero
+      if (pos.entry_price === 0) {
+        return false
+      }
+      
+      return true
+    })
+
+    // Create a map to track unique positions
+    // Key: symbol_side_entryPrice_quantity
+    // For positions with 0 PnL, we only keep the most recent one
+    const uniquePositionsMap = new Map<string, any>()
+
+    for (const pos of validPositions) {
+      const realizedPnL = pos.realized_pnl || 0
+      
+      // Create a key based on symbol, side, entry_price, and quantity
+      // This identifies potentially duplicate trades
+      const baseKey = `${pos.symbol}_${pos.side}_${pos.entry_price}_${pos.quantity}`
+      
+      // For positions with 0 PnL, use the base key to identify duplicates
+      // For positions with non-zero PnL, include realized_pnl in the key to keep them separate
+      const key = realizedPnL === 0 ? baseKey : `${baseKey}_${realizedPnL}`
+
+      const existingPos = uniquePositionsMap.get(key)
+      
+      if (!existingPos) {
+        // First time seeing this key, add it
+        uniquePositionsMap.set(key, pos)
+      } else {
+        // Duplicate found - keep the most recent one
+        const existingTime = existingPos.closed_at 
+          ? new Date(existingPos.closed_at).getTime() 
+          : existingPos.opened_at 
+          ? new Date(existingPos.opened_at).getTime() 
+          : 0
+        const currentTime = pos.closed_at 
+          ? new Date(pos.closed_at).getTime() 
+          : pos.opened_at 
+          ? new Date(pos.opened_at).getTime() 
+          : 0
+        
+        // Keep the more recent one
+        if (currentTime > existingTime) {
+          uniquePositionsMap.set(key, pos)
+        }
+      }
+    }
+
+    // Convert map to array and sort by opened_at descending (most recent first)
+    const uniquePositions = Array.from(uniquePositionsMap.values())
+    return uniquePositions.sort((a, b) => {
+      const timeA = a.opened_at ? new Date(a.opened_at).getTime() : 0
+      const timeB = b.opened_at ? new Date(b.opened_at).getTime() : 0
+      return timeB - timeA // Descending order (most recent first)
+    })
+  }, [allClosedPositions])
 
   // Sort decisions by timestamp descending (most recent first) - cycle_number is not reliable
   const sortedDecisions = useMemo(() => {

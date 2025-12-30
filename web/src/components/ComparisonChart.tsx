@@ -309,14 +309,38 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
     const minVal = Math.min(...allValues)
     const maxVal = Math.max(...allValues)
-    const range = maxVal - minVal
     
-    // Add padding (10% of range, minimum 1% for small ranges)
-    const padding = Math.max(range * 0.1, 1)
+    // Use balanced range calculation similar to EquityChart
+    // This ensures symmetric padding around the data range
+    const range = Math.max(Math.abs(maxVal), Math.abs(minVal))
     
-    // Use actual data range with padding, don't force zero
-    const domainMin = Math.floor(minVal - padding)
-    const domainMax = Math.ceil(maxVal + padding)
+    // Add padding (20% of range, minimum 1% for small ranges)
+    const padding = Math.max(range * 0.2, 1)
+    
+    // Calculate domain with padding
+    let domainMin = Math.floor(minVal - padding)
+    let domainMax = Math.ceil(maxVal + padding)
+    
+    // Cap minimum domain at -150% to prevent extreme distortion
+    const MAX_NEGATIVE = -150
+    if (domainMin < MAX_NEGATIVE) {
+      domainMin = MAX_NEGATIVE
+    }
+    
+    // Ensure 0% is visible when data spans both positive and negative
+    // If data crosses zero, ensure zero is included with some padding
+    if (minVal < 0 && maxVal > 0) {
+      // Data spans both sides of zero - ensure zero is visible with padding
+      if (domainMin >= 0) domainMin = Math.floor(-padding)
+      if (domainMax <= 0) domainMax = Math.ceil(padding)
+    }
+    
+    // Handle edge case: if all values are very close, ensure minimum range
+    if (domainMax - domainMin < 5) {
+      const center = (domainMin + domainMax) / 2
+      domainMin = Math.floor(center - 2.5)
+      domainMax = Math.ceil(center + 2.5)
+    }
 
     return [domainMin, domainMax]
   }

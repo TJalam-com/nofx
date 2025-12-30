@@ -120,8 +120,26 @@ export default function AILearning({ traderId }: AILearningProps) {
   }
 
   const symbolStats = performance.symbol_stats || {}
-  const symbolStatsList = Object.values(symbolStats)
-    .filter((stat) => stat != null)
+  
+  // Deduplicate symbol stats by symbol (in case backend returns duplicates)
+  const symbolStatsMap = new Map<string, SymbolPerformance>()
+  Object.values(symbolStats).forEach((stat) => {
+    if (!stat || !stat.symbol) return
+    
+    const existing = symbolStatsMap.get(stat.symbol)
+    if (!existing) {
+      symbolStatsMap.set(stat.symbol, stat)
+    } else {
+      // If duplicate found, keep the one with more trades or better total PnL
+      if (stat.total_trades > existing.total_trades || 
+          (stat.total_trades === existing.total_trades && stat.total_pn_l > existing.total_pn_l)) {
+        symbolStatsMap.set(stat.symbol, stat)
+      }
+    }
+  })
+  
+  const symbolStatsList = Array.from(symbolStatsMap.values())
+    .filter((stat) => stat != null && stat.symbol)
     .sort((a, b) => (b.total_pn_l || 0) - (a.total_pn_l || 0))
 
   return (
@@ -852,12 +870,40 @@ export default function AILearning({ traderId }: AILearningProps) {
           >
             {performance?.recent_trades &&
             performance.recent_trades.length > 0 ? (
-              performance.recent_trades.map(
-                (trade: TradeOutcome, idx: number) => {
-                  const isProfitable = trade.pn_l >= 0
-                  const isRecent = idx === 0
-                  // Create a stable unique key using trade properties
-                  const tradeKey = `${trade.symbol}-${trade.close_time}-${trade.open_time}-${trade.open_price}-${trade.close_price}`
+              (() => {
+                // Deduplicate recent trades
+                const seenTrades = new Map<string, TradeOutcome>()
+                const uniqueTrades: TradeOutcome[] = []
+                
+                performance.recent_trades.forEach((trade: TradeOutcome) => {
+                  // Create a unique key based on trade properties
+                  const tradeKey = `${trade.symbol}-${trade.side}-${trade.open_time}-${trade.close_time}-${trade.open_price}-${trade.close_price}-${trade.quantity || 0}`
+                  
+                  if (!seenTrades.has(tradeKey)) {
+                    seenTrades.set(tradeKey, trade)
+                    uniqueTrades.push(trade)
+                  } else {
+                    // If duplicate found, keep the one with more recent close_time
+                    const existing = seenTrades.get(tradeKey)!
+                    const existingTime = existing.close_time ? new Date(existing.close_time).getTime() : 0
+                    const currentTime = trade.close_time ? new Date(trade.close_time).getTime() : 0
+                    
+                    if (currentTime > existingTime) {
+                      const index = uniqueTrades.indexOf(existing)
+                      if (index !== -1) {
+                        uniqueTrades[index] = trade
+                        seenTrades.set(tradeKey, trade)
+                      }
+                    }
+                  }
+                })
+                
+                return uniqueTrades.map(
+                  (trade: TradeOutcome, idx: number) => {
+                    const isProfitable = trade.pn_l >= 0
+                    const isRecent = idx === 0
+                    // Create a stable unique key using trade properties
+                    const tradeKey = `${trade.symbol}-${trade.close_time}-${trade.open_time}-${trade.open_price}-${trade.close_price}`
 
                   return (
                     <div
@@ -1048,8 +1094,8 @@ export default function AILearning({ traderId }: AILearningProps) {
                       </div>
                     </div>
                   )
-                }
-              )
+                })
+              })()
             ) : (
               <div className="p-6 text-center">
                 <div className="mb-2 flex justify-center opacity-50">
