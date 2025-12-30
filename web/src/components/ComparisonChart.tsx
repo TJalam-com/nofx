@@ -96,16 +96,60 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
       }
     >()
 
-    // Calculate initial balance per trader (from first data point) for fallback calculation
+    // Calculate initial balance per trader - improved detection
     const traderInitialBalances = new Map<string, number>()
     traderHistories.forEach((history, index) => {
       const trader = traders[index]
       if (!history.data || history.data.length === 0) return
 
-      // Get initial balance from first data point (assuming it represents 0% PnL)
-      const firstPoint = history.data[0]
-      if (firstPoint && firstPoint.total_equity != null && firstPoint.total_equity > 0) {
-        traderInitialBalances.set(trader.trader_id, firstPoint.total_equity)
+      // Strategy: Find the best initial balance estimate
+      // 1. Look for data points with total_pnl_pct close to 0% (within ±1%)
+      // 2. If found, use that point's equity as initial balance
+      // 3. Otherwise, find the point with the smallest absolute PnL percentage
+      // 4. Fallback to first point only if it seems valid
+      
+      let bestInitialBalance: number | null = null
+      let bestPnLPct = Infinity
+      
+      for (const point of history.data) {
+        if (!point || point.total_equity == null || point.total_equity <= 0) continue
+        
+        const pnlPct = point.total_pnl_pct != null && !isNaN(point.total_pnl_pct) 
+          ? point.total_pnl_pct 
+          : null
+        
+        // Prefer points with PnL close to 0%
+        if (pnlPct != null && Math.abs(pnlPct) < 1) {
+          // Found a point very close to 0% - use it
+          bestInitialBalance = point.total_equity
+          break
+        }
+        
+        // Track the point with smallest absolute PnL percentage
+        if (pnlPct != null && Math.abs(pnlPct) < Math.abs(bestPnLPct)) {
+          bestPnLPct = pnlPct
+          bestInitialBalance = point.total_equity
+        }
+      }
+      
+      // Fallback: use first point if no better option found, but validate it
+      if (bestInitialBalance == null) {
+        const firstPoint = history.data[0]
+        if (firstPoint && firstPoint.total_equity != null && firstPoint.total_equity > 0) {
+          // Only use first point if it seems reasonable (not already at extreme loss)
+          const firstPnLPct = firstPoint.total_pnl_pct != null && !isNaN(firstPoint.total_pnl_pct)
+            ? firstPoint.total_pnl_pct
+            : null
+          
+          // Only use if PnL is not already at extreme loss (> -50%)
+          if (firstPnLPct == null || firstPnLPct > -50) {
+            bestInitialBalance = firstPoint.total_equity
+          }
+        }
+      }
+      
+      if (bestInitialBalance != null && bestInitialBalance > 0) {
+        traderInitialBalances.set(trader.trader_id, bestInitialBalance)
       }
     })
 
@@ -140,27 +184,78 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
           })
         }
 
+        // Validate data point before processing
+        // Skip invalid data points
+        if (!point || point.total_equity == null || isNaN(point.total_equity) || point.total_equity <= 0) {
+          return // Skip invalid equity values
+        }
+        
         // Use backend returned PnL percentage if available and valid, otherwise calculate from equity
-        let pnlPct = 0
-        if (
-          point.total_pnl_pct != null &&
-          !isNaN(point.total_pnl_pct) &&
-          isFinite(point.total_pnl_pct)
-        ) {
-          // Backend provided valid total_pnl_pct, use it
-          pnlPct = point.total_pnl_pct
-        } else {
-          // Backend didn't provide total_pnl_pct, calculate from equity
+        let pnlPct: number | null = null
+        const backendPnLPct = point.total_pnl_pct != null && !isNaN(point.total_pnl_pct) && isFinite(point.total_pnl_pct)
+          ? point.total_pnl_pct
+          : null
+        
+        if (backendPnLPct != null) {
+          // Backend provided total_pnl_pct - validate it's reasonable
+          // Cap at reasonable bounds: -150% to +1000% (allows for some leverage losses but filters extreme corruption)
+          if (backendPnLPct >= -150 && backendPnLPct <= 1000) {
+            pnlPct = backendPnLPct
+          } else {
+            // Backend value is outside reasonable bounds - log warning and recalculate
+            console.warn(
+              `[ComparisonChart] Suspicious backend PnL% for trader ${trader.trader_id}: ${backendPnLPct.toFixed(2)}%, recalculating from equity`
+            )
+          }
+        }
+        
+        // If backend value wasn't used, calculate from equity
+        if (pnlPct == null) {
           const initialBalance = traderInitialBalances.get(trader.trader_id)
           if (
             initialBalance != null &&
             initialBalance > 0 &&
             point.total_equity != null &&
-            !isNaN(point.total_equity)
+            !isNaN(point.total_equity) &&
+            point.total_equity > 0
           ) {
             const pnl = point.total_equity - initialBalance
             pnlPct = (pnl / initialBalance) * 100
+            
+            // Validate calculated value is reasonable
+            if (pnlPct < -150 || pnlPct > 1000) {
+              // Calculated value is also unreasonable - skip this data point
+              console.warn(
+                `[ComparisonChart] Skipping corrupted data point for trader ${trader.trader_id}: calculated PnL% = ${pnlPct.toFixed(2)}%, equity=${point.total_equity}, initial=${initialBalance}`
+              )
+              return // Skip this corrupted data point
+            }
+          } else {
+            // Cannot calculate - skip this point
+            return
           }
+        }
+        
+        // Final validation: ensure we have a valid percentage
+        if (pnlPct == null || isNaN(pnlPct) || !isFinite(pnlPct)) {
+          return // Skip invalid percentage
+        }
+        
+        // Apply final bounds check and cap if needed (for display purposes)
+        // Values beyond -150% are likely data corruption
+        if (pnlPct < -150) {
+          console.warn(
+            `[ComparisonChart] Capping extreme PnL% for trader ${trader.trader_id}: ${pnlPct.toFixed(2)}% -> -150%`
+          )
+          pnlPct = -150
+        }
+        
+        // Cap extremely high values as well (likely data corruption)
+        if (pnlPct > 1000) {
+          console.warn(
+            `[ComparisonChart] Capping extreme PnL% for trader ${trader.trader_id}: ${pnlPct.toFixed(2)}% -> 1000%`
+          )
+          pnlPct = 1000
         }
 
         // If multiple data points map to same normalized timestamp, use the latest one
