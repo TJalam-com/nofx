@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X as IconX, Settings, Info, ChevronDown, ChevronUp, FileText, Save, Download } from 'lucide-react'
+import { X as IconX, Settings, Info, ChevronDown, ChevronUp, FileText, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../lib/api'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -211,7 +211,7 @@ export function StrategyEditorModal({
   }
 
   const handleSaveAsTemplate = () => {
-    if (!formData.custom_prompt.trim()) {
+    if (!formData.custom_prompt || !formData.custom_prompt.trim()) {
       toast.error(language === 'zh' ? '请先输入自定义提示词' : 'Please enter custom prompt first')
       return
     }
@@ -869,7 +869,7 @@ export function StrategyEditorModal({
                     placeholder={getCustomPromptPlaceholder()}
                   />
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    {formData.custom_prompt.trim() && (
+                    {formData.custom_prompt && formData.custom_prompt.trim() && (
                       <button
                         onClick={handleSaveAsTemplate}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-200 font-medium"
