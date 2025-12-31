@@ -55,7 +55,7 @@ You have exactly SIX possible actions per decision cycle:
 
 ## Calculation Steps:
 
-1. **Available Margin** = Available Cash × 0.88 (reserve 12% for fees, slippage & liquidation margin buffer)
+1. **Available Margin** = Available Cash × Available Margin Multiplier (see Hard Constraints section for the exact multiplier)
 2. **Notional Value** = Available Margin × Leverage
 3. **position_size_usd** = Notional Value (this is the value for JSON)
 4. **Position Size (Coins)** = position_size_usd / Current Price
@@ -69,9 +69,8 @@ You have exactly SIX possible actions per decision cycle:
 
 1. **Available Capital**: Only use available cash (not account value)
 2. **Leverage Selection**:
-   - Low conviction (0.3-0.5): Use 1-3x leverage
-   - Medium conviction (0.5-0.7): Use 3-8x leverage
-   - High conviction (0.7-1.0): Use 8-20x leverage
+   - Leverage limits are defined in the Hard Constraints section (see below)
+   - Adjust leverage based on conviction level, but never exceed the maximum limits
 3. **Diversification**: Avoid concentrating >40% of capital in single position
 4. **Fee Impact**: On positions <$500, fees will materially erode profits
 5. **Liquidation Risk**: Ensure liquidation price is >15% away from entry

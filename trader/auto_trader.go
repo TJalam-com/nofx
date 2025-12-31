@@ -1,21 +1,24 @@
 package trader
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math"
+	"os"
 	cfg "nofx/config"
 	"nofx/decision"
 	"nofx/logger"
 	"nofx/market"
 	"nofx/mcp"
 	"nofx/pool"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/adshao/go-binance/v2/futures"
 )
 
 // AutoTraderConfig automatic trading configuration (simplified version - AI makes all decisions)
@@ -700,30 +703,6 @@ func (at *AutoTrader) runCycle() error {
 	// 5. Load strategy config
 	strategyConfig := at.getStrategyConfig()
 
-	// #region agent log
-	// Log what template and prompts are being used
-	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logData := map[string]interface{}{
-			"location": "auto_trader.go:704",
-			"message":  "Before calling AI with strategy settings",
-			"data": map[string]interface{}{
-				"trader_id":              at.id,
-				"strategy_id":            at.strategyID,
-				"system_prompt_template": at.systemPromptTemplate,
-				"custom_prompt":          at.customPrompt,
-				"override_base_prompt":   at.overrideBasePrompt,
-			},
-			"timestamp":    time.Now().UnixMilli(),
-			"sessionId":    "debug-session",
-			"runId":        "run1",
-			"hypothesisId": "D",
-		}
-		json.NewEncoder(logFile).Encode(logData)
-		logFile.Close()
-	}
-	// #endregion
-
 	// 6. Call AI to get full decision
 	log.Printf("🤖 Requesting AI analysis and decision... [Template: %s]", at.systemPromptTemplate)
 	decision, err := decision.GetFullDecisionWithCustomPrompt(ctx, at.mcpClient, at.customPrompt, at.overrideBasePrompt, at.systemPromptTemplate, strategyConfig)
@@ -1294,15 +1273,79 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 
 	// Set stop loss and take profit first (before saving to DB so we have the actual prices)
 	var stopLossPrice, takeProfitPrice float64
+	// #region agent log
+	func() {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+			logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1272","message":"SetStopLoss called","data":{"symbol":"%s","quantity":%.4f,"stopLoss":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, actualExecutedQty, decision.StopLoss)
+			logFile.WriteString(logEntry)
+		}
+	}()
+	// #endregion
 	if err := at.trader.SetStopLoss(decision.Symbol, "LONG", actualExecutedQty, decision.StopLoss); err != nil {
 		log.Printf("  ⚠ Failed to set stop loss: %v", err)
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1273","message":"SetStopLoss failed","data":{"symbol":"%s","error":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, err.Error())
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 	} else {
 		stopLossPrice = decision.StopLoss
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1275","message":"SetStopLoss succeeded but no order ID captured","data":{"symbol":"%s","stopLossPrice":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, stopLossPrice)
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
+		// Query and save pending stop-loss order immediately after creation
+		at.queryAndSavePendingSLTPOrder(decision.Symbol, "long", "stop_loss", stopLossPrice, actualExecutedQty)
 	}
+	// #region agent log
+	func() {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+			logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1277","message":"SetTakeProfit called","data":{"symbol":"%s","quantity":%.4f,"takeProfit":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, actualExecutedQty, decision.TakeProfit)
+			logFile.WriteString(logEntry)
+		}
+	}()
+	// #endregion
 	if err := at.trader.SetTakeProfit(decision.Symbol, "LONG", actualExecutedQty, decision.TakeProfit); err != nil {
 		log.Printf("  ⚠ Failed to set take profit: %v", err)
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1278","message":"SetTakeProfit failed","data":{"symbol":"%s","error":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, err.Error())
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 	} else {
 		takeProfitPrice = decision.TakeProfit
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1280","message":"SetTakeProfit succeeded but no order ID captured","data":{"symbol":"%s","takeProfitPrice":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, takeProfitPrice)
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
+		// Query and save pending take-profit order immediately after creation
+		at.queryAndSavePendingSLTPOrder(decision.Symbol, "long", "take_profit", takeProfitPrice, actualExecutedQty)
 	}
 
 	// Save position record to database (including SL/TP prices)
@@ -1324,6 +1367,16 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 	at.updatePositionSnapshot()
 
 	// Check if position was immediately closed (e.g., by SL/TP) and update database
+	// #region agent log
+	func() {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+			logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1302","message":"checkAndUpdatePositionClosure called","data":{"symbol":"%s","side":"long","hypothesisId":"E"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol)
+			logFile.WriteString(logEntry)
+		}
+	}()
+	// #endregion
 	at.checkAndUpdatePositionClosure(decision.Symbol, "long")
 
 	return nil
@@ -1510,11 +1563,15 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 		log.Printf("  ⚠ Failed to set stop loss: %v", err)
 	} else {
 		stopLossPrice = decision.StopLoss
+		// Query and save pending stop-loss order immediately after creation
+		at.queryAndSavePendingSLTPOrder(decision.Symbol, "short", "stop_loss", stopLossPrice, actualExecutedQty)
 	}
 	if err := at.trader.SetTakeProfit(decision.Symbol, "SHORT", actualExecutedQty, decision.TakeProfit); err != nil {
 		log.Printf("  ⚠ Failed to set take profit: %v", err)
 	} else {
 		takeProfitPrice = decision.TakeProfit
+		// Query and save pending take-profit order immediately after creation
+		at.queryAndSavePendingSLTPOrder(decision.Symbol, "short", "take_profit", takeProfitPrice, actualExecutedQty)
 	}
 
 	// Save position record to database (including SL/TP prices)
@@ -1536,6 +1593,16 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 	at.updatePositionSnapshot()
 
 	// Check if position was immediately closed (e.g., by SL/TP) and update database
+	// #region agent log
+	func() {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+			logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1585","message":"checkAndUpdatePositionClosure called","data":{"symbol":"%s","side":"short","hypothesisId":"E"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol)
+			logFile.WriteString(logEntry)
+		}
+	}()
+	// #endregion
 	at.checkAndUpdatePositionClosure(decision.Symbol, "short")
 
 	return nil
@@ -1681,6 +1748,8 @@ func (at *AutoTrader) executeCloseLongWithRecord(decision *decision.Decision, ac
 				log.Printf("  ⚠ Warning: Failed to save position record: %v", err)
 			}
 		}
+		// Cleanup pending orders for this position (SL/TP orders no longer needed after manual close)
+		at.cleanupPendingOrdersForPosition(decision.Symbol, "long")
 	}
 
 	log.Printf("  ✓ Position closed successfully: entry=%.4f, exit=%.4f, pnl=%.4f", entryPrice, actualFillPrice, realizedPnL)
@@ -1689,12 +1758,100 @@ func (at *AutoTrader) executeCloseLongWithRecord(decision *decision.Decision, ac
 
 // CloseLong manually close long position (public method for API calls)
 func (at *AutoTrader) CloseLong(symbol string, quantity float64) (map[string]interface{}, error) {
-	return at.trader.CloseLong(symbol, quantity)
+	result, err := at.trader.CloseLong(symbol, quantity)
+	if err == nil {
+		// Save position record to database with closed_at timestamp
+		if db, ok := at.database.(*cfg.Database); ok && db != nil {
+			closedAt := time.Now()
+			// Try to find existing open position record to update
+			openPositions, err := db.GetOpenPositions(at.id)
+			if err == nil {
+				for _, pos := range openPositions {
+					if pos.Symbol == symbol && pos.Side == "long" {
+						// Get exit price from order status or use current market price
+						exitPrice := pos.EntryPrice // Default to entry price if not available
+						orderIDStr := ""
+						if orderID, ok := result["orderId"].(int64); ok {
+							orderIDStr = fmt.Sprintf("%d", orderID)
+							// Try to get order status to get actual fill price
+							if orderStatus, err := at.trader.GetOrderStatus(symbol, orderIDStr); err == nil {
+								if avgPrice, ok := orderStatus["avgPrice"].(float64); ok && avgPrice > 0 {
+									exitPrice = avgPrice
+								}
+							}
+						}
+						// If still no exit price, use current market price
+						if exitPrice == pos.EntryPrice {
+							if price, err := at.trader.GetMarketPrice(symbol); err == nil {
+								exitPrice = price
+							}
+						}
+						// Calculate realized P&L: (exitPrice - entryPrice) * quantity - fees
+						realizedPnL := (exitPrice-pos.EntryPrice)*pos.Quantity - pos.EntryFee
+						// Update existing position using the exact openedAt from database to ensure ID matches
+						// Use pos.OpenedAt which was read from the database to ensure the position ID matches exactly
+						err := db.SavePosition(at.id, symbol, "long", pos.EntryPrice, exitPrice, pos.Quantity, pos.EntryFee, 0, realizedPnL, pos.Leverage, pos.OrderIDOpen, orderIDStr, pos.OpenedAt, &closedAt, pos.StopLossPrice, pos.TakeProfitPrice)
+						if err != nil {
+							log.Printf("  ⚠ Warning: Failed to update position record: %v", err)
+						}
+						break
+					}
+				}
+			}
+		}
+		// Cleanup pending orders for this position (SL/TP orders no longer needed after manual close)
+		at.cleanupPendingOrdersForPosition(symbol, "long")
+	}
+	return result, err
 }
 
 // CloseShort manually close short position (public method for API calls)
 func (at *AutoTrader) CloseShort(symbol string, quantity float64) (map[string]interface{}, error) {
-	return at.trader.CloseShort(symbol, quantity)
+	result, err := at.trader.CloseShort(symbol, quantity)
+	if err == nil {
+		// Save position record to database with closed_at timestamp
+		if db, ok := at.database.(*cfg.Database); ok && db != nil {
+			closedAt := time.Now()
+			// Try to find existing open position record to update
+			openPositions, err := db.GetOpenPositions(at.id)
+			if err == nil {
+				for _, pos := range openPositions {
+					if pos.Symbol == symbol && pos.Side == "short" {
+						// Get exit price from order status or use current market price
+						exitPrice := pos.EntryPrice // Default to entry price if not available
+						orderIDStr := ""
+						if orderID, ok := result["orderId"].(int64); ok {
+							orderIDStr = fmt.Sprintf("%d", orderID)
+							// Try to get order status to get actual fill price
+							if orderStatus, err := at.trader.GetOrderStatus(symbol, orderIDStr); err == nil {
+								if avgPrice, ok := orderStatus["avgPrice"].(float64); ok && avgPrice > 0 {
+									exitPrice = avgPrice
+								}
+							}
+						}
+						// If still no exit price, use current market price
+						if exitPrice == pos.EntryPrice {
+							if price, err := at.trader.GetMarketPrice(symbol); err == nil {
+								exitPrice = price
+							}
+						}
+						// Calculate realized P&L: (entryPrice - exitPrice) * quantity - fees
+						realizedPnL := (pos.EntryPrice-exitPrice)*pos.Quantity - pos.EntryFee
+						// Update existing position using the exact openedAt from database to ensure ID matches
+						// Use pos.OpenedAt which was read from the database to ensure the position ID matches exactly
+						err := db.SavePosition(at.id, symbol, "short", pos.EntryPrice, exitPrice, pos.Quantity, pos.EntryFee, 0, realizedPnL, pos.Leverage, pos.OrderIDOpen, orderIDStr, pos.OpenedAt, &closedAt, pos.StopLossPrice, pos.TakeProfitPrice)
+						if err != nil {
+							log.Printf("  ⚠ Warning: Failed to update position record: %v", err)
+						}
+						break
+					}
+				}
+			}
+		}
+		// Cleanup pending orders for this position (SL/TP orders no longer needed after manual close)
+		at.cleanupPendingOrdersForPosition(symbol, "short")
+	}
+	return result, err
 }
 
 // executeCloseShortWithRecord executes close short position and records detailed information
@@ -1837,6 +1994,8 @@ func (at *AutoTrader) executeCloseShortWithRecord(decision *decision.Decision, a
 				log.Printf("  ⚠ Warning: Failed to save position record: %v", err)
 			}
 		}
+		// Cleanup pending orders for this position (SL/TP orders no longer needed after manual close)
+		at.cleanupPendingOrdersForPosition(decision.Symbol, "short")
 	}
 
 	log.Printf("  ✓ Position closed successfully: entry=%.4f, exit=%.4f, pnl=%.4f", entryPrice, actualFillPrice, realizedPnL)
@@ -2319,7 +2478,7 @@ func (at *AutoTrader) getStrategyConfig() decision.StrategyConfig {
 		}
 
 		// Convert StrategyRecord to StrategyConfig
-		return decision.StrategyConfigFromFields(
+		config := decision.StrategyConfigFromFields(
 			strategy.MinRiskRewardRatio,
 			strategy.MarginUsageLimit,
 			strategy.MinOpeningAmount,
@@ -2334,6 +2493,16 @@ func (at *AutoTrader) getStrategyConfig() decision.StrategyConfig {
 			strategy.MinHoldingTimeMinutes,
 			strategy.SharpeRatioConfig,
 		)
+
+		// Defensive check: Ensure strategy values are actually applied
+		// If strategy has a valid RR ratio, it must be used (even if it's different from default)
+		if strategy.MinRiskRewardRatio > 0 && config.MinRiskRewardRatio != strategy.MinRiskRewardRatio {
+			log.Printf("⚠️ [%s] Strategy RR ratio mismatch! Strategy has %.2f but config has %.2f, forcing strategy value", 
+				at.name, strategy.MinRiskRewardRatio, config.MinRiskRewardRatio)
+			config.MinRiskRewardRatio = strategy.MinRiskRewardRatio
+		}
+
+		return config
 	}
 
 	// Database not available or wrong type, return defaults
@@ -3021,10 +3190,30 @@ func (at *AutoTrader) isPositionAlreadyClosedInDB(db *cfg.Database, position *cf
 
 // detectAndLogPositionClosures detects positions that were closed by SL/TP and logs them as auto-close actions
 func (at *AutoTrader) detectAndLogPositionClosures() {
+	// #region agent log
+	func() {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+			logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3089","message":"detectAndLogPositionClosures called","data":{"hypothesisId":"C"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli())
+			logFile.WriteString(logEntry)
+		}
+	}()
+	// #endregion
 	// Get current positions
 	currentPositions, err := at.trader.GetPositions()
 	if err != nil {
 		log.Printf("⚠️ Position closure detection: failed to get positions: %v", err)
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3093","message":"GetPositions failed in detectAndLogPositionClosures","data":{"error":"%s","hypothesisId":"C"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), err.Error())
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 		return
 	}
 
@@ -3685,6 +3874,141 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 	at.previousPositionsMutex.Unlock()
 }
 
+// queryAndSavePendingSLTPOrder queries open algo orders (for Binance) and saves them to pending_orders
+// This is called immediately after SetStopLoss/SetTakeProfit to capture order IDs
+func (at *AutoTrader) queryAndSavePendingSLTPOrder(symbol, positionSide, orderType string, triggerPrice, quantity float64) {
+	// #region agent log
+	func() {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+			logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3787","message":"queryAndSavePendingSLTPOrder called","data":{"symbol":"%s","positionSide":"%s","orderType":"%s","triggerPrice":%.4f,"quantity":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, positionSide, orderType, triggerPrice, quantity)
+			logFile.WriteString(logEntry)
+		}
+	}()
+	// #endregion
+	// Only works for Binance Futures - check if trader is FuturesTrader
+	binanceTrader, ok := at.trader.(*FuturesTrader)
+	if !ok {
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3792","message":"queryAndSavePendingSLTPOrder: not Binance trader, skipping","data":{"symbol":"%s","orderType":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, orderType)
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
+		// Not Binance, skip (other exchanges will be handled by order history detection)
+		return
+	}
+
+	// Wait a short time for order to appear in open orders
+	time.Sleep(500 * time.Millisecond)
+
+	// Query open algo orders for this symbol
+	// Access client field (same package, so we can access it)
+	algoOrders, err := binanceTrader.client.NewListOpenAlgoOrdersService().
+		Symbol(symbol).
+		Do(context.Background())
+	if err != nil {
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3803","message":"queryAndSavePendingSLTPOrder: failed to query algo orders","data":{"symbol":"%s","error":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, err.Error())
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
+		log.Printf("  ⚠ Failed to query open algo orders for %s: %v", symbol, err)
+		return
+	}
+	// #region agent log
+	func() {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+			logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3807","message":"queryAndSavePendingSLTPOrder: queried algo orders","data":{"symbol":"%s","algoOrderCount":%d,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, len(algoOrders))
+			logFile.WriteString(logEntry)
+		}
+	}()
+	// #endregion
+
+	// Find matching order by type and approximate trigger price (within 0.1% tolerance)
+	var matchedOrderIndex int = -1
+	for i := range algoOrders {
+		algoOrder := algoOrders[i]
+		isMatch := false
+		if orderType == "stop_loss" {
+			isMatch = (algoOrder.OrderType == futures.AlgoOrderTypeStopMarket || algoOrder.OrderType == futures.AlgoOrderTypeStop)
+		} else if orderType == "take_profit" {
+			isMatch = (algoOrder.OrderType == futures.AlgoOrderTypeTakeProfitMarket || algoOrder.OrderType == futures.AlgoOrderTypeTakeProfit)
+		}
+
+		if isMatch {
+			// Check position side matches
+			posSideMatch := false
+			if positionSide == "long" {
+				posSideMatch = (algoOrder.PositionSide == futures.PositionSideTypeLong)
+			} else if positionSide == "short" {
+				posSideMatch = (algoOrder.PositionSide == futures.PositionSideTypeShort)
+			}
+
+			if posSideMatch {
+				// Check trigger price matches (within 0.1% tolerance)
+				triggerPriceFloat, err := strconv.ParseFloat(algoOrder.TriggerPrice, 64)
+				if err == nil {
+					priceDiff := math.Abs(triggerPriceFloat - triggerPrice)
+					priceTolerance := triggerPrice * 0.001 // 0.1% tolerance
+					if priceDiff <= priceTolerance {
+						matchedOrderIndex = i
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if matchedOrderIndex >= 0 {
+		// Extract order details
+		matchedOrder := algoOrders[matchedOrderIndex]
+		orderID := fmt.Sprintf("%d", matchedOrder.AlgoId)
+		triggerPriceFloat, _ := strconv.ParseFloat(matchedOrder.TriggerPrice, 64)
+		// Use the quantity parameter passed to the function, not algoOrder.Quantity (which may be empty)
+		// The quantity parameter is the actual position quantity that was used when creating the SL/TP order
+		quantityFloat := quantity
+
+		// Save to pending_orders
+		at.savePendingOrderToDB(symbol, positionSide, orderType, triggerPriceFloat, quantityFloat, orderID, "")
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3852","message":"queryAndSavePendingSLTPOrder: saved pending order","data":{"symbol":"%s","orderType":"%s","orderID":"%s","triggerPrice":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, orderType, orderID, triggerPriceFloat)
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
+		log.Printf("  ✓ Saved pending %s order to database: orderID=%s, trigger=%.4f", orderType, orderID, triggerPriceFloat)
+	} else {
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3854","message":"queryAndSavePendingSLTPOrder: no matching order found","data":{"symbol":"%s","orderType":"%s","positionSide":"%s","triggerPrice":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, orderType, positionSide, triggerPrice)
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
+		log.Printf("  ⚠ Could not find matching %s algo order for %s %s (trigger=%.4f) in open orders", orderType, symbol, positionSide, triggerPrice)
+	}
+}
+
 // savePendingOrderToDB saves a pending order (unfilled SL/TP/limit) to the pending_orders table
 // This ensures unfilled orders are tracked separately from positions
 func (at *AutoTrader) savePendingOrderToDB(symbol, side, orderType string, triggerPrice, quantity float64, exchangeOrderID, parentPositionID string) {
@@ -3710,24 +4034,94 @@ func (at *AutoTrader) savePendingOrderToDB(symbol, side, orderType string, trigg
 		UpdatedAt:        time.Now(),
 	}
 
+	// #region agent log
+	func() {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+			logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3698","message":"savePendingOrderToDB called","data":{"symbol":"%s","side":"%s","orderType":"%s","triggerPrice":%.4f,"quantity":%.4f,"exchangeOrderID":"%s","hypothesisId":"B"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, side, orderType, triggerPrice, quantity, exchangeOrderID)
+			logFile.WriteString(logEntry)
+		}
+	}()
+	// #endregion
 	if err := db.SavePendingOrder(order); err != nil {
 		log.Printf("⚠️ Failed to save pending order to database: %v", err)
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3699","message":"SavePendingOrder failed","data":{"symbol":"%s","error":"%s","hypothesisId":"B"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, err.Error())
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 	} else {
 		log.Printf("✓ Saved pending order to database: %s %s %s (trigger=%.4f, qty=%.4f)", symbol, side, orderType, triggerPrice, quantity)
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3701","message":"SavePendingOrder succeeded","data":{"symbol":"%s","orderID":"%s","hypothesisId":"B"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, orderID)
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 	}
 }
 
 // cleanupPendingOrdersForPosition removes all pending orders for a position when it's closed
 // This should be called when a position is fully closed (by SL/TP, manual close, or other means)
 func (at *AutoTrader) cleanupPendingOrdersForPosition(symbol, side string) {
+	// #region agent log
+	func() {
+		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+			logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3982","message":"cleanupPendingOrdersForPosition called","data":{"symbol":"%s","side":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, side)
+			logFile.WriteString(logEntry)
+		}
+	}()
+	// #endregion
 	db, ok := at.database.(*cfg.Database)
 	if !ok || db == nil {
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3986","message":"cleanupPendingOrdersForPosition: database not available","data":{"symbol":"%s","side":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, side)
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 		return
 	}
 
 	if err := db.DeletePendingOrdersForPosition(at.id, symbol, side); err != nil {
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3990","message":"cleanupPendingOrdersForPosition: failed","data":{"symbol":"%s","side":"%s","error":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, side, err.Error())
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 		log.Printf("⚠️ Failed to cleanup pending orders for %s %s: %v", symbol, side, err)
 	} else {
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3992","message":"cleanupPendingOrdersForPosition: succeeded","data":{"symbol":"%s","side":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, side)
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 		log.Printf("✓ Cleaned up pending orders for %s %s", symbol, side)
 	}
 }
@@ -3765,14 +4159,44 @@ func (at *AutoTrader) DetectAndLogPositionClosuresFromOrderHistory() {
 
 	// Query order history for each symbol
 	for symbol := range symbols {
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3754","message":"GetOrderHistory called","data":{"symbol":"%s","limit":100,"hypothesisId":"D"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol)
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 		// Try to get order history (if method exists)
 		orders, err := at.trader.GetOrderHistory(symbol, 100, &startTime, &endTime)
 		if err != nil {
 			// Some exchanges don't support order history (e.g., Hyperliquid)
 			// Skip silently - we'll use position snapshot method instead
+			// #region agent log
+			func() {
+				logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if logFile != nil {
+					defer logFile.Close()
+					logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3755","message":"GetOrderHistory failed","data":{"symbol":"%s","error":"%s","hypothesisId":"D"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, err.Error())
+					logFile.WriteString(logEntry)
+				}
+			}()
+			// #endregion
 			continue
 		}
 
+		// #region agent log
+		func() {
+			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if logFile != nil {
+				defer logFile.Close()
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3761","message":"GetOrderHistory result","data":{"symbol":"%s","orderCount":%d,"hypothesisId":"D"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, len(orders))
+				logFile.WriteString(logEntry)
+			}
+		}()
+		// #endregion
 		if len(orders) == 0 {
 			continue
 		}
@@ -3793,6 +4217,16 @@ func (at *AutoTrader) DetectAndLogPositionClosuresFromOrderHistory() {
 
 			// CRITICAL: Only process FILLED orders as position closures
 			// Unfilled orders should be tracked in pending_orders table, NOT as closed positions
+			// #region agent log
+			func() {
+				logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if logFile != nil {
+					defer logFile.Close()
+					logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:3781","message":"Processing order from history","data":{"symbol":"%s","orderType":"%s","status":"%s","hypothesisId":"C"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), symbol, orderType, status)
+					logFile.WriteString(logEntry)
+				}
+			}()
+			// #endregion
 			if status != "FILLED" {
 				// Track unfilled orders in pending_orders table (for reference only)
 				// This ensures they don't appear as closed positions

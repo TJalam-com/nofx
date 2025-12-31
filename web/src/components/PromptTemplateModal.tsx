@@ -10,6 +10,7 @@ interface PromptTemplateModalProps {
   isOpen: boolean
   onClose: () => void
   template?: PromptTemplate | null
+  initialContent?: string
   onSave?: () => void
   onDelete?: () => void
   onSelectTemplate?: (templateId: string | null) => void
@@ -19,6 +20,7 @@ export function PromptTemplateModal({
   isOpen,
   onClose,
   template,
+  initialContent,
   onSave,
   onDelete,
   onSelectTemplate,
@@ -48,14 +50,14 @@ export function PromptTemplateModal({
       setSelectedTemplateForView(null)
     } else {
       setName('')
-      setContent('')
+      setContent(initialContent || '')
       // When creating new, reset to create tab if not copying
       if (!selectedTemplateForView) {
         setActiveTab('create')
       }
       setViewMode('browse')
     }
-  }, [template, isOpen])
+  }, [template, isOpen, initialContent])
 
   // Reset state when modal closes
   useEffect(() => {
@@ -258,12 +260,12 @@ export function PromptTemplateModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
       <div
         className="rounded-xl shadow-2xl max-w-4xl w-full my-8"
-        style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', maxHeight: 'calc(100vh - 4rem)' }}
+        style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)', maxHeight: 'calc(100vh - 4rem)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b sticky top-0 z-10 rounded-t-xl"
-        style={{ borderColor: 'var(--panel-border)', background: 'var(--panel-bg)' }}>
+        style={{ borderColor: 'var(--navy-light)', background: 'var(--navy-dark)' }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#00CC66] to-[#00AA55] flex items-center justify-center" style={{ color: 'var(--navy-primary)' }}>
               <Save className="w-5 h-5" />
@@ -274,7 +276,7 @@ export function PromptTemplateModal({
                   ? t('editTemplate', language) || 'Edit Template'
                   : t('createTemplate', language) || 'Create Template'}
               </h2>
-              <p className="text-sm text-[#848E9C] mt-1">
+              <p className="text-sm mt-1" style={{ color: 'var(--navy-light)' }}>
                 {isEditMode
                   ? t('editTemplateSubtitle', language) || 'Edit your prompt template'
                   : t('createTemplateSubtitle', language) || 'Create a new prompt template'}
@@ -283,8 +285,11 @@ export function PromptTemplateModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg text-[#848E9C] hover:text-[#EAECEF] transition-colors flex items-center justify-center"
-            style={{ '--hover-bg': 'var(--panel-border)' } as React.CSSProperties}
+            className="w-8 h-8 rounded-lg hover:text-[#EAECEF] transition-colors flex items-center justify-center"
+            style={{ 
+              color: 'var(--navy-light)',
+              '--hover-bg': 'var(--navy-light)' 
+            } as React.CSSProperties}
           >
             <IconX className="w-4 h-4" />
           </button>
@@ -292,7 +297,7 @@ export function PromptTemplateModal({
 
         {/* Tabs - Only show when creating new (not editing) */}
         {!isEditMode && (
-          <div className="border-b px-6" style={{ borderColor: 'var(--panel-border)' }}>
+          <div className="border-b px-6" style={{ borderColor: 'var(--navy-light)' }}>
             <div className="flex gap-1">
               <button
                 onClick={() => {
@@ -303,8 +308,9 @@ export function PromptTemplateModal({
                 className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
                   activeTab === 'create'
                     ? 'border-[#00CC66] text-[#00CC66]'
-                    : 'border-transparent text-[#848E9C] hover:text-[#EAECEF]'
+                    : 'border-transparent hover:text-[#EAECEF]'
                 }`}
+                style={activeTab !== 'create' ? { color: 'var(--navy-light)' } : {}}
               >
                 {t('createNew', language) || 'Create New'}
               </button>
@@ -319,8 +325,9 @@ export function PromptTemplateModal({
                 className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
                   activeTab === 'copy'
                     ? 'border-[#00CC66] text-[#00CC66]'
-                    : 'border-transparent text-[#848E9C] hover:text-[#EAECEF]'
+                    : 'border-transparent hover:text-[#EAECEF]'
                 }`}
+                style={activeTab !== 'copy' ? { color: 'var(--navy-light)' } : {}}
               >
                 {t('copyFromTemplate', language) || 'Copy from Template'}
               </button>
@@ -340,19 +347,19 @@ export function PromptTemplateModal({
                 <>
                   {/* Search */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#848E9C]" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--navy-light)' }} />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder={t('searchTemplates', language) || 'Search templates...'}
                       className="w-full pl-10 pr-3 py-2 rounded text-[#EAECEF] focus:border-[#00CC66] focus:outline-none"
-                      style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                      style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
                     />
                   </div>
 
                   {isLoadingTemplates ? (
-                    <div className="text-center py-8 text-[#848E9C]">
+                    <div className="text-center py-8" style={{ color: 'var(--navy-light)' }}>
                       {t('loadingTemplates', language) || 'Loading templates...'}
                     </div>
                   ) : (
@@ -373,22 +380,21 @@ export function PromptTemplateModal({
                                   setViewMode('view')
                                 }}
                                 className="p-4 rounded-lg hover:border-[#00CC66] cursor-pointer transition-colors"
-                                style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                                style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
                               >
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
                                       <h4 className="text-sm font-medium text-[#EAECEF]">{tmpl.name}</h4>
-                                      <span className="px-2 py-0.5 text-xs text-[#848E9C] rounded"
-                                      style={{ background: 'var(--panel-border)' }}>
+                                      <span className="px-2 py-0.5 text-xs rounded" style={{ background: 'var(--navy-light)', color: '#EAECEF' }}>
                                         {t('templateSystem', language) || 'System'}
                                       </span>
                                     </div>
-                                    <p className="text-xs text-[#848E9C] line-clamp-2">
+                                    <p className="text-xs line-clamp-2" style={{ color: 'var(--navy-light)' }}>
                                       {tmpl.content.substring(0, 150)}...
                                     </p>
                                   </div>
-                                  <Eye className="w-4 h-4 text-[#848E9C] ml-2 flex-shrink-0" />
+                                  <Eye className="w-4 h-4 ml-2 flex-shrink-0" style={{ color: 'var(--navy-light)' }} />
                                 </div>
                               </div>
                             ))}
@@ -412,7 +418,7 @@ export function PromptTemplateModal({
                                   setViewMode('view')
                                 }}
                                 className="p-4 rounded-lg hover:border-[#00CC66] cursor-pointer transition-colors"
-                                style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                                style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
                               >
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
@@ -422,14 +428,14 @@ export function PromptTemplateModal({
                                         {t('templateUser', language) || 'User'}
                                       </span>
                                     </div>
-                                    <p className="text-xs text-[#848E9C] line-clamp-2">
+                                    <p className="text-xs line-clamp-2" style={{ color: 'var(--navy-light)' }}>
                                       {tmpl.content.substring(0, 150)}...
                                     </p>
-                                    <p className="text-xs text-[#848E9C] mt-1">
+                                    <p className="text-xs mt-1" style={{ color: 'var(--navy-light)' }}>
                                       {new Date(tmpl.updated_at).toLocaleDateString()}
                                     </p>
                                   </div>
-                                  <Eye className="w-4 h-4 text-[#848E9C] ml-2 flex-shrink-0" />
+                                  <Eye className="w-4 h-4 ml-2 flex-shrink-0" style={{ color: 'var(--navy-light)' }} />
                                 </div>
                               </div>
                             ))}
@@ -438,7 +444,7 @@ export function PromptTemplateModal({
                       )}
 
                       {filteredTemplates.length === 0 && !isLoadingTemplates && (
-                        <div className="text-center py-8 text-[#848E9C]">
+                        <div className="text-center py-8" style={{ color: 'var(--navy-light)' }}>
                           {searchQuery
                             ? t('noTemplatesFound', language) || 'No templates found'
                             : t('noTemplatesAvailable', language) || 'No templates available'}
@@ -456,13 +462,14 @@ export function PromptTemplateModal({
                         setViewMode('browse')
                         setSelectedTemplateForView(null)
                       }}
-                      className="flex items-center gap-2 text-sm text-[#848E9C] hover:text-[#EAECEF] transition-colors"
+                      className="flex items-center gap-2 text-sm hover:text-[#EAECEF] transition-colors"
+                      style={{ color: 'var(--navy-light)' }}
                     >
                       <ArrowLeft className="w-4 h-4" />
                       {t('backToList', language) || 'Back to List'}
                     </button>
 
-                    <div className="p-4 rounded-lg" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
+                    <div className="p-4 rounded-lg" style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}>
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <h3 className="text-lg font-semibold text-[#EAECEF]">{selectedTemplateForView.name}</h3>
@@ -470,15 +477,16 @@ export function PromptTemplateModal({
                             <span
                               className={`px-2 py-0.5 text-xs rounded ${
                                 selectedTemplateForView.is_system
-                                  ? 'text-[#848E9C]'
+                                  ? ''
                                   : 'bg-[#00CC66] bg-opacity-20 text-[#00CC66]'
                               }`}
+                              style={selectedTemplateForView.is_system ? { color: 'var(--navy-light)' } : {}}
                             >
                               {selectedTemplateForView.is_system
                                 ? t('templateSystem', language) || 'System'
                                 : t('templateUser', language) || 'User'}
                             </span>
-                            <span className="text-xs text-[#848E9C]">
+                            <span className="text-xs" style={{ color: 'var(--navy-light)' }}>
                               {t('templateUpdated', language) || 'Updated'}:{' '}
                               {new Date(selectedTemplateForView.updated_at).toLocaleDateString()}
                             </span>
@@ -494,7 +502,7 @@ export function PromptTemplateModal({
                         </button>
                       </div>
 
-                      <div className="mt-4 p-4 rounded-lg" style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}>
+                      <div className="mt-4 p-4 rounded-lg" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
                         <pre className="text-sm text-[#EAECEF] whitespace-pre-wrap font-mono overflow-x-auto">
                           {selectedTemplateForView.content}
                         </pre>
@@ -520,11 +528,11 @@ export function PromptTemplateModal({
                   onChange={(e) => setName(e.target.value)}
                   disabled={isSystemTemplate}
                   className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[#00CC66] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
                   placeholder={t('templateNamePlaceholder', language) || 'Enter template name'}
                 />
                 {isSystemTemplate && (
-                  <p className="text-xs text-[#848E9C] mt-1">
+                  <p className="text-xs mt-1" style={{ color: 'var(--navy-light)' }}>
                     {t('systemTemplateReadOnly', language) || 'System templates are read-only'}
                   </p>
                 )}
@@ -536,7 +544,7 @@ export function PromptTemplateModal({
                   <label className="text-sm text-[#EAECEF]">
                     {t('templateContent', language) || 'Template Content'}
                   </label>
-                  <span className="text-xs text-[#848E9C]">
+                  <span className="text-xs" style={{ color: 'var(--navy-light)' }}>
                     {content.length} {t('characters', language) || 'characters'}
                   </span>
                 </div>
@@ -545,11 +553,11 @@ export function PromptTemplateModal({
                   onChange={(e) => setContent(e.target.value)}
                   disabled={isSystemTemplate}
                   className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[#00CC66] focus:outline-none h-96 resize-y font-mono text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
                   placeholder={t('templateContentPlaceholder', language) || 'Enter template content...'}
                 />
                 {isSystemTemplate && (
-                  <p className="text-xs text-[#848E9C] mt-1">
+                  <p className="text-xs mt-1" style={{ color: 'var(--navy-light)' }}>
                     {t('systemTemplateReadOnly', language) || 'System templates are read-only'}
                   </p>
                 )}
@@ -560,7 +568,7 @@ export function PromptTemplateModal({
 
         {/* Footer */}
         <div className="flex justify-between items-center p-6 border-t sticky bottom-0 z-10 rounded-b-xl"
-        style={{ borderColor: 'var(--panel-border)', background: 'var(--panel-bg)' }}>
+        style={{ borderColor: 'var(--navy-light)', background: 'var(--navy-dark)' }}>
           <div className="flex items-center gap-3">
             {isEditMode && !isSystemTemplate && (
               <button
@@ -576,7 +584,7 @@ export function PromptTemplateModal({
               <button
                 onClick={handleExport}
                 className="px-4 py-2 text-[#EAECEF] rounded-lg transition-colors flex items-center gap-2"
-                style={{ background: 'var(--panel-border)', border: '1px solid var(--panel-border)' }}
+                style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}
               >
                 <Download className="w-4 h-4" />
                 {t('export', language) || 'Export'}
@@ -586,7 +594,7 @@ export function PromptTemplateModal({
               <button
                 onClick={handleImport}
                 className="px-4 py-2 text-[#EAECEF] rounded-lg transition-colors flex items-center gap-2"
-                style={{ background: 'var(--panel-border)', border: '1px solid var(--panel-border)' }}
+                style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}
               >
                 <Upload className="w-4 h-4" />
                 {t('import', language) || 'Import'}
@@ -597,7 +605,7 @@ export function PromptTemplateModal({
             <button
               onClick={onClose}
               className="px-6 py-3 text-[#EAECEF] rounded-lg transition-all duration-200"
-              style={{ background: 'var(--panel-border)', border: '1px solid var(--panel-border)' }}
+              style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}
             >
               {t('cancel', language) || 'Cancel'}
             </button>

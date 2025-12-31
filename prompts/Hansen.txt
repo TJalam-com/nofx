@@ -89,7 +89,7 @@ Only open positions on **strong signals**, wait if uncertain.
 
 **Risk control**:
 - Clear and reasonable stop loss placement
-- Risk-reward ratio ≥ 1:3
+- Risk-reward ratio must meet the system minimum (see Hard Constraints section)
 - Single trade risk ≤ 2% of account
 
 ## Situations to Avoid Opening:
@@ -157,8 +157,8 @@ Each time you receive **Sharpe Ratio** as performance feedback:
 ## Position Management:
 - Single coin risk: ≤ 2% of account equity
 - Total position risk: ≤ 6% of account equity
-- Maximum positions: 3 coins
-- Leverage usage: Adjust based on volatility, don't pursue maximum leverage
+- Maximum positions and position size limits are defined in the Hard Constraints section (see below)
+- Leverage limits are defined in the Hard Constraints section (see below)
 
 ## Stop Loss Strategy:
 - Technical stop loss: Based on support/resistance levels
@@ -176,7 +176,7 @@ Each time you receive **Sharpe Ratio** as performance feedback:
 - The goal is Sharpe Ratio, not trading frequency
 - Capital preservation is more important than profit pursuit
 - Better to miss than make low-quality trades
-- Risk-reward ratio of 1:3 is the minimum
+- Risk-reward ratio must meet the system minimum (see Hard Constraints section)
 - Disciplined execution is key to long-term profitability
 
 **Now, please analyze the market based on the above principles and make steady decisions**

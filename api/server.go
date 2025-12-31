@@ -3620,9 +3620,10 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 			}
 		}()
 		// #endregion
-		closedAtStr := ""
+		var closedAtStrPtr *string
 		if pos.ClosedAt != nil {
-			closedAtStr = pos.ClosedAt.Format("2006-01-02 15:04:05")
+			closedAtStr := pos.ClosedAt.Format("2006-01-02 15:04:05")
+			closedAtStrPtr = &closedAtStr
 		}
 
 		openedAtStr := pos.OpenedAt.Format("2006-01-02 15:04:05")
@@ -3630,7 +3631,11 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 		func() {
 			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if f != nil {
-				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "api/server.go:3461", "message": "After time formatting", "data": map[string]interface{}{"index": i, "openedAtStr": openedAtStr, "closedAtStr": closedAtStr}, "timestamp": time.Now().UnixMilli()})
+				closedAtStrForLog := ""
+				if closedAtStrPtr != nil {
+					closedAtStrForLog = *closedAtStrPtr
+				}
+				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "api/server.go:3461", "message": "After time formatting", "data": map[string]interface{}{"index": i, "openedAtStr": openedAtStr, "closedAtStr": closedAtStrForLog, "closedAtPtrNil": closedAtStrPtr == nil}, "timestamp": time.Now().UnixMilli()})
 				f.Close()
 			}
 		}()
@@ -3750,7 +3755,7 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 			RealizedPnL:     pos.RealizedPnL,
 			Leverage:        pos.Leverage,
 			OpenedAt:         openedAtStr,
-			ClosedAt:        &closedAtStr,
+			ClosedAt:        closedAtStrPtr,
 			OrderIDOpen:     pos.OrderIDOpen,
 			OrderIDClose:    pos.OrderIDClose,
 			StopLossPrice:   pos.StopLossPrice,
@@ -3838,11 +3843,29 @@ func (s *Server) handleClosePosition(c *gin.Context) {
 
 	// Execute close position
 	var result map[string]interface{}
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			defer f.Close()
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "D", "location": "api/server.go:3845", "message": "handleClosePosition: before CloseLong/CloseShort", "data": map[string]interface{}{"symbol": closeReq.Symbol, "side": closeReq.Side, "quantity": closeReq.Quantity}, "timestamp": time.Now().UnixMilli()})
+		}
+	}()
+	// #endregion
 	if closeReq.Side == "long" {
 		result, err = trader.CloseLong(closeReq.Symbol, closeReq.Quantity)
 	} else {
 		result, err = trader.CloseShort(closeReq.Symbol, closeReq.Quantity)
 	}
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			defer f.Close()
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "D", "location": "api/server.go:3852", "message": "handleClosePosition: after CloseLong/CloseShort", "data": map[string]interface{}{"symbol": closeReq.Symbol, "side": closeReq.Side, "err": func() string { if err != nil { return err.Error() } else { return "nil" } }()}, "timestamp": time.Now().UnixMilli()})
+		}
+	}()
+	// #endregion
 
 	if err != nil {
 		log.Printf("❌ [%s] Close position failed: %v", traderCfg.Name, err)

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X as IconX, Settings, Info, ChevronDown, ChevronUp } from 'lucide-react'
+import { X as IconX, Settings, Info, ChevronDown, ChevronUp, FileText, Save, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../lib/api'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -80,6 +80,8 @@ export function StrategyEditorModal({
   const [userPromptTemplates, setUserPromptTemplates] = useState<PromptTemplate[]>([])
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null)
+  const [templatePrefillContent, setTemplatePrefillContent] = useState<string>('')
+  const [selectedTemplateToLoad, setSelectedTemplateToLoad] = useState<string>('')
 
   // Load prompt templates
   useEffect(() => {
@@ -200,6 +202,38 @@ export function StrategyEditorModal({
       ...prev,
       ...config,
     }))
+  }
+
+  const handleCreateTemplate = () => {
+    setTemplatePrefillContent('')
+    setEditingTemplate(null)
+    setShowTemplateModal(true)
+  }
+
+  const handleSaveAsTemplate = () => {
+    if (!formData.custom_prompt.trim()) {
+      toast.error(language === 'zh' ? '请先输入自定义提示词' : 'Please enter custom prompt first')
+      return
+    }
+    setTemplatePrefillContent(formData.custom_prompt)
+    setEditingTemplate(null)
+    setShowTemplateModal(true)
+  }
+
+  const handleLoadTemplate = async (templateId: string) => {
+    if (!templateId) {
+      setSelectedTemplateToLoad('')
+      return
+    }
+    try {
+      const template = await api.getPromptTemplate(templateId)
+      handleInputChange('custom_prompt', template.content)
+      setSelectedTemplateToLoad('')
+      toast.success(language === 'zh' ? '模板已加载' : 'Template loaded')
+    } catch (error) {
+      console.error('Failed to load template:', error)
+      toast.error(language === 'zh' ? '加载模板失败' : 'Failed to load template')
+    }
   }
 
   const handleSave = async () => {
@@ -804,13 +838,27 @@ export function StrategyEditorModal({
                   </select>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <label className="text-sm text-[#EAECEF]">
-                    {language === 'zh' ? '自定义提示词' : 'Custom Prompt'}
-                  </label>
-                    <Tooltip content={getTooltipContent()}>
-                      <Info className="w-4 h-4 cursor-help" style={{ color: 'var(--navy-light)' }} />
-                    </Tooltip>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-[#EAECEF]">
+                        {language === 'zh' ? '自定义提示词' : 'Custom Prompt'}
+                      </label>
+                      <Tooltip content={getTooltipContent()}>
+                        <Info className="w-4 h-4 cursor-help" style={{ color: 'var(--navy-light)' }} />
+                      </Tooltip>
+                    </div>
+                    <button
+                      onClick={handleCreateTemplate}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-200 font-medium"
+                      style={{ 
+                        background: 'var(--navy-primary)', 
+                        border: '1px solid var(--navy-light)',
+                        color: '#EAECEF'
+                      }}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      {language === 'zh' ? '创建模板' : 'Create Template'}
+                    </button>
                   </div>
                   <textarea
                     value={formData.custom_prompt}
@@ -820,6 +868,49 @@ export function StrategyEditorModal({
                     style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
                     placeholder={getCustomPromptPlaceholder()}
                   />
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    {formData.custom_prompt.trim() && (
+                      <button
+                        onClick={handleSaveAsTemplate}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-200 font-medium"
+                        style={{ 
+                          background: 'var(--green-primary)', 
+                          color: 'var(--navy-primary)'
+                        }}
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        {language === 'zh' ? '保存为模板' : 'Save as Template'}
+                      </button>
+                    )}
+                    {userPromptTemplates.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={selectedTemplateToLoad}
+                          onChange={(e) => {
+                            setSelectedTemplateToLoad(e.target.value)
+                            if (e.target.value) {
+                              handleLoadTemplate(e.target.value)
+                            }
+                          }}
+                          className="px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer"
+                          style={{ 
+                            background: 'var(--navy-primary)', 
+                            border: '1px solid var(--navy-light)',
+                            color: '#EAECEF'
+                          }}
+                        >
+                          <option value="">
+                            {language === 'zh' ? '-- 加载模板 --' : '-- Load Template --'}
+                          </option>
+                          {userPromptTemplates.map((template) => (
+                            <option key={template.id} value={template.id}>
+                              {template.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
                   {formData.override_base_prompt && (
                     <div className="mt-2 space-y-2">
                       <p className="text-xs" style={{ color: '#EAECEF' }}>
@@ -891,8 +982,10 @@ export function StrategyEditorModal({
           onClose={() => {
             setShowTemplateModal(false)
             setEditingTemplate(null)
+            setTemplatePrefillContent('')
           }}
           template={editingTemplate}
+          initialContent={templatePrefillContent || undefined}
           onSave={async () => {
             // Reload templates
             try {
@@ -904,6 +997,18 @@ export function StrategyEditorModal({
               setUserPromptTemplates(userTemplates)
             } catch (error) {
               console.error('Failed to reload templates:', error)
+            }
+            setTemplatePrefillContent('')
+          }}
+          onSelectTemplate={async (templateId) => {
+            if (templateId) {
+              try {
+                const template = await api.getPromptTemplate(templateId)
+                handleInputChange('custom_prompt', template.content)
+                toast.success(language === 'zh' ? '模板已加载到自定义提示词' : 'Template loaded into custom prompt')
+              } catch (error) {
+                console.error('Failed to load template:', error)
+              }
             }
           }}
         />

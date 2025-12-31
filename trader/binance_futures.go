@@ -612,11 +612,13 @@ func (t *FuturesTrader) GetOrderStatus(symbol string, orderID string) (map[strin
 }
 
 // GetOrderHistory Get all orders (including filled) from Binance Futures
-// Note: Binance Futures SDK may not have this method - using placeholder
-// Position closure detection will use position snapshots as fallback
+// Note: Binance Futures SDK may not have a direct method for all orders
+// For now, return empty - position closure detection will use position snapshots
+// Pending orders are now saved immediately after creation via queryAndSavePendingSLTPOrder
 func (t *FuturesTrader) GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
-	// TODO: Check Binance Futures SDK for correct method name
-	// For now, return empty - position closure detection will use position snapshots
+	// TODO: Implement proper order history query when SDK method is available
+	// For now, return empty - the main fix (saving pending orders immediately) is more important
+	// Position closure detection will use position snapshots as fallback
 	return []map[string]interface{}{}, nil
 }
 

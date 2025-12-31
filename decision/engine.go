@@ -8,7 +8,6 @@ import (
 	"nofx/market"
 	"nofx/mcp"
 	"nofx/pool"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -239,7 +238,9 @@ func StrategyConfigFromFields(
 ) StrategyConfig {
 	config := GetDefaultStrategyConfig()
 	
-	if minRiskRewardRatio > 0 {
+	// Always set minRiskRewardRatio if provided (even if 0, to allow explicit 0 values)
+	// Only skip if the value is negative (invalid)
+	if minRiskRewardRatio >= 0 {
 		config.MinRiskRewardRatio = minRiskRewardRatio
 	}
 	if maxPositions > 0 {
@@ -346,27 +347,6 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 		ctx.OITopDataMap = make(map[string]*OITopData)
 	}
 
-	// #region agent log
-	// Log what template and prompts are being used in decision engine
-	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logData := map[string]interface{}{
-			"location": "engine.go:349",
-			"message": "Building system prompt with strategy settings",
-			"data": map[string]interface{}{
-				"template_name": templateName,
-				"custom_prompt": customPrompt,
-				"override_base": overrideBase,
-			},
-			"timestamp": time.Now().UnixMilli(),
-			"sessionId": "debug-session",
-			"runId": "run1",
-			"hypothesisId": "D",
-		}
-		json.NewEncoder(logFile).Encode(logData)
-		logFile.Close()
-	}
-	// #endregion
 
 	// 2. Build System Prompt (fixed rules) and User Prompt (dynamic data)
 	systemPrompt, err := buildSystemPromptWithCustom(
@@ -660,26 +640,6 @@ func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage in
 		templateName = "default" // Default to default template
 	}
 
-	// #region agent log
-	// Log template loading attempt
-	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logData := map[string]interface{}{
-			"location": "engine.go:650",
-			"message": "Loading prompt template from database",
-			"data": map[string]interface{}{
-				"template_name": templateName,
-			},
-			"timestamp": time.Now().UnixMilli(),
-			"sessionId": "debug-session",
-			"runId": "run1",
-			"hypothesisId": "E",
-		}
-		json.NewEncoder(logFile).Encode(logData)
-		logFile.Close()
-	}
-	// #endregion
-
 	template, err := GetPromptTemplate(templateName)
 	if err != nil {
 		// Template must exist in database - fail if not found (no hardcoded fallback)
@@ -693,27 +653,6 @@ func buildSystemPrompt(accountEquity float64, btcEthLeverage, altcoinLeverage in
 		}
 		log.Printf("⚠️  Using 'default' template as fallback for '%s'", templateName)
 	}
-	
-	// #region agent log
-	// Log successful template load
-	logFile2, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile2 != nil {
-		logData2 := map[string]interface{}{
-			"location": "engine.go:675",
-			"message": "Template loaded successfully from database",
-			"data": map[string]interface{}{
-				"template_name": templateName,
-				"template_content_length": len(template.Content),
-			},
-			"timestamp": time.Now().UnixMilli(),
-			"sessionId": "debug-session",
-			"runId": "run1",
-			"hypothesisId": "E",
-		}
-		json.NewEncoder(logFile2).Encode(logData2)
-		logFile2.Close()
-	}
-	// #endregion
 
 	sb.WriteString(template.Content)
 	sb.WriteString("\n\n")

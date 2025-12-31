@@ -4710,6 +4710,15 @@ type PositionRecord struct {
 // SavePosition save position record to database
 func (d *Database) SavePosition(traderID, symbol, side string, entryPrice, exitPrice, quantity, entryFee, exitFee, realizedPnL float64, leverage int, orderIDOpen, orderIDClose string, openedAt time.Time, closedAt *time.Time, stopLossPrice, takeProfitPrice float64) error {
 	id := fmt.Sprintf("%s_%s_%d", traderID, symbol, openedAt.Unix())
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			defer f.Close()
+			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "config/database.go:4712", "message": "SavePosition called", "data": map[string]interface{}{"id": id, "traderID": traderID, "symbol": symbol, "side": side, "entryPrice": entryPrice, "exitPrice": exitPrice, "quantity": quantity, "realizedPnL": realizedPnL, "openedAt": openedAt.Format("2006-01-02 15:04:05"), "closedAt": func() string { if closedAt != nil { return closedAt.Format("2006-01-02 15:04:05") } else { return "nil" } }(), "orderIDOpen": orderIDOpen, "orderIDClose": orderIDClose}, "timestamp": time.Now().UnixMilli()})
+		}
+	}()
+	// #endregion
 
 	var closedAtStr interface{}
 	if closedAt != nil {
@@ -4830,12 +4839,19 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 		}
 
 		if closedAtStr.Valid {
-			closedAt, err := time.Parse("2006-01-02 15:04:05", closedAtStr.String)
+			// Try parsing as ISO 8601 format first (e.g., "2025-12-31T12:30:32Z")
+			var closedAt time.Time
+			var err error
+			closedAt, err = time.Parse(time.RFC3339, closedAtStr.String)
+			if err != nil {
+				// Fallback to custom format (e.g., "2006-01-02 15:04:05")
+				closedAt, err = time.Parse("2006-01-02 15:04:05", closedAtStr.String)
+			}
 			// #region agent log
 			func() {
 				f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if f != nil {
-					json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "post-fix", "hypothesisId": "C", "location": "config/database.go:4795", "message": "After closedAt parse", "data": map[string]interface{}{"traderID": traderID, "rowIndex": rowIndex, "parseErr": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "closedAtStr": closedAtStr.String}, "timestamp": time.Now().UnixMilli()})
+					json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "post-fix", "hypothesisId": "C", "location": "config/database.go:4795", "message": "After closedAt parse", "data": map[string]interface{}{"traderID": traderID, "rowIndex": rowIndex, "parseErr": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "closedAtStr": closedAtStr.String, "parsedSuccessfully": err == nil}, "timestamp": time.Now().UnixMilli()})
 					f.Close()
 				}
 			}()
@@ -5150,9 +5166,59 @@ func (d *Database) DeletePendingOrdersForPosition(traderID, symbol, side string)
 		return fmt.Errorf("database not initialized")
 	}
 
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			defer f.Close()
+			json.NewEncoder(f).Encode(map[string]interface{}{
+				"sessionId": "debug-session",
+				"runId":     "run1",
+				"hypothesisId": "A",
+				"location":  "config/database.go:5153",
+				"message":   "DeletePendingOrdersForPosition called",
+				"data": map[string]interface{}{
+					"traderID": traderID,
+					"symbol":   symbol,
+					"side":     side,
+				},
+				"timestamp": time.Now().UnixMilli(),
+			})
+		}
+	}()
+	// #endregion
+
 	query := `DELETE FROM pending_orders WHERE trader_id = ? AND symbol = ? AND side = ? AND status = 'pending'`
-	_, err := d.db.Exec(query, traderID, symbol, side)
-	return err
+	result, err := d.db.Exec(query, traderID, symbol, side)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	// #region agent log
+	func() {
+		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if f != nil {
+			defer f.Close()
+			json.NewEncoder(f).Encode(map[string]interface{}{
+				"sessionId": "debug-session",
+				"runId":     "run1",
+				"hypothesisId": "A",
+				"location":  "config/database.go:5170",
+				"message":   "DeletePendingOrdersForPosition result",
+				"data": map[string]interface{}{
+					"traderID":      traderID,
+					"symbol":        symbol,
+					"side":          side,
+					"rowsAffected":  rowsAffected,
+				},
+				"timestamp": time.Now().UnixMilli(),
+			})
+		}
+	}()
+	// #endregion
+
+	return nil
 }
 
 // EquityHistoryRecord represents an equity history point in the database
