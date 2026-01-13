@@ -1266,17 +1266,67 @@ body {
 }
 
 .prose img {
-  max-width: 100%;
+  display: block;
+  width: 80%;
+  max-width: min(95%, 1200px);
   height: auto;
+  aspect-ratio: 3 / 2;
   border-radius: 8px;
-  margin: 1.5rem 0;
+  margin: 1.5rem auto;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: high-quality;
 }
 
 .prose-img {
-  max-width: 100%;
+  display: block;
+  width: 80%;
+  max-width: min(95%, 1200px);
   height: auto;
+  aspect-ratio: 3 / 2;
   border-radius: 8px;
-  margin: 1.5rem 0;
+  margin: 1.5rem auto;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: high-quality;
+}
+
+/* Center images even when inside paragraphs */
+.prose p img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Featured image styling */
+.article-featured-image {
+  width: 80% !important;
+  max-width: min(95%, 1200px) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: high-quality;
+}
+
+/* Responsive image sizing for mobile devices */
+@media (max-width: 640px) {
+  .prose img,
+  .prose-img {
+    width: 95%;
+    min-width: unset;
+    max-width: 100%;
+  }
+  
+  .article-featured-image {
+    width: 95%;
+    max-width: 100%;
+  }
 }
 
 .prose p {
