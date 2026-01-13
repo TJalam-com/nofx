@@ -4,6 +4,7 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import { Bold, Italic, List, ListOrdered, Quote, Heading1, Heading2, Link as LinkIcon, Image as ImageIcon, Undo, Redo } from 'lucide-react'
 import { useState } from 'react'
+import { extractDirectImageUrl, convertImgBBUrl } from '../../utils/imgbb'
 
 interface ArticleEditorProps {
   content: string
@@ -46,13 +47,43 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
           // Allow the editor to maintain focus
           return false
         },
+        // Handle paste events to extract ImgBB direct URLs from embed codes
+        paste: (view, event) => {
+          const clipboardData = event.clipboardData
+          if (!clipboardData) return false
+
+          const pastedText = clipboardData.getData('text/plain')
+          if (!pastedText) return false
+
+          // Check if pasted text contains ImgBB embed code or URL
+          if (pastedText.includes('ibb.co') || pastedText.includes('<img') || pastedText.includes('[img]')) {
+            const directUrl = extractDirectImageUrl(pastedText)
+            if (directUrl) {
+              // If we found a direct image URL, insert it as an image
+              event.preventDefault()
+              editor.chain().focus().setImage({ src: directUrl }).run()
+              return true
+            } else {
+              // Try to convert if it's a page URL
+              const convertedUrl = convertImgBBUrl(pastedText)
+              if (convertedUrl !== pastedText && convertedUrl.includes('i.ibb.co')) {
+                event.preventDefault()
+                editor.chain().focus().setImage({ src: convertedUrl }).run()
+                return true
+              }
+            }
+          }
+          return false
+        },
       },
     },
   })
 
   const insertImage = () => {
     if (imageUrl && editor) {
-      editor.chain().focus().setImage({ src: imageUrl }).run()
+      // Extract direct image URL from ImgBB embed codes or convert page URLs
+      const directUrl = extractDirectImageUrl(imageUrl) || convertImgBBUrl(imageUrl)
+      editor.chain().focus().setImage({ src: directUrl }).run()
       setImageUrl('')
       setShowImageDialog(false)
     }
@@ -207,12 +238,32 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
       {showImageDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl" style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}>
-            <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary, #1f2937)' }}>Insert Image</h3>
+            <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary, #1f2937)' }}>Insert Image</h3>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-secondary, #6b7280)' }}>
+              Recommended dimensions: 1200 x 900 px (preferred) or 900 x 600 px (acceptable) for optimal display quality
+            </p>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-secondary, #6b7280)' }}>
+              <strong>For ImgBB images:</strong> Paste the direct image URL from ImgBB's embed codes (HTML or BBCode) for best results. 
+              You can also paste the page URL (https://ibb.co/...) and it will be converted automatically.
+            </p>
             <input
               type="url"
               value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="Enter image URL"
+              onChange={(e) => {
+                setImageUrl(e.target.value)
+              }}
+              onPaste={(e) => {
+                // Extract direct URL from pasted embed code
+                const pastedText = e.clipboardData.getData('text/plain')
+                if (pastedText) {
+                  const directUrl = extractDirectImageUrl(pastedText) || convertImgBBUrl(pastedText)
+                  if (directUrl !== pastedText || directUrl.includes('i.ibb.co')) {
+                    e.preventDefault()
+                    setImageUrl(directUrl)
+                  }
+                }
+              }}
+              placeholder="Enter image URL or paste ImgBB embed code"
               className="w-full px-3 py-2 border rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
               style={{ 
                 borderColor: 'var(--border-color, #d1d5db)', 

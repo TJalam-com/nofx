@@ -27,6 +27,14 @@ export default {
               borderRadius: '8px',
               marginTop: '1.5rem',
               marginBottom: '1.5rem',
+              maxWidth: 'min(100%, 1200px)',
+              width: 'auto',
+              height: 'auto',
+              objectFit: 'none',
+              imageRendering: 'auto',
+              display: 'block',
+              marginLeft: 'auto',
+              marginRight: 'auto',
             },
             // Ensure italic text is visible
             'em, i': {

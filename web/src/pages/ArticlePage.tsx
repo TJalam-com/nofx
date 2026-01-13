@@ -6,6 +6,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { Helmet } from 'react-helmet-async'
 import { Calendar, ArrowLeft, Share2, Twitter, Facebook, Linkedin } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
+import { convertImgBBUrl } from '../utils/imgbb'
 
 export function ArticlePage() {
   const { slug } = useParams<{ slug: string }>()
@@ -30,15 +31,81 @@ export function ArticlePage() {
     const contentEl = articleContentRef.current
     const images = contentEl.querySelectorAll('img')
     
-    images.forEach((img) => {
-      // Ensure images have proper styling
+    const processImage = (img: HTMLImageElement) => {
+      // Skip if already processed
+      if (img.dataset.processed === 'true') {
+        return
+      }
+      img.dataset.processed = 'true'
+
+      // Ensure images have proper styling class
       if (!img.classList.contains('prose-img')) {
         img.classList.add('prose-img')
+      }
+
+      // Remove any wrapper containers if they exist
+      if (img.parentElement?.classList.contains('article-image-wrapper')) {
+        const wrapper = img.parentElement
+        const parent = wrapper.parentNode
+        if (parent) {
+          parent.insertBefore(img, wrapper)
+          wrapper.remove()
+        }
+      }
+
+      // Remove width/height attributes from DOM (not just styles)
+      img.removeAttribute('width')
+      img.removeAttribute('height')
+      
+      // Set image to display at natural size - NO RESIZING
+      // Only constrain max-width and center
+      img.style.display = 'block'
+      img.style.marginLeft = 'auto'
+      img.style.marginRight = 'auto'
+      // Remove all explicit sizing - let browser use natural dimensions
+      img.style.removeProperty('width')
+      img.style.removeProperty('height')
+      img.style.maxWidth = 'min(100%, 1200px)'
+      img.style.maxHeight = 'none'
+      img.style.width = 'auto'
+      img.style.height = 'auto'
+      img.style.minWidth = '0'
+      img.style.minHeight = '0'
+      img.style.objectFit = 'none' // No scaling at all
+      img.style.imageRendering = 'auto' // Use browser's best rendering
+      
+      // Force natural dimensions after image loads
+      const ensureNaturalSize = () => {
+        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+          // Ensure we're using natural dimensions
+          img.style.width = 'auto'
+          img.style.height = 'auto'
+          img.style.maxWidth = 'min(100%, 1200px)'
+          img.style.maxHeight = 'none'
+        }
+      }
+      
+      // Ensure natural size when image loads
+      if (img.complete) {
+        ensureNaturalSize()
+      } else {
+        img.addEventListener('load', ensureNaturalSize, { once: true })
       }
       
       // Add error handling
       img.onerror = () => {
         img.style.display = 'none'
+      }
+    }
+    
+    images.forEach((img) => {
+      if (img.complete && img.naturalWidth > 0) {
+        // Image already loaded
+        processImage(img)
+      } else {
+        // Wait for image to load
+        img.onload = () => processImage(img)
+        processImage(img) // Apply wrapper immediately too
       }
     })
   }, [article])
@@ -134,26 +201,10 @@ export function ArticlePage() {
   // Determine the date to display - prioritize created_at
   const displayDate = article.created_at || article.updated_at || (article.status === 'published' ? article.published_at : null)
 
-  // Helper function to convert ImgBB page URLs to direct image URLs
-  // Note: ImgBB page URLs (ibb.co/XXXXX) cannot be directly converted without fetching the page
-  // This function attempts common patterns, but the best solution is to use direct image URLs
-  const convertImgBBUrl = (url: string): string => {
-    if (!url) return url
-    // ImgBB page URLs: https://ibb.co/XXXXX 
-    // Direct URLs: https://i.ibb.co/XXXXX/XXXXX.jpg (format varies)
-    if (url.includes('ibb.co/') && !url.includes('i.ibb.co')) {
-      // Try to use the embed format which sometimes works
-      // ImgBB embed format: https://ibb.co/XXXXX -> can try https://i.ibb.co/XXXXX.jpg
-      // But this doesn't always work as the actual path structure varies
-      const match = url.match(/ibb\.co\/([a-zA-Z0-9]+)/)
-      if (match && match[1]) {
-        const imageId = match[1]
-        // Try common pattern (may not work for all images)
-        // The real solution requires fetching the ImgBB page or using their API
-        return `https://i.ibb.co/${imageId}/${imageId}.jpg`
-      }
-    }
-    return url
+  // Helper function to convert ImgBB URLs to direct image URLs
+  // Uses utility function that handles page URLs, HTML embed codes, and BBCode
+  const convertImgBBUrlLocal = (url: string): string => {
+    return convertImgBBUrl(url)
   }
 
   // Process article content to fix image URLs
@@ -161,14 +212,14 @@ export function ArticlePage() {
     let content = article.content
     // Find all img tags and fix their src attributes
     content = content.replace(/<img([^>]+)src=["']([^"']+)["']([^>]*)>/gi, (_match, before, src, after) => {
-      const fixedSrc = convertImgBBUrl(src)
+      const fixedSrc = convertImgBBUrlLocal(src)
       return `<img${before}src="${fixedSrc}"${after}>`
     })
     return content
   })() : article.content
 
   // Fix featured image URL if needed
-  const processedFeaturedImageUrl = article.featured_image_url ? convertImgBBUrl(article.featured_image_url) : article.featured_image_url
+  const processedFeaturedImageUrl = article.featured_image_url ? convertImgBBUrlLocal(article.featured_image_url) : article.featured_image_url
 
   return (
     <>
@@ -264,11 +315,19 @@ export function ArticlePage() {
 
         {/* Featured Image */}
         {processedFeaturedImageUrl && (
-          <div className="mb-8">
+          <div className="mb-8 w-full max-w-[1200px] mx-auto">
             <img
               src={processedFeaturedImageUrl}
               alt={article.title}
-              className="w-full rounded-lg"
+              className="w-auto h-auto max-w-full rounded-lg mx-auto block"
+              style={{
+                maxWidth: 'min(100%, 1200px)',
+                maxHeight: 'none',
+                objectFit: 'none',
+                imageRendering: 'auto',
+                width: 'auto',
+                height: 'auto',
+              }}
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none'
               }}

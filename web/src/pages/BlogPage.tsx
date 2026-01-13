@@ -6,6 +6,7 @@ import { Search, ChevronLeft, ChevronRight, Calendar, FileText } from 'lucide-re
 import type { Article } from '../types'
 import { useSEO } from '../hooks/useSEO'
 import { Helmet } from 'react-helmet-async'
+import { convertImgBBUrl } from '../utils/imgbb'
 
 export function BlogPage() {
   const { SEOComponent } = useSEO()
@@ -39,24 +40,10 @@ export function BlogPage() {
 
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   
-  // Convert ImgBB page URLs to direct image URLs
-  const convertImgBBUrl = (url: string): string => {
-    if (!url) return url
-    // ImgBB page URLs: https://ibb.co/XXXXX 
-    // Direct URLs: https://i.ibb.co/XXXXX/XXXXX.jpg (format varies)
-    if (url.includes('ibb.co/') && !url.includes('i.ibb.co')) {
-      // Try to use the embed format which sometimes works
-      // ImgBB embed format: https://ibb.co/XXXXX -> can try https://i.ibb.co/XXXXX.jpg
-      // But this doesn't always work as the actual path structure varies
-      const match = url.match(/ibb\.co\/([a-zA-Z0-9]+)/)
-      if (match && match[1]) {
-        const imageId = match[1]
-        // Try common pattern (may not work for all images)
-        // The real solution requires fetching the ImgBB page or using their API
-        return `https://i.ibb.co/${imageId}/${imageId}.jpg`
-      }
-    }
-    return url
+  // Helper function to convert ImgBB URLs to direct image URLs
+  // Uses utility function that handles page URLs, HTML embed codes, and BBCode
+  const convertImgBBUrlLocal = (url: string): string => {
+    return convertImgBBUrl(url)
   }
   
   // Structured data for BlogCollection
@@ -76,7 +63,7 @@ export function BlogPage() {
           '@type': 'Article',
           headline: article.title,
           description: article.excerpt || article.meta_description,
-          image: article.featured_image_url ? convertImgBBUrl(article.featured_image_url) : `${baseUrl}/images/main.webp`,
+          image: article.featured_image_url ? convertImgBBUrlLocal(article.featured_image_url) : `${baseUrl}/images/main.webp`,
           url: `${baseUrl}/blog/${article.slug}`,
           datePublished: article.published_at,
           dateModified: article.updated_at,
@@ -134,7 +121,7 @@ export function BlogPage() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {filteredArticles.map((article) => {
-              const processedImageUrl = article.featured_image_url ? convertImgBBUrl(article.featured_image_url) : null
+              const processedImageUrl = article.featured_image_url ? convertImgBBUrlLocal(article.featured_image_url) : null
               return (
               <Link
                 key={article.id}
@@ -143,7 +130,7 @@ export function BlogPage() {
                 style={{ borderColor: 'var(--border-color, #e5e7eb)', backgroundColor: 'var(--bg-primary, #ffffff)' }}
               >
                 {processedImageUrl && (
-                  <div className="aspect-video overflow-hidden bg-gray-100">
+                  <div className="aspect-[4/3] overflow-hidden bg-gray-100">
                     <img
                       src={processedImageUrl}
                       alt={article.title}

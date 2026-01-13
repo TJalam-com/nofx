@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ArticleEditor } from './ArticleEditor'
 import type { Article, CreateArticleRequest, UpdateArticleRequest } from '../../types'
 import { toast } from 'sonner'
+import { extractDirectImageUrl, convertImgBBUrl } from '../../utils/imgbb'
 
 interface ArticleFormProps {
   article?: Article
@@ -114,12 +115,12 @@ export function ArticleForm({ article, onSubmit, onCancel, isLoading = false, on
         title,
         content,
         excerpt,
-        featured_image_url: featuredImageUrl,
+        featured_image_url: convertImgBBUrl(featuredImageUrl),
         status,
         meta_title: metaTitle || undefined,
         meta_description: metaDescription,
         meta_keywords: metaKeywords || undefined,
-        og_image_url: ogImageUrl || undefined,
+        og_image_url: ogImageUrl ? convertImgBBUrl(ogImageUrl) : undefined,
         // Do not include slug when updating - it should remain unchanged
       }
       await onSubmit(updateData)
@@ -129,7 +130,7 @@ export function ArticleForm({ article, onSubmit, onCancel, isLoading = false, on
       title,
       content,
       excerpt,
-      featured_image_url: featuredImageUrl,
+      featured_image_url: convertImgBBUrl(featuredImageUrl),
       status,
       meta_title: metaTitle || undefined,
       meta_description: metaDescription,
@@ -240,12 +241,35 @@ export function ArticleForm({ article, onSubmit, onCancel, isLoading = false, on
         <label htmlFor="featuredImageUrl" className="block text-sm font-medium mb-2" style={{ color: '#000000' }}>
           Featured Image URL
         </label>
+        <p className="text-xs mb-2" style={{ color: 'var(--text-secondary, #6b7280)' }}>
+          Recommended dimensions: 1200 x 900 px (4:3 aspect ratio) for optimal display quality
+        </p>
+        <p className="text-xs mb-2" style={{ color: 'var(--text-secondary, #6b7280)' }}>
+          <strong>For ImgBB images:</strong> Paste the direct image URL from ImgBB's embed codes (HTML or BBCode) for best results. 
+          You can also paste the page URL (https://ibb.co/...) and it will be converted automatically.
+        </p>
         <input
           type="url"
           id="featuredImageUrl"
           value={featuredImageUrl}
-          onChange={(e) => setFeaturedImageUrl(e.target.value)}
-          placeholder="https://example.com/image.jpg"
+          onChange={(e) => {
+            const url = e.target.value
+            // Convert ImgBB URLs automatically
+            const convertedUrl = convertImgBBUrl(url)
+            setFeaturedImageUrl(convertedUrl)
+          }}
+          onPaste={(e) => {
+            // Extract direct URL from pasted embed code
+            const pastedText = e.clipboardData.getData('text/plain')
+            if (pastedText) {
+              const directUrl = extractDirectImageUrl(pastedText) || convertImgBBUrl(pastedText)
+              if (directUrl !== pastedText || directUrl.includes('i.ibb.co')) {
+                e.preventDefault()
+                setFeaturedImageUrl(directUrl)
+              }
+            }
+          }}
+          placeholder="https://example.com/image.jpg or paste ImgBB embed code"
           className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-500"
           style={{ 
             borderColor: 'var(--border-color, #d1d5db)', 
@@ -255,7 +279,7 @@ export function ArticleForm({ article, onSubmit, onCancel, isLoading = false, on
         />
         {featuredImageUrl && (
           <img 
-            src={featuredImageUrl} 
+            src={convertImgBBUrl(featuredImageUrl)} 
             alt="Featured" 
             className="mt-3 max-w-xs rounded-lg border shadow-sm" 
             style={{ borderColor: 'var(--border-color, #d1d5db)' }}
@@ -357,8 +381,24 @@ export function ArticleForm({ article, onSubmit, onCancel, isLoading = false, on
             type="url"
             id="ogImageUrl"
             value={ogImageUrl}
-            onChange={(e) => setOgImageUrl(e.target.value)}
-            placeholder="https://example.com/og-image.jpg"
+            onChange={(e) => {
+              const url = e.target.value
+              // Convert ImgBB URLs automatically
+              const convertedUrl = convertImgBBUrl(url)
+              setOgImageUrl(convertedUrl)
+            }}
+            onPaste={(e) => {
+              // Extract direct URL from pasted embed code
+              const pastedText = e.clipboardData.getData('text/plain')
+              if (pastedText) {
+                const directUrl = extractDirectImageUrl(pastedText) || convertImgBBUrl(pastedText)
+                if (directUrl !== pastedText || directUrl.includes('i.ibb.co')) {
+                  e.preventDefault()
+                  setOgImageUrl(directUrl)
+                }
+              }
+            }}
+            placeholder="https://example.com/og-image.jpg or paste ImgBB embed code"
             className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-500"
             style={{ 
               borderColor: 'var(--border-color, #d1d5db)', 
