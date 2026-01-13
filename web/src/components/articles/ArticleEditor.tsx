@@ -48,7 +48,7 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
           return false
         },
         // Handle paste events to extract ImgBB direct URLs from embed codes
-        paste: (view, event) => {
+        paste: (_view, event) => {
           const clipboardData = event.clipboardData
           if (!clipboardData) return false
 
