@@ -5,13 +5,14 @@ import { getArticleSEOConfig } from '../config/seo'
 import { useLanguage } from '../contexts/LanguageContext'
 import { Helmet } from 'react-helmet-async'
 import { Calendar, ArrowLeft, Share2, Twitter, Facebook, Linkedin } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export function ArticlePage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const { language } = useLanguage()
   const [showShareMenu, setShowShareMenu] = useState(false)
+  const articleContentRef = useRef<HTMLElement>(null)
 
   const {
     data: article,
@@ -22,6 +23,25 @@ export function ArticlePage() {
     () => api.getArticleBySlug(slug!),
     { revalidateOnFocus: false }
   )
+
+  // Process images after DOM is rendered to add error handling and styling
+  useEffect(() => {
+    if (!articleContentRef.current || !article) return
+    const contentEl = articleContentRef.current
+    const images = contentEl.querySelectorAll('img')
+    
+    images.forEach((img) => {
+      // Ensure images have proper styling
+      if (!img.classList.contains('prose-img')) {
+        img.classList.add('prose-img')
+      }
+      
+      // Add error handling
+      img.onerror = () => {
+        img.style.display = 'none'
+      }
+    })
+  }, [article])
 
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   const articleUrl = `${baseUrl}/blog/${slug}`
@@ -113,6 +133,42 @@ export function ArticlePage() {
 
   // Determine the date to display - prioritize created_at
   const displayDate = article.created_at || article.updated_at || (article.status === 'published' ? article.published_at : null)
+
+  // Helper function to convert ImgBB page URLs to direct image URLs
+  // Note: ImgBB page URLs (ibb.co/XXXXX) cannot be directly converted without fetching the page
+  // This function attempts common patterns, but the best solution is to use direct image URLs
+  const convertImgBBUrl = (url: string): string => {
+    if (!url) return url
+    // ImgBB page URLs: https://ibb.co/XXXXX 
+    // Direct URLs: https://i.ibb.co/XXXXX/XXXXX.jpg (format varies)
+    if (url.includes('ibb.co/') && !url.includes('i.ibb.co')) {
+      // Try to use the embed format which sometimes works
+      // ImgBB embed format: https://ibb.co/XXXXX -> can try https://i.ibb.co/XXXXX.jpg
+      // But this doesn't always work as the actual path structure varies
+      const match = url.match(/ibb\.co\/([a-zA-Z0-9]+)/)
+      if (match && match[1]) {
+        const imageId = match[1]
+        // Try common pattern (may not work for all images)
+        // The real solution requires fetching the ImgBB page or using their API
+        return `https://i.ibb.co/${imageId}/${imageId}.jpg`
+      }
+    }
+    return url
+  }
+
+  // Process article content to fix image URLs
+  const processedContent = article.content ? (() => {
+    let content = article.content
+    // Find all img tags and fix their src attributes
+    content = content.replace(/<img([^>]+)src=["']([^"']+)["']([^>]*)>/gi, (_match, before, src, after) => {
+      const fixedSrc = convertImgBBUrl(src)
+      return `<img${before}src="${fixedSrc}"${after}>`
+    })
+    return content
+  })() : article.content
+
+  // Fix featured image URL if needed
+  const processedFeaturedImageUrl = article.featured_image_url ? convertImgBBUrl(article.featured_image_url) : article.featured_image_url
 
   return (
     <>
@@ -207,10 +263,10 @@ export function ArticlePage() {
         </header>
 
         {/* Featured Image */}
-        {article.featured_image_url && (
+        {processedFeaturedImageUrl && (
           <div className="mb-8">
             <img
-              src={article.featured_image_url}
+              src={processedFeaturedImageUrl}
               alt={article.title}
               className="w-full rounded-lg"
               onError={(e) => {
@@ -222,9 +278,12 @@ export function ArticlePage() {
 
         {/* Article Content */}
         <article
-          className="prose prose-lg max-w-none mb-8"
-          style={{ color: 'var(--text-primary, #111827)' }}
-          dangerouslySetInnerHTML={{ __html: article.content }}
+          ref={articleContentRef}
+          className="prose prose-lg dark:prose-invert max-w-none mb-8"
+          style={{ 
+            color: 'var(--text-primary, #EAECEF)',
+          }}
+          dangerouslySetInnerHTML={{ __html: processedContent }}
         />
 
         {/* Footer */}

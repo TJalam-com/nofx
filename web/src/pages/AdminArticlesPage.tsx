@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { api } from '../lib/api'
@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  X,
 } from 'lucide-react'
 
 export default function AdminArticlesPage() {
@@ -27,6 +28,9 @@ export default function AdminArticlesPage() {
   const [editingArticle, setEditingArticle] = useState<Article | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentFormData, setCurrentFormData] = useState<{ title: string; content: string; excerpt: string; slug: string } | null>(null)
+  const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const modalContentRef = useRef<HTMLDivElement>(null)
   const articlesPerPage = 10
 
   // Redirect if not admin
@@ -113,6 +117,26 @@ export default function AdminArticlesPage() {
   }
 
   const handlePublish = async (id: string) => {
+    const article = articles?.find(a => a.id === id)
+    if (!article) return
+
+    // Validate required fields before publishing
+    const missingFields: string[] = []
+    if (!article.title || !article.title.trim()) {
+      missingFields.push('Title')
+    }
+    if (!article.content || !article.content.trim()) {
+      missingFields.push('Content')
+    }
+    if (!article.meta_description || !article.meta_description.trim()) {
+      missingFields.push('Meta Description')
+    }
+
+    if (missingFields.length > 0) {
+      toast.error(`Cannot publish: Missing required fields: ${missingFields.join(', ')}. Please edit the article to add these fields.`)
+      return
+    }
+
     try {
       await api.publishArticle(id)
       toast.success('Article published successfully')
@@ -128,6 +152,15 @@ export default function AdminArticlesPage() {
     } catch (error: any) {
       toast.error(error.message || 'Failed to publish article')
     }
+  }
+
+  // Check if article can be published (has all required fields)
+  const canPublish = (article: Article): boolean => {
+    return !!(
+      article.title?.trim() &&
+      article.content?.trim() &&
+      article.meta_description?.trim()
+    )
   }
 
   const handleUnpublish = async (id: string) => {
@@ -147,6 +180,72 @@ export default function AdminArticlesPage() {
       toast.error(error.message || 'Failed to unpublish article')
     }
   }
+
+  // Auto-save as draft when closing
+  const handleClose = useCallback(async () => {
+    // Only auto-save if there's meaningful content (title or content)
+    if (currentFormData && (currentFormData.title?.trim() || currentFormData.content?.trim())) {
+      const hasChanges = editingArticle
+        ? (currentFormData.title !== editingArticle.title ||
+           currentFormData.content !== editingArticle.content ||
+           currentFormData.excerpt !== (editingArticle.excerpt || '') ||
+           currentFormData.slug !== editingArticle.slug)
+        : true // New article always has changes if there's content
+
+      if (hasChanges) {
+        setIsAutoSaving(true)
+        try {
+          if (editingArticle) {
+            // Update existing article as draft
+            await api.updateArticle(editingArticle.id, {
+              title: currentFormData.title?.trim() || editingArticle.title,
+              content: currentFormData.content || '',
+              excerpt: currentFormData.excerpt || '',
+              status: 'draft',
+            })
+            toast.success('Article saved as draft')
+          } else {
+            // Create new article as draft only if there's a title or content
+            if (currentFormData.title?.trim() || currentFormData.content?.trim()) {
+              await api.createArticle({
+                title: currentFormData.title?.trim() || 'Untitled',
+                content: currentFormData.content || '',
+                excerpt: currentFormData.excerpt || '',
+                slug: currentFormData.slug || undefined,
+                status: 'draft',
+              })
+              toast.success('Article saved as draft')
+            }
+          }
+          mutateArticles()
+        } catch (error: any) {
+          toast.error(error.message || 'Failed to auto-save article')
+        } finally {
+          setIsAutoSaving(false)
+        }
+      }
+    }
+    
+    setShowCreateForm(false)
+    setEditingArticle(null)
+    setCurrentFormData(null)
+  }, [currentFormData, editingArticle, mutateArticles])
+
+  // Handle click outside modal
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalContentRef.current && !modalContentRef.current.contains(event.target as Node)) {
+        handleClose()
+      }
+    }
+
+    if (showCreateForm || editingArticle) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showCreateForm, editingArticle, handleClose])
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -219,18 +318,40 @@ export default function AdminArticlesPage() {
       {/* Create/Edit Form Modal */}
       {(showCreateForm || editingArticle) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}>
-            <h2 className="text-2xl font-bold mb-4" style={{ color: '#000000' }}>
-              {editingArticle ? 'Edit Article' : 'Create Article'}
-            </h2>
+          <div 
+            ref={modalContentRef}
+            className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative" 
+            style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}
+          >
+            {/* Close Button */}
+            <button
+              onClick={handleClose}
+              className="absolute top-4 right-4 p-2 rounded-md hover:bg-gray-100 transition-colors z-20"
+              style={{ color: '#000000' }}
+              disabled={isAutoSaving || isSubmitting}
+              title="Close (auto-saves as draft)"
+            >
+              <X size={20} />
+            </button>
+            
+            {/* Header */}
+            <div className="pr-8 mb-4">
+              <h2 className="text-2xl font-bold" style={{ color: '#000000' }}>
+                {editingArticle ? 'Edit Article' : 'Create Article'}
+              </h2>
+              {isAutoSaving && (
+                <p className="text-sm mt-1" style={{ color: 'var(--text-secondary, #6b7280)' }}>
+                  Auto-saving as draft...
+                </p>
+              )}
+            </div>
+            
             <ArticleForm
               article={editingArticle || undefined}
               onSubmit={editingArticle ? (data) => handleUpdate(data as UpdateArticleRequest) : (data) => handleCreate(data as CreateArticleRequest)}
-              onCancel={() => {
-                setShowCreateForm(false)
-                setEditingArticle(null)
-              }}
-              isLoading={isSubmitting}
+              onCancel={handleClose}
+              isLoading={isSubmitting || isAutoSaving}
+              onFormChange={setCurrentFormData}
             />
           </div>
         </div>
@@ -310,9 +431,14 @@ export default function AdminArticlesPage() {
                     {article.status === 'draft' ? (
                       <button
                         onClick={() => handlePublish(article.id)}
-                        className="p-2 border rounded hover:bg-gray-100"
+                        disabled={!canPublish(article)}
+                        className="p-2 border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ borderColor: 'var(--border-color, #e5e7eb)', color: '#000000' }}
-                        title="Publish article"
+                        title={
+                          canPublish(article)
+                            ? 'Publish article'
+                            : 'Cannot publish: Missing required fields (Title, Content, or Meta Description)'
+                        }
                       >
                         <Eye size={18} />
                       </button>

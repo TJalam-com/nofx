@@ -40,6 +40,13 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none focus:outline-none min-h-[400px] p-4',
         style: 'color: #000000;',
       },
+      handleDOMEvents: {
+        // Ensure focus is maintained when clicking toolbar buttons
+        mousedown: (_view, _event) => {
+          // Allow the editor to maintain focus
+          return false
+        },
+      },
     },
   })
 
@@ -71,24 +78,39 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
   }
 
   return (
-    <div className="border rounded-md overflow-hidden" style={{ borderColor: 'var(--border-color, #d1d5db)' }}>
+    <div className="rounded-md" style={{ borderColor: 'var(--border-color, #d1d5db)' }}>
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b" style={{ borderColor: 'var(--border-color, #e5e7eb)', backgroundColor: 'var(--bg-secondary, #f9fafb)' }}>
+      <div 
+        className="flex flex-wrap items-center gap-1 p-2 border-b sticky top-0 z-10 rounded-t-md" 
+        style={{ 
+          borderColor: 'var(--border-color, #e5e7eb)', 
+          backgroundColor: 'var(--bg-secondary, #f9fafb)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+        }}
+      >
         <button
           type="button"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          disabled={!editor.can().chain().focus().toggleBold().run()}
+          onClick={(e) => {
+            e.preventDefault()
+            editor.chain().focus().toggleBold().run()
+          }}
           className={`p-2 rounded-md transition-colors ${editor.isActive('bold') ? 'bg-blue-600 text-white' : 'hover:bg-gray-200'}`}
           style={{ color: editor.isActive('bold') ? 'white' : '#000000' }}
+          title="Bold"
         >
           <Bold size={18} />
         </button>
         <button
           type="button"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          disabled={!editor.can().chain().focus().toggleItalic().run()}
+          onClick={(e) => {
+            e.preventDefault()
+            editor.chain().focus().toggleItalic().run()
+          }}
           className={`p-2 rounded-md transition-colors ${editor.isActive('italic') ? 'bg-blue-600 text-white' : 'hover:bg-gray-200'}`}
           style={{ color: editor.isActive('italic') ? 'white' : '#000000' }}
+          title="Italic"
         >
           <Italic size={18} />
         </button>
@@ -173,7 +195,11 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
       </div>
 
       {/* Editor Content */}
-      <div className="min-h-[400px] p-4" style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}>
+      <div 
+        className="min-h-[400px] p-4 rounded-b-md" 
+        style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}
+        onClick={() => editor.commands.focus()}
+      >
         <EditorContent editor={editor} />
       </div>
 

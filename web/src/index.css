@@ -1259,3 +1259,129 @@ body {
     padding: 1.25rem 1.5rem;
   }
 }
+
+/* Prose (Typography) styling for articles */
+.prose {
+  color: var(--text-primary, #111827);
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+}
+
+.prose-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+}
+
+.prose p {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  color: var(--text-primary, #111827);
+  font-weight: 700;
+  margin-top: 2em;
+  margin-bottom: 1em;
+}
+
+.prose a {
+  color: var(--green-primary, #00FF7F);
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.prose a:hover {
+  color: var(--green-light, #33FF99);
+}
+
+.prose ul,
+.prose ol {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+  padding-left: 1.625em;
+}
+
+.prose li {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.prose blockquote {
+  border-left: 4px solid var(--green-primary, #00FF7F);
+  padding-left: 1em;
+  margin: 1.5em 0;
+  font-style: italic;
+  color: var(--text-secondary, #6b7280);
+}
+
+.prose code {
+  background-color: var(--navy-dark, #00152E);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  color: var(--green-primary, #00FF7F);
+}
+
+.prose pre {
+  background-color: var(--navy-dark, #00152E);
+  border: 1px solid var(--panel-border, #2B3139);
+  border-radius: 8px;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 1.5em 0;
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
+  color: var(--text-primary, #111827);
+}
+
+/* Ensure italic text is visible - with high specificity and font fallback */
+.prose em,
+.prose i,
+.ProseMirror em,
+.ProseMirror i,
+.prose p em,
+.prose p i,
+.ProseMirror p em,
+.ProseMirror p i {
+  font-style: italic !important;
+  font-weight: inherit;
+  font-family: inherit; /* Ensure font supports italic */
+}
+
+.prose strong,
+.prose b,
+.ProseMirror strong,
+.ProseMirror b,
+.prose p strong,
+.prose p b,
+.ProseMirror p strong,
+.ProseMirror p b {
+  font-weight: 700 !important;
+}
+
+/* Dark mode prose adjustments */
+@media (prefers-color-scheme: dark) {
+  .prose {
+    color: var(--text-primary, #EAECEF);
+  }
+  
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4 {
+    color: var(--text-primary, #EAECEF);
+  }
+}

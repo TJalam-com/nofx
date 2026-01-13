@@ -285,26 +285,8 @@ func (s *Server) handleUpdateArticle(c *gin.Context) {
 		existingArticle.OGImageURL = req.OGImageURL
 	}
 
-	// Handle slug update
-	if req.Slug != "" {
-		slug := req.Slug
-		// Ensure slug is unique (excluding current article)
-		slug, err = s.ensureUniqueSlug(slug, id)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to generate unique slug: %v", err)})
-			return
-		}
-		existingArticle.Slug = slug
-	} else if req.Title != "" {
-		// Auto-generate slug if title changed but slug not provided
-		slug := generateSlug(req.Title)
-		slug, err = s.ensureUniqueSlug(slug, id)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to generate unique slug: %v", err)})
-			return
-		}
-		existingArticle.Slug = slug
-	}
+	// Slug cannot be changed after article creation - it remains as originally set
+	// This prevents breaking existing URLs and maintains SEO consistency
 
 	if err := s.database.UpdateArticle(existingArticle); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update article: %v", err)})

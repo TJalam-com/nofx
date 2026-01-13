@@ -18,8 +18,11 @@
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.3",
+    "@tailwindcss/typography": "^0.5.19",
+    "@tiptap/extension-color": "^3.15.3",
     "@tiptap/extension-image": "^3.13.0",
     "@tiptap/extension-link": "^3.13.0",
+    "@tiptap/extension-text-style": "^3.15.3",
     "@tiptap/react": "^3.13.0",
     "@tiptap/starter-kit": "^3.13.0",
     "axios": "^1.13.2",

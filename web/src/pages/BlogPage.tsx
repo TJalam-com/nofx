@@ -39,6 +39,26 @@ export function BlogPage() {
 
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   
+  // Convert ImgBB page URLs to direct image URLs
+  const convertImgBBUrl = (url: string): string => {
+    if (!url) return url
+    // ImgBB page URLs: https://ibb.co/XXXXX 
+    // Direct URLs: https://i.ibb.co/XXXXX/XXXXX.jpg (format varies)
+    if (url.includes('ibb.co/') && !url.includes('i.ibb.co')) {
+      // Try to use the embed format which sometimes works
+      // ImgBB embed format: https://ibb.co/XXXXX -> can try https://i.ibb.co/XXXXX.jpg
+      // But this doesn't always work as the actual path structure varies
+      const match = url.match(/ibb\.co\/([a-zA-Z0-9]+)/)
+      if (match && match[1]) {
+        const imageId = match[1]
+        // Try common pattern (may not work for all images)
+        // The real solution requires fetching the ImgBB page or using their API
+        return `https://i.ibb.co/${imageId}/${imageId}.jpg`
+      }
+    }
+    return url
+  }
+  
   // Structured data for BlogCollection
   const structuredData = {
     '@context': 'https://schema.org',
@@ -56,7 +76,7 @@ export function BlogPage() {
           '@type': 'Article',
           headline: article.title,
           description: article.excerpt || article.meta_description,
-          image: article.featured_image_url || `${baseUrl}/images/main.webp`,
+          image: article.featured_image_url ? convertImgBBUrl(article.featured_image_url) : `${baseUrl}/images/main.webp`,
           url: `${baseUrl}/blog/${article.slug}`,
           datePublished: article.published_at,
           dateModified: article.updated_at,
@@ -113,17 +133,19 @@ export function BlogPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {filteredArticles.map((article) => (
+            {filteredArticles.map((article) => {
+              const processedImageUrl = article.featured_image_url ? convertImgBBUrl(article.featured_image_url) : null
+              return (
               <Link
                 key={article.id}
                 to={`/blog/${article.slug}`}
                 className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow group"
                 style={{ borderColor: 'var(--border-color, #e5e7eb)', backgroundColor: 'var(--bg-primary, #ffffff)' }}
               >
-                {article.featured_image_url && (
+                {processedImageUrl && (
                   <div className="aspect-video overflow-hidden bg-gray-100">
                     <img
-                      src={article.featured_image_url}
+                      src={processedImageUrl}
                       alt={article.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       onError={(e) => {
@@ -141,11 +163,14 @@ export function BlogPage() {
                   </p>
                   <div className="flex items-center gap-2 text-xs" style={{ color: '#000000' }}>
                     <Calendar size={14} />
-                    {article.published_at ? new Date(article.published_at).toLocaleDateString() : 'Not published'}
+                    {article.published_at 
+                      ? new Date(article.published_at).toLocaleDateString() 
+                      : new Date(article.created_at).toLocaleDateString()}
                   </div>
                 </div>
               </Link>
-            ))}
+              )
+            })}
           </div>
 
           {/* Pagination */}
