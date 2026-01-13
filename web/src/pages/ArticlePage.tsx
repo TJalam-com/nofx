@@ -92,6 +92,16 @@ export function ArticlePage() {
         img.addEventListener('load', ensureNaturalSize, { once: true })
       }
       
+      // Force center alignment and larger size with 3:2 aspect ratio (900x600)
+      img.style.display = 'block'
+      img.style.marginLeft = 'auto'
+      img.style.marginRight = 'auto'
+      img.style.width = '80%'
+      img.style.maxWidth = 'min(95%, 1200px)'
+      img.style.height = 'auto'
+      img.style.aspectRatio = '3 / 2'
+      img.style.objectFit = 'contain'
+      
       // Add error handling
       img.onerror = () => {
         img.style.display = 'none'
@@ -108,6 +118,33 @@ export function ArticlePage() {
         processImage(img) // Apply wrapper immediately too
       }
     })
+  }, [article])
+
+  // Ensure featured image maintains 3:2 aspect ratio (900x600)
+  useEffect(() => {
+    if (!article?.featured_image_url) return
+    
+    // Wait for DOM to update
+    const timer = setTimeout(() => {
+      const featuredImg = document.querySelector('.article-featured-image') as HTMLImageElement
+      if (featuredImg) {
+        const handleLoad = () => {
+          // Ensure 3:2 aspect ratio is maintained
+          featuredImg.style.height = 'auto'
+          featuredImg.style.aspectRatio = '3 / 2'
+          featuredImg.style.objectFit = 'contain'
+        }
+        
+        if (featuredImg.complete) {
+          handleLoad()
+        } else {
+          featuredImg.addEventListener('load', handleLoad)
+          return () => featuredImg.removeEventListener('load', handleLoad)
+        }
+      }
+    }, 100)
+    
+    return () => clearTimeout(timer)
   }, [article])
 
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
@@ -319,14 +356,15 @@ export function ArticlePage() {
             <img
               src={processedFeaturedImageUrl}
               alt={article.title}
-              className="w-auto h-auto max-w-full rounded-lg mx-auto block"
+              className="rounded-lg article-featured-image"
               style={{
-                maxWidth: 'min(100%, 1200px)',
-                maxHeight: 'none',
-                objectFit: 'none',
-                imageRendering: 'auto',
-                width: 'auto',
+                width: '80%',
+                maxWidth: 'min(95%, 1200px)',
                 height: 'auto',
+                display: 'block',
+                margin: '0 auto',
+                aspectRatio: '3 / 2',
+                objectFit: 'contain',
               }}
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none'
