@@ -362,6 +362,16 @@ export const seoConfig: Record<string, (lang: Language) => SEOConfig> = {
 }
 
 export function getSEOConfig(pathname: string, lang: Language): SEOConfig {
+  // Check for blog article paths (/blog/:slug)
+  const blogArticleMatch = pathname.match(/^\/blog\/(.+)$/)
+  if (blogArticleMatch) {
+    const slug = blogArticleMatch[1]
+    return {
+      ...defaultSEO,
+      canonical: `${BASE_URL}/blog/${slug}`,
+    }
+  }
+
   const configFn = seoConfig[pathname]
   if (configFn) {
     return configFn(lang)

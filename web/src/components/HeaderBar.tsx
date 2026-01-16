@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import { t, type Language } from '../i18n/translations'
@@ -29,6 +29,7 @@ export default function HeaderBar({
   onPageChange,
 }: HeaderBarProps) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user: authUser } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
@@ -533,64 +534,184 @@ export default function HeaderBar({
                 )}
               </>
             ) : (
-              // Show Live button for logged-out users on landing page
-              isHomePage && (
-                <button
-                  key="live-tab-logged-out"
-                  onClick={() => {
-                    if (onPageChange) {
-                      onPageChange('competition')
-                    }
-                    navigate('/competition')
-                  }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
-                  style={{
-                    color: 'var(--brand-yellow)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = 'var(--brand-yellow)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = 'var(--brand-yellow)'
-                  }}
-                >
-                  {t('realtimeNav', language)}
-                </button>
+              // Show Live and Blogs buttons for all logged-out users on all pages
+              !isLoggedIn && (
+                <>
+                  <button
+                    key="live-tab-logged-out"
+                    onClick={() => {
+                      if (onPageChange) {
+                        onPageChange('competition')
+                      }
+                      navigate('/competition')
+                    }}
+                    className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
+                    style={{
+                      color: location.pathname === '/competition'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      position: 'relative',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (location.pathname !== '/competition') {
+                        e.currentTarget.style.color = 'var(--brand-yellow)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (location.pathname !== '/competition') {
+                        e.currentTarget.style.color = 'var(--brand-light-gray)'
+                      }
+                    }}
+                  >
+                    {/* Background for selected state */}
+                    {location.pathname === '/competition' && (
+                      <span
+                        className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                        style={{
+                          background: 'rgba(0, 51, 102, 0.3)',
+                          zIndex: -1,
+                          opacity: 1,
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    )}
+                    {t('realtimeNav', language)}
+                  </button>
+                  <button
+                    key="blog-tab-logged-out"
+                    onClick={() => {
+                      navigate('/blog')
+                    }}
+                    className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
+                    style={{
+                      color: location.pathname === '/blog' || location.pathname.startsWith('/blog/')
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      position: 'relative',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (location.pathname !== '/blog' && !location.pathname.startsWith('/blog/')) {
+                        e.currentTarget.style.color = 'var(--brand-yellow)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (location.pathname !== '/blog' && !location.pathname.startsWith('/blog/')) {
+                        e.currentTarget.style.color = 'var(--brand-light-gray)'
+                      }
+                    }}
+                  >
+                    {/* Background for selected state */}
+                    {(location.pathname === '/blog' || location.pathname.startsWith('/blog/')) && (
+                      <span
+                        className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                        style={{
+                          background: 'rgba(0, 51, 102, 0.3)',
+                          zIndex: -1,
+                          opacity: 1,
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    )}
+                    {t('blogNav', language)}
+                  </button>
+                </>
               )
             )}
           </div>
 
           {/* Right Side - Original Navigation Items and Login */}
           <div className="flex items-center gap-6">
-            {/* Only show Features and Pricing when logged out and on home page */}
-            {!isLoggedIn && isHomePage && (
-              <>
-                <a
-                  href="#features"
+            {/* Show FAQ, About, Features for all logged-out users */}
+            {!isLoggedIn && (
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/faq"
                   className="text-sm transition-colors relative group"
-                  style={{ color: 'var(--brand-light-gray)' }}
+                  style={{ 
+                    color: location.pathname === '/faq' 
+                      ? 'var(--brand-yellow)' 
+                      : 'var(--brand-light-gray)' 
+                  }}
+                  onMouseEnter={(e) => {
+                    if (location.pathname !== '/faq') {
+                      e.currentTarget.style.color = 'var(--brand-yellow)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (location.pathname !== '/faq') {
+                      e.currentTarget.style.color = 'var(--brand-light-gray)'
+                    }
+                  }}
                 >
-                  {t('features', language)}
-                  <span
-                    className="absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300"
-                    style={{ background: 'var(--brand-yellow)' }}
-                  />
-                </a>
-                <a
-                  href="/pricing"
+                  {t('footerLinkFAQ', language)}
+                  {location.pathname === '/faq' && (
+                    <span
+                      className="absolute -bottom-1 left-0 w-full h-0.5 transition-all duration-300"
+                      style={{ background: 'var(--brand-yellow)' }}
+                    />
+                  )}
+                </Link>
+                <span style={{ color: 'var(--brand-light-gray)', fontSize: '0.75rem' }}>•</span>
+                <Link
+                  to="/about"
                   className="text-sm transition-colors relative group"
-                  style={{ color: 'var(--brand-light-gray)' }}
+                  style={{ 
+                    color: location.pathname === '/about' 
+                      ? 'var(--brand-yellow)' 
+                      : 'var(--brand-light-gray)' 
+                  }}
+                  onMouseEnter={(e) => {
+                    if (location.pathname !== '/about') {
+                      e.currentTarget.style.color = 'var(--brand-yellow)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (location.pathname !== '/about') {
+                      e.currentTarget.style.color = 'var(--brand-light-gray)'
+                    }
+                  }}
                 >
-                  {t('pricingTitle', language)}
-                  <span
-                    className="absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300"
-                    style={{ background: 'var(--brand-yellow)' }}
-                  />
-                </a>
-              </>
+                  {t('footerLinkAbout', language)}
+                  {location.pathname === '/about' && (
+                    <span
+                      className="absolute -bottom-1 left-0 w-full h-0.5 transition-all duration-300"
+                      style={{ background: 'var(--brand-yellow)' }}
+                    />
+                  )}
+                </Link>
+                <span style={{ color: 'var(--brand-light-gray)', fontSize: '0.75rem' }}>•</span>
+                <Link
+                  to="/features"
+                  className="text-sm transition-colors relative group"
+                  style={{ 
+                    color: location.pathname === '/features' 
+                      ? 'var(--brand-yellow)' 
+                      : 'var(--brand-light-gray)' 
+                  }}
+                  onMouseEnter={(e) => {
+                    if (location.pathname !== '/features') {
+                      e.currentTarget.style.color = 'var(--brand-yellow)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (location.pathname !== '/features') {
+                      e.currentTarget.style.color = 'var(--brand-light-gray)'
+                    }
+                  }}
+                >
+                  {t('footerLinkFeatures', language)}
+                  {location.pathname === '/features' && (
+                    <span
+                      className="absolute -bottom-1 left-0 w-full h-0.5 transition-all duration-300"
+                      style={{ background: 'var(--brand-yellow)' }}
+                    />
+                  )}
+                </Link>
+              </div>
             )}
 
             {/* User Info and Actions */}

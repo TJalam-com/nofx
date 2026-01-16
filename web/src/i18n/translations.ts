@@ -24,6 +24,7 @@ export const translations = {
 
     // Navigation
     realtimeNav: 'Live',
+    blogNav: 'Blogs',
     configNav: 'Config',
     dashboardNav: 'Dashboard',
     followersNav: 'Followers',
@@ -1626,6 +1627,7 @@ export const translations = {
 
     // Navigation
     realtimeNav: '实时',
+    blogNav: '博客',
     configNav: '配置',
     dashboardNav: '看板',
     followersNav: '跟随者',
