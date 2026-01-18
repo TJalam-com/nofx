@@ -1196,6 +1196,86 @@ export default function HeaderBar({
             </>
           )}
 
+          {/* Navigation links for logged-out users (FAQ, About, Features, Blog) */}
+          {!isLoggedIn && (
+            <>
+              <Link
+                to="/blog"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
+                style={{
+                  color:
+                    location.pathname === '/blog' || location.pathname.startsWith('/blog/')
+                      ? 'var(--brand-yellow)'
+                      : 'var(--brand-light-gray)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  position: 'relative',
+                  width: '100%',
+                  textAlign: 'left',
+                }}
+              >
+                {(location.pathname === '/blog' || location.pathname.startsWith('/blog/')) && (
+                  <span
+                    className="absolute inset-0 rounded-lg transition-opacity duration-300"
+                    style={{
+                      background: 'rgba(0, 51, 102, 0.3)',
+                      zIndex: -1,
+                      opacity: 1,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
+                {t('blogNav', language)}
+              </Link>
+              <Link
+                to="/faq"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block text-sm transition-colors relative"
+                style={{
+                  color:
+                    location.pathname === '/faq'
+                      ? 'var(--brand-yellow)'
+                      : 'var(--brand-light-gray)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                }}
+              >
+                {t('footerLinkFAQ', language)}
+              </Link>
+              <Link
+                to="/about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block text-sm transition-colors relative"
+                style={{
+                  color:
+                    location.pathname === '/about'
+                      ? 'var(--brand-yellow)'
+                      : 'var(--brand-light-gray)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                }}
+              >
+                {t('footerLinkAbout', language)}
+              </Link>
+              <Link
+                to="/features"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block text-sm transition-colors relative"
+                style={{
+                  color:
+                    location.pathname === '/features'
+                      ? 'var(--brand-yellow)'
+                      : 'var(--brand-light-gray)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                }}
+              >
+                {t('footerLinkFeatures', language)}
+              </Link>
+            </>
+          )}
+
           {/* Original Navigation Items - Only when logged out and on home page */}
           {!isLoggedIn && isHomePage && (
             <>

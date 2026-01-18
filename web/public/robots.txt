@@ -1,5 +1,15 @@
 # robots.txt for AI Trading Platform
 
+# Googlebot-specific rules: Allow access to public API endpoints needed for blog rendering
+# These rules must come first to allow Googlebot to fetch article data
+User-agent: Googlebot
+Allow: /api/articles/
+Allow: /api/config
+Allow: /api/articles
+# Disallow other API endpoints for Googlebot
+Disallow: /api/
+
+# General rules for all crawlers
 User-agent: *
 Allow: /
 Allow: /competition
@@ -16,6 +26,7 @@ Allow: /risk-disclaimer
 Allow: /license
 Allow: /blog
 Allow: /blog/*
+Allow: /strategy-studio
 
 # Disallow private/user-specific pages
 Disallow: /dashboard
@@ -30,7 +41,7 @@ Disallow: /login
 Disallow: /register
 Disallow: /reset-password
 
-# Disallow API endpoints
+# Disallow API endpoints for all other crawlers
 Disallow: /api/
 
 # Sitemap location

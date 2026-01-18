@@ -5,6 +5,8 @@ import HeaderBar from '../components/HeaderBar'
 import HeroSection from '../components/landing/HeroSection'
 import AboutSection from '../components/landing/AboutSection'
 import FeaturesSection from '../components/landing/FeaturesSection'
+import CompetitionPreviewSection from '../components/landing/CompetitionPreviewSection'
+import BlogPreviewSection from '../components/landing/BlogPreviewSection'
 import AnimatedSection from '../components/landing/AnimatedSection'
 import LoginModal from '../components/landing/LoginModal'
 import FooterSection from '../components/landing/FooterSection'
@@ -87,6 +89,8 @@ export function LandingPage() {
         }}
       >
         <HeroSection language={language} onGetStarted={() => setShowLoginModal(true)} />
+        <CompetitionPreviewSection language={language} />
+        <BlogPreviewSection language={language} />
         <AboutSection language={language} />
         <FeaturesSection language={language} />
 
