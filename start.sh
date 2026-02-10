@@ -262,13 +262,15 @@ start() {
 
     # Ensure necessary files and directories exist (fix Docker volume mount issues)
     mkdir -p data
+    mkdir -p data/secrets
+    chmod 700 data/secrets
     if [ ! -f "data/data.db" ]; then
         print_info "Creating database file..."
         install -m 600 /dev/null data/data.db
     fi
-    if [ ! -d "decision_logs" ]; then
-        print_info "创建日志目录..."
-        install -m 700 -d decision_logs
+    if [ ! -d "data/decision_logs" ]; then
+        print_info "Creating decision logs directory..."
+        install -m 700 -d data/decision_logs
     fi
 
     # Auto-build frontend if missing or forced

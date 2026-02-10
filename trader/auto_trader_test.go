@@ -1097,6 +1097,18 @@ func (m *MockTrader) GetOrderStatus(symbol string, orderID string) (map[string]i
 	}, nil
 }
 
+// GetOrderHistory implements Trader.GetOrderHistory for tests.
+// For AutoTrader unit tests we don't need real history data, so return an empty slice.
+func (m *MockTrader) GetOrderHistory(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{}, nil
+}
+
+// GetUserTrades implements Trader.GetUserTrades for tests.
+// For AutoTrader unit tests we don't need real trade history data, so return an empty slice.
+func (m *MockTrader) GetUserTrades(symbol string, limit int, startTime, endTime *time.Time) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{}, nil
+}
+
 // ============================================================
 // Test suite entry point
 // ============================================================

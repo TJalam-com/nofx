@@ -1531,7 +1531,7 @@ export const translations = {
     // Data & Privacy
     faqDataStorage: 'Where is my data stored?',
     faqDataStorageAnswer:
-      'All data is stored locally on your machine in SQLite databases: config.db (trader configurations), trading.db (trade history), and decision_logs/ (AI decision records).',
+      'All data is stored locally on your machine in SQLite databases: config.db (trader configurations), trading.db (trade history), and data/decision_logs/ (AI decision records).',
 
     faqApiKeySecurity: 'Is my API key secure?',
     faqApiKeySecurityAnswer:
@@ -3082,7 +3082,7 @@ export const translations = {
     // Data & Privacy
     faqDataStorage: '我的数据存储在哪里？',
     faqDataStorageAnswer:
-      '所有数据都本地存储在您的机器上，使用 SQLite 数据库：config.db（交易员配置）、trading.db（交易历史）、decision_logs/（AI 决策记录）。',
+      '所有数据都本地存储在您的机器上，使用 SQLite 数据库：config.db（交易员配置）、trading.db（交易历史）、data/decision_logs/（AI 决策记录）。',
 
     faqApiKeySecurity: 'API 密钥安全吗？',
     faqApiKeySecurityAnswer:

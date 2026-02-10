@@ -8,6 +8,7 @@ import { AnimatedMetricCard } from '../components/streaming/AnimatedMetricCard'
 import { AnimatedPositionTable } from '../components/streaming/AnimatedPositionTable'
 import { AnimatedDecisionTimeline } from '../components/streaming/AnimatedDecisionTimeline'
 import { AdminControls } from '../components/streaming/AdminControls'
+import AILearning from '../components/AILearning'
 import { api } from '../lib/api'
 import { AccountInfo, StreamingConfig, TraderInfo } from '../types'
 import { generateTraderSlug, parseTraderSlug } from '../lib/utils'
@@ -52,7 +53,7 @@ export default function StreamingPage() {
       positions: true,
       decisions: true,
       metrics: true,
-      ai_process: false,
+      ai_process: true,
     },
     layout_type: 'chart_focus',
   })
@@ -703,6 +704,21 @@ export default function StreamingPage() {
                     }}
                   />
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* AI Learning & Reflection */}
+          <AnimatePresence>
+            {config.widget_visibility.ai_process && selectedTraderId && (
+              <motion.div
+                className="col-span-full"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.3, delay: 0.4 }}
+              >
+                <AILearning traderId={selectedTraderId} />
               </motion.div>
             )}
           </AnimatePresence>

@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	cfg "nofx/config"
 	"nofx/decision"
 	"nofx/logger"
 	"nofx/market"
 	"nofx/mcp"
 	"nofx/pool"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -376,7 +376,8 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 	}
 
 	// Initialize decision logger (create separate directory using trader ID)
-	logDir := fmt.Sprintf("decision_logs/%s", config.ID)
+	// Use data/ prefix so logs are stored on the persistent disk (critical for Render/Docker deployments)
+	logDir := fmt.Sprintf("data/decision_logs/%s", config.ID)
 	decisionLogger := logger.NewDecisionLogger(logDir)
 
 	// Set default system prompt template
@@ -1100,6 +1101,11 @@ func (at *AutoTrader) executeDecisionWithRecord(decision *decision.Decision, act
 func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, actionRecord *logger.DecisionAction) error {
 	log.Printf("  📈 Open long position: %s", decision.Symbol)
 
+	// ⚠️ Critical: Reject orders without SL/TP — webhook values must be present
+	if decision.StopLoss <= 0 || decision.TakeProfit <= 0 {
+		return fmt.Errorf("❌ refusing to open long position: stop_loss (%.8f) and take_profit (%.8f) must both be > 0", decision.StopLoss, decision.TakeProfit)
+	}
+
 	// ⚠️ Critical: Check if there's already a position in the same symbol and direction, reject if so (prevent position stacking exceeding limits)
 	positions, err := at.trader.GetPositions()
 	if err == nil {
@@ -1284,17 +1290,41 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 	}()
 	// #endregion
 	if err := at.trader.SetStopLoss(decision.Symbol, "LONG", actualExecutedQty, decision.StopLoss); err != nil {
-		log.Printf("  ⚠ Failed to set stop loss: %v", err)
+		log.Printf("  🚨 Failed to set stop loss, closing position for safety: %v", err)
 		// #region agent log
 		func() {
 			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if logFile != nil {
 				defer logFile.Close()
-				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1273","message":"SetStopLoss failed","data":{"symbol":"%s","error":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, err.Error())
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1273","message":"SetStopLoss failed, closing position for safety","data":{"symbol":"%s","error":"%s","executedQty":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, err.Error(), actualExecutedQty)
 				logFile.WriteString(logEntry)
 			}
 		}()
 		// #endregion
+
+		// Best-effort: cancel any existing SL/TP orders for this symbol first (defensive, covers Binance and other exchanges)
+		if errCancelSL := at.trader.CancelStopLossOrders(decision.Symbol); errCancelSL != nil {
+			log.Printf("  ⚠ Failed to cancel existing stop loss orders before auto-close: %v", errCancelSL)
+		}
+		if errCancelTP := at.trader.CancelTakeProfitOrders(decision.Symbol); errCancelTP != nil {
+			log.Printf("  ⚠ Failed to cancel existing take profit orders before auto-close: %v", errCancelTP)
+		}
+
+		// Immediately close the just-opened long position to avoid being unprotected
+		closeDecision := *decision
+		closeDecision.Action = "close_long"
+		// Reasoning kept minimal but explicit for logs/history
+		closeDecision.Reasoning = "auto-close executed because stop loss order placement failed after opening long position"
+		closeAction := &logger.DecisionAction{
+			Symbol:   decision.Symbol,
+			Action:   "close_long",
+			Quantity: actualExecutedQty,
+		}
+		if closeErr := at.executeCloseLongWithRecord(&closeDecision, closeAction); closeErr != nil {
+			log.Printf("  🚨 Failed to auto-close long position after SL failure: %v", closeErr)
+		}
+
+		return fmt.Errorf("failed to set stop loss after opening long position, position auto-closed: %w", err)
 	} else {
 		stopLossPrice = decision.StopLoss
 		// #region agent log
@@ -1321,17 +1351,40 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 	}()
 	// #endregion
 	if err := at.trader.SetTakeProfit(decision.Symbol, "LONG", actualExecutedQty, decision.TakeProfit); err != nil {
-		log.Printf("  ⚠ Failed to set take profit: %v", err)
+		log.Printf("  🚨 Failed to set take profit, closing position for safety: %v", err)
 		// #region agent log
 		func() {
 			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if logFile != nil {
 				defer logFile.Close()
-				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1278","message":"SetTakeProfit failed","data":{"symbol":"%s","error":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, err.Error())
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1278","message":"SetTakeProfit failed, closing position for safety","data":{"symbol":"%s","error":"%s","hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, err.Error())
 				logFile.WriteString(logEntry)
 			}
 		}()
 		// #endregion
+
+		// Cancel the SL order we just placed and any existing TP orders
+		if errCancelSL := at.trader.CancelStopLossOrders(decision.Symbol); errCancelSL != nil {
+			log.Printf("  ⚠ Failed to cancel stop loss orders before auto-close: %v", errCancelSL)
+		}
+		if errCancelTP := at.trader.CancelTakeProfitOrders(decision.Symbol); errCancelTP != nil {
+			log.Printf("  ⚠ Failed to cancel take profit orders before auto-close: %v", errCancelTP)
+		}
+
+		// Immediately close the just-opened long position to avoid being unprotected
+		closeDecision := *decision
+		closeDecision.Action = "close_long"
+		closeDecision.Reasoning = "auto-close executed because take profit order placement failed after opening long position"
+		closeAction := &logger.DecisionAction{
+			Symbol:   decision.Symbol,
+			Action:   "close_long",
+			Quantity: actualExecutedQty,
+		}
+		if closeErr := at.executeCloseLongWithRecord(&closeDecision, closeAction); closeErr != nil {
+			log.Printf("  🚨 Failed to auto-close long position after TP failure: %v", closeErr)
+		}
+
+		return fmt.Errorf("failed to set take profit after opening long position, position auto-closed: %w", err)
 	} else {
 		takeProfitPrice = decision.TakeProfit
 		// #region agent log
@@ -1339,7 +1392,7 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if logFile != nil {
 				defer logFile.Close()
-				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1280","message":"SetTakeProfit succeeded but no order ID captured","data":{"symbol":"%s","takeProfitPrice":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, takeProfitPrice)
+				logEntry := fmt.Sprintf(`{"timestamp":%d,"location":"auto_trader.go:1280","message":"SetTakeProfit succeeded","data":{"symbol":"%s","takeProfitPrice":%.4f,"hypothesisId":"A"},"sessionId":"debug-session","runId":"run1"}`+"\n", time.Now().UnixMilli(), decision.Symbol, takeProfitPrice)
 				logFile.WriteString(logEntry)
 			}
 		}()
@@ -1385,6 +1438,11 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 // executeOpenShortWithRecord executes open short position and records detailed information
 func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, actionRecord *logger.DecisionAction) error {
 	log.Printf("  📉 Open short position: %s", decision.Symbol)
+
+	// ⚠️ Critical: Reject orders without SL/TP — webhook values must be present
+	if decision.StopLoss <= 0 || decision.TakeProfit <= 0 {
+		return fmt.Errorf("❌ refusing to open short position: stop_loss (%.8f) and take_profit (%.8f) must both be > 0", decision.StopLoss, decision.TakeProfit)
+	}
 
 	// ⚠️ Critical: Check if there's already a position in the same symbol and direction, reject if so (prevent position stacking exceeding limits)
 	positions, err := at.trader.GetPositions()
@@ -1560,14 +1618,60 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 	// Set stop loss and take profit first (before saving to DB so we have the actual prices)
 	var stopLossPrice, takeProfitPrice float64
 	if err := at.trader.SetStopLoss(decision.Symbol, "SHORT", actualExecutedQty, decision.StopLoss); err != nil {
-		log.Printf("  ⚠ Failed to set stop loss: %v", err)
+		log.Printf("  🚨 Failed to set stop loss, closing position for safety: %v", err)
+
+		// Best-effort: cancel any existing SL/TP orders for this symbol first (defensive, covers Binance and other exchanges)
+		if errCancelSL := at.trader.CancelStopLossOrders(decision.Symbol); errCancelSL != nil {
+			log.Printf("  ⚠ Failed to cancel existing stop loss orders before auto-close: %v", errCancelSL)
+		}
+		if errCancelTP := at.trader.CancelTakeProfitOrders(decision.Symbol); errCancelTP != nil {
+			log.Printf("  ⚠ Failed to cancel existing take profit orders before auto-close: %v", errCancelTP)
+		}
+
+		// Immediately close the just-opened short position to avoid being unprotected
+		closeDecision := *decision
+		closeDecision.Action = "close_short"
+		closeDecision.Reasoning = "auto-close executed because stop loss order placement failed after opening short position"
+		closeAction := &logger.DecisionAction{
+			Symbol:   decision.Symbol,
+			Action:   "close_short",
+			Quantity: actualExecutedQty,
+		}
+		if closeErr := at.executeCloseShortWithRecord(&closeDecision, closeAction); closeErr != nil {
+			log.Printf("  🚨 Failed to auto-close short position after SL failure: %v", closeErr)
+		}
+
+		return fmt.Errorf("failed to set stop loss after opening short position, position auto-closed: %w", err)
 	} else {
 		stopLossPrice = decision.StopLoss
 		// Query and save pending stop-loss order immediately after creation
 		at.queryAndSavePendingSLTPOrder(decision.Symbol, "short", "stop_loss", stopLossPrice, actualExecutedQty)
 	}
 	if err := at.trader.SetTakeProfit(decision.Symbol, "SHORT", actualExecutedQty, decision.TakeProfit); err != nil {
-		log.Printf("  ⚠ Failed to set take profit: %v", err)
+		log.Printf("  🚨 Failed to set take profit, closing position for safety: %v", err)
+
+		// Cancel the SL order we just placed and any existing TP orders
+		if errCancelSL := at.trader.CancelStopLossOrders(decision.Symbol); errCancelSL != nil {
+			log.Printf("  ⚠ Failed to cancel stop loss orders before auto-close: %v", errCancelSL)
+		}
+		if errCancelTP := at.trader.CancelTakeProfitOrders(decision.Symbol); errCancelTP != nil {
+			log.Printf("  ⚠ Failed to cancel take profit orders before auto-close: %v", errCancelTP)
+		}
+
+		// Immediately close the just-opened short position to avoid being unprotected
+		closeDecision := *decision
+		closeDecision.Action = "close_short"
+		closeDecision.Reasoning = "auto-close executed because take profit order placement failed after opening short position"
+		closeAction := &logger.DecisionAction{
+			Symbol:   decision.Symbol,
+			Action:   "close_short",
+			Quantity: actualExecutedQty,
+		}
+		if closeErr := at.executeCloseShortWithRecord(&closeDecision, closeAction); closeErr != nil {
+			log.Printf("  🚨 Failed to auto-close short position after TP failure: %v", closeErr)
+		}
+
+		return fmt.Errorf("failed to set take profit after opening short position, position auto-closed: %w", err)
 	} else {
 		takeProfitPrice = decision.TakeProfit
 		// Query and save pending take-profit order immediately after creation
@@ -2497,7 +2601,7 @@ func (at *AutoTrader) getStrategyConfig() decision.StrategyConfig {
 		// Defensive check: Ensure strategy values are actually applied
 		// If strategy has a valid RR ratio, it must be used (even if it's different from default)
 		if strategy.MinRiskRewardRatio > 0 && config.MinRiskRewardRatio != strategy.MinRiskRewardRatio {
-			log.Printf("⚠️ [%s] Strategy RR ratio mismatch! Strategy has %.2f but config has %.2f, forcing strategy value", 
+			log.Printf("⚠️ [%s] Strategy RR ratio mismatch! Strategy has %.2f but config has %.2f, forcing strategy value",
 				at.name, strategy.MinRiskRewardRatio, config.MinRiskRewardRatio)
 			config.MinRiskRewardRatio = strategy.MinRiskRewardRatio
 		}
@@ -3145,7 +3249,7 @@ func (at *AutoTrader) validatePositionClosureWithTrades(symbol, side string, pos
 
 	// Validate: must have closed at least 90% of position quantity to be considered a real close
 	if totalClosedQty < position.Quantity*0.9 {
-		log.Printf("🔍 validatePositionClosureWithTrades: insufficient closure qty for %s %s (position=%.4f, closed=%.4f)", 
+		log.Printf("🔍 validatePositionClosureWithTrades: insufficient closure qty for %s %s (position=%.4f, closed=%.4f)",
 			symbol, side, position.Quantity, totalClosedQty)
 		return false, 0, 0, 0, time.Time{}
 	}
@@ -3157,7 +3261,7 @@ func (at *AutoTrader) validatePositionClosureWithTrades(symbol, side string, pos
 		return false, 0, 0, 0, time.Time{}
 	}
 
-	log.Printf("✅ validatePositionClosureWithTrades: validated closure for %s %s (exit=%.4f, qty=%.4f, fees=%.4f)", 
+	log.Printf("✅ validatePositionClosureWithTrades: validated closure for %s %s (exit=%.4f, qty=%.4f, fees=%.4f)",
 		symbol, side, avgExitPrice, totalClosedQty, totalFees)
 	return true, avgExitPrice, totalClosedQty, totalFees, latestCloseTime
 }
@@ -3834,7 +3938,7 @@ func (at *AutoTrader) detectAndLogPositionClosures() {
 
 		// Get current cycle number from decision logger (will be incremented when logged)
 		currentCycle := at.decisionLogger.GetCycleNumber()
-		
+
 		// Create minimal decision record
 		record := &logger.DecisionRecord{
 			Timestamp:    closeTime,
@@ -4400,7 +4504,7 @@ func (at *AutoTrader) DetectAndLogPositionClosuresFromOrderHistory() {
 
 			// Get current cycle number from decision logger (will be incremented when logged)
 			currentCycle := at.decisionLogger.GetCycleNumber()
-			
+
 			record := &logger.DecisionRecord{
 				Timestamp:    closeTime,
 				CycleNumber:  currentCycle + 1, // Will be set correctly by LogDecision, but set here for consistency
@@ -4621,7 +4725,7 @@ func (at *AutoTrader) checkAndUpdatePositionClosure(symbol, side string) {
 
 	// Get current cycle number from decision logger (will be incremented when logged)
 	currentCycle := at.decisionLogger.GetCycleNumber()
-	
+
 	record := &logger.DecisionRecord{
 		Timestamp:    latestCloseTime,
 		CycleNumber:  currentCycle + 1, // Will be set correctly by LogDecision, but set here for consistency
@@ -4870,6 +4974,12 @@ func (at *AutoTrader) convertAlertToDecision(alert cfg.TradingViewAlert) *decisi
 		leverage = at.config.BTCETHLeverage
 	}
 
+	// ⚠️ Critical: Reject alerts without SL/TP — webhook values must be present
+	if alert.SL <= 0 || alert.TP <= 0 {
+		log.Printf("⚠️ Alert missing SL (%.8f) or TP (%.8f), rejecting: %s %s", alert.SL, alert.TP, alert.Symbol, action)
+		return nil
+	}
+
 	// Calculate position size (USD)
 	positionSizeUSD := quantity * alert.Entry
 
@@ -5069,6 +5179,16 @@ func (at *AutoTrader) processTradingViewAlertWithAI(alertID string) {
 		acceptModify := map[string]string{"accept": "accepted", "modify": "modified"}
 		log.Printf("✅ [%s] AI %s TradingView signal", at.name, acceptModify[aiDecision.SignalDecision])
 
+		// Force webhook SL/TP — AI must NOT override these when TradingView webhook is used
+		if alert.SL > 0 && alert.TP > 0 {
+			if aiDecision.StopLoss != alert.SL || aiDecision.TakeProfit != alert.TP {
+				log.Printf("⚠️ [%s] AI tried to alter SL/TP (AI: SL=%.8f TP=%.8f → Webhook: SL=%.8f TP=%.8f), enforcing webhook values",
+					at.name, aiDecision.StopLoss, aiDecision.TakeProfit, alert.SL, alert.TP)
+			}
+			aiDecision.StopLoss = alert.SL
+			aiDecision.TakeProfit = alert.TP
+		}
+
 		// Execute decision
 		actionRecord := logger.DecisionAction{
 			Action:    aiDecision.Action,
@@ -5205,14 +5325,14 @@ func (at *AutoTrader) processParentTradeSignalWithAI(signal *ParentTradeSignal) 
 	// Load strategy config
 	strategyConfig := at.getStrategyConfig()
 
-	// Build system prompt using risk_management template
+	// Build system prompt using follower's own strategy template (strategy-studio is source of truth)
 	systemPrompt, err := decision.BuildSystemPromptWithParentSignal(
 		tradingCtx.Account.TotalEquity,
 		tradingCtx.BTCETHLeverage,
 		tradingCtx.AltcoinLeverage,
 		at.customPrompt,
 		at.overrideBasePrompt,
-		"risk_management",
+		at.systemPromptTemplate,
 		tradingCtx.PromptVariant,
 		strategyConfig,
 	)
@@ -5541,7 +5661,8 @@ func (at *AutoTrader) buildTradingViewUserPrompt(ctx *decision.Context, alert *c
 	// Decision request
 	sb.WriteString("---\n\n")
 	sb.WriteString("Please analyze this TradingView signal and decide: accept, reject, or modify.\n")
-	sb.WriteString("If accepting, use the parameters provided by the signal; if modifying, use parameters you deem more appropriate.\n")
+	sb.WriteString("If accepting, use ALL parameters provided by the signal, including Stop Loss and Take Profit.\n")
+	sb.WriteString("If modifying, you may ONLY adjust leverage and position_size_usd based on account risk; you MUST keep Stop Loss and Take Profit exactly equal to the values from the TradingView signal.\n")
 	sb.WriteString("The JSON output must include a signal_decision field (value: \"accept\", \"reject\", or \"modify\").\n")
 	sb.WriteString("Now please analyze and output your decision (chain of thought + JSON)\n")
 

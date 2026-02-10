@@ -42,7 +42,10 @@ func TestPromptReloadEndToEnd(t *testing.T) {
 	}
 
 	// Step 4: Use buildSystemPrompt to verify template is correctly used
-	systemPrompt := buildSystemPrompt(10000.0, 10, 5, "test_strategy", "", GetDefaultStrategyConfig())
+	systemPrompt, err := buildSystemPrompt(10000.0, 10, 5, "test_strategy", "", GetDefaultStrategyConfig())
+	if err != nil {
+		t.Fatalf("buildSystemPrompt failed: %v", err)
+	}
 	if !strings.Contains(systemPrompt, initialContent) {
 		t.Errorf("buildSystemPrompt doesn't contain template content\nGenerated prompt:\n%s", systemPrompt)
 	}
@@ -69,7 +72,10 @@ func TestPromptReloadEndToEnd(t *testing.T) {
 	}
 
 	// Step 8: Verify buildSystemPrompt uses new content
-	newSystemPrompt := buildSystemPrompt(10000.0, 10, 5, "test_strategy", "", GetDefaultStrategyConfig())
+	newSystemPrompt, err := buildSystemPrompt(10000.0, 10, 5, "test_strategy", "", GetDefaultStrategyConfig())
+	if err != nil {
+		t.Fatalf("buildSystemPrompt failed after reload: %v", err)
+	}
 	if !strings.Contains(newSystemPrompt, updatedContent) {
 		t.Errorf("buildSystemPrompt doesn't contain updated template content\nGenerated prompt:\n%s", newSystemPrompt)
 	}
@@ -108,7 +114,10 @@ func TestPromptReloadWithCustomPrompt(t *testing.T) {
 
 	// Test 1: Base template + custom prompt (no override)
 	customPrompt := "Personalized rule: only trade BTC"
-	result := buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, false, "base", "", PromptTypeStandard, GetDefaultStrategyConfig())
+	result, err := buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, false, "base", "", PromptTypeStandard, GetDefaultStrategyConfig())
+	if err != nil {
+		t.Fatalf("buildSystemPromptWithCustom failed: %v", err)
+	}
 	if !strings.Contains(result, baseContent) {
 		t.Errorf("Does not contain base template content")
 	}
@@ -117,7 +126,10 @@ func TestPromptReloadWithCustomPrompt(t *testing.T) {
 	}
 
 	// Test 2: Override base prompt
-	result = buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, true, "base", "", PromptTypeStandard, GetDefaultStrategyConfig())
+	result, err = buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, true, "base", "", PromptTypeStandard, GetDefaultStrategyConfig())
+	if err != nil {
+		t.Fatalf("buildSystemPromptWithCustom failed in override mode: %v", err)
+	}
 	if strings.Contains(result, baseContent) {
 		t.Errorf("Override mode still contains base template content")
 	}
@@ -135,7 +147,10 @@ func TestPromptReloadWithCustomPrompt(t *testing.T) {
 		t.Fatalf("Failed to reload: %v", err)
 	}
 
-	result = buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, false, "base", "", PromptTypeStandard, GetDefaultStrategyConfig())
+	result, err = buildSystemPromptWithCustom(10000.0, 10, 5, customPrompt, false, "base", "", PromptTypeStandard, GetDefaultStrategyConfig())
+	if err != nil {
+		t.Fatalf("buildSystemPromptWithCustom failed after reload: %v", err)
+	}
 	if !strings.Contains(result, updatedBase) {
 		t.Errorf("After reload, does not contain updated base template content")
 	}
@@ -168,13 +183,19 @@ func TestPromptReloadFallback(t *testing.T) {
 	}
 
 	// Test 1: Request non-existent template, should fallback to default
-	result := buildSystemPrompt(10000.0, 10, 5, "nonexistent", "", GetDefaultStrategyConfig())
+	result, err := buildSystemPrompt(10000.0, 10, 5, "nonexistent", "", GetDefaultStrategyConfig())
+	if err != nil {
+		t.Fatalf("buildSystemPrompt failed for nonexistent template: %v", err)
+	}
 	if !strings.Contains(result, defaultContent) {
 		t.Errorf("When requesting non-existent template, did not fallback to default")
 	}
 
 	// Test 2: Empty template name, should use default
-	result = buildSystemPrompt(10000.0, 10, 5, "", "", GetDefaultStrategyConfig())
+	result, err = buildSystemPrompt(10000.0, 10, 5, "", "", GetDefaultStrategyConfig())
+	if err != nil {
+		t.Fatalf("buildSystemPrompt failed for empty template name: %v", err)
+	}
 	if !strings.Contains(result, defaultContent) {
 		t.Errorf("When template name is empty, did not use default")
 	}

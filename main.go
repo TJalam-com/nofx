@@ -17,6 +17,7 @@ import (
 	"nofx/pool"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -167,9 +168,23 @@ func main() {
 
 	// Initialize database configuration
 	// Default path is data/data.db to ensure database persistence in Docker volume
+	// In Docker/Render, WORKDIR is /app and /app/data is typically mounted as a persistent disk.
 	dbPath := "data/data.db"
 	if len(os.Args) > 1 {
 		dbPath = os.Args[1]
+	}
+
+	// Allow overriding DB path via environment variable (higher priority than CLI args)
+	if envDBPath := strings.TrimSpace(os.Getenv("DB_PATH")); envDBPath != "" {
+		dbPath = envDBPath
+	}
+
+	// Log absolute path for easier debugging in container environments (Render, Docker, etc.)
+	absDBPath, absErr := filepath.Abs(dbPath)
+	if absErr != nil {
+		log.Printf("⚠️  Could not resolve absolute DB path from %q: %v", dbPath, absErr)
+	} else {
+		log.Printf("📁 Resolved database path: %s (from %s)", absDBPath, dbPath)
 	}
 
 	// Read configuration file
@@ -210,7 +225,43 @@ func main() {
 
 	// Initialize encryption service
 	log.Printf("🔐 Initializing encryption service...")
-	cryptoService, err := crypto.NewCryptoService("secrets/rsa_key")
+
+	// Ensure encryption keys are on persistent disk:
+	// If legacy secrets exist in ./secrets but not yet in ./data/secrets, migrate them once.
+	legacySecretsDir := "secrets"
+	persistentSecretsDir := "data/secrets"
+	if stat, err := os.Stat(legacySecretsDir); err == nil && stat.IsDir() {
+		if err := os.MkdirAll(persistentSecretsDir, 0700); err != nil {
+			log.Printf("⚠️  Failed to create persistent secrets directory %s: %v", persistentSecretsDir, err)
+		} else {
+			type filePair struct {
+				src string
+				dst string
+			}
+			pairs := []filePair{
+				{src: "secrets/rsa_key", dst: "data/secrets/rsa_key"},
+				{src: "secrets/rsa_key.pub", dst: "data/secrets/rsa_key.pub"},
+				{src: "secrets/data_key", dst: "data/secrets/data_key"},
+			}
+			for _, p := range pairs {
+				if _, err := os.Stat(p.src); err == nil {
+					if _, err := os.Stat(p.dst); os.IsNotExist(err) {
+						if data, err := os.ReadFile(p.src); err == nil {
+							if err := os.WriteFile(p.dst, data, 0600); err != nil {
+								log.Printf("⚠️  Failed to migrate %s to %s: %v", p.src, p.dst, err)
+							} else {
+								log.Printf("🔁 Migrated legacy secret %s -> %s", p.src, p.dst)
+							}
+						} else {
+							log.Printf("⚠️  Failed to read legacy secret %s: %v", p.src, err)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	cryptoService, err := crypto.NewCryptoService("data/secrets/rsa_key")
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize encryption service: %v", err)
 	}

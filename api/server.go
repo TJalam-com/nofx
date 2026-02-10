@@ -1049,7 +1049,7 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 
 	// Set leverage default values (from system configuration)
 	btcEthLeverage := 5
-	altcoinLeverage := 5
+	altcoinLeverage := 3
 	if req.BTCETHLeverage > 0 {
 		btcEthLeverage = req.BTCETHLeverage
 	} else {
@@ -1221,39 +1221,13 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 	// Handle strategy_id: if provided, validate it exists but don't merge settings
 	// When strategy_id is set, we only save the reference - settings will be loaded from strategy when needed
 	strategyID := req.StrategyID
-	// #region agent log
-	if strategyID != "" {
-		logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if logFile != nil {
-			logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"api/server.go:1220","message":"CreateTrader received strategy_id","data":{"strategyID":"%s","userID":"%s"},"timestamp":%d}`+"\n", strategyID, userID, time.Now().UnixMilli())
-			logFile.WriteString(logEntry)
-			logFile.Close()
-		}
-	}
-	// #endregion
 	if strategyID != "" {
 		_, err := s.database.GetStrategy(strategyID, userID)
 		if err != nil {
 			log.Printf("⚠️ Failed to load strategy %s: %v, proceeding without strategy", strategyID, err)
-			// #region agent log
-			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if logFile != nil {
-				logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"api/server.go:1228","message":"Strategy validation failed","data":{"strategyID":"%s","error":"%v"},"timestamp":%d}`+"\n", strategyID, err, time.Now().UnixMilli())
-				logFile.WriteString(logEntry)
-				logFile.Close()
-			}
-			// #endregion
 			strategyID = "" // Clear invalid strategy_id
 		} else {
 			log.Printf("✓ Validated strategy %s - settings will be loaded from strategy when needed", strategyID)
-			// #region agent log
-			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if logFile != nil {
-				logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"api/server.go:1233","message":"Strategy validated successfully","data":{"strategyID":"%s"},"timestamp":%d}`+"\n", strategyID, time.Now().UnixMilli())
-				logFile.WriteString(logEntry)
-				logFile.Close()
-			}
-			// #endregion
 		}
 	}
 
@@ -1338,14 +1312,6 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 	}
 
 	log.Printf("🔧 DEBUG [CreateTrader]: Starting to create trader configuration, ID=%s, Name=%s, AIModel=%s, Exchange=%s, FollowedTraderID='%s', StrategyID='%s'", traderID, req.Name, req.AIModelID, req.ExchangeID, req.FollowedTraderID, strategyID)
-	// #region agent log
-	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"api/server.go:1311","message":"Creating TraderRecord with strategy_id","data":{"traderID":"%s","strategyID":"%s","reqStrategyID":"%s"},"timestamp":%d}`+"\n", traderID, strategyID, req.StrategyID, time.Now().UnixMilli())
-		logFile.WriteString(logEntry)
-		logFile.Close()
-	}
-	// #endregion
 	trader := &config.TraderRecord{
 		ID:                   traderID,
 		UserID:               userID,
@@ -1382,37 +1348,13 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 
 	// Save to database
 	log.Printf("🔧 DEBUG: Preparing to call CreateTrader")
-	// #region agent log
-	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"api/server.go:1348","message":"About to save trader to database","data":{"traderID":"%s","traderStrategyID":"%s"},"timestamp":%d}`+"\n", trader.ID, trader.StrategyID, time.Now().UnixMilli())
-		logFile.WriteString(logEntry)
-		logFile.Close()
-	}
-	// #endregion
 	err = s.database.CreateTrader(trader)
 	if err != nil {
 		log.Printf("❌ Failed to create trader: %v", err)
-		// #region agent log
-		logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if logFile != nil {
-			logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"api/server.go:1351","message":"CreateTrader database error","data":{"error":"%v","traderID":"%s"},"timestamp":%d}`+"\n", err, trader.ID, time.Now().UnixMilli())
-			logFile.WriteString(logEntry)
-			logFile.Close()
-		}
-		// #endregion
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create trader: %v", err)})
 		return
 	}
 	log.Printf("✓ DEBUG [CreateTrader]: Trader saved to database successfully, FollowedTraderID='%s', SystemPromptTemplate='%s'", trader.FollowedTraderID, trader.SystemPromptTemplate)
-	// #region agent log
-	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"api/server.go:1354","message":"Trader saved successfully","data":{"traderID":"%s","traderStrategyID":"%s"},"timestamp":%d}`+"\n", trader.ID, trader.StrategyID, time.Now().UnixMilli())
-		logFile.WriteString(logEntry)
-		logFile.Close()
-	}
-	// #endregion
 
 	// Invalidate competition cache to ensure new traders (including followers) are correctly displayed/filtered
 	s.traderManager.InvalidateCompetitionCache()
@@ -1546,14 +1488,6 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 	// If strategy_id changed from existing, use the new value (could be clearing it)
 	// If strategy_id is same as existing, keep it
 	strategyID := req.StrategyID
-	// #region agent log
-	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1487","message":"UpdateTrader received strategy_id","data":{"reqStrategyID":"%s","existingStrategyID":"%s","traderID":"%s"},"timestamp":%d}`+"\n", req.StrategyID, existingTrader.StrategyID, traderID, time.Now().UnixMilli())
-		logFile.WriteString(logEntry)
-		logFile.Close()
-	}
-	// #endregion
 	if strategyID == existingTrader.StrategyID {
 		// StrategyID unchanged, keep existing
 		strategyID = existingTrader.StrategyID
@@ -1565,25 +1499,9 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		_, err := s.database.GetStrategy(strategyID, userID)
 		if err != nil {
 			log.Printf("⚠️ Failed to load strategy %s: %v, clearing strategy_id", strategyID, err)
-			// #region agent log
-			logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if logFile != nil {
-				logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1498","message":"Strategy validation failed in UpdateTrader","data":{"strategyID":"%s","error":"%v"},"timestamp":%d}`+"\n", strategyID, err, time.Now().UnixMilli())
-				logFile.WriteString(logEntry)
-				logFile.Close()
-			}
-			// #endregion
 			strategyID = "" // Clear invalid strategy_id
 		} else {
 			log.Printf("✓ Validated strategy %s - settings will be loaded from strategy when needed", strategyID)
-			// #region agent log
-			logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if logFile != nil {
-				logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1501","message":"Strategy validated successfully in UpdateTrader","data":{"strategyID":"%s"},"timestamp":%d}`+"\n", strategyID, time.Now().UnixMilli())
-				logFile.WriteString(logEntry)
-				logFile.Close()
-			}
-			// #endregion
 		}
 	}
 
@@ -1772,100 +1690,18 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 	}
 
 	// Update database
-	// #region agent log
-	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1690","message":"About to update trader in database","data":{"traderID":"%s","traderStrategyID":"%s"},"timestamp":%d}`+"\n", trader.ID, trader.StrategyID, time.Now().UnixMilli())
-		logFile.WriteString(logEntry)
-		logFile.Close()
-	}
-	// #endregion
 	err = s.database.UpdateTrader(trader)
 	if err != nil {
 		log.Printf("❌ DEBUG [UpdateTrader]: Database update failed: %v", err)
-		// #region agent log
-		logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if logFile != nil {
-			logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1693","message":"UpdateTrader database error","data":{"error":"%v","traderID":"%s"},"timestamp":%d}`+"\n", err, trader.ID, time.Now().UnixMilli())
-			logFile.WriteString(logEntry)
-			logFile.Close()
-		}
-		// #endregion
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update trader: %v", err)})
 		return
 	}
 	log.Printf("✓ DEBUG [UpdateTrader]: Database update succeeded for trader %s, system_prompt_template: '%s'", traderID, systemPromptTemplate)
-	// #region agent log
-	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logEntry := fmt.Sprintf(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"api/server.go:1696","message":"Trader updated successfully","data":{"traderID":"%s","traderStrategyID":"%s"},"timestamp":%d}`+"\n", trader.ID, trader.StrategyID, time.Now().UnixMilli())
-		logFile.WriteString(logEntry)
-		logFile.Close()
-	}
-	// #endregion
-
-	// #region agent log
-	// Log before reloading trader
-	logFile, _ = os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logData := map[string]interface{}{
-			"location": "api/server.go:1805",
-			"message": "About to reload trader after update",
-			"data": map[string]interface{}{
-				"trader_id": traderID,
-				"user_id": userID,
-			},
-			"timestamp": time.Now().UnixMilli(),
-			"sessionId": "debug-session",
-			"runId": "run1",
-			"hypothesisId": "C",
-		}
-		json.NewEncoder(logFile).Encode(logData)
-		logFile.Close()
-	}
-	// #endregion
 
 	// Reload trader into memory to ensure latest configuration (including UseTradingView) takes effect
 	if reloadErr := s.traderManager.ReloadTraderFromDB(s.database, userID, traderID); reloadErr != nil {
 		log.Printf("⚠️ Failed to reload trader into memory: %v", reloadErr)
-		// #region agent log
-		logFile2, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if logFile2 != nil {
-			logData2 := map[string]interface{}{
-				"location": "api/server.go:1820",
-				"message": "Failed to reload trader",
-				"data": map[string]interface{}{
-					"trader_id": traderID,
-					"error": reloadErr.Error(),
-				},
-				"timestamp": time.Now().UnixMilli(),
-				"sessionId": "debug-session",
-				"runId": "run1",
-				"hypothesisId": "C",
-			}
-			json.NewEncoder(logFile2).Encode(logData2)
-			logFile2.Close()
-		}
-		// #endregion
 	} else {
-		// #region agent log
-		logFile3, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if logFile3 != nil {
-			logData3 := map[string]interface{}{
-				"location": "api/server.go:1840",
-				"message": "Trader reloaded successfully",
-				"data": map[string]interface{}{
-					"trader_id": traderID,
-				},
-				"timestamp": time.Now().UnixMilli(),
-				"sessionId": "debug-session",
-				"runId": "run1",
-				"hypothesisId": "C",
-			}
-			json.NewEncoder(logFile3).Encode(logData3)
-			logFile3.Close()
-		}
-		// #endregion
 	}
 
 	log.Printf("INFO: Trader config reloaded into memory (trader=%s, UseTradingView=%v, scan_interval=%d)", traderID, req.UseTradingView, scanIntervalMinutes)
@@ -2257,8 +2093,31 @@ func (s *Server) handleUpdateTraderPrompt(c *gin.Context) {
 		return
 	}
 
+	// Strategy-studio is single source of truth for strategy-related settings (including prompts)
+	// If this trader is managed by a strategy, block direct prompt updates here.
+	traders, err := s.database.GetTraders(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get trader list"})
+		return
+	}
+	var existing *config.TraderRecord
+	for _, t := range traders {
+		if t.ID == traderID {
+			existing = t
+			break
+		}
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Trader does not exist"})
+		return
+	}
+	if existing.StrategyID != "" {
+		c.JSON(http.StatusConflict, gin.H{"error": "This trader is managed by Strategy Studio. Edit the linked strategy to change prompt settings."})
+		return
+	}
+
 	// Update database
-	err := s.database.UpdateTraderCustomPrompt(userID, traderID, req.CustomPrompt, req.OverrideBasePrompt)
+	err = s.database.UpdateTraderCustomPrompt(userID, traderID, req.CustomPrompt, req.OverrideBasePrompt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update custom prompt: %v", err)})
 		return
@@ -3454,15 +3313,6 @@ func (s *Server) handleGetPendingOrders(c *gin.Context) {
 
 // handlePositionHistory get position history (all positions including closed)
 func (s *Server) handlePositionHistory(c *gin.Context) {
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "api/server.go:3394", "message": "handlePositionHistory entry", "data": map[string]interface{}{"traderID": c.Query("trader_id"), "limit": c.Query("limit"), "offset": c.Query("offset")}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
 	_, traderID, err := s.getTraderFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -3484,15 +3334,6 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 		}
 	}
 
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "api/server.go:3423", "message": "Before GetPositionHistory call", "data": map[string]interface{}{"traderID": traderID, "limit": limit, "offset": offset, "databaseNil": s.database == nil}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
 
 	// Get position history from database
 	if s.database == nil {
@@ -3504,15 +3345,6 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 
 	// Get closed positions (with pagination)
 	closedPositions, err := s.database.GetPositionHistory(traderID, limit, offset)
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A,B", "location": "api/server.go:3443", "message": "After GetPositionHistory call", "data": map[string]interface{}{"traderID": traderID, "err": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "closedPositionCount": len(closedPositions)}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
 	if err != nil {
 		log.Printf("❌ Failed to get position history for trader %s (limit=%d, offset=%d): %v", traderID, limit, offset, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -3601,25 +3433,7 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 	paginatedPositions := allPositions[startIdx:endIdx]
 
 	result := make([]PositionHistoryItem, 0, len(paginatedPositions))
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C,D", "location": "api/server.go:3483", "message": "Before result conversion loop", "data": map[string]interface{}{"totalPositionCount": len(allPositions), "closedCount": len(closedPositions), "openCount": len(openPositions), "paginatedCount": len(paginatedPositions)}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
-	for i, pos := range paginatedPositions {
-		// #region agent log
-		func() {
-			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if f != nil {
-				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "api/server.go:3457", "message": "Processing position", "data": map[string]interface{}{"index": i, "id": pos.ID, "openedAtZero": pos.OpenedAt.IsZero(), "closedAtNil": pos.ClosedAt == nil}, "timestamp": time.Now().UnixMilli()})
-				f.Close()
-			}
-		}()
-		// #endregion
+	for _, pos := range paginatedPositions {
 		var closedAtStrPtr *string
 		if pos.ClosedAt != nil {
 			closedAtStr := pos.ClosedAt.Format("2006-01-02 15:04:05")
@@ -3627,19 +3441,6 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 		}
 
 		openedAtStr := pos.OpenedAt.Format("2006-01-02 15:04:05")
-		// #region agent log
-		func() {
-			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if f != nil {
-				closedAtStrForLog := ""
-				if closedAtStrPtr != nil {
-					closedAtStrForLog = *closedAtStrPtr
-				}
-				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "api/server.go:3461", "message": "After time formatting", "data": map[string]interface{}{"index": i, "openedAtStr": openedAtStr, "closedAtStr": closedAtStrForLog, "closedAtPtrNil": closedAtStrPtr == nil}, "timestamp": time.Now().UnixMilli()})
-				f.Close()
-			}
-		}()
-		// #endregion
 
 		// Determine status based on whether position is closed in database AND still open on exchange
 		status := "closed"
@@ -3764,26 +3565,8 @@ func (s *Server) handlePositionHistory(c *gin.Context) {
 			Status:          status,
 		})
 	}
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "D", "location": "api/server.go:3483", "message": "Before JSON response", "data": map[string]interface{}{"resultCount": len(result)}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
 
 	c.JSON(http.StatusOK, result)
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "D", "location": "api/server.go:3485", "message": "After JSON response", "data": map[string]interface{}{}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
 }
 
 // handleClosePosition manual close position
@@ -3843,29 +3626,11 @@ func (s *Server) handleClosePosition(c *gin.Context) {
 
 	// Execute close position
 	var result map[string]interface{}
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			defer f.Close()
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "D", "location": "api/server.go:3845", "message": "handleClosePosition: before CloseLong/CloseShort", "data": map[string]interface{}{"symbol": closeReq.Symbol, "side": closeReq.Side, "quantity": closeReq.Quantity}, "timestamp": time.Now().UnixMilli()})
-		}
-	}()
-	// #endregion
 	if closeReq.Side == "long" {
 		result, err = trader.CloseLong(closeReq.Symbol, closeReq.Quantity)
 	} else {
 		result, err = trader.CloseShort(closeReq.Symbol, closeReq.Quantity)
 	}
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			defer f.Close()
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "D", "location": "api/server.go:3852", "message": "handleClosePosition: after CloseLong/CloseShort", "data": map[string]interface{}{"symbol": closeReq.Symbol, "side": closeReq.Side, "err": func() string { if err != nil { return err.Error() } else { return "nil" } }()}, "timestamp": time.Now().UnixMilli()})
-		}
-	}()
-	// #endregion
 
 	if err != nil {
 		log.Printf("❌ [%s] Close position failed: %v", traderCfg.Name, err)

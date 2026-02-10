@@ -126,10 +126,10 @@ setup_rsa_keys() {
 create_directories() {
     print_info "Creating necessary directories..."
     
-    mkdir -p secrets
-    chmod 700 secrets
+    mkdir -p data/secrets
+    chmod 700 data/secrets
     
-    mkdir -p decision_logs
+    mkdir -p data/decision_logs
     
     mkdir -p prompts
     

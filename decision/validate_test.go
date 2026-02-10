@@ -83,7 +83,7 @@ func TestLeverageFallback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateDecision(&tt.decision, tt.accountEquity, tt.btcEthLeverage, tt.altcoinLeverage, GetDefaultStrategyConfig())
+			err := validateDecision(&tt.decision, tt.accountEquity, tt.btcEthLeverage, tt.altcoinLeverage, GetDefaultStrategyConfig(), nil)
 
 			// Check error status
 			if (err != nil) != tt.wantError {
@@ -143,7 +143,7 @@ func TestUpdateStopLossValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateDecision(&tt.decision, 1000.0, 10, 5, GetDefaultStrategyConfig())
+			err := validateDecision(&tt.decision, 1000.0, 10, 5, GetDefaultStrategyConfig(), nil)
 
 			if (err != nil) != tt.wantError {
 				t.Errorf("validateDecision() error = %v, wantError %v", err, tt.wantError)
@@ -203,7 +203,7 @@ func TestUpdateTakeProfitValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateDecision(&tt.decision, 1000.0, 10, 5, GetDefaultStrategyConfig())
+			err := validateDecision(&tt.decision, 1000.0, 10, 5, GetDefaultStrategyConfig(), nil)
 
 			if (err != nil) != tt.wantError {
 				t.Errorf("validateDecision() error = %v, wantError %v", err, tt.wantError)
@@ -263,7 +263,7 @@ func TestPartialCloseValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateDecision(&tt.decision, 1000.0, 10, 5, GetDefaultStrategyConfig())
+			err := validateDecision(&tt.decision, 1000.0, 10, 5, GetDefaultStrategyConfig(), nil)
 
 			if (err != nil) != tt.wantError {
 				t.Errorf("validateDecision() error = %v, wantError %v", err, tt.wantError)

@@ -19,7 +19,7 @@ import (
 
 func main() {
 	dbPath := flag.String("db", "data/data.db", "Database path")
-	logsDir := flag.String("logs", "decision_logs", "Decision logs directory")
+	logsDir := flag.String("logs", "data/decision_logs", "Decision logs directory")
 	dryRun := flag.Bool("dry-run", false, "Dry run mode (don't actually save to database)")
 	flag.Parse()
 

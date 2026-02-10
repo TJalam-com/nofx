@@ -102,7 +102,7 @@ type DecisionLogger struct {
 // NewDecisionLogger Creates a decision logger
 func NewDecisionLogger(logDir string) IDecisionLogger {
 	if logDir == "" {
-		logDir = "decision_logs"
+		logDir = "data/decision_logs"
 	}
 
 	// Ensure log directory exists (using secure permissions: owner-only access)

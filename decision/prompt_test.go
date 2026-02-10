@@ -21,7 +21,10 @@ func TestBuildSystemPrompt_ContainsAllValidActions(t *testing.T) {
 	}
 
 	// Build prompt
-	prompt := buildSystemPrompt(1000.0, 10, 5, "default", "", GetDefaultStrategyConfig())
+	prompt, err := buildSystemPrompt(1000.0, 10, 5, "default", "", GetDefaultStrategyConfig())
+	if err != nil {
+		t.Fatalf("buildSystemPrompt failed: %v", err)
+	}
 
 	// Verify each valid action appears in prompt
 	for _, action := range validActions {
@@ -33,7 +36,10 @@ func TestBuildSystemPrompt_ContainsAllValidActions(t *testing.T) {
 
 // TestBuildSystemPrompt_ActionListCompleteness tests completeness of action list
 func TestBuildSystemPrompt_ActionListCompleteness(t *testing.T) {
-	prompt := buildSystemPrompt(1000.0, 10, 5, "default", "", GetDefaultStrategyConfig())
+	prompt, err := buildSystemPrompt(1000.0, 10, 5, "default", "", GetDefaultStrategyConfig())
+	if err != nil {
+		t.Fatalf("buildSystemPrompt failed: %v", err)
+	}
 
 	// Check if critical missing actions are included
 	missingActions := []string{

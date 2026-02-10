@@ -25,7 +25,7 @@ const (
 	storagePrefix    = "ENC:v1:"
 	storageDelimiter = ":"
 	dataKeyEnvName   = "DATA_ENCRYPTION_KEY"
-	dataKeyFilePath  = "secrets/data_key"
+	dataKeyFilePath  = "data/secrets/data_key"
 )
 
 type EncryptedPayload struct {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -742,6 +743,15 @@ func (t *HyperliquidTrader) SetStopLoss(symbol string, positionSide string, quan
 	// ⚠️ Critical: price also needs to be processed to 5 significant figures
 	roundedStopPrice := t.roundPriceToSigfigs(stopPrice)
 
+	// ⚠️ Guard: fail if rounding changes the SL price by more than 0.01%
+	log.Printf("  📐 SL price precision: original=%.10f → rounded=%.10f", stopPrice, roundedStopPrice)
+	if stopPrice > 0 {
+		deviation := math.Abs(roundedStopPrice-stopPrice) / stopPrice
+		if deviation > 0.0001 { // 0.01%
+			return fmt.Errorf("stop loss price %.10f would be rounded to %.10f (%.4f%% deviation exceeds 0.01%% threshold), refusing to alter webhook SL", stopPrice, roundedStopPrice, deviation*100)
+		}
+	}
+
 	// Create stop loss order (Trigger Order)
 	order := hyperliquid.CreateOrderRequest{
 		Coin:  coin,
@@ -763,7 +773,7 @@ func (t *HyperliquidTrader) SetStopLoss(symbol string, positionSide string, quan
 		return fmt.Errorf("failed to set stop loss: %w", err)
 	}
 
-	log.Printf("  Stop loss price set: %.4f", roundedStopPrice)
+	log.Printf("  Stop loss price set: %.4f (original: %.10f)", roundedStopPrice, stopPrice)
 	return nil
 }
 
@@ -778,6 +788,15 @@ func (t *HyperliquidTrader) SetTakeProfit(symbol string, positionSide string, qu
 
 	// ⚠️ Critical: price also needs to be processed to 5 significant figures
 	roundedTakeProfitPrice := t.roundPriceToSigfigs(takeProfitPrice)
+
+	// ⚠️ Guard: fail if rounding changes the TP price by more than 0.01%
+	log.Printf("  📐 TP price precision: original=%.10f → rounded=%.10f", takeProfitPrice, roundedTakeProfitPrice)
+	if takeProfitPrice > 0 {
+		deviation := math.Abs(roundedTakeProfitPrice-takeProfitPrice) / takeProfitPrice
+		if deviation > 0.0001 { // 0.01%
+			return fmt.Errorf("take profit price %.10f would be rounded to %.10f (%.4f%% deviation exceeds 0.01%% threshold), refusing to alter webhook TP", takeProfitPrice, roundedTakeProfitPrice, deviation*100)
+		}
+	}
 
 	// Create take profit order (Trigger Order)
 	order := hyperliquid.CreateOrderRequest{
@@ -800,7 +819,7 @@ func (t *HyperliquidTrader) SetTakeProfit(symbol string, positionSide string, qu
 		return fmt.Errorf("failed to set take profit: %w", err)
 	}
 
-	log.Printf("  Take profit price set: %.4f", roundedTakeProfitPrice)
+	log.Printf("  Take profit price set: %.4f (original: %.10f)", roundedTakeProfitPrice, takeProfitPrice)
 	return nil
 }
 

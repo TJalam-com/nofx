@@ -195,37 +195,37 @@ type Context struct {
 
 // StrategyConfig holds configurable strategy parameters
 type StrategyConfig struct {
-	MinRiskRewardRatio      float64
-	MaxPositions            int
-	MarginUsageLimit        float64
-	MinOpeningAmount        float64
-	MinOpeningAmountBTCETH  float64
-	AltcoinPositionMin      float64
-	AltcoinPositionMax      float64
-	BTCETHPositionMin       float64
-	BTCETHPositionMax       float64
+	MinRiskRewardRatio        float64
+	MaxPositions              int
+	MarginUsageLimit          float64
+	MinOpeningAmount          float64
+	MinOpeningAmountBTCETH    float64
+	AltcoinPositionMin        float64
+	AltcoinPositionMax        float64
+	BTCETHPositionMin         float64
+	BTCETHPositionMax         float64
 	AvailableMarginMultiplier float64
-	MinConfidenceForEntry   int
-	MinHoldingTimeMinutes   int
-	SharpeRatioConfig       map[string]interface{} // Parsed from JSON
+	MinConfidenceForEntry     int
+	MinHoldingTimeMinutes     int
+	SharpeRatioConfig         map[string]interface{} // Parsed from JSON
 }
 
 // GetDefaultStrategyConfig returns default strategy configuration
 func GetDefaultStrategyConfig() StrategyConfig {
 	return StrategyConfig{
-		MinRiskRewardRatio:      3.0,
-		MaxPositions:            3,
-		MarginUsageLimit:         90.0,
-		MinOpeningAmount:        12.0,
-		MinOpeningAmountBTCETH:  60.0,
-		AltcoinPositionMin:      0.8,
-		AltcoinPositionMax:      1.5,
-		BTCETHPositionMin:       5.0,
-		BTCETHPositionMax:       10.0,
+		MinRiskRewardRatio:        3.0,
+		MaxPositions:              3,
+		MarginUsageLimit:          90.0,
+		MinOpeningAmount:          12.0,
+		MinOpeningAmountBTCETH:    60.0,
+		AltcoinPositionMin:        0.8,
+		AltcoinPositionMax:        1.5,
+		BTCETHPositionMin:         5.0,
+		BTCETHPositionMax:         10.0,
 		AvailableMarginMultiplier: 0.88,
-		MinConfidenceForEntry:   75,
-		MinHoldingTimeMinutes:   30,
-		SharpeRatioConfig:       make(map[string]interface{}),
+		MinConfidenceForEntry:     75,
+		MinHoldingTimeMinutes:     30,
+		SharpeRatioConfig:         make(map[string]interface{}),
 	}
 }
 
@@ -237,7 +237,7 @@ func StrategyConfigFromFields(
 	sharpeRatioConfigJSON string,
 ) StrategyConfig {
 	config := GetDefaultStrategyConfig()
-	
+
 	// Always set minRiskRewardRatio if provided (even if 0, to allow explicit 0 values)
 	// Only skip if the value is negative (invalid)
 	if minRiskRewardRatio >= 0 {
@@ -281,7 +281,7 @@ func StrategyConfigFromFields(
 			log.Printf("⚠️ Failed to parse sharpe_ratio_config JSON: %v, using empty config", err)
 		}
 	}
-	
+
 	return config
 }
 
@@ -347,7 +347,6 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 		ctx.OITopDataMap = make(map[string]*OITopData)
 	}
 
-
 	// 2. Build System Prompt (fixed rules) and User Prompt (dynamic data)
 	systemPrompt, err := buildSystemPromptWithCustom(
 		ctx.Account.TotalEquity,
@@ -374,7 +373,15 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 	}
 
 	// 4. Parse AI response
-	decision, err := parseFullDecisionResponse(aiResponse, ctx.Account.TotalEquity, ctx.BTCETHLeverage, ctx.AltcoinLeverage, config)
+	decision, err := parseFullDecisionResponse(
+		aiResponse,
+		ctx.Account.TotalEquity,
+		ctx.BTCETHLeverage,
+		ctx.AltcoinLeverage,
+		config,
+		ctx.Account.PositionCount,
+		ctx.Positions,
+	)
 
 	// Save SystemPrompt and UserPrompt regardless of errors (for debugging and troubleshooting when decisions are not executed)
 	if decision != nil {
@@ -554,14 +561,15 @@ func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, alt
 	sb.WriteString("- Symbol: Trading pair\n")
 	sb.WriteString("- Action: Operation type (buy = open long, sell = open short)\n")
 	sb.WriteString("- Entry: Suggested entry price\n")
-	sb.WriteString("- Stop Loss (SL): Suggested stop loss price\n")
-	sb.WriteString("- Take Profit (TP): Suggested take profit price\n")
+	sb.WriteString("- Stop Loss (SL): Stop loss price specified by the signal (must not be changed)\n")
+	sb.WriteString("- Take Profit (TP): Take profit price specified by the signal (must not be changed)\n")
 	sb.WriteString("- Quantity: Suggested quantity\n\n")
 	sb.WriteString("## Decision Options\n\n")
 	sb.WriteString("You must make one of the following three decisions for each TradingView signal:\n\n")
-	sb.WriteString("1. **accept**: The signal aligns with your trading strategy, execute the trade using the parameters provided by the signal\n")
+	sb.WriteString("1. **accept**: The signal aligns with your trading strategy, execute the trade using ALL parameters provided by the signal, including SL and TP\n")
 	sb.WriteString("2. **reject**: The signal does not align with your trading strategy or risk control requirements, do not execute the trade\n")
-	sb.WriteString("3. **modify**: The signal direction is correct, but parameters need adjustment, execute the trade using your optimized parameters\n\n")
+	sb.WriteString("3. **modify**: The signal direction is correct, but leverage and/or position size need adjustment. You may ONLY modify `leverage` and `position_size_usd`. You MUST keep `stop_loss` and `take_profit` exactly equal to the values from the TradingView signal.\n\n")
+	sb.WriteString("**Hard Rule**: In TradingView signal mode, `stop_loss` and `take_profit` are FINAL risk parameters provided by the webhook. You are NOT allowed to change them under any circumstance. If they are unsafe, you must choose `signal_decision` = \"reject\" instead of modifying SL/TP.\n\n")
 
 	// Use modular JSON format template
 	sb.WriteString(GetTradingViewJSONFormat())
@@ -899,7 +907,7 @@ func buildUserPrompt(ctx *Context) string {
 }
 
 // parseFullDecisionResponse Parses AI's complete decision response
-func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig) (*FullDecision, error) {
+func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig, positionCount int, positions []PositionInfo) (*FullDecision, error) {
 	// 1. Extract reasoning chain
 	cotTrace := extractCoTTrace(aiResponse)
 
@@ -913,7 +921,7 @@ func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthL
 	}
 
 	// 3. Validate decisions
-	if err := validateDecisions(decisions, accountEquity, btcEthLeverage, altcoinLeverage, config); err != nil {
+	if err := validateDecisions(decisions, accountEquity, btcEthLeverage, altcoinLeverage, config, positionCount, positions); err != nil {
 		return &FullDecision{
 			CoTTrace:  cotTrace,
 			Decisions: decisions,
@@ -935,6 +943,8 @@ func ParseFullDecisionResponse(ctx *Context, aiResponse string, config StrategyC
 		ctx.BTCETHLeverage,
 		ctx.AltcoinLeverage,
 		config,
+		ctx.Account.PositionCount,
+		ctx.Positions,
 	)
 }
 
@@ -994,7 +1004,7 @@ func extractDecisions(response string) ([]Decision, error) {
 		jsonContent := strings.TrimSpace(m[1])
 		jsonContent = compactArrayOpen(jsonContent) // Normalize "[ {" to "[{"
 		jsonContent = fixMissingQuotes(jsonContent) // Second fix (prevent remaining full-width after regex extraction)
-		if decisions, err := tryParseJSON(jsonContent, response); err == nil {
+		if decisions, err := tryParseJSON(jsonContent); err == nil {
 			log.Printf("✓ Successfully parsed JSON from ```json code block")
 			return decisions, nil
 		}
@@ -1012,13 +1022,13 @@ func extractDecisions(response string) ([]Decision, error) {
 				trimmedContent := strings.TrimSpace(jsonContent)
 				if strings.HasPrefix(trimmedContent, "{") {
 					// Single object - use tryParseJSONObject
-					if decisions, err := tryParseJSONObject(jsonContent, response); err == nil {
+					if decisions, err := tryParseJSONObject(jsonContent); err == nil {
 						log.Printf("✓ Successfully parsed single JSON object from enhanced code block regex")
 						return decisions, nil
 					}
 				} else {
 					// Array - use tryParseJSON
-					if decisions, err := tryParseJSON(jsonContent, response); err == nil {
+					if decisions, err := tryParseJSON(jsonContent); err == nil {
 						log.Printf("✓ Successfully parsed JSON array from enhanced code block regex")
 						return decisions, nil
 					}
@@ -1031,7 +1041,7 @@ func extractDecisions(response string) ([]Decision, error) {
 	if jsonContent := strings.TrimSpace(reJSONArrayAlt.FindString(jsonPart)); jsonContent != "" {
 		jsonContent = compactArrayOpen(jsonContent)
 		jsonContent = fixMissingQuotes(jsonContent)
-		if decisions, err := tryParseJSON(jsonContent, response); err == nil {
+		if decisions, err := tryParseJSON(jsonContent); err == nil {
 			log.Printf("✓ Successfully parsed JSON from alternative array regex")
 			return decisions, nil
 		}
@@ -1042,7 +1052,7 @@ func extractDecisions(response string) ([]Decision, error) {
 	if jsonContent != "" {
 		jsonContent = compactArrayOpen(jsonContent)
 		jsonContent = fixMissingQuotes(jsonContent)
-		if decisions, err := tryParseJSON(jsonContent, response); err == nil {
+		if decisions, err := tryParseJSON(jsonContent); err == nil {
 			log.Printf("✓ Successfully parsed JSON from standard array regex")
 			return decisions, nil
 		}
@@ -1051,7 +1061,7 @@ func extractDecisions(response string) ([]Decision, error) {
 	// 5) Try to extract single object (for TradingView signals that might output single object)
 	if jsonContent := strings.TrimSpace(reJSONObject.FindString(jsonPart)); jsonContent != "" {
 		jsonContent = fixMissingQuotes(jsonContent)
-		if decisions, err := tryParseJSONObject(jsonContent, response); err == nil {
+		if decisions, err := tryParseJSONObject(jsonContent); err == nil {
 			log.Printf("✓ Successfully parsed single JSON object")
 			return decisions, nil
 		}
@@ -1063,13 +1073,13 @@ func extractDecisions(response string) ([]Decision, error) {
 		trimmedRepaired := strings.TrimSpace(repairedJSON)
 		if strings.HasPrefix(trimmedRepaired, "{") {
 			// Single object - use tryParseJSONObject first
-			if decisions, err := tryParseJSONObject(repairedJSON, response); err == nil {
+			if decisions, err := tryParseJSONObject(repairedJSON); err == nil {
 				log.Printf("✓ Successfully parsed repaired JSON object")
 				return decisions, nil
 			}
 		} else if strings.HasPrefix(trimmedRepaired, "[") {
 			// Array - use tryParseJSON
-			if decisions, err := tryParseJSON(repairedJSON, response); err == nil {
+			if decisions, err := tryParseJSON(repairedJSON); err == nil {
 				log.Printf("✓ Successfully parsed repaired JSON array")
 				return decisions, nil
 			}
@@ -1096,7 +1106,7 @@ func extractDecisions(response string) ([]Decision, error) {
 }
 
 // tryParseJSON attempts to parse JSON content and return decisions with enhanced error reporting
-func tryParseJSON(jsonContent, fullResponse string) ([]Decision, error) {
+func tryParseJSON(jsonContent string) ([]Decision, error) {
 	// First try standard validation
 	if err := validateJSONFormat(jsonContent); err != nil {
 		// If standard validation fails, try enhanced validation with suggestions
@@ -1121,7 +1131,7 @@ func tryParseJSON(jsonContent, fullResponse string) ([]Decision, error) {
 }
 
 // tryParseJSONObject attempts to parse a single JSON object (for TradingView signals)
-func tryParseJSONObject(jsonContent, fullResponse string) ([]Decision, error) {
+func tryParseJSONObject(jsonContent string) ([]Decision, error) {
 	// Validate that it's a single object (not an array)
 	trimmed := strings.TrimSpace(jsonContent)
 	if !strings.HasPrefix(trimmed, "{") {
@@ -1394,10 +1404,26 @@ func compactArrayOpen(s string) string {
 	return reArrayOpenSpace.ReplaceAllString(strings.TrimSpace(s), "[{")
 }
 
-// validateDecisions Validates all decisions (requires account information and leverage configuration)
-func validateDecisions(decisions []Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig) error {
+// validateDecisions Validates all decisions (requires account information, leverage configuration, and position context)
+func validateDecisions(decisions []Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig, positionCount int, positions []PositionInfo) error {
+	// Enforce maximum position count at batch level (strategy-studio is single source of truth)
+	newOpens := 0
+	for _, d := range decisions {
+		signalDecisionLower := strings.ToLower(strings.TrimSpace(d.SignalDecision))
+		if signalDecisionLower == "reject" {
+			continue
+		}
+		if d.Action == "open_long" || d.Action == "open_short" {
+			newOpens++
+		}
+	}
+	if newOpens > 0 && config.MaxPositions > 0 && positionCount+newOpens > config.MaxPositions {
+		return fmt.Errorf("opening too many positions: existing=%d, new=%d, max allowed=%d (strategy-studio limit)",
+			positionCount, newOpens, config.MaxPositions)
+	}
+
 	for i, decision := range decisions {
-		if err := validateDecision(&decision, accountEquity, btcEthLeverage, altcoinLeverage, config); err != nil {
+		if err := validateDecision(&decision, accountEquity, btcEthLeverage, altcoinLeverage, config, positions); err != nil {
 			return fmt.Errorf("decision #%d validation failed: %w", i+1, err)
 		}
 	}
@@ -1405,7 +1431,7 @@ func validateDecisions(decisions []Decision, accountEquity float64, btcEthLevera
 }
 
 // validateDecision Validates validity of a single decision
-func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig) error {
+func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig, positions []PositionInfo) error {
 	// 🔧 TradingView signal reject decision: if signal_decision is "reject" (case-insensitive), skip all validation
 	// According to prompt instructions, reject decisions do not need to provide other trading parameters (including action)
 	signalDecisionLower := strings.ToLower(strings.TrimSpace(d.SignalDecision))
@@ -1445,11 +1471,17 @@ func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoi
 
 	// Position opening operations must provide complete parameters
 	if d.Action == "open_long" || d.Action == "open_short" {
+		// Enforce minimum confidence for entries (strategy-studio setting)
+		if d.Confidence < config.MinConfidenceForEntry {
+			return fmt.Errorf("confidence too low for opening position: %d, must be ≥%d (strategy-studio MinConfidenceForEntry)",
+				d.Confidence, config.MinConfidenceForEntry)
+		}
+
 		// Use configured leverage limits based on coin type
-		maxLeverage := altcoinLeverage          // Altcoins use configured leverage
+		maxLeverage := altcoinLeverage                                // Altcoins use configured leverage
 		maxPositionValue := accountEquity * config.AltcoinPositionMax // Altcoins max from config
 		if d.Symbol == "BTCUSDT" || d.Symbol == "ETHUSDT" {
-			maxLeverage = btcEthLeverage          // BTC and ETH use configured leverage
+			maxLeverage = btcEthLeverage                                // BTC and ETH use configured leverage
 			maxPositionValue = accountEquity * config.BTCETHPositionMax // BTC/ETH max from config
 		}
 
@@ -1535,6 +1567,51 @@ func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoi
 		if riskRewardRatio < config.MinRiskRewardRatio {
 			return fmt.Errorf("risk-reward ratio too low (%.2f:1), must be ≥%.2f:1 [risk:%.2f%% reward:%.2f%%] [stop loss:%.2f take profit:%.2f]",
 				riskRewardRatio, config.MinRiskRewardRatio, riskPercent, rewardPercent, d.StopLoss, d.TakeProfit)
+		}
+	}
+
+	// Closing / partial close operations must respect minimum holding time (if we can determine it)
+	if d.Action == "close_long" || d.Action == "close_short" || d.Action == "partial_close" {
+		if config.MinHoldingTimeMinutes > 0 && d.Symbol != "" {
+			var targetSide string
+			switch d.Action {
+			case "close_long":
+				targetSide = "long"
+			case "close_short":
+				targetSide = "short"
+			default: // partial_close: allow either side, match by symbol
+				targetSide = ""
+			}
+
+			var matched *PositionInfo
+			for i := range positions {
+				pos := &positions[i]
+				if !strings.EqualFold(pos.Symbol, d.Symbol) {
+					continue
+				}
+				if targetSide != "" && !strings.EqualFold(pos.Side, targetSide) {
+					continue
+				}
+				matched = pos
+				break
+			}
+
+			if matched != nil {
+				if matched.UpdateTime == 0 {
+					// We don't know the holding time, so warn but allow to avoid false blocks
+					log.Printf("⚠️  Unable to enforce MinHoldingTimeMinutes for %s (missing UpdateTime), allowing close action", matched.Symbol)
+				} else {
+					nowMs := time.Now().UnixMilli()
+					heldMs := nowMs - matched.UpdateTime
+					if heldMs > 0 {
+						heldMinutes := int(heldMs / (1000 * 60))
+						if heldMinutes < config.MinHoldingTimeMinutes {
+							return fmt.Errorf("position %s held for only %d minutes, must be ≥%d minutes before closing (strategy-studio MinHoldingTimeMinutes)",
+								matched.Symbol, heldMinutes, config.MinHoldingTimeMinutes)
+						}
+					}
+				}
+			}
 		}
 	}
 
