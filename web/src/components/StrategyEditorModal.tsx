@@ -1,10 +1,22 @@
 import { useState, useEffect } from 'react'
-import { X as IconX, Settings, Info, ChevronDown, ChevronUp, FileText, Save } from 'lucide-react'
+import {
+  X as IconX,
+  Settings,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Save,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../lib/api'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isFollower } from '../contexts/AuthContext'
-import type { Strategy, CreateStrategyRequest, UpdateStrategyRequest } from '../types'
+import type {
+  Strategy,
+  CreateStrategyRequest,
+  UpdateStrategyRequest,
+} from '../types'
 import { IndicatorEditor } from './traders/IndicatorEditor'
 import { PromptTemplateModal } from './PromptTemplateModal'
 import { Tooltip } from './traders/Tooltip'
@@ -27,7 +39,7 @@ export function StrategyEditorModal({
   const { user } = useAuth()
   const isEditMode = !!strategy
   const userIsFollower = user ? isFollower(user) : false
-  
+
   // Collapsible section states
   const [showRiskManagement, setShowRiskManagement] = useState(false)
   const [showPositionSizing, setShowPositionSizing] = useState(false)
@@ -77,11 +89,17 @@ export function StrategyEditorModal({
 
   const [isSaving, setIsSaving] = useState(false)
   const [promptTemplates, setPromptTemplates] = useState<{ name: string }[]>([])
-  const [userPromptTemplates, setUserPromptTemplates] = useState<PromptTemplate[]>([])
+  const [userPromptTemplates, setUserPromptTemplates] = useState<
+    PromptTemplate[]
+  >([])
   const [showTemplateModal, setShowTemplateModal] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null)
-  const [templatePrefillContent, setTemplatePrefillContent] = useState<string>('')
-  const [selectedTemplateToLoad, setSelectedTemplateToLoad] = useState<string>('')
+  const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(
+    null
+  )
+  const [templatePrefillContent, setTemplatePrefillContent] =
+    useState<string>('')
+  const [selectedTemplateToLoad, setSelectedTemplateToLoad] =
+    useState<string>('')
 
   // Load prompt templates
   useEffect(() => {
@@ -140,7 +158,8 @@ export function StrategyEditorModal({
         altcoin_position_max: strategy.altcoin_position_max ?? 1.5,
         btc_eth_position_min: strategy.btc_eth_position_min ?? 5.0,
         btc_eth_position_max: strategy.btc_eth_position_max ?? 10.0,
-        available_margin_multiplier: strategy.available_margin_multiplier ?? 0.88,
+        available_margin_multiplier:
+          strategy.available_margin_multiplier ?? 0.88,
         // Trading Rules Configuration
         min_confidence_for_entry: strategy.min_confidence_for_entry ?? 75,
         min_holding_time_minutes: strategy.min_holding_time_minutes ?? 30,
@@ -193,7 +212,10 @@ export function StrategyEditorModal({
     }
   }, [isOpen, strategy])
 
-  const handleInputChange = (field: keyof CreateStrategyRequest, value: any) => {
+  const handleInputChange = (
+    field: keyof CreateStrategyRequest,
+    value: any
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -212,7 +234,11 @@ export function StrategyEditorModal({
 
   const handleSaveAsTemplate = () => {
     if (!formData.custom_prompt || !formData.custom_prompt.trim()) {
-      toast.error(language === 'zh' ? '请先输入自定义提示词' : 'Please enter custom prompt first')
+      toast.error(
+        language === 'zh'
+          ? '请先输入自定义提示词'
+          : 'Please enter custom prompt first'
+      )
       return
     }
     setTemplatePrefillContent(formData.custom_prompt)
@@ -232,13 +258,17 @@ export function StrategyEditorModal({
       toast.success(language === 'zh' ? '模板已加载' : 'Template loaded')
     } catch (error) {
       console.error('Failed to load template:', error)
-      toast.error(language === 'zh' ? '加载模板失败' : 'Failed to load template')
+      toast.error(
+        language === 'zh' ? '加载模板失败' : 'Failed to load template'
+      )
     }
   }
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      toast.error(language === 'zh' ? '请输入策略名称' : 'Please enter strategy name')
+      toast.error(
+        language === 'zh' ? '请输入策略名称' : 'Please enter strategy name'
+      )
       return
     }
 
@@ -287,15 +317,22 @@ export function StrategyEditorModal({
           sharpe_ratio_config: formData.sharpe_ratio_config,
         }
         await api.updateStrategy(strategy.id, updateData)
-        toast.success(language === 'zh' ? '策略更新成功' : 'Strategy updated successfully')
+        toast.success(
+          language === 'zh' ? '策略更新成功' : 'Strategy updated successfully'
+        )
       } else {
         await api.createStrategy(formData)
-        toast.success(language === 'zh' ? '策略创建成功' : 'Strategy created successfully')
+        toast.success(
+          language === 'zh' ? '策略创建成功' : 'Strategy created successfully'
+        )
       }
       onSave()
       onClose()
     } catch (error: any) {
-      toast.error(error.message || (language === 'zh' ? '保存策略失败' : 'Failed to save strategy'))
+      toast.error(
+        error.message ||
+          (language === 'zh' ? '保存策略失败' : 'Failed to save strategy')
+      )
     } finally {
       setIsSaving(false)
     }
@@ -305,8 +342,12 @@ export function StrategyEditorModal({
 
   // Combine templates, filtering out duplicates
   // First, deduplicate system templates by name
-  const uniqueSystemTemplates = promptTemplates.filter((template, index, self) =>
-    index === self.findIndex((t) => t.name.toLowerCase() === template.name.toLowerCase())
+  const uniqueSystemTemplates = promptTemplates.filter(
+    (template, index, self) =>
+      index ===
+      self.findIndex(
+        (t) => t.name.toLowerCase() === template.name.toLowerCase()
+      )
   )
 
   // Filter out system templates from userPromptTemplates that already exist in promptTemplates
@@ -315,7 +356,7 @@ export function StrategyEditorModal({
       // Filter out system templates that already exist in promptTemplates to avoid duplicates
       if (template.is_system) {
         const normalizedName = template.name.toLowerCase().replace(/[_-]/g, '')
-        return !uniqueSystemTemplates.some(t => {
+        return !uniqueSystemTemplates.some((t) => {
           const tNormalized = t.name.toLowerCase().replace(/[_-]/g, '')
           return tNormalized === normalizedName
         })
@@ -325,15 +366,12 @@ export function StrategyEditorModal({
     })
     .map((t) => ({ name: t.name }))
 
-  const allTemplates = [
-    ...uniqueSystemTemplates,
-    ...filteredUserTemplates,
-  ]
+  const allTemplates = [...uniqueSystemTemplates, ...filteredUserTemplates]
 
   // Helper function to get placeholder text based on prompt type
   const getCustomPromptPlaceholder = () => {
     if (formData.use_tradingview) {
-      return language === 'zh' 
+      return language === 'zh'
         ? '输入自定义提示词（可选）。如果启用"覆盖基础提示词"，系统会自动添加 TradingView JSON 格式要求...'
         : 'Enter custom prompt (optional). If "Override Base Prompt" is enabled, TradingView JSON format requirements will be auto-added...'
     }
@@ -370,47 +408,85 @@ export function StrategyEditorModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto"
+        style={{ background: 'rgba(0, 31, 63, 0.5)' }}
+      >
         <div
           className="rounded-xl shadow-2xl max-w-4xl w-full my-8"
-          style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)', maxHeight: 'calc(100vh - 4rem)' }}
+          style={{
+            background: 'var(--navy-dark)',
+            border: '1px solid var(--navy-light)',
+            maxHeight: 'calc(100vh - 4rem)',
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b sticky top-0 z-10 rounded-t-xl" style={{ borderColor: 'var(--navy-light)', background: 'var(--navy-dark)' }}>
+          <div
+            className="flex items-center justify-between p-6 border-b sticky top-0 z-10 rounded-t-xl"
+            style={{
+              borderColor: 'var(--navy-light)',
+              background: 'var(--navy-dark)',
+            }}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#00CC66] to-[#00AA55] flex items-center justify-center" style={{ color: 'var(--navy-primary)' }}>
+              <div
+                className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#00CC66] to-[#00AA55] flex items-center justify-center"
+                style={{ color: 'var(--navy-primary)' }}
+              >
                 <Settings className="w-5 h-5" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-[#EAECEF]">
                   {isEditMode
-                    ? language === 'zh' ? '编辑策略' : 'Edit Strategy'
-                    : language === 'zh' ? '创建策略' : 'Create Strategy'}
+                    ? language === 'zh'
+                      ? '编辑策略'
+                      : 'Edit Strategy'
+                    : language === 'zh'
+                      ? '创建策略'
+                      : 'Create Strategy'}
                 </h2>
-                <p className="text-sm mt-1" style={{ color: 'var(--navy-light)' }}>
+                <p
+                  className="text-sm mt-1"
+                  style={{ color: 'var(--navy-light)' }}
+                >
                   {isEditMode
-                    ? language === 'zh' ? '编辑您的交易策略配置' : 'Edit your trading strategy configuration'
-                    : language === 'zh' ? '创建新的交易策略' : 'Create a new trading strategy'}
+                    ? language === 'zh'
+                      ? '编辑您的交易策略配置'
+                      : 'Edit your trading strategy configuration'
+                    : language === 'zh'
+                      ? '创建新的交易策略'
+                      : 'Create a new trading strategy'}
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-lg hover:text-[#EAECEF] transition-colors flex items-center justify-center"
-              style={{ 
-                color: 'var(--navy-light)',
-                '--hover-bg': 'var(--navy-light)' 
-              } as React.CSSProperties}
+              style={
+                {
+                  color: 'var(--navy-light)',
+                  '--hover-bg': 'var(--navy-light)',
+                } as React.CSSProperties
+              }
             >
               <IconX className="w-4 h-4" />
             </button>
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 12rem)' }}>
+          <div
+            className="p-6 space-y-6 overflow-y-auto"
+            style={{ maxHeight: 'calc(100vh - 12rem)' }}
+          >
             {/* Basic Info */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+            <div
+              className="rounded-xl p-5"
+              style={{
+                background: 'var(--navy-dark)',
+                border: '1px solid var(--navy-light)',
+              }}
+            >
               <h3 className="text-lg font-semibold text-[#EAECEF] mb-4">
                 {language === 'zh' ? '基本信息' : 'Basic Information'}
               </h3>
@@ -424,8 +500,13 @@ export function StrategyEditorModal({
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
-                    placeholder={language === 'zh' ? '输入策略名称' : 'Enter strategy name'}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--navy-light)',
+                    }}
+                    placeholder={
+                      language === 'zh' ? '输入策略名称' : 'Enter strategy name'
+                    }
                   />
                 </div>
                 <div>
@@ -434,18 +515,33 @@ export function StrategyEditorModal({
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('description', e.target.value)
+                    }
                     rows={3}
                     className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
-                    placeholder={language === 'zh' ? '输入策略描述（可选）' : 'Enter strategy description (optional)'}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--navy-light)',
+                    }}
+                    placeholder={
+                      language === 'zh'
+                        ? '输入策略描述（可选）'
+                        : 'Enter strategy description (optional)'
+                    }
                   />
                 </div>
               </div>
             </div>
 
             {/* Trading Parameters */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+            <div
+              className="rounded-xl p-5"
+              style={{
+                background: 'var(--navy-dark)',
+                border: '1px solid var(--navy-light)',
+              }}
+            >
               <h3 className="text-lg font-semibold text-[#EAECEF] mb-4">
                 {language === 'zh' ? '交易参数' : 'Trading Parameters'}
               </h3>
@@ -459,9 +555,17 @@ export function StrategyEditorModal({
                     min="1"
                     max="50"
                     value={formData.btc_eth_leverage}
-                    onChange={(e) => handleInputChange('btc_eth_leverage', parseInt(e.target.value) || 5)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        'btc_eth_leverage',
+                        parseInt(e.target.value) || 5
+                      )
+                    }
                     className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--navy-light)',
+                    }}
                   />
                 </div>
                 <div>
@@ -473,21 +577,36 @@ export function StrategyEditorModal({
                     min="1"
                     max="20"
                     value={formData.altcoin_leverage}
-                    onChange={(e) => handleInputChange('altcoin_leverage', parseInt(e.target.value) || 3)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        'altcoin_leverage',
+                        parseInt(e.target.value) || 3
+                      )
+                    }
                     className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--navy-light)',
+                    }}
                   />
                 </div>
                 <div className="col-span-2">
                   <label className="text-sm text-[#EAECEF] block mb-2">
-                    {language === 'zh' ? '交易币种 (逗号分隔)' : 'Trading Symbols (comma-separated)'}
+                    {language === 'zh'
+                      ? '交易币种 (逗号分隔)'
+                      : 'Trading Symbols (comma-separated)'}
                   </label>
                   <input
                     type="text"
                     value={formData.trading_symbols}
-                    onChange={(e) => handleInputChange('trading_symbols', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('trading_symbols', e.target.value)
+                    }
                     className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--navy-light)',
+                    }}
                     placeholder="BTCUSDT, ETHUSDT"
                   />
                 </div>
@@ -496,7 +615,9 @@ export function StrategyEditorModal({
                     <input
                       type="checkbox"
                       checked={formData.is_cross_margin}
-                      onChange={(e) => handleInputChange('is_cross_margin', e.target.checked)}
+                      onChange={(e) =>
+                        handleInputChange('is_cross_margin', e.target.checked)
+                      }
                       className="w-4 h-4 rounded accent-[var(--green-primary)] cursor-pointer"
                       style={{ borderColor: 'var(--navy-light)' }}
                     />
@@ -510,26 +631,51 @@ export function StrategyEditorModal({
 
             {/* Risk Management Settings - Only show for non-followers */}
             {!userIsFollower && (
-              <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+              <div
+                className="rounded-xl p-5"
+                style={{
+                  background: 'var(--navy-dark)',
+                  border: '1px solid var(--navy-light)',
+                }}
+              >
                 <button
                   onClick={() => setShowRiskManagement(!showRiskManagement)}
                   className="w-full flex items-center justify-between text-lg font-semibold text-[#EAECEF] mb-4"
                 >
-                  <span>🛡️ {language === 'zh' ? '风险管理设置' : 'Risk Management Settings'}</span>
-                  {showRiskManagement ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  <span>
+                    🛡️{' '}
+                    {language === 'zh'
+                      ? '风险管理设置'
+                      : 'Risk Management Settings'}
+                  </span>
+                  {showRiskManagement ? (
+                    <ChevronUp className="w-5 h-5" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5" />
+                  )}
                 </button>
                 {showRiskManagement && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? '风险收益比 (最小)' : 'Risk-Reward Ratio (Minimum)'}
+                          {language === 'zh'
+                            ? '风险收益比 (最小)'
+                            : 'Risk-Reward Ratio (Minimum)'}
                         </label>
                         <select
                           value={formData.min_risk_reward_ratio || 3.0}
-                          onChange={(e) => handleInputChange('min_risk_reward_ratio', parseFloat(e.target.value))}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'min_risk_reward_ratio',
+                              parseFloat(e.target.value)
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         >
                           <option value={2.0}>1:2</option>
                           <option value={3.0}>1:3</option>
@@ -546,14 +692,24 @@ export function StrategyEditorModal({
                           min="1"
                           max="10"
                           value={formData.max_positions || 3}
-                          onChange={(e) => handleInputChange('max_positions', parseInt(e.target.value) || 3)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'max_positions',
+                              parseInt(e.target.value) || 3
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? '保证金使用率限制 (%)' : 'Margin Usage Limit (%)'}
+                          {language === 'zh'
+                            ? '保证金使用率限制 (%)'
+                            : 'Margin Usage Limit (%)'}
                         </label>
                         <input
                           type="number"
@@ -561,37 +717,65 @@ export function StrategyEditorModal({
                           max="100"
                           step="1"
                           value={formData.margin_usage_limit || 90.0}
-                          onChange={(e) => handleInputChange('margin_usage_limit', parseFloat(e.target.value) || 90.0)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'margin_usage_limit',
+                              parseFloat(e.target.value) || 90.0
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? '最小开仓金额 (山寨币, USDT)' : 'Min Opening Amount (Altcoins, USDT)'}
+                          {language === 'zh'
+                            ? '最小开仓金额 (山寨币, USDT)'
+                            : 'Min Opening Amount (Altcoins, USDT)'}
                         </label>
                         <input
                           type="number"
                           min="1"
                           step="0.1"
                           value={formData.min_opening_amount || 12.0}
-                          onChange={(e) => handleInputChange('min_opening_amount', parseFloat(e.target.value) || 12.0)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'min_opening_amount',
+                              parseFloat(e.target.value) || 12.0
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? '最小开仓金额 (BTC/ETH, USDT)' : 'Min Opening Amount (BTC/ETH, USDT)'}
+                          {language === 'zh'
+                            ? '最小开仓金额 (BTC/ETH, USDT)'
+                            : 'Min Opening Amount (BTC/ETH, USDT)'}
                         </label>
                         <input
                           type="number"
                           min="1"
                           step="0.1"
                           value={formData.min_opening_amount_btc_eth || 60.0}
-                          onChange={(e) => handleInputChange('min_opening_amount_btc_eth', parseFloat(e.target.value) || 60.0)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'min_opening_amount_btc_eth',
+                              parseFloat(e.target.value) || 60.0
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                     </div>
@@ -602,20 +786,37 @@ export function StrategyEditorModal({
 
             {/* Position Sizing Settings - Only show for non-followers */}
             {!userIsFollower && (
-              <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+              <div
+                className="rounded-xl p-5"
+                style={{
+                  background: 'var(--navy-dark)',
+                  border: '1px solid var(--navy-light)',
+                }}
+              >
                 <button
                   onClick={() => setShowPositionSizing(!showPositionSizing)}
                   className="w-full flex items-center justify-between text-lg font-semibold text-[#EAECEF] mb-4"
                 >
-                  <span>📏 {language === 'zh' ? '仓位大小设置' : 'Position Sizing Settings'}</span>
-                  {showPositionSizing ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  <span>
+                    📏{' '}
+                    {language === 'zh'
+                      ? '仓位大小设置'
+                      : 'Position Sizing Settings'}
+                  </span>
+                  {showPositionSizing ? (
+                    <ChevronUp className="w-5 h-5" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5" />
+                  )}
                 </button>
                 {showPositionSizing && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? '山寨币仓位最小倍数' : 'Altcoin Position Min (x equity)'}
+                          {language === 'zh'
+                            ? '山寨币仓位最小倍数'
+                            : 'Altcoin Position Min (x equity)'}
                         </label>
                         <input
                           type="number"
@@ -623,14 +824,24 @@ export function StrategyEditorModal({
                           max="5"
                           step="0.1"
                           value={formData.altcoin_position_min || 0.8}
-                          onChange={(e) => handleInputChange('altcoin_position_min', parseFloat(e.target.value) || 0.8)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'altcoin_position_min',
+                              parseFloat(e.target.value) || 0.8
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? '山寨币仓位最大倍数' : 'Altcoin Position Max (x equity)'}
+                          {language === 'zh'
+                            ? '山寨币仓位最大倍数'
+                            : 'Altcoin Position Max (x equity)'}
                         </label>
                         <input
                           type="number"
@@ -638,14 +849,24 @@ export function StrategyEditorModal({
                           max="5"
                           step="0.1"
                           value={formData.altcoin_position_max || 1.5}
-                          onChange={(e) => handleInputChange('altcoin_position_max', parseFloat(e.target.value) || 1.5)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'altcoin_position_max',
+                              parseFloat(e.target.value) || 1.5
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? 'BTC/ETH 仓位最小倍数' : 'BTC/ETH Position Min (x equity)'}
+                          {language === 'zh'
+                            ? 'BTC/ETH 仓位最小倍数'
+                            : 'BTC/ETH Position Min (x equity)'}
                         </label>
                         <input
                           type="number"
@@ -653,14 +874,24 @@ export function StrategyEditorModal({
                           max="20"
                           step="0.1"
                           value={formData.btc_eth_position_min || 5.0}
-                          onChange={(e) => handleInputChange('btc_eth_position_min', parseFloat(e.target.value) || 5.0)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'btc_eth_position_min',
+                              parseFloat(e.target.value) || 5.0
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? 'BTC/ETH 仓位最大倍数' : 'BTC/ETH Position Max (x equity)'}
+                          {language === 'zh'
+                            ? 'BTC/ETH 仓位最大倍数'
+                            : 'BTC/ETH Position Max (x equity)'}
                         </label>
                         <input
                           type="number"
@@ -668,14 +899,24 @@ export function StrategyEditorModal({
                           max="20"
                           step="0.1"
                           value={formData.btc_eth_position_max || 10.0}
-                          onChange={(e) => handleInputChange('btc_eth_position_max', parseFloat(e.target.value) || 10.0)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'btc_eth_position_max',
+                              parseFloat(e.target.value) || 10.0
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                       <div className="col-span-2">
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? '可用保证金乘数' : 'Available Margin Multiplier'}
+                          {language === 'zh'
+                            ? '可用保证金乘数'
+                            : 'Available Margin Multiplier'}
                         </label>
                         <input
                           type="number"
@@ -683,12 +924,23 @@ export function StrategyEditorModal({
                           max="1.0"
                           step="0.01"
                           value={formData.available_margin_multiplier || 0.88}
-                          onChange={(e) => handleInputChange('available_margin_multiplier', parseFloat(e.target.value) || 0.88)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'available_margin_multiplier',
+                              parseFloat(e.target.value) || 0.88
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
-                        <p className="text-xs mt-1" style={{ color: 'var(--navy-light)' }}>
-                          {language === 'zh' 
+                        <p
+                          className="text-xs mt-1"
+                          style={{ color: 'var(--navy-light)' }}
+                        >
+                          {language === 'zh'
                             ? '用于计算可用保证金的乘数（默认 0.88 = 保留 12% 用于费用和滑点）'
                             : 'Multiplier for calculating available margin (default 0.88 = reserve 12% for fees and slippage)'}
                         </p>
@@ -701,43 +953,78 @@ export function StrategyEditorModal({
 
             {/* Trading Rules Settings - Only show for non-followers */}
             {!userIsFollower && (
-              <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+              <div
+                className="rounded-xl p-5"
+                style={{
+                  background: 'var(--navy-dark)',
+                  border: '1px solid var(--navy-light)',
+                }}
+              >
                 <button
                   onClick={() => setShowTradingRules(!showTradingRules)}
                   className="w-full flex items-center justify-between text-lg font-semibold text-[#EAECEF] mb-4"
                 >
-                  <span>📋 {language === 'zh' ? '交易规则设置' : 'Trading Rules Settings'}</span>
-                  {showTradingRules ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  <span>
+                    📋{' '}
+                    {language === 'zh'
+                      ? '交易规则设置'
+                      : 'Trading Rules Settings'}
+                  </span>
+                  {showTradingRules ? (
+                    <ChevronUp className="w-5 h-5" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5" />
+                  )}
                 </button>
                 {showTradingRules && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? '最小入场信心度' : 'Min Confidence for Entry'}
+                          {language === 'zh'
+                            ? '最小入场信心度'
+                            : 'Min Confidence for Entry'}
                         </label>
                         <input
                           type="number"
                           min="50"
                           max="100"
                           value={formData.min_confidence_for_entry || 75}
-                          onChange={(e) => handleInputChange('min_confidence_for_entry', parseInt(e.target.value) || 75)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'min_confidence_for_entry',
+                              parseInt(e.target.value) || 75
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                       <div>
                         <label className="text-sm text-[#EAECEF] block mb-2">
-                          {language === 'zh' ? '最小持仓时间 (分钟)' : 'Min Holding Time (minutes)'}
+                          {language === 'zh'
+                            ? '最小持仓时间 (分钟)'
+                            : 'Min Holding Time (minutes)'}
                         </label>
                         <input
                           type="number"
                           min="1"
                           max="1440"
                           value={formData.min_holding_time_minutes || 30}
-                          onChange={(e) => handleInputChange('min_holding_time_minutes', parseInt(e.target.value) || 30)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'min_holding_time_minutes',
+                              parseInt(e.target.value) || 30
+                            )
+                          }
                           className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors"
-                          style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--navy-light)',
+                          }}
                         />
                       </div>
                     </div>
@@ -747,7 +1034,13 @@ export function StrategyEditorModal({
             )}
 
             {/* Signal Sources */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+            <div
+              className="rounded-xl p-5"
+              style={{
+                background: 'var(--navy-dark)',
+                border: '1px solid var(--navy-light)',
+              }}
+            >
               <h3 className="text-lg font-semibold text-[#EAECEF] mb-4">
                 {language === 'zh' ? '信号源' : 'Signal Sources'}
               </h3>
@@ -756,9 +1049,11 @@ export function StrategyEditorModal({
                   <input
                     type="checkbox"
                     checked={formData.use_coin_pool}
-                    onChange={(e) => handleInputChange('use_coin_pool', e.target.checked)}
+                    onChange={(e) =>
+                      handleInputChange('use_coin_pool', e.target.checked)
+                    }
                     className="w-4 h-4 rounded accent-[var(--green-primary)] cursor-pointer"
-                      style={{ borderColor: 'var(--navy-light)' }}
+                    style={{ borderColor: 'var(--navy-light)' }}
                   />
                   <label className="text-sm text-[#EAECEF] cursor-pointer">
                     {language === 'zh' ? '使用 Coin Pool' : 'Use Coin Pool'}
@@ -768,9 +1063,11 @@ export function StrategyEditorModal({
                   <input
                     type="checkbox"
                     checked={formData.use_oi_top}
-                    onChange={(e) => handleInputChange('use_oi_top', e.target.checked)}
+                    onChange={(e) =>
+                      handleInputChange('use_oi_top', e.target.checked)
+                    }
                     className="w-4 h-4 rounded accent-[var(--green-primary)] cursor-pointer"
-                      style={{ borderColor: 'var(--navy-light)' }}
+                    style={{ borderColor: 'var(--navy-light)' }}
                   />
                   <label className="text-sm text-[#EAECEF] cursor-pointer">
                     {language === 'zh' ? '使用 OI Top' : 'Use OI Top'}
@@ -780,9 +1077,11 @@ export function StrategyEditorModal({
                   <input
                     type="checkbox"
                     checked={formData.use_tradingview}
-                    onChange={(e) => handleInputChange('use_tradingview', e.target.checked)}
+                    onChange={(e) =>
+                      handleInputChange('use_tradingview', e.target.checked)
+                    }
                     className="w-4 h-4 rounded accent-[var(--green-primary)] cursor-pointer"
-                      style={{ borderColor: 'var(--navy-light)' }}
+                    style={{ borderColor: 'var(--navy-light)' }}
                   />
                   <label className="text-sm text-[#EAECEF] cursor-pointer">
                     {language === 'zh' ? '使用 TradingView' : 'Use TradingView'}
@@ -792,7 +1091,13 @@ export function StrategyEditorModal({
             </div>
 
             {/* Indicator Configuration */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+            <div
+              className="rounded-xl p-5"
+              style={{
+                background: 'var(--navy-dark)',
+                border: '1px solid var(--navy-light)',
+              }}
+            >
               <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
                 📊 {language === 'zh' ? '指标配置' : 'Indicator Configuration'}
               </h3>
@@ -815,20 +1120,37 @@ export function StrategyEditorModal({
             </div>
 
             {/* Trading Prompt */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+            <div
+              className="rounded-xl p-5"
+              style={{
+                background: 'var(--navy-dark)',
+                border: '1px solid var(--navy-light)',
+              }}
+            >
               <h3 className="text-lg font-semibold text-[#EAECEF] mb-4">
                 {language === 'zh' ? '交易提示词' : 'Trading Prompt'}
               </h3>
               <div className="space-y-4">
                 <div>
                   <label className="text-sm text-[#EAECEF] block mb-2">
-                    {language === 'zh' ? '系统提示词模板' : 'System Prompt Template'}
+                    {language === 'zh'
+                      ? '系统提示词模板'
+                      : 'System Prompt Template'}
                   </label>
                   <select
                     value={formData.system_prompt_template}
-                    onChange={(e) => handleInputChange('system_prompt_template', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        'system_prompt_template',
+                        e.target.value
+                      )
+                    }
                     className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none transition-colors cursor-pointer"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)', color: '#EAECEF' }}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--navy-light)',
+                      color: '#EAECEF',
+                    }}
                   >
                     {allTemplates.map((template) => (
                       <option key={template.name} value={template.name}>
@@ -844,16 +1166,19 @@ export function StrategyEditorModal({
                         {language === 'zh' ? '自定义提示词' : 'Custom Prompt'}
                       </label>
                       <Tooltip content={getTooltipContent()}>
-                        <Info className="w-4 h-4 cursor-help" style={{ color: 'var(--navy-light)' }} />
+                        <Info
+                          className="w-4 h-4 cursor-help"
+                          style={{ color: 'var(--navy-light)' }}
+                        />
                       </Tooltip>
                     </div>
                     <button
                       onClick={handleCreateTemplate}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-200 font-medium"
-                      style={{ 
-                        background: 'var(--navy-primary)', 
+                      style={{
+                        background: 'var(--navy-primary)',
                         border: '1px solid var(--navy-light)',
-                        color: '#EAECEF'
+                        color: '#EAECEF',
                       }}
                     >
                       <FileText className="w-3.5 h-3.5" />
@@ -862,26 +1187,34 @@ export function StrategyEditorModal({
                   </div>
                   <textarea
                     value={formData.custom_prompt}
-                    onChange={(e) => handleInputChange('custom_prompt', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('custom_prompt', e.target.value)
+                    }
                     rows={6}
                     className="w-full px-4 py-2.5 rounded-lg text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none font-mono text-sm transition-colors resize-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--navy-light)',
+                    }}
                     placeholder={getCustomPromptPlaceholder()}
                   />
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    {formData.custom_prompt && formData.custom_prompt.trim() && (
-                      <button
-                        onClick={handleSaveAsTemplate}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-200 font-medium"
-                        style={{ 
-                          background: 'var(--green-primary)', 
-                          color: 'var(--navy-primary)'
-                        }}
-                      >
-                        <Save className="w-3.5 h-3.5" />
-                        {language === 'zh' ? '保存为模板' : 'Save as Template'}
-                      </button>
-                    )}
+                    {formData.custom_prompt &&
+                      formData.custom_prompt.trim() && (
+                        <button
+                          onClick={handleSaveAsTemplate}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-200 font-medium"
+                          style={{
+                            background: 'var(--green-primary)',
+                            color: 'var(--navy-primary)',
+                          }}
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          {language === 'zh'
+                            ? '保存为模板'
+                            : 'Save as Template'}
+                        </button>
+                      )}
                     {userPromptTemplates.length > 0 && (
                       <div className="flex items-center gap-2">
                         <select
@@ -893,14 +1226,16 @@ export function StrategyEditorModal({
                             }
                           }}
                           className="px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer"
-                          style={{ 
-                            background: 'var(--navy-primary)', 
+                          style={{
+                            background: 'var(--navy-primary)',
                             border: '1px solid var(--navy-light)',
-                            color: '#EAECEF'
+                            color: '#EAECEF',
                           }}
                         >
                           <option value="">
-                            {language === 'zh' ? '-- 加载模板 --' : '-- Load Template --'}
+                            {language === 'zh'
+                              ? '-- 加载模板 --'
+                              : '-- Load Template --'}
                           </option>
                           {userPromptTemplates.map((template) => (
                             <option key={template.id} value={template.id}>
@@ -914,15 +1249,29 @@ export function StrategyEditorModal({
                   {formData.override_base_prompt && (
                     <div className="mt-2 space-y-2">
                       <p className="text-xs" style={{ color: '#EAECEF' }}>
-                        {language === 'zh' 
+                        {language === 'zh'
                           ? '💡 提示：在上方输入您的交易策略说明。系统会自动处理 JSON 格式要求，您只需专注于策略内容。'
                           : '💡 Tip: Write your trading strategy instructions above. The system will automatically handle JSON format requirements - you only need to focus on your strategy content.'}
                       </p>
-                      <div className="text-xs p-3 rounded-lg" style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}>
-                        <p className="mb-2 font-semibold" style={{ color: '#EAECEF' }}>
-                          {language === 'zh' ? '提示词示例（可复制修改）：' : 'Prompt Examples (copy and modify):'}
+                      <div
+                        className="text-xs p-3 rounded-lg"
+                        style={{
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--navy-light)',
+                        }}
+                      >
+                        <p
+                          className="mb-2 font-semibold"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {language === 'zh'
+                            ? '提示词示例（可复制修改）：'
+                            : 'Prompt Examples (copy and modify):'}
                         </p>
-                        <pre className="text-xs whitespace-pre-wrap" style={{ color: '#EAECEF', fontFamily: 'inherit' }}>
+                        <pre
+                          className="text-xs whitespace-pre-wrap"
+                          style={{ color: '#EAECEF', fontFamily: 'inherit' }}
+                        >
                           {getPromptExamples()}
                         </pre>
                       </div>
@@ -933,12 +1282,19 @@ export function StrategyEditorModal({
                   <input
                     type="checkbox"
                     checked={formData.override_base_prompt}
-                    onChange={(e) => handleInputChange('override_base_prompt', e.target.checked)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        'override_base_prompt',
+                        e.target.checked
+                      )
+                    }
                     className="w-4 h-4 rounded accent-[var(--green-primary)] cursor-pointer"
-                      style={{ borderColor: 'var(--navy-light)' }}
+                    style={{ borderColor: 'var(--navy-light)' }}
                   />
                   <label className="text-sm text-[#EAECEF] cursor-pointer">
-                    {language === 'zh' ? '覆盖基础提示词' : 'Override Base Prompt'}
+                    {language === 'zh'
+                      ? '覆盖基础提示词'
+                      : 'Override Base Prompt'}
                   </label>
                 </div>
               </div>
@@ -946,14 +1302,20 @@ export function StrategyEditorModal({
           </div>
 
           {/* Footer */}
-          <div className="sticky bottom-0 flex items-center justify-end gap-3 p-6 border-t rounded-b-xl" style={{ borderColor: 'var(--navy-light)', background: 'var(--navy-dark)' }}>
+          <div
+            className="sticky bottom-0 flex items-center justify-end gap-3 p-6 border-t rounded-b-xl"
+            style={{
+              borderColor: 'var(--navy-light)',
+              background: 'var(--navy-dark)',
+            }}
+          >
             <button
               onClick={onClose}
               className="px-6 py-2.5 rounded-lg transition-all duration-200 font-medium"
-              style={{ 
-                background: 'var(--navy-dark)', 
+              style={{
+                background: 'var(--navy-dark)',
                 border: '1px solid var(--navy-light)',
-                color: '#EAECEF'
+                color: '#EAECEF',
               }}
             >
               {language === 'zh' ? '取消' : 'Cancel'}
@@ -962,14 +1324,22 @@ export function StrategyEditorModal({
               onClick={handleSave}
               disabled={isSaving}
               className="px-8 py-2.5 bg-gradient-to-r from-[var(--green-primary)] to-[var(--green-dark)] rounded-lg hover:from-[var(--green-dark)] hover:to-[var(--green-primary)] transition-all duration-200 disabled:cursor-not-allowed font-medium shadow-lg disabled:opacity-50"
-              style={isSaving ? { 
-                background: 'var(--text-disabled)',
-                backgroundImage: 'none'
-              } : {}}
+              style={
+                isSaving
+                  ? {
+                      background: 'var(--text-disabled)',
+                      backgroundImage: 'none',
+                    }
+                  : {}
+              }
             >
               {isSaving
-                ? language === 'zh' ? '保存中...' : 'Saving...'
-                : language === 'zh' ? '保存' : 'Save'}
+                ? language === 'zh'
+                  ? '保存中...'
+                  : 'Saving...'
+                : language === 'zh'
+                  ? '保存'
+                  : 'Save'}
             </button>
           </div>
         </div>
@@ -1005,7 +1375,11 @@ export function StrategyEditorModal({
               try {
                 const template = await api.getPromptTemplate(templateId)
                 handleInputChange('custom_prompt', template.content)
-                toast.success(language === 'zh' ? '模板已加载到自定义提示词' : 'Template loaded into custom prompt')
+                toast.success(
+                  language === 'zh'
+                    ? '模板已加载到自定义提示词'
+                    : 'Template loaded into custom prompt'
+                )
               } catch (error) {
                 console.error('Failed to load template:', error)
               }
@@ -1016,4 +1390,3 @@ export function StrategyEditorModal({
     </>
   )
 }
-

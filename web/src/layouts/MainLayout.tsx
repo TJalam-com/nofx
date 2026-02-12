@@ -18,7 +18,17 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { SEOComponent } = useSEO()
 
   // 根据路径自动判断当前页面
-  const getCurrentPage = (): 'competition' | 'traders' | 'trader' | 'followers' | 'faq' | 'stats' | 'webhook' | 'applications' | 'strategy-studio' | 'backtest' => {
+  const getCurrentPage = ():
+    | 'competition'
+    | 'traders'
+    | 'trader'
+    | 'followers'
+    | 'faq'
+    | 'stats'
+    | 'webhook'
+    | 'applications'
+    | 'strategy-studio'
+    | 'backtest' => {
     if (location.pathname === '/faq') {
       return 'faq'
     }
@@ -26,7 +36,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
       return 'traders'
     }
     // Check for dashboard route (both /dashboard and /dashboard/:slug)
-    if (location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/')) {
+    if (
+      location.pathname === '/dashboard' ||
+      location.pathname.startsWith('/dashboard/')
+    ) {
       return 'trader'
     }
     if (location.pathname === '/followers') {
@@ -60,27 +73,30 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <SEOComponent />
       <div
         className="min-h-screen"
-        style={{ background: 'var(--navy-primary)', color: 'var(--text-primary)' }}
-      >
-      <HeaderBar
-        isLoggedIn={!!user}
-        currentPage={currentPage}
-        language={language}
-        user={user}
-        onLogout={logout}
-        onPageChange={() => {
-          // React Router handles navigation now
+        style={{
+          background: 'var(--navy-primary)',
+          color: 'var(--text-primary)',
         }}
-      />
+      >
+        <HeaderBar
+          isLoggedIn={!!user}
+          currentPage={currentPage}
+          language={language}
+          user={user}
+          onLogout={logout}
+          onPageChange={() => {
+            // React Router handles navigation now
+          }}
+        />
 
-      {/* Main Content */}
-      <Container as="main" className="py-6 pt-24">
-        {children || <Outlet />}
-      </Container>
+        {/* Main Content */}
+        <Container as="main" className="py-6 pt-24">
+          {children || <Outlet />}
+        </Container>
 
-      {/* Footer */}
-      <Footer variant="full" />
-    </div>
+        {/* Footer */}
+        <Footer variant="full" />
+      </div>
     </>
   )
 }

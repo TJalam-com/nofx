@@ -5475,7 +5475,7 @@ func (s *Server) handleCreatePromptTemplate(c *gin.Context) {
 			if attempt >= maxAttempts {
 				log.Printf("❌ Failed to create prompt template after %d attempts: %v", maxAttempts, err)
 				c.JSON(http.StatusConflict, gin.H{
-					"error": fmt.Sprintf("Unable to create template. Too many templates with similar names exist. Please choose a more unique name."),
+					"error": "Unable to create template. Too many templates with similar names exist. Please choose a more unique name.",
 				})
 				return
 			}

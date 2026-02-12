@@ -165,7 +165,8 @@ export function EquityChart({ traderId }: EquityChartProps) {
         hour: '2-digit',
         minute: '2-digit',
       }),
-      value: displayMode === 'dollar' ? point.total_equity : parseFloat(pnlPctStr),
+      value:
+        displayMode === 'dollar' ? point.total_equity : parseFloat(pnlPctStr),
       cycle: point.cycle_number,
       raw_equity: point.total_equity,
       raw_pnl: pnl,
@@ -204,7 +205,10 @@ export function EquityChart({ traderId }: EquityChartProps) {
       return (
         <div
           className="rounded p-3 shadow-xl"
-          style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
+          style={{
+            background: 'var(--panel-bg)',
+            border: '1px solid var(--panel-border)',
+          }}
         >
           <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
             Cycle #{data.cycle}
@@ -287,7 +291,10 @@ export function EquityChart({ traderId }: EquityChartProps) {
         {/* Display Mode Toggle */}
         <div
           className="flex gap-0.5 sm:gap-1 rounded p-0.5 sm:p-1 self-start sm:self-auto"
-          style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+          style={{
+            background: 'var(--navy-primary)',
+            border: '1px solid var(--panel-border)',
+          }}
         >
           <button
             onClick={() => setDisplayMode('dollar')}
@@ -362,8 +369,16 @@ export function EquityChart({ traderId }: EquityChartProps) {
           >
             <defs>
               <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--green-primary)" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="var(--green-light)" stopOpacity={0.2} />
+                <stop
+                  offset="5%"
+                  stopColor="var(--green-primary)"
+                  stopOpacity={0.8}
+                />
+                <stop
+                  offset="95%"
+                  stopColor="var(--green-light)"
+                  stopOpacity={0.2}
+                />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--panel-border)" />
@@ -406,7 +421,11 @@ export function EquityChart({ traderId }: EquityChartProps) {
               dataKey="value"
               stroke="var(--green-primary)"
               strokeWidth={3}
-              dot={chartData.length > 50 ? false : { fill: 'var(--green-primary)', r: 3 }}
+              dot={
+                chartData.length > 50
+                  ? false
+                  : { fill: 'var(--green-primary)', r: 3 }
+              }
               activeDot={{
                 r: 6,
                 fill: 'var(--green-light)',

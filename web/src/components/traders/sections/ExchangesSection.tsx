@@ -41,7 +41,10 @@ export function ExchangesSection({
                   ? 'cursor-not-allowed'
                   : 'cursor-pointer hover:bg-gray-700'
               }`}
-              style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+              style={{
+                background: 'var(--navy-primary)',
+                border: '1px solid var(--panel-border)',
+              }}
               onClick={() => onExchangeClick(exchange.id)}
             >
               <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
@@ -66,12 +69,13 @@ export function ExchangesSection({
                   {/* Display wallet addresses for perp-dex exchanges */}
                   {exchange.type === 'dex' && (
                     <div className="mt-1">
-                      {exchange.id === 'hyperliquid' && exchange.hyperliquidWalletAddr && (
-                        <WalletAddressDisplay
-                          address={exchange.hyperliquidWalletAddr}
-                          language={language}
-                        />
-                      )}
+                      {exchange.id === 'hyperliquid' &&
+                        exchange.hyperliquidWalletAddr && (
+                          <WalletAddressDisplay
+                            address={exchange.hyperliquidWalletAddr}
+                            language={language}
+                          />
+                        )}
                       {exchange.id === 'aster' && (
                         <>
                           {exchange.asterUser && (

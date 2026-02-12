@@ -41,7 +41,9 @@ export function ResetPasswordPage() {
 
     if (result.success) {
       setSuccess(true)
-      toast.success(t('resetPasswordSuccess', language) || 'Password reset successful')
+      toast.success(
+        t('resetPasswordSuccess', language) || 'Password reset successful'
+      )
       // Redirect to login page after 3 seconds
       setTimeout(() => {
         navigate('/login')
@@ -88,14 +90,19 @@ export function ResetPasswordPage() {
               {t('resetPasswordTitle', language)}
             </h1>
             <p className="text-sm mt-2" style={{ color: '#848E9C' }}>
-              {language === 'zh' ? '使用邮箱和 Google Authenticator 重置密码' : 'Reset password using email and Google Authenticator'}
+              {language === 'zh'
+                ? '使用邮箱和 Google Authenticator 重置密码'
+                : 'Reset password using email and Google Authenticator'}
             </p>
           </div>
 
           {/* Reset Password Form */}
           <div
             className="rounded-lg p-6"
-            style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
+            style={{
+              background: 'var(--panel-bg)',
+              border: '1px solid var(--panel-border)',
+            }}
           >
             {success ? (
               <div className="text-center py-8">
@@ -107,7 +114,9 @@ export function ResetPasswordPage() {
                   {t('resetPasswordSuccess', language)}
                 </p>
                 <p className="text-sm" style={{ color: '#848E9C' }}>
-                  {language === 'zh' ? '3秒后将自动跳转到登录页面...' : 'Redirecting to login page in 3 seconds...'}
+                  {language === 'zh'
+                    ? '3秒后将自动跳转到登录页面...'
+                    : 'Redirecting to login page in 3 seconds...'}
                 </p>
               </div>
             ) : (
@@ -240,7 +249,9 @@ export function ResetPasswordPage() {
                   <div className="text-center mb-3">
                     <div className="text-3xl">📱</div>
                     <p className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                      {language === 'zh' ? '打开 Google Authenticator 获取6位验证码' : 'Open Google Authenticator to get 6-digit verification code'}
+                      {language === 'zh'
+                        ? '打开 Google Authenticator 获取6位验证码'
+                        : 'Open Google Authenticator to get 6-digit verification code'}
                     </p>
                   </div>
                   <input
@@ -277,7 +288,10 @@ export function ResetPasswordPage() {
                   type="submit"
                   disabled={loading || otpCode.length !== 6 || !passwordValid}
                   className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
-                  style={{ background: '#00CC66', color: 'var(--navy-primary)' }}
+                  style={{
+                    background: '#00CC66',
+                    color: 'var(--navy-primary)',
+                  }}
                 >
                   {loading
                     ? t('loading', language)

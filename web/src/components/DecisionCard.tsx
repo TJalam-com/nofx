@@ -15,7 +15,10 @@ interface DecisionCardProps {
 }
 
 // Helper function to translate AI error messages
-function translateAIErrorMessage(message: string, language: 'en' | 'zh'): string {
+function translateAIErrorMessage(
+  message: string,
+  language: 'en' | 'zh'
+): string {
   if (!message) return message
 
   // If message contains Chinese characters and language is English, try to translate
@@ -24,7 +27,8 @@ function translateAIErrorMessage(message: string, language: 'en' | 'zh'): string
     let translated = message.replace(/^AI拒绝:\s*/i, t('aiRejected', language))
 
     // Pattern: 信号价格X与当前市场价Y严重不符（相差Z%）
-    const priceMismatchPattern = /信号价格([\d.]+)与当前市场价([\d.]+)严重不符（相差([\d.]+)%）/
+    const priceMismatchPattern =
+      /信号价格([\d.]+)与当前市场价([\d.]+)严重不符（相差([\d.]+)%）/
     while (priceMismatchPattern.test(translated)) {
       const match = translated.match(priceMismatchPattern)
       if (match) {
@@ -102,20 +106,27 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
           }
         }
       }
-      
+
       // Fallback: Check input prompt for parent signal indicators
       if (decision.input_prompt) {
-        const hasParentSignal = decision.input_prompt.includes('Parent Trade Signal') ||
-                                 decision.input_prompt.includes('Parent Trader:') ||
-                                 decision.input_prompt.includes('Signal ID:')
+        const hasParentSignal =
+          decision.input_prompt.includes('Parent Trade Signal') ||
+          decision.input_prompt.includes('Parent Trader:') ||
+          decision.input_prompt.includes('Signal ID:')
         if (hasParentSignal) {
           // Try to extract signal ID from prompt
-          const signalIdMatch = decision.input_prompt.match(/Signal ID:\s*([a-f0-9-]+)/i)
-          const signalDecisionMatch = decision.input_prompt.match(/signal_decision[":\s]+"?(accept|reject|modify)"?/i)
-          
+          const signalIdMatch = decision.input_prompt.match(
+            /Signal ID:\s*([a-f0-9-]+)/i
+          )
+          const signalDecisionMatch = decision.input_prompt.match(
+            /signal_decision[":\s]+"?(accept|reject|modify)"?/i
+          )
+
           return {
             parent_signal_id: signalIdMatch ? signalIdMatch[1] : undefined,
-            signal_decision: signalDecisionMatch ? signalDecisionMatch[1].toLowerCase() : undefined,
+            signal_decision: signalDecisionMatch
+              ? signalDecisionMatch[1].toLowerCase()
+              : undefined,
             fromPrompt: true,
           }
         }
@@ -137,7 +148,10 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
     >
       <div className="flex items-start justify-between mb-3">
         <div>
-          <div className="font-semibold flex items-center gap-2" style={{ color: '#EAECEF' }}>
+          <div
+            className="font-semibold flex items-center gap-2"
+            style={{ color: '#EAECEF' }}
+          >
             {t('cycle', language)} #{decision.cycle_number}
             {parentSignalInfo && (
               <span
@@ -162,14 +176,14 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
                         color: '#0ECB81',
                       }
                     : parentSignalInfo.signal_decision === 'reject'
-                    ? {
-                        background: 'rgba(246, 70, 93, 0.1)',
-                        color: '#F6465D',
-                      }
-                    : {
-                        background: 'rgba(251, 191, 36, 0.1)',
-                        color: 'var(--brand-yellow)',
-                      }
+                      ? {
+                          background: 'rgba(246, 70, 93, 0.1)',
+                          color: '#F6465D',
+                        }
+                      : {
+                          background: 'rgba(251, 191, 36, 0.1)',
+                          color: 'var(--brand-yellow)',
+                        }
                 }
                 title={`AI decision: ${parentSignalInfo.signal_decision}`}
               >
@@ -216,7 +230,9 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
               📥 {t('inputPrompt', language)}
             </span>
             <span className="text-xs">
-              {showInputPrompt ? t('collapse', language) : t('expand', language)}
+              {showInputPrompt
+                ? t('collapse', language)
+                : t('expand', language)}
             </span>
           </button>
           {showInputPrompt && (
@@ -276,7 +292,10 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
                   color: '#EAECEF',
                 }}
               >
-                <AnimatedAIMessage message={decision.cot_trace} typingSpeed={30} />
+                <AnimatedAIMessage
+                  message={decision.cot_trace}
+                  typingSpeed={30}
+                />
               </div>
             </AdminAnimationWrapper>
           )}
@@ -336,24 +355,28 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
                   </span>
                 )}
                 <AdminAnimationWrapper>
-                  <SentimentIndicator sentiment={sentiment} intensity={action.success ? 0.8 : 0.5} />
+                  <SentimentIndicator
+                    sentiment={sentiment}
+                    intensity={action.success ? 0.8 : 0.5}
+                  />
                 </AdminAnimationWrapper>
-                {action.confidence !== undefined && action.confidence !== null && (
-                  <AdminAnimationWrapper>
-                    <div style={{ minWidth: '100px' }}>
-                      <ConfidenceScore
-                        confidence={
-                          typeof action.confidence === 'number'
-                            ? action.confidence <= 1
-                              ? action.confidence * 100
-                              : action.confidence
-                            : 0
-                        }
-                        showLabel={false}
-                      />
-                    </div>
-                  </AdminAnimationWrapper>
-                )}
+                {action.confidence !== undefined &&
+                  action.confidence !== null && (
+                    <AdminAnimationWrapper>
+                      <div style={{ minWidth: '100px' }}>
+                        <ConfidenceScore
+                          confidence={
+                            typeof action.confidence === 'number'
+                              ? action.confidence <= 1
+                                ? action.confidence * 100
+                                : action.confidence
+                              : 0
+                          }
+                          showLabel={false}
+                        />
+                      </div>
+                    </AdminAnimationWrapper>
+                  )}
               </div>
             )
           })}
@@ -364,19 +387,21 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
       {admin && decision.decisions && decision.decisions.length > 0 && (
         <AdminAnimationWrapper>
           <div className="mb-3">
-            {decision.decisions.some((d) => d.confidence !== undefined && d.confidence !== null) && (
+            {decision.decisions.some(
+              (d) => d.confidence !== undefined && d.confidence !== null
+            ) && (
               <ConfidenceScore
-                confidence={
-                  (() => {
-                    const confidences = decision.decisions
-                      .map((d) => d.confidence)
-                      .filter((c): c is number => c !== undefined && c !== null)
-                    if (confidences.length === 0) return 0
-                    const avg = confidences.reduce((sum, c) => sum + c, 0) / confidences.length
-                    // Assume confidence is 0-1 if average is <= 1, otherwise 0-100
-                    return avg <= 1 ? avg * 100 : avg
-                  })()
-                }
+                confidence={(() => {
+                  const confidences = decision.decisions
+                    .map((d) => d.confidence)
+                    .filter((c): c is number => c !== undefined && c !== null)
+                  if (confidences.length === 0) return 0
+                  const avg =
+                    confidences.reduce((sum, c) => sum + c, 0) /
+                    confidences.length
+                  // Assume confidence is 0-1 if average is <= 1, otherwise 0-100
+                  return avg <= 1 ? avg * 100 : avg
+                })()}
               />
             )}
           </div>
@@ -386,7 +411,10 @@ export function DecisionCard({ decision, language }: DecisionCardProps) {
       {decision.execution_log && decision.execution_log.length > 0 && (
         <div
           className="rounded p-3 text-xs font-mono space-y-1"
-          style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+          style={{
+            background: 'var(--navy-primary)',
+            border: '1px solid var(--panel-border)',
+          }}
         >
           {decision.execution_log.map((log, index) => (
             <div key={`${log}-${index}`} style={{ color: '#EAECEF' }}>

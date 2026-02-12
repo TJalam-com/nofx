@@ -144,7 +144,9 @@ export function BacktestPage() {
   )
 
   const { data: equity } = useSWR<BacktestEquityPoint[]>(
-    userIsFollower || !selectedRunId ? null : ['bt-equity', selectedRunId, equityTf],
+    userIsFollower || !selectedRunId
+      ? null
+      : ['bt-equity', selectedRunId, equityTf],
     () => api.getBacktestEquity(selectedRunId!, equityTf, 1000),
     { refreshInterval: 6000 }
   )
@@ -261,7 +263,10 @@ export function BacktestPage() {
           altcoin_leverage: Number(formState.altcoinLeverage),
         },
       })
-      setToast({ text: tr('toasts.startSuccess', { id: payload.run_id }), tone: 'success' })
+      setToast({
+        text: tr('toasts.startSuccess', { id: payload.run_id }),
+        tone: 'success',
+      })
       setSelectedRunId(payload.run_id)
       await refreshRuns()
     } catch (error: any) {
@@ -315,11 +320,14 @@ export function BacktestPage() {
 
   const handleDeleteRun = async () => {
     if (!selectedRunId) return
-    const confirmed = await confirmToast(tr('toasts.confirmDelete', { id: selectedRunId }), {
-      title: language === 'zh' ? '确认删除' : 'Confirm Delete',
-      okText: language === 'zh' ? '删除' : 'Delete',
-      cancelText: language === 'zh' ? '取消' : 'Cancel',
-    })
+    const confirmed = await confirmToast(
+      tr('toasts.confirmDelete', { id: selectedRunId }),
+      {
+        title: language === 'zh' ? '确认删除' : 'Confirm Delete',
+        okText: language === 'zh' ? '删除' : 'Delete',
+        cancelText: language === 'zh' ? '取消' : 'Cancel',
+      }
+    )
     if (!confirmed) return
     try {
       await api.deleteBacktestRun(selectedRunId)
@@ -412,12 +420,20 @@ export function BacktestPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
-          <AlertCircle className="mx-auto mb-4 opacity-50" size={48} style={{ color: 'var(--text-secondary)' }} />
-          <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <AlertCircle
+            className="mx-auto mb-4 opacity-50"
+            size={48}
+            style={{ color: 'var(--text-secondary)' }}
+          />
+          <h2
+            className="text-xl font-semibold"
+            style={{ color: 'var(--text-primary)' }}
+          >
             {tr('accessDenied') || 'Access Restricted'}
           </h2>
           <p style={{ color: 'var(--text-secondary)' }}>
-            {tr('followerRestriction') || 'This feature is only available to traders. Please upgrade your account to access backtesting.'}
+            {tr('followerRestriction') ||
+              'This feature is only available to traders. Please upgrade your account to access backtesting.'}
           </p>
         </div>
       </div>
@@ -434,20 +450,20 @@ export function BacktestPage() {
               toast.tone === 'error'
                 ? 'rgba(246,70,93,0.1)'
                 : toast.tone === 'success'
-                ? 'rgba(14,203,129,0.1)'
-                : 'rgba(0,255,127,0.1)',
+                  ? 'rgba(14,203,129,0.1)'
+                  : 'rgba(0,255,127,0.1)',
             color:
               toast.tone === 'error'
                 ? '#F6465D'
                 : toast.tone === 'success'
-                ? '#0ECB81'
-                : 'var(--green-primary)',
+                  ? '#0ECB81'
+                  : 'var(--green-primary)',
             borderColor:
               toast.tone === 'error'
                 ? 'rgba(246,70,93,0.3)'
                 : toast.tone === 'success'
-                ? 'rgba(14,203,129,0.4)'
-                : 'rgba(0,255,127,0.4)',
+                  ? 'rgba(14,203,129,0.4)'
+                  : 'rgba(0,255,127,0.4)',
           }}
         >
           {toast.text}
@@ -468,7 +484,10 @@ export function BacktestPage() {
               type="submit"
               disabled={isStarting || !selectedModel || !selectedModel.enabled}
               className="px-4 py-2 rounded text-xs font-bold transition-opacity disabled:opacity-50"
-              style={{ background: 'var(--green-primary)', color: 'var(--navy-primary)' }}
+              style={{
+                background: 'var(--green-primary)',
+                color: 'var(--navy-primary)',
+              }}
             >
               {isStarting ? tr('starting') : tr('start')}
             </button>
@@ -618,7 +637,9 @@ export function BacktestPage() {
                       background: active
                         ? 'rgba(0,255,127,0.12)'
                         : 'var(--navy-dark)',
-                      borderColor: active ? 'var(--green-primary)' : 'var(--panel-border)',
+                      borderColor: active
+                        ? 'var(--green-primary)'
+                        : 'var(--panel-border)',
                       color: active ? 'var(--green-primary)' : '#848E9C',
                     }}
                   >
@@ -655,7 +676,9 @@ export function BacktestPage() {
                 className="input"
                 min={0}
                 value={formState.fee}
-                onChange={(e) => handleFormChange('fee', Number(e.target.value))}
+                onChange={(e) =>
+                  handleFormChange('fee', Number(e.target.value))
+                }
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -678,8 +701,12 @@ export function BacktestPage() {
               value={formState.fill}
               onChange={(e) => handleFormChange('fill', e.target.value)}
             >
-              <option value="next_open">{tr('form.fillPolicies.nextOpen')}</option>
-              <option value="bar_vwap">{tr('form.fillPolicies.barVwap')}</option>
+              <option value="next_open">
+                {tr('form.fillPolicies.nextOpen')}
+              </option>
+              <option value="bar_vwap">
+                {tr('form.fillPolicies.barVwap')}
+              </option>
               <option value="mid">{tr('form.fillPolicies.midPrice')}</option>
             </select>
             <select
@@ -687,10 +714,18 @@ export function BacktestPage() {
               value={formState.prompt}
               onChange={(e) => handleFormChange('prompt', e.target.value)}
             >
-              <option value="baseline">{tr('form.promptPresets.baseline')}</option>
-              <option value="aggressive">{tr('form.promptPresets.aggressive')}</option>
-              <option value="conservative">{tr('form.promptPresets.conservative')}</option>
-              <option value="scalping">{tr('form.promptPresets.scalping')}</option>
+              <option value="baseline">
+                {tr('form.promptPresets.baseline')}
+              </option>
+              <option value="aggressive">
+                {tr('form.promptPresets.aggressive')}
+              </option>
+              <option value="conservative">
+                {tr('form.promptPresets.conservative')}
+              </option>
+              <option value="scalping">
+                {tr('form.promptPresets.scalping')}
+              </option>
             </select>
             <select
               className="input"
@@ -816,15 +851,15 @@ export function BacktestPage() {
             <table className="w-full text-xs">
               <thead style={{ color: '#848E9C' }}>
                 <tr>
-                  <th className="py-2 text-left">
-                    {tr('tableHeaders.runId')}
-                  </th>
+                  <th className="py-2 text-left">{tr('tableHeaders.runId')}</th>
                   <th className="py-2 text-left">{tr('tableHeaders.label')}</th>
                   <th className="py-2 text-left">{tr('tableHeaders.state')}</th>
                   <th className="py-2 text-left">
                     {tr('tableHeaders.progress')}
                   </th>
-                  <th className="py-2 text-left">{tr('tableHeaders.equity')}</th>
+                  <th className="py-2 text-left">
+                    {tr('tableHeaders.equity')}
+                  </th>
                   <th className="py-2 text-left">
                     {tr('tableHeaders.lastError')}
                   </th>
@@ -849,13 +884,15 @@ export function BacktestPage() {
                   <tr
                     key={run.run_id}
                     className="cursor-pointer"
-                    style={{
-                      '--hover-bg': 'var(--navy-dark)',
-                      background:
-                        run.run_id === selectedRunId
-                          ? 'rgba(0,255,127,0.08)'
-                          : 'transparent',
-                    } as React.CSSProperties}
+                    style={
+                      {
+                        '--hover-bg': 'var(--navy-dark)',
+                        background:
+                          run.run_id === selectedRunId
+                            ? 'rgba(0,255,127,0.08)'
+                            : 'transparent',
+                      } as React.CSSProperties
+                    }
                     onClick={() => setSelectedRunId(run.run_id)}
                   >
                     <td className="py-2 font-mono">{run.run_id}</td>
@@ -1064,7 +1101,10 @@ export function BacktestPage() {
           <section className="p-5 space-y-3 binance-card">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold" style={{ color: '#EAECEF' }}>
+                <h3
+                  className="text-lg font-semibold"
+                  style={{ color: '#EAECEF' }}
+                >
                   {tr('decisionTrail.title')}
                 </h3>
                 <p className="text-xs" style={{ color: '#848E9C' }}>
@@ -1120,7 +1160,10 @@ export function BacktestPage() {
                 <div className="h-72">
                   <ResponsiveContainer>
                     <LineChart data={equitySeries}>
-                      <CartesianGrid stroke="var(--panel-border)" strokeDasharray="3 3" />
+                      <CartesianGrid
+                        stroke="var(--panel-border)"
+                        strokeDasharray="3 3"
+                      />
                       <XAxis dataKey="time" hide />
                       <YAxis width={60} />
                       <Tooltip />
@@ -1153,7 +1196,10 @@ export function BacktestPage() {
                     label={tr('metrics.maxDrawdown')}
                     value={metrics.max_drawdown_pct}
                   />
-                  <Metric label={tr('metrics.sharpe')} value={metrics.sharpe_ratio} />
+                  <Metric
+                    label={tr('metrics.sharpe')}
+                    value={metrics.sharpe_ratio}
+                  />
                   <Metric
                     label={tr('metrics.profitFactor')}
                     value={metrics.profit_factor}
@@ -1299,4 +1345,3 @@ function Metric({
     </div>
   )
 }
-

@@ -9,7 +9,10 @@ interface HeroSectionProps {
   onGetStarted?: () => void
 }
 
-export default function HeroSection({ language, onGetStarted }: HeroSectionProps) {
+export default function HeroSection({
+  language,
+  onGetStarted,
+}: HeroSectionProps) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const isLoggedIn = !!user
@@ -19,7 +22,7 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.7, ease: [0.6, -0.05, 0.01, 0.99] },
   }
-  
+
   const staggerContainer = {
     animate: { transition: { staggerChildren: 0.15 } },
   }
@@ -42,7 +45,8 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
         <motion.div
           className="absolute top-1/4 -left-1/4 w-96 h-96 rounded-full blur-3xl opacity-20"
           style={{
-            background: 'radial-gradient(circle, var(--green-primary) 0%, transparent 70%)',
+            background:
+              'radial-gradient(circle, var(--green-primary) 0%, transparent 70%)',
             willChange: 'transform',
             transform: 'translateZ(0)',
           }}
@@ -60,7 +64,8 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
         <motion.div
           className="absolute top-1/3 -right-1/4 w-96 h-96 rounded-full blur-3xl opacity-10"
           style={{
-            background: 'radial-gradient(circle, var(--green-primary) 0%, transparent 70%)',
+            background:
+              'radial-gradient(circle, var(--green-primary) 0%, transparent 70%)',
             willChange: 'transform',
             transform: 'translateZ(0)',
           }}
@@ -75,7 +80,7 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
             ease: 'easeInOut',
           }}
         />
-        
+
         {/* Grid Pattern */}
         <div
           className="absolute inset-0 opacity-5"
@@ -107,12 +112,17 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
               transition={{ duration: 0.6 }}
               whileHover={{ scale: 1.05 }}
             >
-              <Sparkles className="w-4 h-4" style={{ color: 'var(--green-primary)' }} />
+              <Sparkles
+                className="w-4 h-4"
+                style={{ color: 'var(--green-primary)' }}
+              />
               <span
                 className="text-sm font-semibold"
                 style={{ color: 'var(--green-primary)' }}
               >
-                {language === 'en' ? 'The Future of AI Trading' : 'AI 交易的未来'}
+                {language === 'en'
+                  ? 'The Future of AI Trading'
+                  : 'AI 交易的未来'}
               </span>
             </motion.div>
 
@@ -137,9 +147,10 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
               </span>
               <br />
               <span
-                style={{ 
+                style={{
                   color: 'var(--green-primary)',
-                  background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+                  background:
+                    'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
@@ -215,16 +226,31 @@ export default function HeroSection({ language, onGetStarted }: HeroSectionProps
               variants={fadeInUp}
             >
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ background: 'var(--green-primary)' }} />
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: 'var(--green-primary)' }}
+                />
                 <span>{language === 'en' ? 'Non-custodial' : '非托管'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ background: 'var(--green-primary)' }} />
-                <span>{language === 'en' ? 'Cloud-based SaaS' : '云端 SaaS'}</span>
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: 'var(--green-primary)' }}
+                />
+                <span>
+                  {language === 'en' ? 'Cloud-based SaaS' : '云端 SaaS'}
+                </span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ background: 'var(--green-primary)' }} />
-                <span>{language === 'en' ? 'Multi-exchange support' : '多交易所支持'}</span>
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: 'var(--green-primary)' }}
+                />
+                <span>
+                  {language === 'en'
+                    ? 'Multi-exchange support'
+                    : '多交易所支持'}
+                </span>
               </div>
             </motion.div>
           </motion.div>

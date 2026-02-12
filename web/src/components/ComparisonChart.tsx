@@ -107,47 +107,54 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
       // 2. If found, use that point's equity as initial balance
       // 3. Otherwise, find the point with the smallest absolute PnL percentage
       // 4. Fallback to first point only if it seems valid
-      
+
       let bestInitialBalance: number | null = null
       let bestPnLPct = Infinity
-      
+
       for (const point of history.data) {
-        if (!point || point.total_equity == null || point.total_equity <= 0) continue
-        
-        const pnlPct = point.total_pnl_pct != null && !isNaN(point.total_pnl_pct) 
-          ? point.total_pnl_pct 
-          : null
-        
+        if (!point || point.total_equity == null || point.total_equity <= 0)
+          continue
+
+        const pnlPct =
+          point.total_pnl_pct != null && !isNaN(point.total_pnl_pct)
+            ? point.total_pnl_pct
+            : null
+
         // Prefer points with PnL close to 0%
         if (pnlPct != null && Math.abs(pnlPct) < 1) {
           // Found a point very close to 0% - use it
           bestInitialBalance = point.total_equity
           break
         }
-        
+
         // Track the point with smallest absolute PnL percentage
         if (pnlPct != null && Math.abs(pnlPct) < Math.abs(bestPnLPct)) {
           bestPnLPct = pnlPct
           bestInitialBalance = point.total_equity
         }
       }
-      
+
       // Fallback: use first point if no better option found, but validate it
       if (bestInitialBalance == null) {
         const firstPoint = history.data[0]
-        if (firstPoint && firstPoint.total_equity != null && firstPoint.total_equity > 0) {
+        if (
+          firstPoint &&
+          firstPoint.total_equity != null &&
+          firstPoint.total_equity > 0
+        ) {
           // Only use first point if it seems reasonable (not already at extreme loss)
-          const firstPnLPct = firstPoint.total_pnl_pct != null && !isNaN(firstPoint.total_pnl_pct)
-            ? firstPoint.total_pnl_pct
-            : null
-          
+          const firstPnLPct =
+            firstPoint.total_pnl_pct != null && !isNaN(firstPoint.total_pnl_pct)
+              ? firstPoint.total_pnl_pct
+              : null
+
           // Only use if PnL is not already at extreme loss (> -50%)
           if (firstPnLPct == null || firstPnLPct > -50) {
             bestInitialBalance = firstPoint.total_equity
           }
         }
       }
-      
+
       if (bestInitialBalance != null && bestInitialBalance > 0) {
         traderInitialBalances.set(trader.trader_id, bestInitialBalance)
       }
@@ -186,16 +193,24 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
         // Validate data point before processing
         // Skip invalid data points
-        if (!point || point.total_equity == null || isNaN(point.total_equity) || point.total_equity <= 0) {
+        if (
+          !point ||
+          point.total_equity == null ||
+          isNaN(point.total_equity) ||
+          point.total_equity <= 0
+        ) {
           return // Skip invalid equity values
         }
-        
+
         // Use backend returned PnL percentage if available and valid, otherwise calculate from equity
         let pnlPct: number | null = null
-        const backendPnLPct = point.total_pnl_pct != null && !isNaN(point.total_pnl_pct) && isFinite(point.total_pnl_pct)
-          ? point.total_pnl_pct
-          : null
-        
+        const backendPnLPct =
+          point.total_pnl_pct != null &&
+          !isNaN(point.total_pnl_pct) &&
+          isFinite(point.total_pnl_pct)
+            ? point.total_pnl_pct
+            : null
+
         if (backendPnLPct != null) {
           // Backend provided total_pnl_pct - validate it's reasonable
           // Cap at reasonable bounds: -150% to +1000% (allows for some leverage losses but filters extreme corruption)
@@ -208,7 +223,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
             )
           }
         }
-        
+
         // If backend value wasn't used, calculate from equity
         if (pnlPct == null) {
           const initialBalance = traderInitialBalances.get(trader.trader_id)
@@ -221,7 +236,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
           ) {
             const pnl = point.total_equity - initialBalance
             pnlPct = (pnl / initialBalance) * 100
-            
+
             // Validate calculated value is reasonable
             if (pnlPct < -150 || pnlPct > 1000) {
               // Calculated value is also unreasonable - skip this data point
@@ -235,12 +250,12 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
             return
           }
         }
-        
+
         // Final validation: ensure we have a valid percentage
         if (pnlPct == null || isNaN(pnlPct) || !isFinite(pnlPct)) {
           return // Skip invalid percentage
         }
-        
+
         // Apply final bounds check and cap if needed (for display purposes)
         // Values beyond -150% are likely data corruption
         if (pnlPct < -150) {
@@ -249,7 +264,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
           )
           pnlPct = -150
         }
-        
+
         // Cap extremely high values as well (likely data corruption)
         if (pnlPct > 1000) {
           console.warn(
@@ -259,8 +274,13 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
         }
 
         // If multiple data points map to same normalized timestamp, use the latest one
-        const existingData = timestampMap.get(normalizedTs)!.traders.get(trader.trader_id)
-        if (!existingData || new Date(originalTs).getTime() > new Date(normalizedTs).getTime()) {
+        const existingData = timestampMap
+          .get(normalizedTs)!
+          .traders.get(trader.trader_id)
+        if (
+          !existingData ||
+          new Date(originalTs).getTime() > new Date(normalizedTs).getTime()
+        ) {
           timestampMap.get(normalizedTs)!.traders.set(trader.trader_id, {
             pnl_pct: pnlPct,
             equity: point.total_equity || 0,
@@ -292,14 +312,17 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
       })
 
     // Forward-fill missing values to ensure continuous lines
-    const lastKnownValues = new Map<string, { pnl_pct: number; equity: number }>()
+    const lastKnownValues = new Map<
+      string,
+      { pnl_pct: number; equity: number }
+    >()
     const forwardFilled = combined.map((point) => {
       const filledPoint = { ...point }
-      
+
       traders.forEach((trader) => {
         const pnlKey = `${trader.trader_id}_pnl_pct`
         const equityKey = `${trader.trader_id}_equity`
-        
+
         if (filledPoint[pnlKey] !== undefined && filledPoint[pnlKey] !== null) {
           // Update last known value
           lastKnownValues.set(trader.trader_id, {
@@ -315,7 +338,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
           }
         }
       })
-      
+
       return filledPoint
     })
 
@@ -362,7 +385,10 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
   if (isLoading) {
     return (
-      <div className="text-center py-16" style={{ color: 'var(--text-gray-light)' }}>
+      <div
+        className="text-center py-16"
+        style={{ color: 'var(--text-gray-light)' }}
+      >
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mb-4"></div>
         <div className="text-sm font-semibold">Loading comparison data...</div>
       </div>
@@ -371,9 +397,18 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
   if (combinedData.length === 0) {
     return (
-      <div className="text-center py-16" style={{ color: 'var(--text-gray-light)' }}>
-        <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-60" style={{ color: 'var(--text-gray-light)' }} />
-        <div className="text-lg font-semibold mb-2" style={{ color: 'var(--text-white)' }}>
+      <div
+        className="text-center py-16"
+        style={{ color: 'var(--text-gray-light)' }}
+      >
+        <BarChart3
+          className="w-12 h-12 mx-auto mb-4 opacity-60"
+          style={{ color: 'var(--text-gray-light)' }}
+        />
+        <div
+          className="text-lg font-semibold mb-2"
+          style={{ color: 'var(--text-white)' }}
+        >
           {t('noHistoricalData', language)}
         </div>
         <div className="text-sm">{t('dataWillAppear', language)}</div>
@@ -404,24 +439,24 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
     const minVal = Math.min(...allValues)
     const maxVal = Math.max(...allValues)
-    
+
     // Use balanced range calculation similar to EquityChart
     // This ensures symmetric padding around the data range
     const range = Math.max(Math.abs(maxVal), Math.abs(minVal))
-    
+
     // Add padding (20% of range, minimum 1% for small ranges)
     const padding = Math.max(range * 0.2, 1)
-    
+
     // Calculate domain with padding
     let domainMin = Math.floor(minVal - padding)
     let domainMax = Math.ceil(maxVal + padding)
-    
+
     // Cap minimum domain at -150% to prevent extreme distortion
     const MAX_NEGATIVE = -150
     if (domainMin < MAX_NEGATIVE) {
       domainMin = MAX_NEGATIVE
     }
-    
+
     // Ensure 0% is visible when data spans both positive and negative
     // If data crosses zero, ensure zero is included with some padding
     if (minVal < 0 && maxVal > 0) {
@@ -429,7 +464,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
       if (domainMin >= 0) domainMin = Math.floor(-padding)
       if (domainMax <= 0) domainMax = Math.ceil(padding)
     }
-    
+
     // Handle edge case: if all values are very close, ensure minimum range
     if (domainMax - domainMin < 5) {
       const center = (domainMin + domainMax) / 2
@@ -499,7 +534,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
         >
           {filteredPayload.map((entry: any) => {
             const trader = entry.trader
-            
+
             // Find each trader's last available data point to avoid showing 0%
             let lastPnLPct: number | null = null
             if (combinedData.length > 0 && trader) {
@@ -559,7 +594,10 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
                     gap: '6px',
                   }}
                 >
-                  <span className="truncate max-w-[100px]" title={trader.trader_name}>
+                  <span
+                    className="truncate max-w-[100px]"
+                    title={trader.trader_name}
+                  >
                     {trader.trader_name}
                   </span>
                   {lastPnLPct !== null && (
@@ -568,7 +606,10 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
                         opacity: 0.9,
                         fontWeight: 600,
                         fontSize: '12px',
-                        color: lastPnLPct >= 0 ? 'var(--green-primary)' : 'var(--error)',
+                        color:
+                          lastPnLPct >= 0
+                            ? 'var(--green-primary)'
+                            : 'var(--error)',
                         flexShrink: 0,
                       }}
                     >
@@ -598,7 +639,10 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
           }}
         >
-          <div className="text-xs mb-3 font-semibold" style={{ color: 'var(--text-gray-light)' }}>
+          <div
+            className="text-xs mb-3 font-semibold"
+            style={{ color: 'var(--text-gray-light)' }}
+          >
             {data.date} • {data.time} • #{data.index}
           </div>
           <div className="space-y-2">
@@ -632,13 +676,17 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
                     <TrendIcon
                       className="w-4 h-4"
                       style={{
-                        color: isPositive ? 'var(--green-primary)' : 'var(--error)',
+                        color: isPositive
+                          ? 'var(--green-primary)'
+                          : 'var(--error)',
                       }}
                     />
                     <div
                       className="text-sm mono font-bold"
                       style={{
-                        color: isPositive ? 'var(--green-primary)' : 'var(--error)',
+                        color: isPositive
+                          ? 'var(--green-primary)'
+                          : 'var(--error)',
                       }}
                     >
                       {isPositive ? '+' : ''}
@@ -717,7 +765,9 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
                   <span
                     className="text-xs font-bold mono whitespace-nowrap flex-shrink-0"
                     style={{
-                      color: isPositive ? 'var(--green-primary)' : 'var(--error)',
+                      color: isPositive
+                        ? 'var(--green-primary)'
+                        : 'var(--error)',
                     }}
                   >
                     {isPositive ? '+' : ''}
@@ -736,7 +786,9 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
                 background: 'rgba(0, 0, 0, 0.2)',
               }}
             >
-              {t('showingAllTraders', language) || `Showing all ${currentPnLData.length} traders`} • {t('scrollToView', language) || 'Scroll to view all'}
+              {t('showingAllTraders', language) ||
+                `Showing all ${currentPnLData.length} traders`}{' '}
+              • {t('scrollToView', language) || 'Scroll to view all'}
             </div>
           )}
         </div>
@@ -949,7 +1001,8 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
           <div
             className="text-base md:text-lg font-bold mono"
             style={{
-              color: currentGap > 1 ? 'var(--green-primary)' : 'var(--text-white)',
+              color:
+                currentGap > 1 ? 'var(--green-primary)' : 'var(--text-white)',
             }}
           >
             {currentGap.toFixed(2)}%

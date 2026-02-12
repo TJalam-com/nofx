@@ -29,7 +29,9 @@ export function AnimatedPositionTable({
 }: AnimatedPositionTableProps) {
   const { user, token } = useAuth()
   const [positions, setPositions] = useState<Position[]>([])
-  const [closingPositions, setClosingPositions] = useState<Set<string>>(new Set())
+  const [closingPositions, setClosingPositions] = useState<Set<string>>(
+    new Set()
+  )
   const [newPositionIds, setNewPositionIds] = useState<Set<string>>(new Set())
 
   // Load positions
@@ -54,22 +56,26 @@ export function AnimatedPositionTable({
         const updatedPositions = await api.getPositions(traderId)
 
         // Ensure we have valid arrays before processing
-        const safeUpdatedPositions = Array.isArray(updatedPositions) ? updatedPositions : []
+        const safeUpdatedPositions = Array.isArray(updatedPositions)
+          ? updatedPositions
+          : []
         const safePositions = Array.isArray(positions) ? positions : []
 
         // Mark new positions for animation
-        const existingIds = new Set(safePositions.map(p => `${p.symbol}-${p.side}`))
+        const existingIds = new Set(
+          safePositions.map((p) => `${p.symbol}-${p.side}`)
+        )
         const newIds = safeUpdatedPositions
-          .filter(p => !existingIds.has(`${p.symbol}-${p.side}`))
-          .map(p => `${p.symbol}-${p.side}`)
+          .filter((p) => !existingIds.has(`${p.symbol}-${p.side}`))
+          .map((p) => `${p.symbol}-${p.side}`)
 
         if (newIds.length > 0) {
           setNewPositionIds(new Set(newIds))
           // Remove highlight after animation
           setTimeout(() => {
-            setNewPositionIds(prev => {
+            setNewPositionIds((prev) => {
               const next = new Set(prev)
-              newIds.forEach(id => next.delete(id))
+              newIds.forEach((id) => next.delete(id))
               return next
             })
           }, 3000)
@@ -87,7 +93,10 @@ export function AnimatedPositionTable({
     return () => clearInterval(interval)
   }, [user, token, traderId, positions])
 
-  const handleClosePosition = async (symbol: string, side: 'long' | 'short') => {
+  const handleClosePosition = async (
+    symbol: string,
+    side: 'long' | 'short'
+  ) => {
     if (!traderId) return
 
     const positionKey = `${symbol}-${side}`
@@ -100,7 +109,7 @@ export function AnimatedPositionTable({
 
     if (!confirmed) return
 
-    setClosingPositions(prev => new Set(prev).add(positionKey))
+    setClosingPositions((prev) => new Set(prev).add(positionKey))
 
     try {
       await api.closePosition(traderId, symbol, side, 0)
@@ -113,7 +122,7 @@ export function AnimatedPositionTable({
     } catch (error: any) {
       notify.error(error.message || 'Failed to close position')
     } finally {
-      setClosingPositions(prev => {
+      setClosingPositions((prev) => {
         const next = new Set(prev)
         next.delete(positionKey)
         return next
@@ -129,18 +138,21 @@ export function AnimatedPositionTable({
       transition={{ duration: 0.5 }}
     >
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
-        <h3 className="text-xl font-bold flex items-center gap-2" style={{ color: '#EAECEF' }}>
-          <TrendingUp className="w-5 h-5" style={{ color: 'var(--green-primary)' }} />
+        <h3
+          className="text-xl font-bold flex items-center gap-2"
+          style={{ color: '#EAECEF' }}
+        >
+          <TrendingUp
+            className="w-5 h-5"
+            style={{ color: 'var(--green-primary)' }}
+          />
           Positions ({Array.isArray(positions) ? positions.length : 0})
         </h3>
       </div>
 
-      <div
-        className="overflow-y-auto flex-1"
-        style={{ maxHeight }}
-      >
+      <div className="overflow-y-auto flex-1" style={{ maxHeight }}>
         <AnimatePresence mode="popLayout">
-          {(!Array.isArray(positions) || positions.length === 0) ? (
+          {!Array.isArray(positions) || positions.length === 0 ? (
             <motion.div
               className="text-center py-16"
               initial={{ opacity: 0 }}
@@ -153,17 +165,28 @@ export function AnimatedPositionTable({
               <div style={{ color: '#848E9C' }}>No active positions</div>
             </motion.div>
           ) : (
-            (Array.isArray(positions) ? positions : []).map((position, index) => (
-              <AnimatedPositionRow
-                key={`${position.symbol}-${position.side}`}
-                position={position}
-                index={index}
-                isNew={newPositionIds.has(`${position.symbol}-${position.side}`)}
-                isClosing={closingPositions.has(`${position.symbol}-${position.side}`)}
-                animationSpeed={animationSpeed}
-                onClose={() => handleClosePosition(position.symbol, position.side as 'long' | 'short')}
-              />
-            ))
+            (Array.isArray(positions) ? positions : []).map(
+              (position, index) => (
+                <AnimatedPositionRow
+                  key={`${position.symbol}-${position.side}`}
+                  position={position}
+                  index={index}
+                  isNew={newPositionIds.has(
+                    `${position.symbol}-${position.side}`
+                  )}
+                  isClosing={closingPositions.has(
+                    `${position.symbol}-${position.side}`
+                  )}
+                  animationSpeed={animationSpeed}
+                  onClose={() =>
+                    handleClosePosition(
+                      position.symbol,
+                      position.side as 'long' | 'short'
+                    )
+                  }
+                />
+              )
+            )
           )}
         </AnimatePresence>
       </div>
@@ -180,33 +203,36 @@ interface AnimatedPositionRowProps {
   onClose: () => void
 }
 
-const AnimatedPositionRow = forwardRef<HTMLDivElement, AnimatedPositionRowProps>(function AnimatedPositionRow(
-  {
-    position,
-    index,
-    isNew,
-    isClosing,
-    animationSpeed,
-    onClose,
-  },
+const AnimatedPositionRow = forwardRef<
+  HTMLDivElement,
+  AnimatedPositionRowProps
+>(function AnimatedPositionRow(
+  { position, index, isNew, isClosing, animationSpeed, onClose },
   ref
 ) {
   const animatedPnl = useCounterAnimation({
     start: 0,
-    end: typeof position.unrealized_pnl === 'number' ? position.unrealized_pnl : 0,
+    end:
+      typeof position.unrealized_pnl === 'number' ? position.unrealized_pnl : 0,
     duration: 1500 / animationSpeed,
     decimals: 2,
   })
 
   const animatedPnlPct = useCounterAnimation({
     start: 0,
-    end: typeof position.unrealized_pnl_pct === 'number' ? position.unrealized_pnl_pct : 0,
+    end:
+      typeof position.unrealized_pnl_pct === 'number'
+        ? position.unrealized_pnl_pct
+        : 0,
     duration: 1200 / animationSpeed,
     decimals: 2,
   })
 
   const isProfit = position.unrealized_pnl >= 0
-  const liqDistance = Math.abs(position.mark_price - position.liquidation_price) / position.mark_price * 100
+  const liqDistance =
+    (Math.abs(position.mark_price - position.liquidation_price) /
+      position.mark_price) *
+    100
   const isNearLiquidation = liqDistance < 5 // Within 5% of liquidation
 
   return (
@@ -218,7 +244,9 @@ const AnimatedPositionRow = forwardRef<HTMLDivElement, AnimatedPositionRowProps>
         border: `1px solid ${isNew ? 'rgba(0, 255, 127, 0.5)' : 'var(--navy-light)'}`,
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: isNew ? '0 4px 12px rgba(0, 255, 127, 0.2)' : '0 2px 4px rgba(0, 0, 0, 0.1)',
+        boxShadow: isNew
+          ? '0 4px 12px rgba(0, 255, 127, 0.2)'
+          : '0 2px 4px rgba(0, 0, 0, 0.1)',
       }}
       initial={{ opacity: 0, x: -20 }}
       animate={{
@@ -242,7 +270,8 @@ const AnimatedPositionRow = forwardRef<HTMLDivElement, AnimatedPositionRowProps>
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'linear-gradient(45deg, rgba(0, 255, 127, 0.1), transparent)',
+            background:
+              'linear-gradient(45deg, rgba(0, 255, 127, 0.1), transparent)',
             pointerEvents: 'none',
           }}
           animate={{ opacity: [0.5, 0, 0.5] }}
@@ -272,15 +301,19 @@ const AnimatedPositionRow = forwardRef<HTMLDivElement, AnimatedPositionRowProps>
         <div className="flex items-start justify-between mb-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-lg font-bold font-mono" style={{ color: '#EAECEF' }}>
+              <span
+                className="text-lg font-bold font-mono"
+                style={{ color: '#EAECEF' }}
+              >
                 {position.symbol}
               </span>
               <motion.span
                 className="px-2 py-1 rounded text-xs font-bold"
                 style={{
-                  background: position.side === 'long'
-                    ? 'rgba(14, 203, 129, 0.1)'
-                    : 'rgba(246, 70, 93, 0.1)',
+                  background:
+                    position.side === 'long'
+                      ? 'rgba(14, 203, 129, 0.1)'
+                      : 'rgba(246, 70, 93, 0.1)',
                   color: position.side === 'long' ? '#0ECB81' : '#F6465D',
                 }}
                 animate={isNew ? { scale: [1, 1.1, 1] } : {}}
@@ -288,7 +321,10 @@ const AnimatedPositionRow = forwardRef<HTMLDivElement, AnimatedPositionRowProps>
               >
                 {position.side.toUpperCase()}
               </motion.span>
-              <span className="text-xs" style={{ color: 'var(--green-primary)' }}>
+              <span
+                className="text-xs"
+                style={{ color: 'var(--green-primary)' }}
+              >
                 {position.leverage}x
               </span>
             </div>
@@ -313,20 +349,35 @@ const AnimatedPositionRow = forwardRef<HTMLDivElement, AnimatedPositionRowProps>
         {/* Details Grid */}
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
-            <div className="text-xs mb-1" style={{ color: '#848E9C' }}>Entry Price</div>
-            <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+            <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
+              Entry Price
+            </div>
+            <div
+              className="font-mono font-semibold"
+              style={{ color: '#EAECEF' }}
+            >
               ${position.entry_price.toFixed(4)}
             </div>
           </div>
           <div>
-            <div className="text-xs mb-1" style={{ color: '#848E9C' }}>Mark Price</div>
-            <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+            <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
+              Mark Price
+            </div>
+            <div
+              className="font-mono font-semibold"
+              style={{ color: '#EAECEF' }}
+            >
               ${position.mark_price.toFixed(4)}
             </div>
           </div>
           <div>
-            <div className="text-xs mb-1" style={{ color: '#848E9C' }}>Quantity</div>
-            <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+            <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
+              Quantity
+            </div>
+            <div
+              className="font-mono font-semibold"
+              style={{ color: '#EAECEF' }}
+            >
               {position.quantity.toFixed(4)}
             </div>
           </div>
@@ -390,4 +441,3 @@ const AnimatedPositionRow = forwardRef<HTMLDivElement, AnimatedPositionRowProps>
     </motion.div>
   )
 })
-

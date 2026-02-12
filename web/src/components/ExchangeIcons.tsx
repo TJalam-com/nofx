@@ -69,14 +69,8 @@ const BybitIcon: React.FC<IconProps> = ({
       d="M149.5 53.3H124.5L100 77.8V122.2L124.5 146.7H149.5V53.3Z"
       fill="#F7A600"
     />
-    <path
-      d="M75.5 53.3H124.5V77.8H75.5V53.3Z"
-      fill="#F7A600"
-    />
-    <path
-      d="M75.5 122.2H124.5V146.7H75.5V122.2Z"
-      fill="#F7A600"
-    />
+    <path d="M75.5 53.3H124.5V77.8H75.5V53.3Z" fill="#F7A600" />
+    <path d="M75.5 122.2H124.5V146.7H75.5V122.2Z" fill="#F7A600" />
   </svg>
 )
 
@@ -173,22 +167,10 @@ const OKXIcon: React.FC<IconProps> = ({
     className={className}
   >
     <rect width="200" height="200" rx="40" fill="#001F3F" />
-    <path
-      d="M100 50L130 80H150L100 30L50 80H70L100 50Z"
-      fill="#00D1FF"
-    />
-    <path
-      d="M100 150L70 120H50L100 170L150 120H130L100 150Z"
-      fill="#00D1FF"
-    />
-    <path
-      d="M50 100L80 130V150L30 100L80 50V70L50 100Z"
-      fill="#00D1FF"
-    />
-    <path
-      d="M150 100L120 70V50L170 100L120 150V130L150 100Z"
-      fill="#00D1FF"
-    />
+    <path d="M100 50L130 80H150L100 30L50 80H70L100 50Z" fill="#00D1FF" />
+    <path d="M100 150L70 120H50L100 170L150 120H130L100 150Z" fill="#00D1FF" />
+    <path d="M50 100L80 130V150L30 100L80 50V70L50 100Z" fill="#00D1FF" />
+    <path d="M150 100L120 70V50L170 100L120 150V130L150 100Z" fill="#00D1FF" />
   </svg>
 )
 
@@ -207,14 +189,8 @@ const BitgetIcon: React.FC<IconProps> = ({
     className={className}
   >
     <rect width="200" height="200" rx="40" fill="#7B2CBF" />
-    <path
-      d="M100 60L120 80L100 100L80 80L100 60Z"
-      fill="#FFFFFF"
-    />
-    <path
-      d="M100 100L120 120L100 140L80 120L100 100Z"
-      fill="#FFFFFF"
-    />
+    <path d="M100 60L120 80L100 100L80 80L100 60Z" fill="#FFFFFF" />
+    <path d="M100 100L120 120L100 140L80 120L100 100Z" fill="#FFFFFF" />
     <circle cx="100" cy="80" r="8" fill="#FFFFFF" />
     <circle cx="100" cy="120" r="8" fill="#FFFFFF" />
   </svg>
@@ -236,14 +212,8 @@ const LighterIcon: React.FC<IconProps> = ({
   >
     <rect width="200" height="200" rx="40" fill="#1A1A1A" />
     <circle cx="100" cy="100" r="60" fill="#FFD700" />
-    <path
-      d="M100 60L120 80L100 100L80 80L100 60Z"
-      fill="#1A1A1A"
-    />
-    <path
-      d="M100 100L120 120L100 140L80 120L100 100Z"
-      fill="#1A1A1A"
-    />
+    <path d="M100 60L120 80L100 100L80 80L100 60Z" fill="#1A1A1A" />
+    <path d="M100 100L120 120L100 140L80 120L100 100Z" fill="#1A1A1A" />
   </svg>
 )
 

@@ -105,7 +105,8 @@ export default function WebhookPage() {
     try {
       // If single trader selected, load alerts for that trader
       // If multiple traders selected or none selected, load all alerts
-      const traderId = selectedTraderIds.length === 1 ? selectedTraderIds[0] : undefined
+      const traderId =
+        selectedTraderIds.length === 1 ? selectedTraderIds[0] : undefined
       const alerts = await api.getRecentAlerts(traderId)
       setRecentAlerts(alerts)
     } catch (error) {
@@ -128,7 +129,7 @@ export default function WebhookPage() {
           // Remove old trader_id/trader_ids fields
           delete payloadObj.trader_id
           delete payloadObj.trader_ids
-          
+
           // Add appropriate field based on selection
           if (selectedTraderIds.length === 0) {
             // No selection - omit trader field (auto-assign)
@@ -165,7 +166,9 @@ export default function WebhookPage() {
         loadRecentAlerts()
       }, 1500) // Slightly longer delay to ensure backend has processed
     } catch (error: any) {
-      setTestResult(t('webhookPage.error', language, { message: error.message }))
+      setTestResult(
+        t('webhookPage.error', language, { message: error.message })
+      )
     } finally {
       setIsTesting(false)
     }
@@ -199,7 +202,9 @@ export default function WebhookPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <p style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.loginRequired', language)}</p>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            {t('webhookPage.loginRequired', language)}
+          </p>
         </div>
       </div>
     )
@@ -210,12 +215,20 @@ export default function WebhookPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
-          <AlertCircle className="mx-auto mb-4 opacity-50" size={48} style={{ color: 'var(--text-secondary)' }} />
-          <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <AlertCircle
+            className="mx-auto mb-4 opacity-50"
+            size={48}
+            style={{ color: 'var(--text-secondary)' }}
+          />
+          <h2
+            className="text-xl font-semibold"
+            style={{ color: 'var(--text-primary)' }}
+          >
             {t('webhookPage.accessDenied', language) || 'Access Restricted'}
           </h2>
           <p style={{ color: 'var(--text-secondary)' }}>
-            {t('webhookPage.followerRestriction', language) || 'This feature is only available to traders. Please upgrade your account to access webhook management.'}
+            {t('webhookPage.followerRestriction', language) ||
+              'This feature is only available to traders. Please upgrade your account to access webhook management.'}
           </p>
         </div>
       </div>
@@ -225,15 +238,30 @@ export default function WebhookPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('webhookPage.title', language)}</h1>
+        <h1
+          className="text-2xl font-bold"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {t('webhookPage.title', language)}
+        </h1>
       </div>
 
       {/* Webhook URL & API Key */}
       <div className="nofx-card p-6">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{t('webhookPage.webhookInfo', language)}</h2>
+        <h2
+          className="text-lg font-semibold mb-4"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {t('webhookPage.webhookInfo', language)}
+        </h2>
         <div className="space-y-4">
           <div>
-            <label className="text-sm block mb-2" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.webhookUrl', language)}</label>
+            <label
+              className="text-sm block mb-2"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {t('webhookPage.webhookUrl', language)}
+            </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -243,25 +271,36 @@ export default function WebhookPage() {
                 style={{
                   background: 'var(--navy-dark)',
                   border: '1px solid var(--panel-border)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
                 }}
               />
               <button
-                onClick={() => webhookInfo && handleCopy(webhookInfo.webhook_url)}
+                onClick={() =>
+                  webhookInfo && handleCopy(webhookInfo.webhook_url)
+                }
                 className="px-4 py-2 rounded flex items-center gap-2 transition-colors"
                 style={{
                   background: 'var(--navy-dark)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--navy-light)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--navy-dark)'}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = 'var(--navy-light)')
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = 'var(--navy-dark)')
+                }
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
             </div>
           </div>
           <div>
-            <label className="text-sm block mb-2" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.apiKey', language)}</label>
+            <label
+              className="text-sm block mb-2"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {t('webhookPage.apiKey', language)}
+            </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -271,7 +310,7 @@ export default function WebhookPage() {
                 style={{
                   background: 'var(--navy-dark)',
                   border: '1px solid var(--panel-border)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
                 }}
               />
               <button
@@ -279,15 +318,22 @@ export default function WebhookPage() {
                 className="px-4 py-2 rounded flex items-center gap-2 transition-colors"
                 style={{
                   background: 'var(--navy-dark)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--navy-light)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--navy-dark)'}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = 'var(--navy-light)')
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = 'var(--navy-dark)')
+                }
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
             </div>
-            <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
+            <p
+              className="text-xs mt-2"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               {t('webhookPage.apiKeyHint', language)}
             </p>
           </div>
@@ -296,14 +342,27 @@ export default function WebhookPage() {
 
       {/* Test Webhook */}
       <div className="nofx-card p-6">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{t('webhookPage.testWebhook', language)}</h2>
+        <h2
+          className="text-lg font-semibold mb-4"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {t('webhookPage.testWebhook', language)}
+        </h2>
         <div className="space-y-4">
           <div>
-            <label className="text-sm block mb-2" style={{ color: 'var(--text-secondary)' }}>
+            <label
+              className="text-sm block mb-2"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               {t('webhookPage.selectTrader', language)}
               {selectedTraderIds.length > 0 && (
-                <span className="ml-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  ({selectedTraderIds.length} {selectedTraderIds.length === 1 ? 'trader' : 'traders'} selected)
+                <span
+                  className="ml-2 text-xs"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  ({selectedTraderIds.length}{' '}
+                  {selectedTraderIds.length === 1 ? 'trader' : 'traders'}{' '}
+                  selected)
                 </span>
               )}
             </label>
@@ -311,14 +370,17 @@ export default function WebhookPage() {
               multiple
               value={selectedTraderIds}
               onChange={(e) => {
-                const selected = Array.from(e.target.selectedOptions, option => option.value)
+                const selected = Array.from(
+                  e.target.selectedOptions,
+                  (option) => option.value
+                )
                 setSelectedTraderIds(selected)
               }}
               className="w-full rounded px-3 py-2 min-h-[100px]"
               style={{
                 background: 'var(--navy-dark)',
                 border: '1px solid var(--panel-border)',
-                color: 'var(--text-primary)'
+                color: 'var(--text-primary)',
               }}
             >
               {traders.map((trader) => (
@@ -327,12 +389,21 @@ export default function WebhookPage() {
                 </option>
               ))}
             </select>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Hold Ctrl/Cmd to select multiple traders. Leave empty for auto-assign.
+            <p
+              className="text-xs mt-1"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Hold Ctrl/Cmd to select multiple traders. Leave empty for
+              auto-assign.
             </p>
           </div>
           <div>
-            <label className="text-sm block mb-2" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.jsonPayload', language)}</label>
+            <label
+              className="text-sm block mb-2"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {t('webhookPage.jsonPayload', language)}
+            </label>
             <textarea
               value={testPayload}
               onChange={(e) => setTestPayload(e.target.value)}
@@ -340,7 +411,7 @@ export default function WebhookPage() {
               style={{
                 background: 'var(--navy-dark)',
                 border: '1px solid var(--panel-border)',
-                color: 'var(--text-primary)'
+                color: 'var(--text-primary)',
               }}
               spellCheck={false}
             />
@@ -351,17 +422,30 @@ export default function WebhookPage() {
             className="btn-primary px-6 py-2 rounded font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send size={16} />
-            {isTesting ? t('webhookPage.sending', language) : t('webhookPage.sendTest', language)}
+            {isTesting
+              ? t('webhookPage.sending', language)
+              : t('webhookPage.sendTest', language)}
           </button>
           {testResult && (
-            <div className="mt-4 p-4 rounded" style={{
-              background: 'var(--navy-dark)',
-              border: '1px solid var(--panel-border)'
-            }}>
-              <div className="mb-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <div
+              className="mt-4 p-4 rounded"
+              style={{
+                background: 'var(--navy-dark)',
+                border: '1px solid var(--panel-border)',
+              }}
+            >
+              <div
+                className="mb-2 text-sm font-semibold"
+                style={{ color: 'var(--text-primary)' }}
+              >
                 Response:
               </div>
-              <pre className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>{testResult}</pre>
+              <pre
+                className="text-sm whitespace-pre-wrap"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                {testResult}
+              </pre>
             </div>
           )}
         </div>
@@ -370,7 +454,12 @@ export default function WebhookPage() {
       {/* Recent Alerts */}
       <div className="nofx-card p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{t('webhookPage.recentAlerts', language)}</h2>
+          <h2
+            className="text-lg font-semibold"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {t('webhookPage.recentAlerts', language)}
+          </h2>
           <select
             value={selectedTraderIds.length === 1 ? selectedTraderIds[0] : ''}
             onChange={(e) => {
@@ -381,7 +470,7 @@ export default function WebhookPage() {
             style={{
               background: 'var(--navy-dark)',
               border: '1px solid var(--panel-border)',
-              color: 'var(--text-primary)'
+              color: 'var(--text-primary)',
             }}
           >
             <option value="">{t('webhookPage.allTraders', language)}</option>
@@ -393,7 +482,10 @@ export default function WebhookPage() {
           </select>
         </div>
         {recentAlerts.length === 0 ? (
-          <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
+          <div
+            className="text-center py-8"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             <AlertCircle className="mx-auto mb-2 opacity-50" size={32} />
             <p>{t('webhookPage.noAlerts', language)}</p>
           </div>
@@ -402,40 +494,124 @@ export default function WebhookPage() {
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--panel-border)' }}>
-                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.time', language)}</th>
-                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>Trader</th>
-                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.symbol', language)}</th>
-                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.action', language)}</th>
-                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.entryPrice', language)}</th>
-                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.stopLoss', language)}</th>
-                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.takeProfit', language)}</th>
-                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.quantity', language)}</th>
-                  <th className="text-left py-2 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('webhookPage.status', language)}</th>
+                  <th
+                    className="text-left py-2 px-4 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('webhookPage.time', language)}
+                  </th>
+                  <th
+                    className="text-left py-2 px-4 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    Trader
+                  </th>
+                  <th
+                    className="text-left py-2 px-4 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('webhookPage.symbol', language)}
+                  </th>
+                  <th
+                    className="text-left py-2 px-4 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('webhookPage.action', language)}
+                  </th>
+                  <th
+                    className="text-left py-2 px-4 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('webhookPage.entryPrice', language)}
+                  </th>
+                  <th
+                    className="text-left py-2 px-4 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('webhookPage.stopLoss', language)}
+                  </th>
+                  <th
+                    className="text-left py-2 px-4 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('webhookPage.takeProfit', language)}
+                  </th>
+                  <th
+                    className="text-left py-2 px-4 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('webhookPage.quantity', language)}
+                  </th>
+                  <th
+                    className="text-left py-2 px-4 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('webhookPage.status', language)}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {recentAlerts.map((alert) => (
-                  <tr key={alert.id} style={{ borderBottom: '1px solid var(--panel-border)' }}>
-                    <td className="py-2 px-4 text-sm" style={{ color: 'var(--text-primary)' }}>
+                  <tr
+                    key={alert.id}
+                    style={{ borderBottom: '1px solid var(--panel-border)' }}
+                  >
+                    <td
+                      className="py-2 px-4 text-sm"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
                       {formatDate(alert.created_at)}
                     </td>
-                    <td className="py-2 px-4 text-sm" style={{ color: 'var(--text-primary)' }}>
+                    <td
+                      className="py-2 px-4 text-sm"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
                       {alert.trader_name || '-'}
                     </td>
-                    <td className="py-2 px-4 text-sm font-mono" style={{ color: 'var(--text-primary)' }}>
+                    <td
+                      className="py-2 px-4 text-sm font-mono"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
                       {alert.symbol}
                     </td>
-                    <td className="py-2 px-4 text-sm" style={{ color: 'var(--text-primary)' }}>
+                    <td
+                      className="py-2 px-4 text-sm"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
                       {alert.action === 'buy' ? (
-                        <span className="text-profit">{t('webhookPage.buy', language)}</span>
+                        <span className="text-profit">
+                          {t('webhookPage.buy', language)}
+                        </span>
                       ) : (
-                        <span className="text-loss">{t('webhookPage.sell', language)}</span>
+                        <span className="text-loss">
+                          {t('webhookPage.sell', language)}
+                        </span>
                       )}
                     </td>
-                    <td className="py-2 px-4 text-sm" style={{ color: 'var(--text-primary)' }}>{alert.entry}</td>
-                    <td className="py-2 px-4 text-sm" style={{ color: 'var(--text-primary)' }}>{alert.sl}</td>
-                    <td className="py-2 px-4 text-sm" style={{ color: 'var(--text-primary)' }}>{alert.tp}</td>
-                    <td className="py-2 px-4 text-sm" style={{ color: 'var(--text-primary)' }}>{alert.quantity}</td>
+                    <td
+                      className="py-2 px-4 text-sm"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      {alert.entry}
+                    </td>
+                    <td
+                      className="py-2 px-4 text-sm"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      {alert.sl}
+                    </td>
+                    <td
+                      className="py-2 px-4 text-sm"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      {alert.tp}
+                    </td>
+                    <td
+                      className="py-2 px-4 text-sm"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      {alert.quantity}
+                    </td>
                     <td className="py-2 px-4 text-sm">
                       <span className={getStatusColor(alert.status)}>
                         {alert.status === 'pending'
@@ -459,4 +635,3 @@ export default function WebhookPage() {
     </div>
   )
 }
-

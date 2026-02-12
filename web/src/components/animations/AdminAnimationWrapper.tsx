@@ -10,7 +10,7 @@ interface AdminAnimationWrapperProps {
 /**
  * Wrapper component that gates animations behind admin role check.
  * Renders animated version for admins, static fallback for others.
- * 
+ *
  * Usage:
  * <AdminAnimationWrapper staticFallback={<StaticComponent />}>
  *   <AnimatedComponent />
@@ -25,7 +25,9 @@ export function AdminAnimationWrapper({
   const admin = isAdmin(user)
 
   if (!admin) {
-    return staticFallback ? <div className={className}>{staticFallback}</div> : null
+    return staticFallback ? (
+      <div className={className}>{staticFallback}</div>
+    ) : null
   }
 
   return <div className={className}>{children}</div>

@@ -45,20 +45,28 @@ export default defineConfig({
           proxy.on('error', (err: any, _req: any, _res: any) => {
             const errorCode = (err as any).code
             const errorMessage = err?.message || 'Unknown error'
-            
+
             if (errorCode === 'ECONNREFUSED') {
-              console.error('\n⚠️  Backend connection error: Backend server is not running!')
+              console.error(
+                '\n⚠️  Backend connection error: Backend server is not running!'
+              )
               console.error('   Please start the backend server with: ./nofx')
               console.error('   Or: go run main.go\n')
             } else if (errorCode === 'ETIMEDOUT') {
-              console.error('\n⚠️  Backend connection timeout: Backend server is not responding!')
+              console.error(
+                '\n⚠️  Backend connection timeout: Backend server is not responding!'
+              )
               console.error(`   Error: ${errorMessage}`)
-              console.error('   Please check if the backend server is running and accessible\n')
+              console.error(
+                '   Please check if the backend server is running and accessible\n'
+              )
             } else {
               console.error('\n⚠️  Backend proxy error:')
               console.error(`   Code: ${errorCode || 'N/A'}`)
               console.error(`   Message: ${errorMessage}`)
-              console.error('   Please check your backend server configuration\n')
+              console.error(
+                '   Please check your backend server configuration\n'
+              )
             }
           })
         },

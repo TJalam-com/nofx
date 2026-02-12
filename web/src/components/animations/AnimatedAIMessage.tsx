@@ -63,7 +63,7 @@ export function AnimatedAIMessage({
 
   // Cleanup all timers and animation frames
   const cleanup = () => {
-    timeoutRefs.current.forEach(timeout => clearTimeout(timeout))
+    timeoutRefs.current.forEach((timeout) => clearTimeout(timeout))
     timeoutRefs.current = []
     if (restartTimeoutRef.current) {
       clearTimeout(restartTimeoutRef.current)
@@ -86,7 +86,12 @@ export function AnimatedAIMessage({
 
   // Direct ref-based auto-scroll using requestAnimationFrame
   const performAutoScroll = () => {
-    if (!autoScrollRef.current || !scrollContainerRefRef.current?.current || scrollCompleteCalledRef.current) return
+    if (
+      !autoScrollRef.current ||
+      !scrollContainerRefRef.current?.current ||
+      scrollCompleteCalledRef.current
+    )
+      return
 
     const scrollContainer = scrollContainerRefRef.current.current
     const scrollHeight = scrollContainer.scrollHeight
@@ -129,7 +134,7 @@ export function AnimatedAIMessage({
     const animateScroll = (currentTime: number) => {
       const elapsed = currentTime - startTime
       const progress = Math.min(1, elapsed / duration)
-      
+
       // Easing function (ease-out cubic)
       const eased = 1 - Math.pow(1 - progress, 3)
       const newScrollTop = startScrollTop + distance * eased
@@ -138,7 +143,8 @@ export function AnimatedAIMessage({
         scrollContainer.scrollTop = newScrollTop
 
         // Check if we've reached the bottom
-        const currentMaxScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight
+        const currentMaxScrollTop =
+          scrollContainer.scrollHeight - scrollContainer.clientHeight
         if (scrollContainer.scrollTop >= currentMaxScrollTop - 5) {
           scrollContainer.scrollTop = currentMaxScrollTop // Ensure we're exactly at bottom
           if (!scrollCompleteCalledRef.current) {
@@ -153,13 +159,13 @@ export function AnimatedAIMessage({
         if (progress < 1) {
           scrollRafRef.current = requestAnimationFrame(animateScroll)
         } else {
-        // Animation complete, check if we're at bottom
-        if (scrollContainer.scrollTop >= currentMaxScrollTop - 5) {
-          if (!scrollCompleteCalledRef.current) {
-            scrollCompleteCalledRef.current = true
-            onScrollCompleteRef.current?.()
+          // Animation complete, check if we're at bottom
+          if (scrollContainer.scrollTop >= currentMaxScrollTop - 5) {
+            if (!scrollCompleteCalledRef.current) {
+              scrollCompleteCalledRef.current = true
+              onScrollCompleteRef.current?.()
+            }
           }
-        }
           scrollRafRef.current = null
         }
       } else {
@@ -172,7 +178,12 @@ export function AnimatedAIMessage({
 
   // Set up IntersectionObserver to detect when bottom is visible (for scroll completion)
   useEffect(() => {
-    if (!autoScrollRef.current || !scrollContainerRefRef.current?.current || !containerRef.current) return
+    if (
+      !autoScrollRef.current ||
+      !scrollContainerRefRef.current?.current ||
+      !containerRef.current
+    )
+      return
 
     const scrollContainer = scrollContainerRefRef.current.current
     const container = containerRef.current
@@ -184,7 +195,7 @@ export function AnimatedAIMessage({
     sentinel.style.bottom = '0'
     sentinel.style.width = '100%'
     sentinel.style.pointerEvents = 'none'
-    
+
     // Insert sentinel at the end of container
     container.appendChild(sentinel)
 
@@ -221,7 +232,7 @@ export function AnimatedAIMessage({
   useEffect(() => {
     alwaysAnimateRef.current = alwaysAnimate
     messageRef.current = message
-    
+
     // If alwaysAnimate becomes false, cancel any pending restart
     if (!alwaysAnimate && restartTimeoutRef.current) {
       clearTimeout(restartTimeoutRef.current)
@@ -233,7 +244,7 @@ export function AnimatedAIMessage({
     // Only restart if message content actually changed
     // Store previous message for comparison
     const prevMessage = messageRef.current
-    
+
     // Check if message actually changed (reference or content length)
     const messageChanged =
       prevMessage !== message &&
@@ -243,7 +254,7 @@ export function AnimatedAIMessage({
         !message ||
         prevMessage.length !== message.length ||
         prevMessage !== message)
-    
+
     // If message hasn't changed and we're already animating, don't restart
     if (!messageChanged && isAnimatingRef.current) {
       // Update ref to new reference but don't restart animation
@@ -312,7 +323,10 @@ export function AnimatedAIMessage({
               // Restart animation after a pause
               restartTimeoutRef.current = setTimeout(() => {
                 // Triple-check: alwaysAnimate still true, message unchanged
-                if (alwaysAnimateRef.current && messageRef.current === message) {
+                if (
+                  alwaysAnimateRef.current &&
+                  messageRef.current === message
+                ) {
                   setDisplayedLength(0)
                   setIsComplete(false)
                   setIsPulsing(false)
@@ -334,7 +348,10 @@ export function AnimatedAIMessage({
 
       if (currentTime - lastFrameTime >= frameInterval) {
         // Type multiple characters per frame for smoother animation
-        const charsPerFrame = Math.max(1, Math.floor(typingSpeed / frameInterval))
+        const charsPerFrame = Math.max(
+          1,
+          Math.floor(typingSpeed / frameInterval)
+        )
         currentLength = Math.min(currentLength + charsPerFrame, message.length)
         setDisplayedLength(currentLength)
         lastFrameTime = currentTime

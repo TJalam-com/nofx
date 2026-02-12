@@ -6,10 +6,10 @@ import { ExternalLink } from 'lucide-react'
 
 /**
  * License Page
- * 
+ *
  * AGPL-3.0 license disclosure page (required by AGPL-3.0).
  * Provides information about source code rights and links to GitHub repository.
- * 
+ *
  * Accessibility: Full keyboard navigation support, semantic HTML structure
  * Responsive: Mobile-first design with proper breakpoints
  * Dark/Light Mode: Uses CSS variables for theme compatibility
@@ -35,10 +35,7 @@ export function LicensePage() {
             >
               {t('licenseTitle', language)}
             </h1>
-            <p
-              className="text-sm"
-              style={{ color: 'var(--text-secondary)' }}
-            >
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               {t('licenseSubtitle', language)}
             </p>
           </div>
@@ -82,7 +79,7 @@ export function LicensePage() {
                 style={{ color: 'var(--text-secondary)' }}
               >
                 <p>{t('licenseSourceCode1', language)}</p>
-                
+
                 {/* GitHub Repository Link */}
                 <div
                   className="rounded-lg p-4"
@@ -169,7 +166,7 @@ export function LicensePage() {
                 style={{ color: 'var(--text-secondary)' }}
               >
                 <p>{t('licenseFile1', language)}</p>
-                
+
                 {/* LICENSE File Link */}
                 <div
                   className="rounded-lg p-4"

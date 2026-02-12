@@ -167,7 +167,8 @@ export function ExchangeConfigModal({
       console.error('Failed to copy:', err)
       // Show error message
       toast.error(
-        t('copyIPFailed', language) || `Failed to copy: ${ip}\nPlease manually copy this IP address`
+        t('copyIPFailed', language) ||
+          `Failed to copy: ${ip}\nPlease manually copy this IP address`
       )
     }
   }
@@ -225,7 +226,20 @@ export function ExchangeConfigModal({
           setIsLoading(false)
           return
         }
-        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined)
+        await onSave(
+          selectedExchangeId,
+          apiKey.trim(),
+          secretKey.trim(),
+          testnet,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined
+        )
       } else if (selectedExchange?.id === 'hyperliquid') {
         if (!apiKey.trim() || !hyperliquidWalletAddr.trim()) {
           setIsLoading(false)
@@ -246,7 +260,11 @@ export function ExchangeConfigModal({
           undefined
         )
       } else if (selectedExchange?.id === 'aster') {
-        if (!asterUser.trim() || !asterSigner.trim() || !asterPrivateKey.trim()) {
+        if (
+          !asterUser.trim() ||
+          !asterSigner.trim() ||
+          !asterPrivateKey.trim()
+        ) {
           setIsLoading(false)
           return
         }
@@ -269,31 +287,6 @@ export function ExchangeConfigModal({
           setIsLoading(false)
           return
         }
-        // #region agent log
-        const trimmedWalletAddr = lighterWalletAddr.trim()
-        const trimmedAPIKeyPrivateKey = lighterAPIKeyPrivateKey.trim()
-        console.log('🔍 ExchangeConfigModal: Calling onSave for Lighter', {
-          exchangeId: selectedExchangeId,
-          lighterWalletAddr: trimmedWalletAddr,
-          lighterWalletAddr_length: trimmedWalletAddr.length,
-          lighterAPIKeyPrivateKey_len: trimmedAPIKeyPrivateKey.length,
-          lighterAPIKeyIndex: lighterAPIKeyIndex,
-          lighterAPIKeyIndex_type: typeof lighterAPIKeyIndex,
-          parameterOrder: {
-            pos1: 'selectedExchangeId',
-            pos2: "'' (apiKey)",
-            pos3: "'' (secretKey)",
-            pos4: 'testnet',
-            pos5: 'undefined (hyperliquidWalletAddr)',
-            pos6: 'undefined (asterUser)',
-            pos7: 'undefined (asterSigner)',
-            pos8: 'undefined (asterPrivateKey)',
-            pos9: 'undefined (okxPassphrase)',
-            pos10: 'lighterWalletAddr.trim()',
-            pos11: 'lighterAPIKeyPrivateKey.trim()',
-            pos12: 'lighterAPIKeyIndex'
-          }
-        })
         await onSave(
           selectedExchangeId,
           '',
@@ -304,8 +297,8 @@ export function ExchangeConfigModal({
           undefined,
           undefined,
           undefined,
-          trimmedWalletAddr,
-          trimmedAPIKeyPrivateKey,
+          lighterWalletAddr.trim(),
+          lighterAPIKeyPrivateKey.trim(),
           lighterAPIKeyIndex
         )
       } else if (selectedExchange?.id === 'okx') {
@@ -313,20 +306,59 @@ export function ExchangeConfigModal({
           setIsLoading(false)
           return
         }
-        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, passphrase.trim(), undefined, undefined, undefined)
+        await onSave(
+          selectedExchangeId,
+          apiKey.trim(),
+          secretKey.trim(),
+          testnet,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          passphrase.trim(),
+          undefined,
+          undefined,
+          undefined
+        )
       } else if (selectedExchange?.id === 'bitget') {
         if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) {
           setIsLoading(false)
           return
         }
-        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, passphrase.trim(), undefined, undefined, undefined)
+        await onSave(
+          selectedExchangeId,
+          apiKey.trim(),
+          secretKey.trim(),
+          testnet,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          passphrase.trim(),
+          undefined,
+          undefined,
+          undefined
+        )
       } else {
         // Default case (other CEX exchanges)
         if (!apiKey.trim() || !secretKey.trim()) {
           setIsLoading(false)
           return
         }
-        await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined)
+        await onSave(
+          selectedExchangeId,
+          apiKey.trim(),
+          secretKey.trim(),
+          testnet,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined
+        )
       }
     } catch (error) {
       // Error handling is done in parent component
@@ -339,7 +371,10 @@ export function ExchangeConfigModal({
   const availableExchanges = allExchanges || []
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto"
+      style={{ background: 'rgba(0, 31, 63, 0.5)' }}
+    >
       <div
         className="bg-gray-800 rounded-lg w-full max-w-lg relative my-8"
         style={{
@@ -425,7 +460,10 @@ export function ExchangeConfigModal({
                       color: '#EAECEF',
                     }}
                     aria-label={t('selectExchange', language)}
-                    disabled={webCryptoStatus !== 'secure' && webCryptoStatus !== 'disabled'}
+                    disabled={
+                      webCryptoStatus !== 'secure' &&
+                      webCryptoStatus !== 'disabled'
+                    }
                     required
                   >
                     <option value="">
@@ -445,7 +483,10 @@ export function ExchangeConfigModal({
             {selectedExchange && (
               <div
                 className="p-4 rounded"
-                style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                style={{
+                  background: 'var(--navy-primary)',
+                  border: '1px solid var(--panel-border)',
+                }}
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 flex items-center justify-center">
@@ -474,233 +515,236 @@ export function ExchangeConfigModal({
                   selectedExchange.id === 'bybit' ||
                   selectedExchange.id === 'okx' ||
                   selectedExchange.id === 'bitget') && (
-                    <>
-                      {/* Binance user configuration guide (D1 solution) */}
-                      {selectedExchange.id === 'binance' && (
-                        <div
-                          className="mb-4 p-3 rounded cursor-pointer transition-colors"
-                          style={{
-                            background: '#1a3a52',
-                            border: '1px solid #2b5278',
-                          }}
-                          onClick={() => setShowBinanceGuide(!showBinanceGuide)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span style={{ color: '#58a6ff' }}>ℹ️</span>
-                              <span
-                                className="text-sm font-medium"
-                                style={{ color: '#EAECEF' }}
-                              >
-                                <strong>Binance Users Must Read:</strong>
-                                Use the 'Spot and Futures Trading' API, do not use the 'Unified Account
-                                API'
-                              </span>
-                            </div>
-                            <span style={{ color: '#8b949e' }}>
-                              {showBinanceGuide ? '▲' : '▼'}
+                  <>
+                    {/* Binance user configuration guide (D1 solution) */}
+                    {selectedExchange.id === 'binance' && (
+                      <div
+                        className="mb-4 p-3 rounded cursor-pointer transition-colors"
+                        style={{
+                          background: '#1a3a52',
+                          border: '1px solid #2b5278',
+                        }}
+                        onClick={() => setShowBinanceGuide(!showBinanceGuide)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span style={{ color: '#58a6ff' }}>ℹ️</span>
+                            <span
+                              className="text-sm font-medium"
+                              style={{ color: '#EAECEF' }}
+                            >
+                              <strong>Binance Users Must Read:</strong>
+                              Use the 'Spot and Futures Trading' API, do not use
+                              the 'Unified Account API'
                             </span>
                           </div>
-
-                          {/* Expanded detailed instructions */}
-                          {showBinanceGuide && (
-                            <div
-                              className="mt-3 pt-3"
-                              style={{
-                                borderTop: '1px solid #2b5278',
-                                fontSize: '0.875rem',
-                                color: '#c9d1d9',
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <p className="mb-2" style={{ color: '#8b949e' }}>
-                                <strong>Reason:</strong> The Unified Account API
-                                has a different permission structure, which will cause order submission to fail
-                              </p>
-
-                              <p
-                                className="font-semibold mb-1"
-                                style={{ color: '#EAECEF' }}
-                              >
-                                Correct Configuration Steps:
-                              </p>
-                              <ol
-                                className="list-decimal list-inside space-y-1 mb-3"
-                                style={{ paddingLeft: '0.5rem' }}
-                              >
-                                <li>
-                                  Log in to Binance → Personal Center →{' '}
-                                  <strong>API Management</strong>
-                                </li>
-                                <li>
-                                  Create API → Select '
-                                  <strong>System-generated API Key</strong>'
-                                </li>
-                                <li>
-                                  Check '<strong>Spot and Futures Trading</strong>' (
-                                  <span style={{ color: '#f85149' }}>
-                                    do not select Unified Account
-                                  </span>
-                                  )
-                                </li>
-                                <li>
-                                  IP Restriction: Select '<strong>Unrestricted</strong>
-                                  ' or add server IP
-                                </li>
-                              </ol>
-
-                              <p
-                                className="mb-2 p-2 rounded"
-                                style={{
-                                  background: '#3d2a00',
-                                  border: '1px solid #9e6a03',
-                                }}
-                              >
-                                💡 <strong>Multi-Asset Mode Users Note:</strong>
-                                If you have enabled Multi-Asset Mode, it will force the use of Cross Margin mode. It is recommended to disable Multi-Asset Mode to support Isolated Margin trading.
-                              </p>
-
-                              <a
-                                href="https://www.binance.com/en/support/faq/how-to-create-api-keys-on-binance-360002502072"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-block text-sm hover:underline"
-                                style={{ color: '#58a6ff' }}
-                              >
-                                📖 View Binance Official Tutorial ↗
-                              </a>
-                            </div>
-                          )}
+                          <span style={{ color: '#8b949e' }}>
+                            {showBinanceGuide ? '▲' : '▼'}
+                          </span>
                         </div>
-                      )}
 
-                      <div>
-                        <label
-                          className="block text-sm font-semibold mb-2"
-                          style={{ color: '#EAECEF' }}
-                        >
-                          {t('apiKey', language)}
-                        </label>
-                        <input
-                          type="password"
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          placeholder={t('enterAPIKey', language)}
-                          className="w-full px-3 py-2 rounded"
-                          style={{
-                            background: 'var(--navy-primary)',
-                            border: '1px solid var(--panel-border)',
-                            color: '#EAECEF',
-                          }}
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          className="block text-sm font-semibold mb-2"
-                          style={{ color: '#EAECEF' }}
-                        >
-                          {t('secretKey', language)}
-                        </label>
-                        <input
-                          type="password"
-                          value={secretKey}
-                          onChange={(e) => setSecretKey(e.target.value)}
-                          placeholder={t('enterSecretKey', language)}
-                          className="w-full px-3 py-2 rounded"
-                          style={{
-                            background: 'var(--navy-primary)',
-                            border: '1px solid var(--panel-border)',
-                            color: '#EAECEF',
-                          }}
-                          required
-                        />
-                      </div>
-
-                      {(selectedExchange.id === 'okx' || selectedExchange.id === 'bitget') && (
-                        <div>
-                          <label
-                            className="block text-sm font-semibold mb-2"
-                            style={{ color: '#EAECEF' }}
-                          >
-                            {t('passphrase', language)}
-                          </label>
-                          <input
-                            type="password"
-                            value={passphrase}
-                            onChange={(e) => setPassphrase(e.target.value)}
-                            placeholder={t('enterPassphrase', language)}
-                            className="w-full px-3 py-2 rounded"
+                        {/* Expanded detailed instructions */}
+                        {showBinanceGuide && (
+                          <div
+                            className="mt-3 pt-3"
                             style={{
-                              background: 'var(--navy-primary)',
-                              border: '1px solid var(--panel-border)',
-                              color: '#EAECEF',
+                              borderTop: '1px solid #2b5278',
+                              fontSize: '0.875rem',
+                              color: '#c9d1d9',
                             }}
-                            required
-                          />
-                        </div>
-                      )}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <p className="mb-2" style={{ color: '#8b949e' }}>
+                              <strong>Reason:</strong> The Unified Account API
+                              has a different permission structure, which will
+                              cause order submission to fail
+                            </p>
 
-                      {/* Binance whitelist IP prompt */}
-                      {selectedExchange.id === 'binance' && (
-                        <div
-                          className="p-4 rounded"
-                          style={{
-                            background: 'rgba(0, 255, 127, 0.1)',
-                            border: '1px solid rgba(0, 255, 127, 0.2)',
-                          }}
+                            <p
+                              className="font-semibold mb-1"
+                              style={{ color: '#EAECEF' }}
+                            >
+                              Correct Configuration Steps:
+                            </p>
+                            <ol
+                              className="list-decimal list-inside space-y-1 mb-3"
+                              style={{ paddingLeft: '0.5rem' }}
+                            >
+                              <li>
+                                Log in to Binance → Personal Center →{' '}
+                                <strong>API Management</strong>
+                              </li>
+                              <li>
+                                Create API → Select '
+                                <strong>System-generated API Key</strong>'
+                              </li>
+                              <li>
+                                Check '<strong>Spot and Futures Trading</strong>
+                                ' (
+                                <span style={{ color: '#f85149' }}>
+                                  do not select Unified Account
+                                </span>
+                                )
+                              </li>
+                              <li>
+                                IP Restriction: Select '
+                                <strong>Unrestricted</strong>' or add server IP
+                              </li>
+                            </ol>
+
+                            <p
+                              className="mb-2 p-2 rounded"
+                              style={{
+                                background: '#3d2a00',
+                                border: '1px solid #9e6a03',
+                              }}
+                            >
+                              💡 <strong>Multi-Asset Mode Users Note:</strong>
+                              If you have enabled Multi-Asset Mode, it will
+                              force the use of Cross Margin mode. It is
+                              recommended to disable Multi-Asset Mode to support
+                              Isolated Margin trading.
+                            </p>
+
+                            <a
+                              href="https://www.binance.com/en/support/faq/how-to-create-api-keys-on-binance-360002502072"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block text-sm hover:underline"
+                              style={{ color: '#58a6ff' }}
+                            >
+                              📖 View Binance Official Tutorial ↗
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: '#EAECEF' }}
+                      >
+                        {t('apiKey', language)}
+                      </label>
+                      <input
+                        type="password"
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder={t('enterAPIKey', language)}
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
+                          color: '#EAECEF',
+                        }}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: '#EAECEF' }}
+                      >
+                        {t('secretKey', language)}
+                      </label>
+                      <input
+                        type="password"
+                        value={secretKey}
+                        onChange={(e) => setSecretKey(e.target.value)}
+                        placeholder={t('enterSecretKey', language)}
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--panel-border)',
+                          color: '#EAECEF',
+                        }}
+                        required
+                      />
+                    </div>
+
+                    {(selectedExchange.id === 'okx' ||
+                      selectedExchange.id === 'bitget') && (
+                      <div>
+                        <label
+                          className="block text-sm font-semibold mb-2"
+                          style={{ color: '#EAECEF' }}
                         >
-                          <div
-                            className="text-sm font-semibold mb-2"
-                            style={{ color: 'var(--green-primary)' }}
-                          >
-                            {t('whitelistIP', language)}
-                          </div>
-                          <div
-                            className="text-xs mb-3"
-                            style={{ color: '#848E9C' }}
-                          >
-                            {t('whitelistIPDesc', language)}
-                          </div>
+                          {t('passphrase', language)}
+                        </label>
+                        <input
+                          type="password"
+                          value={passphrase}
+                          onChange={(e) => setPassphrase(e.target.value)}
+                          placeholder={t('enterPassphrase', language)}
+                          className="w-full px-3 py-2 rounded"
+                          style={{
+                            background: 'var(--navy-primary)',
+                            border: '1px solid var(--panel-border)',
+                            color: '#EAECEF',
+                          }}
+                          required
+                        />
+                      </div>
+                    )}
 
-                          {loadingIP ? (
-                            <div
-                              className="text-xs"
-                              style={{ color: '#848E9C' }}
-                            >
-                              {t('loadingServerIP', language)}
-                            </div>
-                          ) : serverIP && serverIP.public_ip ? (
-                            <div
-                              className="flex items-center gap-2 p-2 rounded"
-                              style={{ background: 'var(--navy-primary)' }}
-                            >
-                              <code
-                                className="flex-1 text-sm font-mono"
-                                style={{ color: 'var(--green-primary)' }}
-                              >
-                                {serverIP.public_ip}
-                              </code>
-                              <button
-                                type="button"
-                                onClick={() => handleCopyIP(serverIP.public_ip)}
-                                className="px-3 py-1 rounded text-xs font-semibold transition-all hover:scale-105"
-                                style={{
-                                  background: 'rgba(0, 255, 127, 0.2)',
-                                  color: 'var(--green-primary)',
-                                }}
-                              >
-                                {copiedIP
-                                  ? t('ipCopied', language)
-                                  : t('copyIP', language)}
-                              </button>
-                            </div>
-                          ) : null}
+                    {/* Binance whitelist IP prompt */}
+                    {selectedExchange.id === 'binance' && (
+                      <div
+                        className="p-4 rounded"
+                        style={{
+                          background: 'rgba(0, 255, 127, 0.1)',
+                          border: '1px solid rgba(0, 255, 127, 0.2)',
+                        }}
+                      >
+                        <div
+                          className="text-sm font-semibold mb-2"
+                          style={{ color: 'var(--green-primary)' }}
+                        >
+                          {t('whitelistIP', language)}
                         </div>
-                      )}
-                    </>
-                  )}
+                        <div
+                          className="text-xs mb-3"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {t('whitelistIPDesc', language)}
+                        </div>
+
+                        {loadingIP ? (
+                          <div className="text-xs" style={{ color: '#848E9C' }}>
+                            {t('loadingServerIP', language)}
+                          </div>
+                        ) : serverIP && serverIP.public_ip ? (
+                          <div
+                            className="flex items-center gap-2 p-2 rounded"
+                            style={{ background: 'var(--navy-primary)' }}
+                          >
+                            <code
+                              className="flex-1 text-sm font-mono"
+                              style={{ color: 'var(--green-primary)' }}
+                            >
+                              {serverIP.public_ip}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyIP(serverIP.public_ip)}
+                              className="px-3 py-1 rounded text-xs font-semibold transition-all hover:scale-105"
+                              style={{
+                                background: 'rgba(0, 255, 127, 0.2)',
+                                color: 'var(--green-primary)',
+                              }}
+                            >
+                              {copiedIP
+                                ? t('ipCopied', language)
+                                : t('copyIP', language)}
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </>
+                )}
 
                 {/* Aster exchange fields */}
                 {selectedExchange.id === 'aster' && (
@@ -803,7 +847,12 @@ export function ExchangeConfigModal({
                       }}
                     >
                       <div className="flex items-start gap-2">
-                        <span style={{ color: 'var(--green-primary)', fontSize: '16px' }}>
+                        <span
+                          style={{
+                            color: 'var(--green-primary)',
+                            fontSize: '16px',
+                          }}
+                        >
                           🔐
                         </span>
                         <div className="flex-1">
@@ -817,7 +866,8 @@ export function ExchangeConfigModal({
                             className="text-xs"
                             style={{ color: '#848E9C', lineHeight: '1.5' }}
                           >
-                            Use Agent Wallet for secure trading. Never expose your main wallet private key.
+                            Use Agent Wallet for secure trading. Never expose
+                            your main wallet private key.
                           </div>
                         </div>
                       </div>
@@ -857,7 +907,9 @@ export function ExchangeConfigModal({
                       <input
                         type="password"
                         value={lighterAPIKeyPrivateKey}
-                        onChange={(e) => setLighterAPIKeyPrivateKey(e.target.value)}
+                        onChange={(e) =>
+                          setLighterAPIKeyPrivateKey(e.target.value)
+                        }
                         placeholder="Enter API key private key"
                         className="w-full px-3 py-2 rounded"
                         style={{
@@ -880,7 +932,9 @@ export function ExchangeConfigModal({
                       <input
                         type="number"
                         value={lighterAPIKeyIndex}
-                        onChange={(e) => setLighterAPIKeyIndex(parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          setLighterAPIKeyIndex(parseInt(e.target.value) || 0)
+                        }
                         placeholder="0"
                         min="0"
                         max="254"
@@ -907,7 +961,12 @@ export function ExchangeConfigModal({
                       }}
                     >
                       <div className="flex items-start gap-2">
-                        <span style={{ color: 'var(--green-primary)', fontSize: '16px' }}>
+                        <span
+                          style={{
+                            color: 'var(--green-primary)',
+                            fontSize: '16px',
+                          }}
+                        >
                           🔐
                         </span>
                         <div className="flex-1">
@@ -1030,7 +1089,6 @@ export function ExchangeConfigModal({
                     </div>
                   </>
                 )}
-
               </>
             )}
           </div>
@@ -1083,9 +1141,14 @@ export function ExchangeConfigModal({
                   (!apiKey.trim() || !secretKey.trim()))
               }
               className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
-              style={{ background: 'var(--green-primary)', color: 'var(--navy-primary)' }}
+              style={{
+                background: 'var(--green-primary)',
+                color: 'var(--navy-primary)',
+              }}
             >
-              {isLoading ? t('saving', language) || 'Saving...' : t('saveConfig', language)}
+              {isLoading
+                ? t('saving', language) || 'Saving...'
+                : t('saveConfig', language)}
             </button>
           </div>
         </form>
@@ -1108,7 +1171,10 @@ export function ExchangeConfigModal({
                 className="text-xl font-bold flex items-center gap-2"
                 style={{ color: '#EAECEF' }}
               >
-                <BookOpen className="w-6 h-6" style={{ color: 'var(--green-primary)' }} />
+                <BookOpen
+                  className="w-6 h-6"
+                  style={{ color: 'var(--green-primary)' }}
+                />
                 {t('binanceSetupGuide', language)}
               </h3>
               <button

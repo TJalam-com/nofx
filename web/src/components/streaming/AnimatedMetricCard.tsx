@@ -36,7 +36,9 @@ export function AnimatedMetricCard({
 }: AnimatedMetricCardProps) {
   // Handle numeric values
   const isNumeric = typeof value === 'number'
-  const numericValue = isNumeric ? value : parseFloat(String(value).replace(/[^\d.-]/g, '')) || 0
+  const numericValue = isNumeric
+    ? value
+    : parseFloat(String(value).replace(/[^\d.-]/g, '')) || 0
 
   const animatedValue = useCounterAnimation({
     start: 0,
@@ -59,8 +61,9 @@ export function AnimatedMetricCard({
     }
   }, [change])
 
-  const displayValue = isNumeric ? animatedValue.toFixed(2) :
-    String(value).replace(/\d+(\.\d+)?/, animatedValue.toFixed(2))
+  const displayValue = isNumeric
+    ? animatedValue.toFixed(2)
+    : String(value).replace(/\d+(\.\d+)?/, animatedValue.toFixed(2))
 
   // Determine if this is an "active" metric that should have continuous animation
   const isActiveMetric = title === 'Total Equity' || title === 'Daily P&L'
@@ -85,15 +88,23 @@ export function AnimatedMetricCard({
         borderColor: color,
       }}
       whileTap={{ scale: 0.98 }}
-      animate={isActiveMetric ? {
-        boxShadow: [
-          '0 2px 8px rgba(0, 0, 0, 0.1)',
-          '0 4px 15px rgba(0, 0, 0, 0.15)',
-          '0 2px 8px rgba(0, 0, 0, 0.1)',
-        ]
-      } : {}}
+      animate={
+        isActiveMetric
+          ? {
+              boxShadow: [
+                '0 2px 8px rgba(0, 0, 0, 0.1)',
+                '0 4px 15px rgba(0, 0, 0, 0.15)',
+                '0 2px 8px rgba(0, 0, 0, 0.1)',
+              ],
+            }
+          : {}
+      }
       transition={{
-        boxShadow: { duration: 2, repeat: isActiveMetric ? Infinity : 0, ease: 'easeInOut' }
+        boxShadow: {
+          duration: 2,
+          repeat: isActiveMetric ? Infinity : 0,
+          ease: 'easeInOut',
+        },
       }}
     >
       {/* Background glow effect */}
@@ -114,7 +125,7 @@ export function AnimatedMetricCard({
         transition={{
           duration: 4,
           repeat: Infinity,
-          ease: 'easeInOut'
+          ease: 'easeInOut',
         }}
       />
 
@@ -139,7 +150,7 @@ export function AnimatedMetricCard({
           transition={{
             duration: 2,
             repeat: Infinity,
-            ease: 'easeOut'
+            ease: 'easeOut',
           }}
         />
       )}
@@ -162,7 +173,7 @@ export function AnimatedMetricCard({
               transition={{
                 duration: 3,
                 repeat: Infinity,
-                ease: 'easeInOut'
+                ease: 'easeInOut',
               }}
             >
               {icon}
@@ -176,19 +187,20 @@ export function AnimatedMetricCard({
           style={{
             color: '#EAECEF',
             lineHeight: '1.2',
-            textShadow: change && Math.abs(change) > 5 ? `0 0 10px ${color}40` : 'none',
+            textShadow:
+              change && Math.abs(change) > 5 ? `0 0 10px ${color}40` : 'none',
           }}
-          animate={change && Math.abs(change) > 1 ? {
-            scale: [1, 1.08, 1],
-            textShadow: [
-              'none',
-              `0 0 15px ${color}60`,
-              'none'
-            ]
-          } : {}}
+          animate={
+            change && Math.abs(change) > 1
+              ? {
+                  scale: [1, 1.08, 1],
+                  textShadow: ['none', `0 0 15px ${color}60`, 'none'],
+                }
+              : {}
+          }
           transition={{
             duration: change && Math.abs(change) > 5 ? 0.8 : 0.5,
-            ease: 'easeOut'
+            ease: 'easeOut',
           }}
         >
           {displayValue}
@@ -203,7 +215,7 @@ export function AnimatedMetricCard({
             transition={{
               delay: 0.3,
               duration: 0.4,
-              ease: [0.34, 1.56, 0.64, 1]
+              ease: [0.34, 1.56, 0.64, 1],
             }}
           >
             <motion.div
@@ -215,11 +227,15 @@ export function AnimatedMetricCard({
               transition={{
                 duration: 2,
                 repeat: Math.abs(change) > 3 ? Infinity : 0,
-                ease: 'easeInOut'
+                ease: 'easeInOut',
               }}
             >
               {positive !== undefined ? (
-                positive ? <TrendingUp size={14} /> : <TrendingDown size={14} />
+                positive ? (
+                  <TrendingUp size={14} />
+                ) : (
+                  <TrendingDown size={14} />
+                )
               ) : (
                 <div className="w-2 h-2 rounded-full bg-current" />
               )}
@@ -227,16 +243,21 @@ export function AnimatedMetricCard({
             <motion.span
               className="text-sm mono font-bold"
               style={{ color: positive ? '#0ECB81' : '#F6465D' }}
-              animate={Math.abs(change) > 2 ? {
-                scale: [1, 1.1, 1],
-              } : {}}
+              animate={
+                Math.abs(change) > 2
+                  ? {
+                      scale: [1, 1.1, 1],
+                    }
+                  : {}
+              }
               transition={{
                 duration: 1,
                 repeat: Math.abs(change) > 5 ? Infinity : 0,
-                ease: 'easeInOut'
+                ease: 'easeInOut',
               }}
             >
-              {positive ? '+' : ''}{animatedChange.toFixed(1)}%
+              {positive ? '+' : ''}
+              {animatedChange.toFixed(1)}%
             </motion.span>
           </motion.div>
         )}
@@ -257,4 +278,3 @@ export function AnimatedMetricCard({
     </motion.div>
   )
 }
-

@@ -74,7 +74,11 @@ export function NeuralNetworkViz({
   }
 
   const getConnectionColor = (fromLayer: number, toLayer: number): string => {
-    if (fromLayer < toLayer && activeLayer >= fromLayer && activeLayer <= toLayer) {
+    if (
+      fromLayer < toLayer &&
+      activeLayer >= fromLayer &&
+      activeLayer <= toLayer
+    ) {
       return getNodeColor(fromLayer)
     }
     return 'rgba(255, 255, 255, 0.1)'

@@ -30,17 +30,22 @@ export function CompetitionPage() {
 
   // Calculate last update time - must be called before any conditional returns
   const lastUpdateTime = useMemo(() => {
-    return new Date().toLocaleTimeString(language === 'zh' ? 'zh-CN' : 'en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    return new Date().toLocaleTimeString(
+      language === 'zh' ? 'zh-CN' : 'en-US',
+      {
+        hour: '2-digit',
+        minute: '2-digit',
+      }
+    )
   }, [language])
 
   const handleTraderClick = async (traderId: string) => {
     try {
       const traderConfig = await api.getPublicTraderConfig(traderId)
       // Merge performance data from competition data
-      const traderFromCompetition = competition?.traders?.find((t) => t.trader_id === traderId)
+      const traderFromCompetition = competition?.traders?.find(
+        (t) => t.trader_id === traderId
+      )
       if (traderFromCompetition) {
         setSelectedTrader({
           ...traderConfig,
@@ -70,16 +75,19 @@ export function CompetitionPage() {
     // Check if this trader is a follower trader (has followed_trader_id)
     const trader = competition?.traders?.find((t) => t.trader_id === traderId)
     if (trader && (trader as any).followed_trader_id) {
-      toast.error(t('cannotCopyFollowerTrader', language) || 'Cannot copy follower traders. Only original traders can be copied.')
+      toast.error(
+        t('cannotCopyFollowerTrader', language) ||
+          'Cannot copy follower traders. Only original traders can be copied.'
+      )
       return
     }
-    
+
     // Navigate to traders page and open create modal with the trader ID to copy
     // We'll use sessionStorage to pass the trader ID to copy
     if (user && token) {
       // Store the trader ID in sessionStorage before navigation
       sessionStorage.setItem('copyTraderId', traderId)
-      
+
       // Navigate to traders page with action=copy query parameter
       // Using window.location.href ensures a full page reload, which guarantees
       // sessionStorage persists and the useEffect in AITradersPage will run
@@ -131,7 +139,8 @@ export function CompetitionPage() {
               <div
                 className="w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center trophy-icon relative"
                 style={{
-                  background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+                  background:
+                    'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
                 }}
               >
                 <Trophy
@@ -156,7 +165,10 @@ export function CompetitionPage() {
                     0 {t('traders', language)}
                   </span>
                 </h1>
-                <p className="text-sm md:text-base mt-1" style={{ color: 'var(--text-gray-light)' }}>
+                <p
+                  className="text-sm md:text-base mt-1"
+                  style={{ color: 'var(--text-gray-light)' }}
+                >
                   {t('liveBattle', language)}
                 </p>
               </div>
@@ -170,10 +182,16 @@ export function CompetitionPage() {
             className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-6 opacity-30"
             style={{ color: 'var(--text-gray-light)' }}
           />
-          <h3 className="text-xl md:text-2xl font-bold mb-3" style={{ color: 'var(--text-white)' }}>
+          <h3
+            className="text-xl md:text-2xl font-bold mb-3"
+            style={{ color: 'var(--text-white)' }}
+          >
             {t('noTraders', language)}
           </h3>
-          <p className="text-base md:text-lg" style={{ color: 'var(--text-gray-light)' }}>
+          <p
+            className="text-base md:text-lg"
+            style={{ color: 'var(--text-gray-light)' }}
+          >
             {t('createFirstTrader', language)}
           </p>
         </div>
@@ -197,14 +215,16 @@ export function CompetitionPage() {
           className="binance-card-enhanced p-3 md:p-4 animate-slide-in relative overflow-hidden"
           style={{
             animationDelay: '0.1s',
-            background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
+            background:
+              'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
           }}
         >
           <div className="flex items-center gap-2.5">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{
-                background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+                background:
+                  'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               }}
             >
               <Trophy
@@ -219,7 +239,10 @@ export function CompetitionPage() {
               >
                 {t('aiCompetition', language)}
               </h1>
-              <p className="text-xs truncate" style={{ color: 'var(--text-gray-light)' }}>
+              <p
+                className="text-xs truncate"
+                style={{ color: 'var(--text-gray-light)' }}
+              >
                 {t('liveBattle', language)}
               </p>
             </div>
@@ -231,7 +254,8 @@ export function CompetitionPage() {
           className="binance-card-enhanced p-3 md:p-4 animate-slide-in relative overflow-hidden"
           style={{
             animationDelay: '0.15s',
-            background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
+            background:
+              'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
           }}
         >
           <div className="flex items-center gap-2.5">
@@ -242,7 +266,10 @@ export function CompetitionPage() {
                 border: '1px solid rgba(0, 255, 127, 0.2)',
               }}
             >
-              <Users className="w-4 h-4" style={{ color: 'var(--green-primary)' }} />
+              <Users
+                className="w-4 h-4"
+                style={{ color: 'var(--green-primary)' }}
+              />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2">
@@ -268,18 +295,24 @@ export function CompetitionPage() {
                   </span>
                 </div>
               </div>
-              {(competition.follower_total_count !== undefined && 
-                competition.follower_total_count !== null && 
-                Number(competition.follower_total_count) > 0) && (
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-gray-light)' }}>
-                    {Number(competition.follower_total_count)}
-                  </span>
-                  <span className="text-xs" style={{ color: 'var(--text-gray-light)' }}>
-                    {t('followers', language) || 'followers'}
-                  </span>
-                </div>
-              )}
+              {competition.follower_total_count !== undefined &&
+                competition.follower_total_count !== null &&
+                Number(competition.follower_total_count) > 0 && (
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <span
+                      className="text-xs font-medium"
+                      style={{ color: 'var(--text-gray-light)' }}
+                    >
+                      {Number(competition.follower_total_count)}
+                    </span>
+                    <span
+                      className="text-xs"
+                      style={{ color: 'var(--text-gray-light)' }}
+                    >
+                      {t('followers', language) || 'followers'}
+                    </span>
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -289,7 +322,8 @@ export function CompetitionPage() {
           className="binance-card-enhanced p-3 md:p-4 animate-slide-in relative overflow-hidden"
           style={{
             animationDelay: '0.2s',
-            background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
+            background:
+              'linear-gradient(135deg, rgba(0, 255, 127, 0.05) 0%, var(--navy-dark) 100%)',
           }}
         >
           <div className="flex items-center gap-2.5">
@@ -300,7 +334,10 @@ export function CompetitionPage() {
                 border: '1px solid rgba(0, 255, 127, 0.2)',
               }}
             >
-              <Clock className="w-4 h-4" style={{ color: 'var(--green-primary)' }} />
+              <Clock
+                className="w-4 h-4"
+                style={{ color: 'var(--green-primary)' }}
+              />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2">
@@ -335,7 +372,10 @@ export function CompetitionPage() {
       <div className="mb-6 md:mb-8">
         <div
           className="binance-card-enhanced p-6 md:p-8 animate-slide-in"
-          style={{ animationDelay: '0.1s', minHeight: 'clamp(400px, calc(100vh - 350px), 800px)' }}
+          style={{
+            animationDelay: '0.1s',
+            minHeight: 'clamp(400px, calc(100vh - 350px), 800px)',
+          }}
         >
           <div className="flex items-center justify-between mb-6">
             <h2
@@ -388,7 +428,9 @@ export function CompetitionPage() {
               const isLeader = index === 0
               const isSilver = index === 1
               const isBronze = index === 2
-              const isFollowerTrader = !!(trader.followed_trader_id && trader.followed_trader_id !== '')
+              const isFollowerTrader = !!(
+                trader.followed_trader_id && trader.followed_trader_id !== ''
+              )
 
               // Determine rank badge class
               let rankBadgeClass = ''
@@ -415,13 +457,13 @@ export function CompetitionPage() {
                     background: itemClass
                       ? undefined
                       : isFollowerTrader
-                      ? 'rgba(99, 102, 241, 0.08)'
-                      : 'rgba(255, 255, 255, 0.02)',
+                        ? 'rgba(99, 102, 241, 0.08)'
+                        : 'rgba(255, 255, 255, 0.02)',
                     border: itemClass
                       ? undefined
                       : isFollowerTrader
-                      ? '1px solid rgba(99, 102, 241, 0.3)'
-                      : '1px solid rgba(255, 255, 255, 0.05)',
+                        ? '1px solid rgba(99, 102, 241, 0.3)'
+                        : '1px solid rgba(255, 255, 255, 0.05)',
                     animationDelay: `${index * 0.03}s`,
                   }}
                 >
@@ -436,15 +478,15 @@ export function CompetitionPage() {
                           rankBadgeClass
                             ? {}
                             : isFollowerTrader
-                            ? {
-                                background: 'rgba(99, 102, 241, 0.2)',
-                                color: '#A5B4FC',
-                                border: '1px solid rgba(99, 102, 241, 0.3)',
-                              }
-                            : {
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                color: 'var(--text-gray-light)',
-                              }
+                              ? {
+                                  background: 'rgba(99, 102, 241, 0.2)',
+                                  color: '#A5B4FC',
+                                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                                }
+                              : {
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  color: 'var(--text-gray-light)',
+                                }
                         }
                       >
                         {index < 3 ? (
@@ -456,7 +498,11 @@ export function CompetitionPage() {
                       <div className="flex items-center gap-1.5 flex-1 min-w-0">
                         <div
                           className="font-semibold text-sm md:text-base truncate"
-                          style={{ color: isFollowerTrader ? '#A5B4FC' : 'var(--text-white)' }}
+                          style={{
+                            color: isFollowerTrader
+                              ? '#A5B4FC'
+                              : 'var(--text-white)',
+                          }}
                         >
                           {trader.trader_name}
                         </div>
@@ -504,26 +550,30 @@ export function CompetitionPage() {
                       </div>
 
                       {/* Followers Count */}
-                      {trader.followers_count !== undefined && trader.followers_count > 0 && (
-                        <div className="text-right min-w-[50px]">
-                          <div className="flex items-center gap-1 justify-end">
-                            <Users className="w-3 h-3" style={{ color: 'var(--text-gray-light)' }} />
-                            <div
-                              className="text-xs md:text-sm font-semibold mono"
-                              style={{ color: 'var(--text-gray-light)' }}
-                            >
-                              {trader.followers_count}
+                      {trader.followers_count !== undefined &&
+                        trader.followers_count > 0 && (
+                          <div className="text-right min-w-[50px]">
+                            <div className="flex items-center gap-1 justify-end">
+                              <Users
+                                className="w-3 h-3"
+                                style={{ color: 'var(--text-gray-light)' }}
+                              />
+                              <div
+                                className="text-xs md:text-sm font-semibold mono"
+                                style={{ color: 'var(--text-gray-light)' }}
+                              >
+                                {trader.followers_count}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       {/* Status */}
                       <div className="flex items-center justify-center min-w-[20px]">
                         <div
                           className="w-2 h-2 rounded-full"
                           style={
-                            Boolean(trader.is_running)
+                            trader.is_running
                               ? {
                                   background: 'var(--green-primary)',
                                   boxShadow: '0 0 8px var(--green-primary)',
@@ -595,7 +645,8 @@ export function CompetitionPage() {
                     <div
                       className="absolute top-0 right-0 w-20 h-20 opacity-10"
                       style={{
-                        background: 'radial-gradient(circle, rgba(14, 203, 129, 0.5) 0%, transparent 70%)',
+                        background:
+                          'radial-gradient(circle, rgba(14, 203, 129, 0.5) 0%, transparent 70%)',
                       }}
                     />
                   )}
@@ -612,7 +663,9 @@ export function CompetitionPage() {
                       className="text-2xl md:text-3xl font-bold mono mb-2"
                       style={{
                         color:
-                          (trader.total_pnl ?? 0) >= 0 ? 'var(--green-primary)' : 'var(--error)',
+                          (trader.total_pnl ?? 0) >= 0
+                            ? 'var(--green-primary)'
+                            : 'var(--error)',
                       }}
                     >
                       {trader.total_pnl_pct != null &&
@@ -667,7 +720,9 @@ export function CompetitionPage() {
         isOpen={isModalOpen}
         onClose={closeModal}
         traderData={selectedTrader}
-        onCopyTrader={userIsFollower && user && token ? handleCopyTrader : undefined}
+        onCopyTrader={
+          userIsFollower && user && token ? handleCopyTrader : undefined
+        }
       />
     </div>
   )

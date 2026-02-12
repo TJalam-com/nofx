@@ -38,7 +38,7 @@ export function Tooltip({ content, children }: TooltipProps) {
       }
 
       updatePosition()
-      
+
       // Update position on scroll or resize
       const handleScroll = () => updatePosition()
       const handleResize = () => updatePosition()

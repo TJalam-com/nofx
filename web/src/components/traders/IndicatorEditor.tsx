@@ -120,10 +120,7 @@ export function IndicatorEditor({
           border: '1px solid rgba(0, 123, 255, 0.3)',
         }}
       >
-        <h4
-          className="text-sm font-bold mb-3"
-          style={{ color: '#4A9EFF' }}
-        >
+        <h4 className="text-sm font-bold mb-3" style={{ color: '#4A9EFF' }}>
           📊 Market Data
         </h4>
         <div className="space-y-3">
@@ -205,10 +202,7 @@ export function IndicatorEditor({
           border: '1px solid rgba(255, 193, 7, 0.3)',
         }}
       >
-        <h4
-          className="text-sm font-bold mb-3"
-          style={{ color: '#00FF7F' }}
-        >
+        <h4 className="text-sm font-bold mb-3" style={{ color: '#00FF7F' }}>
           📈 Technical Indicators (Optional)
         </h4>
         <div className="text-xs mb-3" style={{ color: '#848E9C' }}>
@@ -219,7 +213,10 @@ export function IndicatorEditor({
         <div className="space-y-2">
           {[
             { key: 'enable_ema', label: 'EMA (Exponential Moving Average)' },
-            { key: 'enable_macd', label: 'MACD (Moving Average Convergence Divergence)' },
+            {
+              key: 'enable_macd',
+              label: 'MACD (Moving Average Convergence Divergence)',
+            },
             { key: 'enable_rsi', label: 'RSI (Relative Strength Index)' },
             { key: 'enable_atr', label: 'ATR (Average True Range)' },
           ].map((indicator) => (
@@ -241,10 +238,7 @@ export function IndicatorEditor({
                   color: '#EAECEF',
                 }}
               />
-              <label
-                className="text-sm"
-                style={{ color: '#EAECEF' }}
-              >
+              <label className="text-sm" style={{ color: '#EAECEF' }}>
                 {indicator.label}
               </label>
             </div>
@@ -260,10 +254,7 @@ export function IndicatorEditor({
           border: '1px solid rgba(0, 255, 127, 0.3)',
         }}
       >
-        <h4
-          className="text-sm font-bold mb-3"
-          style={{ color: '#00FF7F' }}
-        >
+        <h4 className="text-sm font-bold mb-3" style={{ color: '#00FF7F' }}>
           💹 Market Sentiment
         </h4>
         <div className="space-y-2">
@@ -282,7 +273,7 @@ export function IndicatorEditor({
               description:
                 language === 'zh'
                   ? '持仓量数据，反映市场参与者的持仓情况'
-                  : 'Open interest data reflecting market participants\' positions',
+                  : "Open interest data reflecting market participants' positions",
             },
             {
               key: 'enable_funding',
@@ -335,10 +326,7 @@ export function IndicatorEditor({
           border: '1px solid rgba(156, 39, 176, 0.3)',
         }}
       >
-        <h4
-          className="text-sm font-bold mb-3"
-          style={{ color: '#9C27B0' }}
-        >
+        <h4 className="text-sm font-bold mb-3" style={{ color: '#9C27B0' }}>
           🔗 Quant Data (External API)
         </h4>
         <div className="space-y-3">
@@ -352,9 +340,7 @@ export function IndicatorEditor({
             <input
               type="url"
               value={localConfig.quant_data_url || ''}
-              onChange={(e) =>
-                updateConfig({ quant_data_url: e.target.value })
-              }
+              onChange={(e) => updateConfig({ quant_data_url: e.target.value })}
               placeholder="https://api.example.com/quant/{symbol}?include=netflow,oi,price"
               className="w-full px-3 py-2 rounded"
               style={{
@@ -378,7 +364,8 @@ export function IndicatorEditor({
                     color: '#F6465D',
                   }}
                 >
-                  ⚠️ {language === 'zh'
+                  ⚠️{' '}
+                  {language === 'zh'
                     ? '警告：URL中缺少 {symbol} 占位符'
                     : 'Warning: URL missing {symbol} placeholder'}
                 </div>
@@ -389,4 +376,3 @@ export function IndicatorEditor({
     </div>
   )
 }
-

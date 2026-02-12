@@ -11,13 +11,13 @@ interface WalletAddressDisplayProps {
 
 /**
  * WalletAddressDisplay Component
- * 
+ *
  * Displays wallet addresses for perp-dex exchanges with:
  * - Visibility toggle (truncated/full view)
  * - Copy to clipboard functionality
  * - Responsive design
  * - Dark/light mode compatible
- * 
+ *
  * Usage:
  * <WalletAddressDisplay address="0x1234..." language="en" />
  */
@@ -63,8 +63,12 @@ export function WalletAddressDisplay({
           onClick={() => setIsVisible(!isVisible)}
           className="p-1 rounded transition-colors hover:bg-gray-700"
           style={{ color: '#848E9C' }}
-          aria-label={isVisible ? t('hideAddress', language) : t('showAddress', language)}
-          title={isVisible ? t('hideAddress', language) : t('showAddress', language)}
+          aria-label={
+            isVisible ? t('hideAddress', language) : t('showAddress', language)
+          }
+          title={
+            isVisible ? t('hideAddress', language) : t('showAddress', language)
+          }
         >
           {isVisible ? (
             <EyeOff className="w-3 h-3" />

@@ -38,12 +38,15 @@ export function AnimatedDecisionTimeline({
   onMostRecentAnalysisComplete,
   onMostRecentScrollComplete,
 }: AnimatedDecisionTimelineProps) {
-
   const { user, token } = useAuth()
   const [decisions, setDecisions] = useState<DecisionRecord[]>([])
-  const [expandedDecisions, setExpandedDecisions] = useState<Set<string>>(new Set())
+  const [expandedDecisions, setExpandedDecisions] = useState<Set<string>>(
+    new Set()
+  )
   const [isLoading, setIsLoading] = useState(true)
-  const [processingDecision, setProcessingDecision] = useState<string | null>(null)
+  const [processingDecision, setProcessingDecision] = useState<string | null>(
+    null
+  )
 
   // Sort decisions by timestamp descending (most recent first)
   const sortedDecisions = useMemo(() => {
@@ -65,10 +68,12 @@ export function AnimatedDecisionTimeline({
   // Auto-expand the most recent decision (by timestamp)
   useEffect(() => {
     if (sortedDecisions.length > 0 && mostRecentTimestamp) {
-      const mostRecentDecision = sortedDecisions.find(d => d.timestamp === mostRecentTimestamp)
+      const mostRecentDecision = sortedDecisions.find(
+        (d) => d.timestamp === mostRecentTimestamp
+      )
       if (mostRecentDecision) {
         const mostRecentCycle = mostRecentDecision.cycle_number.toString()
-        setExpandedDecisions(prev => {
+        setExpandedDecisions((prev) => {
           const next = new Set(prev)
           next.add(mostRecentCycle)
           return next
@@ -101,12 +106,17 @@ export function AnimatedDecisionTimeline({
         const updatedDecisions = await api.getLatestDecisions(traderId, limit)
 
         // Ensure we have valid arrays before processing
-        const safeUpdatedDecisions = Array.isArray(updatedDecisions) ? updatedDecisions : []
+        const safeUpdatedDecisions = Array.isArray(updatedDecisions)
+          ? updatedDecisions
+          : []
         const safeDecisions = Array.isArray(decisions) ? decisions : []
 
         // Check for new decisions
         if (safeUpdatedDecisions.length > safeDecisions.length) {
-          const newDecisions = safeUpdatedDecisions.slice(0, safeUpdatedDecisions.length - safeDecisions.length)
+          const newDecisions = safeUpdatedDecisions.slice(
+            0,
+            safeUpdatedDecisions.length - safeDecisions.length
+          )
           setDecisions(safeUpdatedDecisions)
 
           // Show processing animation for new decisions
@@ -128,7 +138,7 @@ export function AnimatedDecisionTimeline({
   }, [user, token, traderId, limit])
 
   const toggleExpanded = (decisionId: string) => {
-    setExpandedDecisions(prev => {
+    setExpandedDecisions((prev) => {
       const next = new Set(prev)
       if (next.has(decisionId)) {
         next.delete(decisionId)
@@ -160,8 +170,14 @@ export function AnimatedDecisionTimeline({
       transition={{ duration: 0.5 }}
     >
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
-        <h3 className="text-xl font-bold flex items-center gap-2" style={{ color: '#EAECEF' }}>
-          <Brain className="w-5 h-5" style={{ color: 'var(--green-primary)' }} />
+        <h3
+          className="text-xl font-bold flex items-center gap-2"
+          style={{ color: '#EAECEF' }}
+        >
+          <Brain
+            className="w-5 h-5"
+            style={{ color: 'var(--green-primary)' }}
+          />
           AI Decisions
         </h3>
         <div className="text-sm" style={{ color: '#848E9C' }}>
@@ -183,7 +199,7 @@ export function AnimatedDecisionTimeline({
         />
 
         <AnimatePresence mode="popLayout">
-          {(!Array.isArray(decisions) || decisions.length === 0) ? (
+          {!Array.isArray(decisions) || decisions.length === 0 ? (
             <motion.div
               className="text-center py-16"
               initial={{ opacity: 0 }}
@@ -197,7 +213,9 @@ export function AnimatedDecisionTimeline({
           ) : (
             sortedDecisions.map((decision, index) => {
               // Identify most recent by comparing timestamp, not array index
-              const isMostRecent = mostRecentTimestamp !== null && decision.timestamp === mostRecentTimestamp
+              const isMostRecent =
+                mostRecentTimestamp !== null &&
+                decision.timestamp === mostRecentTimestamp
               const cycleId = decision.cycle_number.toString()
 
               return (
@@ -211,8 +229,12 @@ export function AnimatedDecisionTimeline({
                   onToggle={() => toggleExpanded(cycleId)}
                   alwaysShowAnimation={isMostRecent}
                   autoScrollAiAnalysis={isMostRecent && autoScrollAiAnalysis}
-                  onAnalysisComplete={isMostRecent ? onMostRecentAnalysisComplete : undefined}
-                  onScrollComplete={isMostRecent ? onMostRecentScrollComplete : undefined}
+                  onAnalysisComplete={
+                    isMostRecent ? onMostRecentAnalysisComplete : undefined
+                  }
+                  onScrollComplete={
+                    isMostRecent ? onMostRecentScrollComplete : undefined
+                  }
                 />
               )
             })
@@ -236,7 +258,10 @@ interface AnimatedDecisionCardProps {
   onScrollComplete?: () => void // Callback when AI analysis scroll completes
 }
 
-const AnimatedDecisionCard = forwardRef<HTMLDivElement, AnimatedDecisionCardProps>(function AnimatedDecisionCard(
+const AnimatedDecisionCard = forwardRef<
+  HTMLDivElement,
+  AnimatedDecisionCardProps
+>(function AnimatedDecisionCard(
   {
     decision,
     index,
@@ -253,9 +278,12 @@ const AnimatedDecisionCard = forwardRef<HTMLDivElement, AnimatedDecisionCardProp
 ) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const isSuccess = decision.success
-  const hasConfidence = decision.decisions?.some(d => d.confidence !== undefined)
+  const hasConfidence = decision.decisions?.some(
+    (d) => d.confidence !== undefined
+  )
   const avgConfidence = hasConfidence
-    ? decision.decisions?.reduce((sum, d) => sum + (d.confidence || 0), 0) / (decision.decisions?.length || 1)
+    ? decision.decisions?.reduce((sum, d) => sum + (d.confidence || 0), 0) /
+      (decision.decisions?.length || 1)
     : undefined
 
   return (
@@ -295,13 +323,17 @@ const AnimatedDecisionCard = forwardRef<HTMLDivElement, AnimatedDecisionCardProp
         }}
         whileHover={{ scale: 1.01, boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)' }}
         onClick={onToggle}
-        animate={isProcessing ? {
-          boxShadow: [
-            '0 0 0px rgba(96, 165, 250, 0)',
-            '0 0 20px rgba(96, 165, 250, 0.5)',
-            '0 0 0px rgba(96, 165, 250, 0)',
-          ]
-        } : {}}
+        animate={
+          isProcessing
+            ? {
+                boxShadow: [
+                  '0 0 0px rgba(96, 165, 250, 0)',
+                  '0 0 20px rgba(96, 165, 250, 0.5)',
+                  '0 0 0px rgba(96, 165, 250, 0)',
+                ],
+              }
+            : {}
+        }
         transition={{ duration: 2, repeat: isProcessing ? Infinity : 0 }}
       >
         {/* Header */}
@@ -361,7 +393,10 @@ const AnimatedDecisionCard = forwardRef<HTMLDivElement, AnimatedDecisionCardProp
         {/* Processing Indicator */}
         {isProcessing && (
           <div className="mb-3">
-            <ThinkingIndicator isThinking={true} text="Processing decision..." />
+            <ThinkingIndicator
+              isThinking={true}
+              text="Processing decision..."
+            />
           </div>
         )}
 
@@ -422,12 +457,16 @@ const AnimatedDecisionCard = forwardRef<HTMLDivElement, AnimatedDecisionCardProp
                 willChange: 'opacity, height',
               }}
             >
-              <div className="border-t pt-4 mt-4" style={{ borderColor: 'var(--navy-light)' }}>
+              <div
+                className="border-t pt-4 mt-4"
+                style={{ borderColor: 'var(--navy-light)' }}
+              >
                 {/* Account State */}
                 {decision.account_state && (
                   <div className="text-xs mb-4" style={{ color: '#848E9C' }}>
                     Equity: ${decision.account_state.total_balance.toFixed(2)} |
-                    Available: ${decision.account_state.available_balance.toFixed(2)} |
+                    Available: $
+                    {decision.account_state.available_balance.toFixed(2)} |
                     Positions: {decision.account_state.position_count}
                   </div>
                 )}
@@ -438,15 +477,25 @@ const AnimatedDecisionCard = forwardRef<HTMLDivElement, AnimatedDecisionCardProp
 
         {/* Always Visible Section - AI Reasoning and DataFlowAnimation */}
         {(alwaysShowAnimation || isExpanded || decision.cot_trace) && (
-          <div className="border-t pt-4 mt-auto flex flex-col" style={{ borderColor: 'var(--navy-light)', flex: '1 1 auto' }}>
+          <div
+            className="border-t pt-4 mt-auto flex flex-col"
+            style={{ borderColor: 'var(--navy-light)', flex: '1 1 auto' }}
+          >
             {/* Chain of Thought */}
             {decision.cot_trace && (
-              <div 
+              <div
                 ref={scrollContainerRef}
-                className="mb-4 flex-1" 
-                style={{ minHeight: '100px', maxHeight: '300px', overflowY: 'auto' }}
+                className="mb-4 flex-1"
+                style={{
+                  minHeight: '100px',
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                }}
               >
-                <div className="text-sm font-semibold mb-2" style={{ color: '#EAECEF' }}>
+                <div
+                  className="text-sm font-semibold mb-2"
+                  style={{ color: '#EAECEF' }}
+                >
                   AI Reasoning
                 </div>
                 <div style={{ position: 'relative' }}>
@@ -478,7 +527,10 @@ const AnimatedDecisionCard = forwardRef<HTMLDivElement, AnimatedDecisionCardProp
                 zIndex: 5,
               }}
             >
-              <div className="text-sm font-semibold mb-2" style={{ color: '#EAECEF' }}>
+              <div
+                className="text-sm font-semibold mb-2"
+                style={{ color: '#EAECEF' }}
+              >
                 Decision Process
               </div>
               <DataFlowAnimation
@@ -492,4 +544,3 @@ const AnimatedDecisionCard = forwardRef<HTMLDivElement, AnimatedDecisionCardProp
     </motion.div>
   )
 })
-

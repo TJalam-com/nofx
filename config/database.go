@@ -3023,7 +3023,7 @@ func (d *Database) CreatePromptTemplate(userID, id, name, content string, isSyst
 		// Template ID already exists
 		return ErrDuplicateTemplateID
 	}
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		// Unexpected database error
 		return fmt.Errorf("failed to check for existing template: %w", err)
 	}
@@ -3295,30 +3295,6 @@ func (d *Database) LoadStrategyIntoTrader(trader *TraderRecord) error {
 	if err != nil {
 		return fmt.Errorf("failed to load strategy %s: %w", trader.StrategyID, err)
 	}
-
-	// #region agent log
-	// Log strategy settings being loaded
-	logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if logFile != nil {
-		logData := map[string]interface{}{
-			"location": "database.go:3273",
-			"message": "Loading strategy settings into trader",
-			"data": map[string]interface{}{
-				"trader_id": trader.ID,
-				"strategy_id": trader.StrategyID,
-				"strategy_system_prompt_template": strategy.SystemPromptTemplate,
-				"strategy_custom_prompt": strategy.CustomPrompt,
-				"strategy_override_base_prompt": strategy.OverrideBasePrompt,
-			},
-			"timestamp": time.Now().UnixMilli(),
-			"sessionId": "debug-session",
-			"runId": "run1",
-			"hypothesisId": "C",
-		}
-		json.NewEncoder(logFile).Encode(logData)
-		logFile.Close()
-	}
-	// #endregion
 
 	// Merge strategy settings into trader record
 	// These settings come from Strategy Studio (single source of truth)
@@ -4492,22 +4468,26 @@ func (d *Database) GetRecentTradingViewAlerts(userID string, traderID string, li
 
 // GetTradersWithTradingViewEnabled get user's traders with TradingView enabled list
 func (d *Database) GetTradersWithTradingViewEnabled(userID string) ([]*TraderRecord, error) {
+	// Query traders where TradingView is enabled either directly on the trader
+	// OR via the trader's linked strategy (Strategy Studio is single source of truth)
 	rows, err := d.db.Query(`
-		SELECT id, user_id, name, ai_model_id, exchange_id, initial_balance,
-			scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage,
-			trading_symbols, use_coin_pool, use_oi_top, use_tradingview,
-			custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin,
-			COALESCE(enable_raw_klines, 1) as enable_raw_klines,
-			COALESCE(enable_ema, 0) as enable_ema, COALESCE(enable_macd, 0) as enable_macd,
-			COALESCE(enable_rsi, 0) as enable_rsi, COALESCE(enable_atr, 0) as enable_atr,
-			COALESCE(enable_volume, 1) as enable_volume, COALESCE(enable_oi, 1) as enable_oi,
-			COALESCE(enable_funding, 1) as enable_funding,
-			COALESCE(indicator_timeframe, '3m') as indicator_timeframe,
-			COALESCE(quant_data_url, '') as quant_data_url,
-			created_at, updated_at
-		FROM traders
-		WHERE user_id = ? AND use_tradingview = 1
-		ORDER BY created_at ASC
+		SELECT t.id, t.user_id, t.name, t.ai_model_id, t.exchange_id, t.initial_balance,
+			t.scan_interval_minutes, t.is_running, t.btc_eth_leverage, t.altcoin_leverage,
+			t.trading_symbols, t.use_coin_pool, t.use_oi_top, t.use_tradingview,
+			t.custom_prompt, t.override_base_prompt, t.system_prompt_template, t.is_cross_margin,
+			COALESCE(t.enable_raw_klines, 1) as enable_raw_klines,
+			COALESCE(t.enable_ema, 0) as enable_ema, COALESCE(t.enable_macd, 0) as enable_macd,
+			COALESCE(t.enable_rsi, 0) as enable_rsi, COALESCE(t.enable_atr, 0) as enable_atr,
+			COALESCE(t.enable_volume, 1) as enable_volume, COALESCE(t.enable_oi, 1) as enable_oi,
+			COALESCE(t.enable_funding, 1) as enable_funding,
+			COALESCE(t.indicator_timeframe, '3m') as indicator_timeframe,
+			COALESCE(t.quant_data_url, '') as quant_data_url,
+			COALESCE(t.strategy_id, '') as strategy_id,
+			t.created_at, t.updated_at
+		FROM traders t
+		LEFT JOIN strategies s ON t.strategy_id = s.id AND t.strategy_id != ''
+		WHERE t.user_id = ? AND (t.use_tradingview = 1 OR (t.strategy_id != '' AND s.use_tradingview = 1))
+		ORDER BY t.created_at ASC
 	`, userID)
 	if err != nil {
 		return nil, err
@@ -4529,7 +4509,7 @@ func (d *Database) GetTradersWithTradingViewEnabled(userID string) ([]*TraderRec
 			&trader.EnableRawKlines, &trader.EnableEMA, &trader.EnableMACD,
 			&trader.EnableRSI, &trader.EnableATR, &trader.EnableVolume,
 			&trader.EnableOI, &trader.EnableFunding, &trader.IndicatorTimeframe,
-			&trader.QuantDataURL,
+			&trader.QuantDataURL, &trader.StrategyID,
 			&createdAt, &updatedAt,
 		)
 		if err != nil {
@@ -4539,6 +4519,12 @@ func (d *Database) GetTradersWithTradingViewEnabled(userID string) ([]*TraderRec
 		trader.EnableRawKlines = true
 		trader.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		trader.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+		// Load strategy settings if strategy_id is set (Strategy Studio is single source of truth)
+		if trader.StrategyID != "" {
+			if err := d.LoadStrategyIntoTrader(&trader); err != nil {
+				log.Printf("⚠️ Failed to load strategy %s for trader %s in GetTradersWithTradingViewEnabled: %v", trader.StrategyID, trader.ID, err)
+			}
+		}
 		traders = append(traders, &trader)
 	}
 
@@ -4710,15 +4696,6 @@ type PositionRecord struct {
 // SavePosition save position record to database
 func (d *Database) SavePosition(traderID, symbol, side string, entryPrice, exitPrice, quantity, entryFee, exitFee, realizedPnL float64, leverage int, orderIDOpen, orderIDClose string, openedAt time.Time, closedAt *time.Time, stopLossPrice, takeProfitPrice float64) error {
 	id := fmt.Sprintf("%s_%s_%d", traderID, symbol, openedAt.Unix())
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			defer f.Close()
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "config/database.go:4712", "message": "SavePosition called", "data": map[string]interface{}{"id": id, "traderID": traderID, "symbol": symbol, "side": side, "entryPrice": entryPrice, "exitPrice": exitPrice, "quantity": quantity, "realizedPnL": realizedPnL, "openedAt": openedAt.Format("2006-01-02 15:04:05"), "closedAt": func() string { if closedAt != nil { return closedAt.Format("2006-01-02 15:04:05") } else { return "nil" } }(), "orderIDOpen": orderIDOpen, "orderIDClose": orderIDClose}, "timestamp": time.Now().UnixMilli()})
-		}
-	}()
-	// #endregion
 
 	var closedAtStr interface{}
 	if closedAt != nil {
@@ -4757,15 +4734,6 @@ func (d *Database) SavePosition(traderID, symbol, side string, entryPrice, exitP
 
 // GetPositionHistory get position history for a trader
 func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*PositionRecord, error) {
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "config/database.go:4722", "message": "GetPositionHistory entry", "data": map[string]interface{}{"traderID": traderID, "limit": limit, "offset": offset, "dbNil": d.db == nil}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
 	query := `
 		SELECT id, trader_id, symbol, side, entry_price, exit_price, quantity, entry_fee, exit_fee, realized_pnl, leverage, opened_at, closed_at, order_id_open, order_id_close, stop_loss_price, take_profit_price
 		FROM trader_positions
@@ -4775,15 +4743,6 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 	`
 
 	rows, err := d.db.Query(query, traderID, limit, offset)
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "config/database.go:4731", "message": "After Query execution", "data": map[string]interface{}{"traderID": traderID, "err": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "rowsNil": rows == nil}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
 	if err != nil {
 		log.Printf("❌ GetPositionHistory: Query failed for trader %s (limit=%d, offset=%d): %v", traderID, limit, offset, err)
 		return nil, err
@@ -4793,15 +4752,6 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 	var positions []*PositionRecord
 	rowIndex := 0
 	for rows.Next() {
-		// #region agent log
-		func() {
-			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if f != nil {
-				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "config/database.go:4738", "message": "Before row scan", "data": map[string]interface{}{"traderID": traderID, "rowIndex": rowIndex}, "timestamp": time.Now().UnixMilli()})
-				f.Close()
-			}
-		}()
-		// #endregion
 		var pos PositionRecord
 		var closedAtStr sql.NullString
 		var exitPrice sql.NullFloat64
@@ -4810,15 +4760,6 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 		var takeProfitPrice sql.NullFloat64
 
 		err := rows.Scan(&pos.ID, &pos.TraderID, &pos.Symbol, &pos.Side, &pos.EntryPrice, &exitPrice, &pos.Quantity, &pos.EntryFee, &pos.ExitFee, &realizedPnL, &pos.Leverage, &pos.OpenedAt, &closedAtStr, &pos.OrderIDOpen, &pos.OrderIDClose, &stopLossPrice, &takeProfitPrice)
-		// #region agent log
-		func() {
-			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if f != nil {
-				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "post-fix", "hypothesisId": "B", "location": "config/database.go:4773", "message": "After row scan", "data": map[string]interface{}{"traderID": traderID, "rowIndex": rowIndex, "err": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "openedAtZero": pos.OpenedAt.IsZero(), "closedAtStrValid": closedAtStr.Valid, "exitPriceValid": exitPrice.Valid, "realizedPnLValid": realizedPnL.Valid}, "timestamp": time.Now().UnixMilli()})
-				f.Close()
-			}
-		}()
-		// #endregion
 		if err != nil {
 			log.Printf("❌ GetPositionHistory: Scan failed for trader %s: %v", traderID, err)
 			return nil, err
@@ -4847,15 +4788,6 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 				// Fallback to custom format (e.g., "2006-01-02 15:04:05")
 				closedAt, err = time.Parse("2006-01-02 15:04:05", closedAtStr.String)
 			}
-			// #region agent log
-			func() {
-				f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-				if f != nil {
-					json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "post-fix", "hypothesisId": "C", "location": "config/database.go:4795", "message": "After closedAt parse", "data": map[string]interface{}{"traderID": traderID, "rowIndex": rowIndex, "parseErr": func() string { if err != nil { return err.Error() } else { return "nil" } }(), "closedAtStr": closedAtStr.String, "parsedSuccessfully": err == nil}, "timestamp": time.Now().UnixMilli()})
-					f.Close()
-				}
-			}()
-			// #endregion
 			if err == nil {
 				pos.ClosedAt = &closedAt
 			}
@@ -4872,39 +4804,11 @@ func (d *Database) GetPositionHistory(traderID string, limit, offset int) ([]*Po
 		positions = append(positions, &pos)
 		rowIndex++
 	}
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "config/database.go:4767", "message": "After rows iteration", "data": map[string]interface{}{"traderID": traderID, "positionCount": len(positions)}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
 
 	if err := rows.Err(); err != nil {
-		// #region agent log
-		func() {
-			f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if f != nil {
-				json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "config/database.go:4769", "message": "rows.Err() returned error", "data": map[string]interface{}{"traderID": traderID, "err": err.Error()}, "timestamp": time.Now().UnixMilli()})
-				f.Close()
-			}
-		}()
-		// #endregion
 		log.Printf("❌ GetPositionHistory: Error iterating rows for trader %s: %v", traderID, err)
 		return nil, err
 	}
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			json.NewEncoder(f).Encode(map[string]interface{}{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A,B", "location": "config/database.go:4776", "message": "GetPositionHistory success", "data": map[string]interface{}{"traderID": traderID, "positionCount": len(positions)}, "timestamp": time.Now().UnixMilli()})
-			f.Close()
-		}
-	}()
-	// #endregion
-
 	return positions, nil
 }
 
@@ -5166,58 +5070,13 @@ func (d *Database) DeletePendingOrdersForPosition(traderID, symbol, side string)
 		return fmt.Errorf("database not initialized")
 	}
 
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			defer f.Close()
-			json.NewEncoder(f).Encode(map[string]interface{}{
-				"sessionId": "debug-session",
-				"runId":     "run1",
-				"hypothesisId": "A",
-				"location":  "config/database.go:5153",
-				"message":   "DeletePendingOrdersForPosition called",
-				"data": map[string]interface{}{
-					"traderID": traderID,
-					"symbol":   symbol,
-					"side":     side,
-				},
-				"timestamp": time.Now().UnixMilli(),
-			})
-		}
-	}()
-	// #endregion
-
 	query := `DELETE FROM pending_orders WHERE trader_id = ? AND symbol = ? AND side = ? AND status = 'pending'`
 	result, err := d.db.Exec(query, traderID, symbol, side)
 	if err != nil {
 		return err
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			defer f.Close()
-			json.NewEncoder(f).Encode(map[string]interface{}{
-				"sessionId": "debug-session",
-				"runId":     "run1",
-				"hypothesisId": "A",
-				"location":  "config/database.go:5170",
-				"message":   "DeletePendingOrdersForPosition result",
-				"data": map[string]interface{}{
-					"traderID":      traderID,
-					"symbol":        symbol,
-					"side":          side,
-					"rowsAffected":  rowsAffected,
-				},
-				"timestamp": time.Now().UnixMilli(),
-			})
-		}
-	}()
-	// #endregion
-
+	_, _ = result.RowsAffected()
 	return nil
 }
 

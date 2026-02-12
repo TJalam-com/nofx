@@ -56,17 +56,24 @@ export default function TraderDashboard() {
   const navigate = useNavigate()
   const { slug } = useParams<{ slug?: string }>()
   const [searchParams] = useSearchParams()
-  const [selectedTraderId, setSelectedTraderId] = useState<string | undefined>(undefined)
+  const [selectedTraderId, setSelectedTraderId] = useState<string | undefined>(
+    undefined
+  )
   const [lastUpdate, setLastUpdate] = useState<string>('--:--:--')
-  const [closingPositions, setClosingPositions] = useState<Set<string>>(new Set())
-  const [selectedChartSymbol, setSelectedChartSymbol] = useState<string | undefined>(undefined)
+  const [closingPositions, setClosingPositions] = useState<Set<string>>(
+    new Set()
+  )
+  const [selectedChartSymbol, setSelectedChartSymbol] = useState<
+    string | undefined
+  >(undefined)
   const [chartUpdateKey, setChartUpdateKey] = useState(0)
-  
+
   // Closed positions pagination state
   const [closedPositionsPage, setClosedPositionsPage] = useState(0)
   const [allClosedPositions, setAllClosedPositions] = useState<any[]>([])
   const [hasMoreClosedPositions, setHasMoreClosedPositions] = useState(true)
-  const [isLoadingMoreClosedPositions, setIsLoadingMoreClosedPositions] = useState(false)
+  const [isLoadingMoreClosedPositions, setIsLoadingMoreClosedPositions] =
+    useState(false)
   const initializedTraderRef = useRef<string | null>(null)
 
   // Decision record limit selection (read from localStorage, default 5)
@@ -101,7 +108,10 @@ export default function TraderDashboard() {
     if (slug) {
       // Try to find trader by matching slug
       for (const trader of traders) {
-        const traderSlug = generateTraderSlug(trader.trader_name, trader.trader_id)
+        const traderSlug = generateTraderSlug(
+          trader.trader_name,
+          trader.trader_id
+        )
         if (traderSlug === slug) {
           traderId = trader.trader_id
           break
@@ -134,11 +144,22 @@ export default function TraderDashboard() {
 
     if (traderId && traderId !== selectedTraderId) {
       setSelectedTraderId(traderId)
-      
+
       // Update URL to use slug format if not already using it
       const selectedTrader = traders.find((t) => t.trader_id === traderId)
-      if (selectedTrader && (!slug || slug !== generateTraderSlug(selectedTrader.trader_name, selectedTrader.trader_id))) {
-        const newSlug = generateTraderSlug(selectedTrader.trader_name, selectedTrader.trader_id)
+      if (
+        selectedTrader &&
+        (!slug ||
+          slug !==
+            generateTraderSlug(
+              selectedTrader.trader_name,
+              selectedTrader.trader_id
+            ))
+      ) {
+        const newSlug = generateTraderSlug(
+          selectedTrader.trader_name,
+          selectedTrader.trader_id
+        )
         navigate(`/dashboard/${newSlug}`, { replace: true })
       }
     }
@@ -149,7 +170,10 @@ export default function TraderDashboard() {
     setSelectedTraderId(traderId)
     const selectedTrader = traders?.find((t) => t.trader_id === traderId)
     if (selectedTrader) {
-      const newSlug = generateTraderSlug(selectedTrader.trader_name, selectedTrader.trader_id)
+      const newSlug = generateTraderSlug(
+        selectedTrader.trader_name,
+        selectedTrader.trader_id
+      )
       navigate(`/dashboard/${newSlug}`, { replace: true })
     }
   }
@@ -187,7 +211,9 @@ export default function TraderDashboard() {
 
   // Fetch pending orders (unfilled SL/TP/limit orders)
   const { data: pendingOrders } = useSWR<PendingOrder[]>(
-    user && token && selectedTraderId ? `pending-orders-${selectedTraderId}` : null,
+    user && token && selectedTraderId
+      ? `pending-orders-${selectedTraderId}`
+      : null,
     () => api.getPendingOrders(selectedTraderId!),
     {
       refreshInterval: 30000,
@@ -210,7 +236,9 @@ export default function TraderDashboard() {
 
   // Fetch closed positions from database (initial load)
   const { data: positionHistory } = useSWR<any[]>(
-    user && token && selectedTraderId ? `position-history-${selectedTraderId}-page-0` : null,
+    user && token && selectedTraderId
+      ? `position-history-${selectedTraderId}-page-0`
+      : null,
     () => {
       if (!selectedTraderId) throw new Error('Trader ID is required')
       return api.getPositionHistory(selectedTraderId!, 20, 0) // Get first 20 closed positions
@@ -235,16 +263,19 @@ export default function TraderDashboard() {
 
   // Process initial position history data (only on initial load per trader)
   useEffect(() => {
-    if (positionHistory && selectedTraderId && initializedTraderRef.current !== selectedTraderId) {
+    if (
+      positionHistory &&
+      selectedTraderId &&
+      initializedTraderRef.current !== selectedTraderId
+    ) {
       // Include both open and closed positions, sorted by opened_at descending
-      const allPositions = positionHistory
-        .sort((a, b) => {
-          // Sort by opened_at descending (most recent first)
-          const timeA = new Date(a.opened_at).getTime()
-          const timeB = new Date(b.opened_at).getTime()
-          return timeB - timeA
-        })
-      
+      const allPositions = positionHistory.sort((a, b) => {
+        // Sort by opened_at descending (most recent first)
+        const timeA = new Date(a.opened_at).getTime()
+        const timeB = new Date(b.opened_at).getTime()
+        return timeB - timeA
+      })
+
       setAllClosedPositions(allPositions)
       // If we got less than 20 items, there are no more positions
       setHasMoreClosedPositions(allPositions.length >= 20)
@@ -254,22 +285,30 @@ export default function TraderDashboard() {
 
   // Load more closed positions
   const loadMoreClosedPositions = async () => {
-    if (!selectedTraderId || isLoadingMoreClosedPositions || !hasMoreClosedPositions) return
+    if (
+      !selectedTraderId ||
+      isLoadingMoreClosedPositions ||
+      !hasMoreClosedPositions
+    )
+      return
 
     setIsLoadingMoreClosedPositions(true)
     try {
       const nextPage = closedPositionsPage + 1
       const offset = nextPage * 20
-      const newData = await api.getPositionHistory(selectedTraderId!, 20, offset)
-      
+      const newData = await api.getPositionHistory(
+        selectedTraderId!,
+        20,
+        offset
+      )
+
       // Include both open and closed positions, sorted by opened_at descending
-      const allPositions = newData
-        .sort((a, b) => {
-          const timeA = new Date(a.opened_at).getTime()
-          const timeB = new Date(b.opened_at).getTime()
-          return timeB - timeA
-        })
-      
+      const allPositions = newData.sort((a, b) => {
+        const timeA = new Date(a.opened_at).getTime()
+        const timeB = new Date(b.opened_at).getTime()
+        return timeB - timeA
+      })
+
       if (allPositions.length > 0) {
         setAllClosedPositions((prev) => [...prev, ...allPositions])
         setClosedPositionsPage(nextPage)
@@ -292,22 +331,27 @@ export default function TraderDashboard() {
     // Filter out invalid positions first
     const validPositions = allClosedPositions.filter((pos) => {
       // Must have required fields
-      if (!pos.symbol || !pos.side || pos.entry_price == null || pos.quantity == null) {
+      if (
+        !pos.symbol ||
+        !pos.side ||
+        pos.entry_price == null ||
+        pos.quantity == null
+      ) {
         return false
       }
-      
+
       // For closed positions, exit_price must be valid and non-zero
       if (pos.status === 'closed' || pos.closed_at) {
         if (!pos.exit_price || pos.exit_price === 0) {
           return false
         }
       }
-      
+
       // Entry price must be valid and non-zero
       if (pos.entry_price === 0) {
         return false
       }
-      
+
       return true
     })
 
@@ -318,33 +362,33 @@ export default function TraderDashboard() {
 
     for (const pos of validPositions) {
       const realizedPnL = pos.realized_pnl || 0
-      
+
       // Create a key based on symbol, side, entry_price, and quantity
       // This identifies potentially duplicate trades
       const baseKey = `${pos.symbol}_${pos.side}_${pos.entry_price}_${pos.quantity}`
-      
+
       // For positions with 0 PnL, use the base key to identify duplicates
       // For positions with non-zero PnL, include realized_pnl in the key to keep them separate
       const key = realizedPnL === 0 ? baseKey : `${baseKey}_${realizedPnL}`
 
       const existingPos = uniquePositionsMap.get(key)
-      
+
       if (!existingPos) {
         // First time seeing this key, add it
         uniquePositionsMap.set(key, pos)
       } else {
         // Duplicate found - keep the most recent one
-        const existingTime = existingPos.closed_at 
-          ? new Date(existingPos.closed_at).getTime() 
-          : existingPos.opened_at 
-          ? new Date(existingPos.opened_at).getTime() 
-          : 0
-        const currentTime = pos.closed_at 
-          ? new Date(pos.closed_at).getTime() 
-          : pos.opened_at 
-          ? new Date(pos.opened_at).getTime() 
-          : 0
-        
+        const existingTime = existingPos.closed_at
+          ? new Date(existingPos.closed_at).getTime()
+          : existingPos.opened_at
+            ? new Date(existingPos.opened_at).getTime()
+            : 0
+        const currentTime = pos.closed_at
+          ? new Date(pos.closed_at).getTime()
+          : pos.opened_at
+            ? new Date(pos.opened_at).getTime()
+            : 0
+
         // Keep the more recent one
         if (currentTime > existingTime) {
           uniquePositionsMap.set(key, pos)
@@ -394,9 +438,14 @@ export default function TraderDashboard() {
   const selectedTrader = traders?.find((t) => t.trader_id === selectedTraderId)
 
   // Handle close position
-  const handleClosePosition = async (symbol: string, side: 'long' | 'short') => {
+  const handleClosePosition = async (
+    symbol: string,
+    side: 'long' | 'short'
+  ) => {
     if (!selectedTraderId) {
-      notify.error(t('selectTraderFirst', language) || 'Please select a trader first')
+      notify.error(
+        t('selectTraderFirst', language) || 'Please select a trader first'
+      )
       return
     }
 
@@ -406,7 +455,8 @@ export default function TraderDashboard() {
     }
 
     // Confirmation dialog
-    const sideText = side === 'long' ? t('long', language) : t('short', language)
+    const sideText =
+      side === 'long' ? t('long', language) : t('short', language)
     const confirmMsg =
       t('confirmClosePosition', language, { symbol, side: sideText }) ||
       `Are you sure you want to close ${side} position for ${symbol}?`
@@ -483,7 +533,8 @@ export default function TraderDashboard() {
             onClick={() => navigate('/traders')}
             className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105 active:scale-95"
             style={{
-              background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+              background:
+                'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               color: '#0B0E11',
               boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)',
             }}
@@ -532,7 +583,8 @@ export default function TraderDashboard() {
             onClick={() => navigate('/traders')}
             className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105 active:scale-95"
             style={{
-              background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+              background:
+                'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               color: '#0B0E11',
               boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)',
             }}
@@ -594,10 +646,14 @@ export default function TraderDashboard() {
             <span
               className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0"
               style={{
-                background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+                background:
+                  'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               }}
             >
-              <Bot className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#0B0E11' }} />
+              <Bot
+                className="w-4 h-4 sm:w-5 sm:h-5"
+                style={{ color: '#0B0E11' }}
+              />
             </span>
             <span className="break-words">{selectedTrader.trader_name}</span>
           </h2>
@@ -605,7 +661,10 @@ export default function TraderDashboard() {
           {/* Trader Selector */}
           {traders && traders.length > 0 && (
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
-              <span className="text-xs sm:text-sm whitespace-nowrap" style={{ color: '#848E9C' }}>
+              <span
+                className="text-xs sm:text-sm whitespace-nowrap"
+                style={{ color: '#848E9C' }}
+              >
                 {t('switchTrader', language)}:
               </span>
               <select
@@ -634,7 +693,8 @@ export default function TraderDashboard() {
                 to={`/stream/${generateTraderSlug(selectedTrader.trader_name, selectedTrader.trader_id)}`}
                 className="inline-flex items-center gap-2 px-3 py-2 rounded text-xs sm:text-sm font-semibold transition-all hover:scale-105"
                 style={{
-                  background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+                  background:
+                    'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
                   color: '#0B0E11',
                   boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)',
                 }}
@@ -667,14 +727,21 @@ export default function TraderDashboard() {
           </span>
           <span className="hidden sm:inline">•</span>
           <span className="break-words">
-            Prompt: <span className="font-semibold" style={{ color: highlightColor }}>{selectedTrader.system_prompt_template || '-'}</span>
+            Prompt:{' '}
+            <span className="font-semibold" style={{ color: highlightColor }}>
+              {selectedTrader.system_prompt_template || '-'}
+            </span>
           </span>
           {status && (
             <>
               <span className="hidden sm:inline">•</span>
-              <span className="whitespace-nowrap">Cycles: {status.call_count}</span>
+              <span className="whitespace-nowrap">
+                Cycles: {status.call_count}
+              </span>
               <span className="hidden sm:inline">•</span>
-              <span className="whitespace-nowrap">Runtime: {status.runtime_minutes} min</span>
+              <span className="whitespace-nowrap">
+                Runtime: {status.runtime_minutes} min
+              </span>
             </>
           )}
         </div>
@@ -684,7 +751,10 @@ export default function TraderDashboard() {
       {account && (
         <div
           className="mb-4 p-3 rounded text-xs font-mono"
-          style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}
+          style={{
+            background: 'var(--navy-dark)',
+            border: '1px solid var(--navy-light)',
+          }}
         >
           <div style={{ color: '#848E9C' }}>
             <RefreshCw className="inline w-4 h-4 mr-1 align-text-bottom" />
@@ -726,7 +796,13 @@ export default function TraderDashboard() {
       {/* 主要内容区：Account Equity Curve - Full Width */}
       <div className="mb-6">
         {/* Chart Tabs - Full Width, Fit to Screen */}
-        <div className="binance-card-enhanced animate-slide-in h-full" style={{ animationDelay: '0.1s', minHeight: 'clamp(400px, calc(100vh - 350px), 800px)' }}>
+        <div
+          className="binance-card-enhanced animate-slide-in h-full"
+          style={{
+            animationDelay: '0.1s',
+            minHeight: 'clamp(400px, calc(100vh - 350px), 800px)',
+          }}
+        >
           <ChartTabs
             traderId={selectedTrader.trader_id}
             selectedSymbol={selectedChartSymbol}
@@ -750,7 +826,8 @@ export default function TraderDashboard() {
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{
-                  background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+                  background:
+                    'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
                   boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
                 }}
               >
@@ -775,7 +852,9 @@ export default function TraderDashboard() {
               </span>
               <select
                 value={decisionLimit}
-                onChange={(e) => handleLimitChange(parseInt(e.target.value, 10))}
+                onChange={(e) =>
+                  handleLimitChange(parseInt(e.target.value, 10))
+                }
                 className="rounded px-2 py-1 text-xs font-medium cursor-pointer transition-colors"
                 style={{
                   background: 'var(--navy-dark)',
@@ -800,7 +879,11 @@ export default function TraderDashboard() {
           >
             {sortedDecisions && sortedDecisions.length > 0 ? (
               sortedDecisions.map((decision) => (
-                <DecisionCard key={`${decision.cycle_number}-${decision.timestamp}`} decision={decision} language={language} />
+                <DecisionCard
+                  key={`${decision.cycle_number}-${decision.timestamp}`}
+                  decision={decision}
+                  language={language}
+                />
               ))
             ) : (
               <div className="py-16 text-center">
@@ -828,332 +911,469 @@ export default function TraderDashboard() {
           className="binance-card p-6 animate-slide-in"
           style={{ animationDelay: '0.15s' }}
         >
-            <div className="flex items-center justify-between mb-5">
-              <h2
-                className="text-xl font-bold flex items-center gap-2"
-                style={{ color: '#EAECEF' }}
+          <div className="flex items-center justify-between mb-5">
+            <h2
+              className="text-xl font-bold flex items-center gap-2"
+              style={{ color: '#EAECEF' }}
+            >
+              <TrendingUp
+                className="w-5 h-5"
+                style={{ color: 'var(--green-primary)' }}
+              />
+              {t('currentPositions', language)}
+            </h2>
+            {positions && positions.length > 0 && (
+              <div
+                className="text-xs px-3 py-1 rounded"
+                style={{
+                  background: 'rgba(0, 255, 127, 0.1)',
+                  color: 'var(--green-primary)',
+                  border: '1px solid rgba(0, 255, 127, 0.2)',
+                }}
               >
-                <TrendingUp className="w-5 h-5" style={{ color: 'var(--green-primary)' }} />
-                {t('currentPositions', language)}
-              </h2>
-              {positions && positions.length > 0 && (
-                <div
-                  className="text-xs px-3 py-1 rounded"
-                  style={{
-                    background: 'rgba(0, 255, 127, 0.1)',
-                    color: 'var(--green-primary)',
-                    border: '1px solid rgba(0, 255, 127, 0.2)',
-                  }}
+                {positions.length} {t('active', language)}
+              </div>
+            )}
+          </div>
+          {positions && positions.length > 0 ? (
+            <>
+              {/* Desktop Table View - Improved Layout */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table
+                  className="w-full text-xs"
+                  style={{ tableLayout: 'auto', minWidth: '1000px' }}
                 >
-                  {positions.length} {t('active', language)}
-                </div>
-              )}
-            </div>
-            {positions && positions.length > 0 ? (
-              <>
-                {/* Desktop Table View - Improved Layout */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <table className="w-full text-xs" style={{ tableLayout: 'auto', minWidth: '1000px' }}>
-                    <thead className="text-left border-b" style={{ borderColor: 'var(--navy-light)' }}>
-                      <tr>
-                        <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '90px' }}>
-                          {t('symbol', language)}
-                        </th>
-                        <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '70px' }}>
-                          {t('side', language)}
-                        </th>
-                        <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '100px' }}>
-                          {t('entryPrice', language)}
-                        </th>
-                        <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '100px' }}>
-                          {t('markPrice', language)}
-                        </th>
-                        <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '90px' }}>
-                          {t('quantity', language)}
-                        </th>
-                        <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '110px' }}>
-                          {t('positionValue', language)}
-                        </th>
-                        <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '70px' }}>
-                          {t('leverage', language)}
-                        </th>
-                        <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '120px' }}>
-                          {t('unrealizedPnL', language)}
-                        </th>
-                        <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '100px' }}>
-                          {t('liqPrice', language)}
-                        </th>
-                        <th className="pb-3 px-2 font-semibold text-right whitespace-nowrap" style={{ color: '#848E9C', minWidth: '90px' }}>
-                          {t('action', language) || 'Action'}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {positions.map((pos, i) => (
-                        <tr
-                          key={i}
-                          className="border-b last:border-0 hover:bg-opacity-50 transition-colors"
-                          style={{ borderColor: 'var(--navy-light)' }}
-                        >
-                          <td className="py-3 px-2 font-mono font-semibold whitespace-nowrap">
-                            <button
-                              onClick={() => {
-                                setSelectedChartSymbol(pos.symbol)
-                                setChartUpdateKey(prev => prev + 1)
-                              }}
-                              className="hover:underline transition-all cursor-pointer"
-                              style={{ color: '#EAECEF' }}
-                              title={language === 'zh' ? '点击查看图表' : 'Click to view chart'}
-                            >
-                              {pos.symbol}
-                            </button>
-                          </td>
-                          <td className="py-3 px-2 whitespace-nowrap">
-                            <span
-                              className="px-2 py-1 rounded text-xs font-bold"
-                              style={
-                                pos.side === 'long'
-                                  ? {
-                                      background: 'rgba(14, 203, 129, 0.1)',
-                                      color: '#0ECB81',
-                                    }
-                                  : {
-                                      background: 'rgba(246, 70, 93, 0.1)',
-                                      color: '#F6465D',
-                                    }
-                              }
-                            >
-                              {t(pos.side === 'long' ? 'long' : 'short', language)}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
-                            {pos.entry_price.toFixed(4)}
-                          </td>
-                          <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
-                            {pos.mark_price.toFixed(4)}
-                          </td>
-                          <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
-                            {pos.quantity.toFixed(4)}
-                          </td>
-                          <td className="py-3 px-2 font-mono font-bold whitespace-nowrap" style={{ color: '#EAECEF' }}>
-                            {(pos.quantity * pos.mark_price).toFixed(2)} USDT
-                          </td>
-                          <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: 'var(--green-primary)' }}>
-                            {pos.leverage}x
-                          </td>
-                          <td className="py-3 px-2 font-mono whitespace-nowrap">
-                            <span
-                              style={{
-                                color: pos.unrealized_pnl >= 0 ? '#0ECB81' : '#F6465D',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              {pos.unrealized_pnl >= 0 ? '+' : ''}
-                              {pos.unrealized_pnl.toFixed(2)} ({pos.unrealized_pnl_pct.toFixed(2)}%)
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#848E9C' }}>
-                            {pos.liquidation_price.toFixed(4)}
-                          </td>
-                          <td className="py-3 px-2 text-right whitespace-nowrap">
-                            <button
-                              onClick={() => handleClosePosition(pos.symbol, pos.side as 'long' | 'short')}
-                              disabled={closingPositions.has(`${pos.symbol}-${pos.side}`)}
-                              className="px-2 py-1 rounded text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                              style={{
-                                background: closingPositions.has(`${pos.symbol}-${pos.side}`)
-                                  ? 'rgba(132, 142, 156, 0.2)'
-                                  : 'rgba(246, 70, 93, 0.15)',
-                                color: closingPositions.has(`${pos.symbol}-${pos.side}`)
-                                  ? '#848E9C'
-                                  : '#F6465D',
-                                border: `1px solid ${
-                                  closingPositions.has(`${pos.symbol}-${pos.side}`)
-                                    ? 'rgba(132, 142, 156, 0.3)'
-                                    : 'rgba(246, 70, 93, 0.3)'
-                                }`,
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!closingPositions.has(`${pos.symbol}-${pos.side}`)) {
-                                  e.currentTarget.style.background = 'rgba(246, 70, 93, 0.25)'
-                                  e.currentTarget.style.borderColor = 'rgba(246, 70, 93, 0.5)'
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!closingPositions.has(`${pos.symbol}-${pos.side}`)) {
-                                  e.currentTarget.style.background = 'rgba(246, 70, 93, 0.15)'
-                                  e.currentTarget.style.borderColor = 'rgba(246, 70, 93, 0.3)'
-                                }
-                              }}
-                            >
-                              {closingPositions.has(`${pos.symbol}-${pos.side}`) ? (
-                                <>
-                                  <RefreshCw className="w-3 h-3 inline-block animate-spin mr-1" />
-                                  {t('closing', language) || 'Closing...'}
-                                </>
-                              ) : (
-                                <>
-                                  <XCircle className="w-3 h-3 inline-block mr-1" />
-                                  {t('close', language) || 'Close'}
-                                </>
-                              )}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="lg:hidden space-y-4">
-                  {positions.map((pos, i) => (
-                    <div
-                      key={i}
-                      className="rounded-lg p-4 border"
-                      style={{
-                        background: 'var(--navy-dark)',
-                        borderColor: 'var(--navy-light)',
-                      }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
+                  <thead
+                    className="text-left border-b"
+                    style={{ borderColor: 'var(--navy-light)' }}
+                  >
+                    <tr>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '90px' }}
+                      >
+                        {t('symbol', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '70px' }}
+                      >
+                        {t('side', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '100px' }}
+                      >
+                        {t('entryPrice', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '100px' }}
+                      >
+                        {t('markPrice', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '90px' }}
+                      >
+                        {t('quantity', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '110px' }}
+                      >
+                        {t('positionValue', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '70px' }}
+                      >
+                        {t('leverage', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '120px' }}
+                      >
+                        {t('unrealizedPnL', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '100px' }}
+                      >
+                        {t('liqPrice', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold text-right whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '90px' }}
+                      >
+                        {t('action', language) || 'Action'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {positions.map((pos, i) => (
+                      <tr
+                        key={i}
+                        className="border-b last:border-0 hover:bg-opacity-50 transition-colors"
+                        style={{ borderColor: 'var(--navy-light)' }}
+                      >
+                        <td className="py-3 px-2 font-mono font-semibold whitespace-nowrap">
                           <button
                             onClick={() => {
                               setSelectedChartSymbol(pos.symbol)
-                              setChartUpdateKey(prev => prev + 1)
+                              setChartUpdateKey((prev) => prev + 1)
                             }}
-                            className="text-lg font-bold font-mono hover:underline transition-all mb-1"
+                            className="hover:underline transition-all cursor-pointer"
                             style={{ color: '#EAECEF' }}
+                            title={
+                              language === 'zh'
+                                ? '点击查看图表'
+                                : 'Click to view chart'
+                            }
                           >
                             {pos.symbol}
                           </button>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="px-2 py-1 rounded text-xs font-bold"
-                              style={
-                                pos.side === 'long'
-                                  ? {
-                                      background: 'rgba(14, 203, 129, 0.1)',
-                                      color: '#0ECB81',
-                                    }
-                                  : {
-                                      background: 'rgba(246, 70, 93, 0.1)',
-                                      color: '#F6465D',
-                                    }
-                              }
-                            >
-                              {t(pos.side === 'long' ? 'long' : 'short', language)}
-                            </span>
-                            <span className="text-xs" style={{ color: 'var(--green-primary)' }}>
-                              {pos.leverage}x
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div
-                            className="text-lg font-bold font-mono"
+                        </td>
+                        <td className="py-3 px-2 whitespace-nowrap">
+                          <span
+                            className="px-2 py-1 rounded text-xs font-bold"
+                            style={
+                              pos.side === 'long'
+                                ? {
+                                    background: 'rgba(14, 203, 129, 0.1)',
+                                    color: '#0ECB81',
+                                  }
+                                : {
+                                    background: 'rgba(246, 70, 93, 0.1)',
+                                    color: '#F6465D',
+                                  }
+                            }
+                          >
+                            {t(
+                              pos.side === 'long' ? 'long' : 'short',
+                              language
+                            )}
+                          </span>
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.entry_price.toFixed(4)}
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.mark_price.toFixed(4)}
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.quantity.toFixed(4)}
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono font-bold whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {(pos.quantity * pos.mark_price).toFixed(2)} USDT
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: 'var(--green-primary)' }}
+                        >
+                          {pos.leverage}x
+                        </td>
+                        <td className="py-3 px-2 font-mono whitespace-nowrap">
+                          <span
                             style={{
-                              color: pos.unrealized_pnl >= 0 ? '#0ECB81' : '#F6465D',
+                              color:
+                                pos.unrealized_pnl >= 0 ? '#0ECB81' : '#F6465D',
+                              fontWeight: 'bold',
                             }}
                           >
                             {pos.unrealized_pnl >= 0 ? '+' : ''}
-                            {pos.unrealized_pnl.toFixed(2)} USDT
-                          </div>
-                          <div className="text-xs" style={{ color: '#848E9C' }}>
-                            {pos.unrealized_pnl_pct.toFixed(2)}%
-                          </div>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                        <div>
-                          <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
-                            {t('entryPrice', language)}
-                          </div>
-                          <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
-                            {pos.entry_price.toFixed(4)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
-                            {t('markPrice', language)}
-                          </div>
-                          <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
-                            {pos.mark_price.toFixed(4)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
-                            {t('quantity', language)}
-                          </div>
-                          <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
-                            {pos.quantity.toFixed(4)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
-                            {t('positionValue', language)}
-                          </div>
-                          <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
-                            {(pos.quantity * pos.mark_price).toFixed(2)} USDT
-                          </div>
-                        </div>
-                        <div className="col-span-2">
-                          <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
-                            {t('liqPrice', language)}
-                          </div>
-                          <div className="font-mono font-semibold" style={{ color: '#848E9C' }}>
-                            {pos.liquidation_price.toFixed(4)}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleClosePosition(pos.symbol, pos.side as 'long' | 'short')}
-                        disabled={closingPositions.has(`${pos.symbol}-${pos.side}`)}
-                        className="w-full px-4 py-2 rounded text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                          background: closingPositions.has(`${pos.symbol}-${pos.side}`)
-                            ? 'rgba(132, 142, 156, 0.2)'
-                            : 'rgba(246, 70, 93, 0.15)',
-                          color: closingPositions.has(`${pos.symbol}-${pos.side}`)
-                            ? '#848E9C'
-                            : '#F6465D',
-                          border: `1px solid ${
-                            closingPositions.has(`${pos.symbol}-${pos.side}`)
-                              ? 'rgba(132, 142, 156, 0.3)'
-                              : 'rgba(246, 70, 93, 0.3)'
-                          }`,
-                        }}
-                      >
-                        {closingPositions.has(`${pos.symbol}-${pos.side}`) ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 inline-block animate-spin mr-2" />
-                            {t('closing', language) || 'Closing...'}
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-4 h-4 inline-block mr-2" />
-                            {t('close', language) || 'Close Position'}
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-16" style={{ color: '#848E9C' }}>
-                <div className="mb-4 opacity-50 flex justify-center">
-                  <PieChart className="w-16 h-16" />
-                </div>
-                <div className="text-lg font-semibold mb-2">
-                  {t('noPositions', language)}
-                </div>
-                <div className="text-sm">
-                  {t('noActivePositions', language)}
-                </div>
+                            {pos.unrealized_pnl.toFixed(2)} (
+                            {pos.unrealized_pnl_pct.toFixed(2)}%)
+                          </span>
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {pos.liquidation_price.toFixed(4)}
+                        </td>
+                        <td className="py-3 px-2 text-right whitespace-nowrap">
+                          <button
+                            onClick={() =>
+                              handleClosePosition(
+                                pos.symbol,
+                                pos.side as 'long' | 'short'
+                              )
+                            }
+                            disabled={closingPositions.has(
+                              `${pos.symbol}-${pos.side}`
+                            )}
+                            className="px-2 py-1 rounded text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            style={{
+                              background: closingPositions.has(
+                                `${pos.symbol}-${pos.side}`
+                              )
+                                ? 'rgba(132, 142, 156, 0.2)'
+                                : 'rgba(246, 70, 93, 0.15)',
+                              color: closingPositions.has(
+                                `${pos.symbol}-${pos.side}`
+                              )
+                                ? '#848E9C'
+                                : '#F6465D',
+                              border: `1px solid ${
+                                closingPositions.has(
+                                  `${pos.symbol}-${pos.side}`
+                                )
+                                  ? 'rgba(132, 142, 156, 0.3)'
+                                  : 'rgba(246, 70, 93, 0.3)'
+                              }`,
+                            }}
+                            onMouseEnter={(e) => {
+                              if (
+                                !closingPositions.has(
+                                  `${pos.symbol}-${pos.side}`
+                                )
+                              ) {
+                                e.currentTarget.style.background =
+                                  'rgba(246, 70, 93, 0.25)'
+                                e.currentTarget.style.borderColor =
+                                  'rgba(246, 70, 93, 0.5)'
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (
+                                !closingPositions.has(
+                                  `${pos.symbol}-${pos.side}`
+                                )
+                              ) {
+                                e.currentTarget.style.background =
+                                  'rgba(246, 70, 93, 0.15)'
+                                e.currentTarget.style.borderColor =
+                                  'rgba(246, 70, 93, 0.3)'
+                              }
+                            }}
+                          >
+                            {closingPositions.has(
+                              `${pos.symbol}-${pos.side}`
+                            ) ? (
+                              <>
+                                <RefreshCw className="w-3 h-3 inline-block animate-spin mr-1" />
+                                {t('closing', language) || 'Closing...'}
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="w-3 h-3 inline-block mr-1" />
+                                {t('close', language) || 'Close'}
+                              </>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+
+              {/* Mobile Card View */}
+              <div className="lg:hidden space-y-4">
+                {positions.map((pos, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg p-4 border"
+                    style={{
+                      background: 'var(--navy-dark)',
+                      borderColor: 'var(--navy-light)',
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <button
+                          onClick={() => {
+                            setSelectedChartSymbol(pos.symbol)
+                            setChartUpdateKey((prev) => prev + 1)
+                          }}
+                          className="text-lg font-bold font-mono hover:underline transition-all mb-1"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.symbol}
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="px-2 py-1 rounded text-xs font-bold"
+                            style={
+                              pos.side === 'long'
+                                ? {
+                                    background: 'rgba(14, 203, 129, 0.1)',
+                                    color: '#0ECB81',
+                                  }
+                                : {
+                                    background: 'rgba(246, 70, 93, 0.1)',
+                                    color: '#F6465D',
+                                  }
+                            }
+                          >
+                            {t(
+                              pos.side === 'long' ? 'long' : 'short',
+                              language
+                            )}
+                          </span>
+                          <span
+                            className="text-xs"
+                            style={{ color: 'var(--green-primary)' }}
+                          >
+                            {pos.leverage}x
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div
+                          className="text-lg font-bold font-mono"
+                          style={{
+                            color:
+                              pos.unrealized_pnl >= 0 ? '#0ECB81' : '#F6465D',
+                          }}
+                        >
+                          {pos.unrealized_pnl >= 0 ? '+' : ''}
+                          {pos.unrealized_pnl.toFixed(2)} USDT
+                        </div>
+                        <div className="text-xs" style={{ color: '#848E9C' }}>
+                          {pos.unrealized_pnl_pct.toFixed(2)}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                      <div>
+                        <div
+                          className="text-xs mb-1"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {t('entryPrice', language)}
+                        </div>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.entry_price.toFixed(4)}
+                        </div>
+                      </div>
+                      <div>
+                        <div
+                          className="text-xs mb-1"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {t('markPrice', language)}
+                        </div>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.mark_price.toFixed(4)}
+                        </div>
+                      </div>
+                      <div>
+                        <div
+                          className="text-xs mb-1"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {t('quantity', language)}
+                        </div>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.quantity.toFixed(4)}
+                        </div>
+                      </div>
+                      <div>
+                        <div
+                          className="text-xs mb-1"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {t('positionValue', language)}
+                        </div>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {(pos.quantity * pos.mark_price).toFixed(2)} USDT
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <div
+                          className="text-xs mb-1"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {t('liqPrice', language)}
+                        </div>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {pos.liquidation_price.toFixed(4)}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() =>
+                        handleClosePosition(
+                          pos.symbol,
+                          pos.side as 'long' | 'short'
+                        )
+                      }
+                      disabled={closingPositions.has(
+                        `${pos.symbol}-${pos.side}`
+                      )}
+                      className="w-full px-4 py-2 rounded text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        background: closingPositions.has(
+                          `${pos.symbol}-${pos.side}`
+                        )
+                          ? 'rgba(132, 142, 156, 0.2)'
+                          : 'rgba(246, 70, 93, 0.15)',
+                        color: closingPositions.has(`${pos.symbol}-${pos.side}`)
+                          ? '#848E9C'
+                          : '#F6465D',
+                        border: `1px solid ${
+                          closingPositions.has(`${pos.symbol}-${pos.side}`)
+                            ? 'rgba(132, 142, 156, 0.3)'
+                            : 'rgba(246, 70, 93, 0.3)'
+                        }`,
+                      }}
+                    >
+                      {closingPositions.has(`${pos.symbol}-${pos.side}`) ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 inline-block animate-spin mr-2" />
+                          {t('closing', language) || 'Closing...'}
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-4 h-4 inline-block mr-2" />
+                          {t('close', language) || 'Close Position'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-16" style={{ color: '#848E9C' }}>
+              <div className="mb-4 opacity-50 flex justify-center">
+                <PieChart className="w-16 h-16" />
+              </div>
+              <div className="text-lg font-semibold mb-2">
+                {t('noPositions', language)}
+              </div>
+              <div className="text-sm">{t('noActivePositions', language)}</div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1180,7 +1400,8 @@ export default function TraderDashboard() {
                   border: '1px solid rgba(240, 185, 11, 0.2)',
                 }}
               >
-                {pendingOrders.length} {language === 'zh' ? '待执行' : 'Pending'}
+                {pendingOrders.length}{' '}
+                {language === 'zh' ? '待执行' : 'Pending'}
               </div>
             )}
           </div>
@@ -1188,25 +1409,49 @@ export default function TraderDashboard() {
             <>
               {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-xs" style={{ tableLayout: 'auto' }}>
-                  <thead className="text-left border-b" style={{ borderColor: 'var(--navy-light)' }}>
+                <table
+                  className="w-full text-xs"
+                  style={{ tableLayout: 'auto' }}
+                >
+                  <thead
+                    className="text-left border-b"
+                    style={{ borderColor: 'var(--navy-light)' }}
+                  >
                     <tr>
-                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C' }}
+                      >
                         {t('symbol', language)}
                       </th>
-                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C' }}
+                      >
                         {t('side', language)}
                       </th>
-                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C' }}
+                      >
                         {t('orderType', language)}
                       </th>
-                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C' }}
+                      >
                         {t('triggerPrice', language)}
                       </th>
-                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C' }}
+                      >
                         {t('quantity', language)}
                       </th>
-                      <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C' }}>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C' }}
+                      >
                         {language === 'zh' ? '创建时间' : 'Created'}
                       </th>
                     </tr>
@@ -1218,7 +1463,10 @@ export default function TraderDashboard() {
                         className="border-b last:border-0 hover:bg-opacity-50 transition-colors"
                         style={{ borderColor: 'var(--navy-light)' }}
                       >
-                        <td className="py-3 px-2 font-mono font-semibold whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                        <td
+                          className="py-3 px-2 font-mono font-semibold whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
                           {order.symbol}
                         </td>
                         <td className="py-3 px-2 whitespace-nowrap">
@@ -1226,11 +1474,20 @@ export default function TraderDashboard() {
                             className="px-2 py-1 rounded text-xs font-bold"
                             style={
                               order.side === 'long'
-                                ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
-                                : { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
+                                ? {
+                                    background: 'rgba(14, 203, 129, 0.1)',
+                                    color: '#0ECB81',
+                                  }
+                                : {
+                                    background: 'rgba(246, 70, 93, 0.1)',
+                                    color: '#F6465D',
+                                  }
                             }
                           >
-                            {t(order.side === 'long' ? 'long' : 'short', language)}
+                            {t(
+                              order.side === 'long' ? 'long' : 'short',
+                              language
+                            )}
                           </span>
                         </td>
                         <td className="py-3 px-2 whitespace-nowrap">
@@ -1238,27 +1495,47 @@ export default function TraderDashboard() {
                             className="px-2 py-1 rounded text-xs font-semibold"
                             style={
                               order.order_type === 'stop_loss'
-                                ? { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
+                                ? {
+                                    background: 'rgba(246, 70, 93, 0.1)',
+                                    color: '#F6465D',
+                                  }
                                 : order.order_type === 'take_profit'
-                                ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
-                                : { background: 'rgba(240, 185, 11, 0.1)', color: '#F0B90B' }
+                                  ? {
+                                      background: 'rgba(14, 203, 129, 0.1)',
+                                      color: '#0ECB81',
+                                    }
+                                  : {
+                                      background: 'rgba(240, 185, 11, 0.1)',
+                                      color: '#F0B90B',
+                                    }
                             }
                           >
                             {order.order_type === 'stop_loss'
                               ? t('stopLoss', language)
                               : order.order_type === 'take_profit'
-                              ? t('takeProfit', language)
-                              : t('limitOrder', language)}
+                                ? t('takeProfit', language)
+                                : t('limitOrder', language)}
                           </span>
                         </td>
-                        <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
                           {order.trigger_price?.toFixed(4) || '-'}
                         </td>
-                        <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
                           {order.quantity?.toFixed(4) || '-'}
                         </td>
-                        <td className="py-3 px-2 whitespace-nowrap" style={{ color: '#848E9C' }}>
-                          {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
+                        <td
+                          className="py-3 px-2 whitespace-nowrap"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {order.created_at
+                            ? new Date(order.created_at).toLocaleString()
+                            : '-'}
                         </td>
                       </tr>
                     ))}
@@ -1278,7 +1555,10 @@ export default function TraderDashboard() {
                     }}
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-mono font-bold" style={{ color: '#EAECEF' }}>
+                      <span
+                        className="font-mono font-bold"
+                        style={{ color: '#EAECEF' }}
+                      >
                         {order.symbol}
                       </span>
                       <div className="flex gap-2">
@@ -1286,44 +1566,74 @@ export default function TraderDashboard() {
                           className="px-2 py-1 rounded text-xs font-bold"
                           style={
                             order.side === 'long'
-                              ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
-                              : { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
+                              ? {
+                                  background: 'rgba(14, 203, 129, 0.1)',
+                                  color: '#0ECB81',
+                                }
+                              : {
+                                  background: 'rgba(246, 70, 93, 0.1)',
+                                  color: '#F6465D',
+                                }
                           }
                         >
-                          {t(order.side === 'long' ? 'long' : 'short', language)}
+                          {t(
+                            order.side === 'long' ? 'long' : 'short',
+                            language
+                          )}
                         </span>
                         <span
                           className="px-2 py-1 rounded text-xs font-semibold"
                           style={
                             order.order_type === 'stop_loss'
-                              ? { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
+                              ? {
+                                  background: 'rgba(246, 70, 93, 0.1)',
+                                  color: '#F6465D',
+                                }
                               : order.order_type === 'take_profit'
-                              ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
-                              : { background: 'rgba(240, 185, 11, 0.1)', color: '#F0B90B' }
+                                ? {
+                                    background: 'rgba(14, 203, 129, 0.1)',
+                                    color: '#0ECB81',
+                                  }
+                                : {
+                                    background: 'rgba(240, 185, 11, 0.1)',
+                                    color: '#F0B90B',
+                                  }
                           }
                         >
                           {order.order_type === 'stop_loss'
                             ? t('stopLoss', language)
                             : order.order_type === 'take_profit'
-                            ? t('takeProfit', language)
-                            : t('limitOrder', language)}
+                              ? t('takeProfit', language)
+                              : t('limitOrder', language)}
                         </span>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
+                        <div
+                          className="text-xs mb-1"
+                          style={{ color: '#848E9C' }}
+                        >
                           {t('triggerPrice', language)}
                         </div>
-                        <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#EAECEF' }}
+                        >
                           {order.trigger_price?.toFixed(4) || '-'}
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
+                        <div
+                          className="text-xs mb-1"
+                          style={{ color: '#848E9C' }}
+                        >
                           {t('quantity', language)}
                         </div>
-                        <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#EAECEF' }}
+                        >
                           {order.quantity?.toFixed(4) || '-'}
                         </div>
                       </div>
@@ -1372,7 +1682,8 @@ export default function TraderDashboard() {
                     border: '1px solid rgba(132, 142, 156, 0.2)',
                   }}
                 >
-                  {closedPositions.filter((p) => p.status === 'open').length} {language === 'zh' ? '持仓中' : 'open'}
+                  {closedPositions.filter((p) => p.status === 'open').length}{' '}
+                  {language === 'zh' ? '持仓中' : 'open'}
                 </div>
                 <div
                   className="text-xs px-3 py-1 rounded"
@@ -1382,7 +1693,8 @@ export default function TraderDashboard() {
                     border: '1px solid rgba(132, 142, 156, 0.2)',
                   }}
                 >
-                  {closedPositions.filter((p) => p.status === 'closed').length} {language === 'zh' ? '已关闭' : 'closed'}
+                  {closedPositions.filter((p) => p.status === 'closed').length}{' '}
+                  {language === 'zh' ? '已关闭' : 'closed'}
                 </div>
               </div>
             )}
@@ -1390,52 +1702,210 @@ export default function TraderDashboard() {
 
           {closedPositions.length > 0 ? (
             <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table
+                  className="w-full text-xs"
+                  style={{ tableLayout: 'auto', minWidth: '1000px' }}
+                >
+                  <thead
+                    className="text-left border-b"
+                    style={{ borderColor: 'var(--navy-light)' }}
+                  >
+                    <tr>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '90px' }}
+                      >
+                        {t('symbol', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '70px' }}
+                      >
+                        {t('side', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '100px' }}
+                      >
+                        {t('entryPrice', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '100px' }}
+                      >
+                        {language === 'zh' ? '平仓价格' : 'Exit Price'}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '90px' }}
+                      >
+                        {t('quantity', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '70px' }}
+                      >
+                        {t('leverage', language)}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '120px' }}
+                      >
+                        {language === 'zh' ? '已实现盈亏' : 'Realized P&L'}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '100px' }}
+                      >
+                        {language === 'zh' ? '状态' : 'Status'}
+                      </th>
+                      <th
+                        className="pb-3 px-2 font-semibold whitespace-nowrap"
+                        style={{ color: '#848E9C', minWidth: '150px' }}
+                      >
+                        {language === 'zh' ? '平仓时间' : 'Closed At'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {closedPositions.map((pos, i) => (
+                      <tr
+                        key={pos.id || i}
+                        className="border-b last:border-0 hover:bg-opacity-50 transition-colors"
+                        style={{ borderColor: 'var(--navy-light)' }}
+                      >
+                        <td
+                          className="py-3 px-2 font-mono font-semibold whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.symbol}
+                        </td>
+                        <td className="py-3 px-2 whitespace-nowrap">
+                          <span
+                            className="px-2 py-1 rounded text-xs font-bold"
+                            style={
+                              pos.side === 'long'
+                                ? {
+                                    background: 'rgba(14, 203, 129, 0.1)',
+                                    color: '#0ECB81',
+                                  }
+                                : {
+                                    background: 'rgba(246, 70, 93, 0.1)',
+                                    color: '#F6465D',
+                                  }
+                            }
+                          >
+                            {t(
+                              pos.side === 'long' ? 'long' : 'short',
+                              language
+                            )}
+                          </span>
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.entry_price?.toFixed(4) || '-'}
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.exit_price?.toFixed(4) || '-'}
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.quantity?.toFixed(4) || '-'}
+                        </td>
+                        <td
+                          className="py-3 px-2 font-mono whitespace-nowrap"
+                          style={{ color: 'var(--green-primary)' }}
+                        >
+                          {pos.leverage}x
+                        </td>
+                        <td className="py-3 px-2 font-mono whitespace-nowrap">
+                          <span
+                            style={{
+                              color:
+                                (pos.realized_pnl || 0) >= 0
+                                  ? '#0ECB81'
+                                  : '#F6465D',
+                              fontWeight: 'bold',
+                            }}
+                          >
+                            {(pos.realized_pnl || 0) >= 0 ? '+' : ''}
+                            {(pos.realized_pnl || 0).toFixed(2)} USDT
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 whitespace-nowrap">
+                          <span
+                            className="px-2 py-1 rounded text-xs font-bold"
+                            style={
+                              pos.status === 'open'
+                                ? {
+                                    background: 'rgba(14, 203, 129, 0.1)',
+                                    color: '#0ECB81',
+                                  }
+                                : {
+                                    background: 'rgba(132, 142, 156, 0.1)',
+                                    color: '#848E9C',
+                                  }
+                            }
+                          >
+                            {pos.status === 'open'
+                              ? language === 'zh'
+                                ? '持仓中'
+                                : 'Open'
+                              : language === 'zh'
+                                ? '已关闭'
+                                : 'Closed'}
+                          </span>
+                        </td>
+                        <td
+                          className="py-3 px-2 whitespace-nowrap"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {pos.closed_at
+                            ? new Date(pos.closed_at).toLocaleString(
+                                language === 'zh' ? 'zh-CN' : 'en-US',
+                                {
+                                  month: 'short',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                }
+                              )
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full text-xs" style={{ tableLayout: 'auto', minWidth: '1000px' }}>
-                <thead className="text-left border-b" style={{ borderColor: 'var(--navy-light)' }}>
-                  <tr>
-                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '90px' }}>
-                      {t('symbol', language)}
-                    </th>
-                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '70px' }}>
-                      {t('side', language)}
-                    </th>
-                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '100px' }}>
-                      {t('entryPrice', language)}
-                    </th>
-                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '100px' }}>
-                      {language === 'zh' ? '平仓价格' : 'Exit Price'}
-                    </th>
-                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '90px' }}>
-                      {t('quantity', language)}
-                    </th>
-                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '70px' }}>
-                      {t('leverage', language)}
-                    </th>
-                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '120px' }}>
-                      {language === 'zh' ? '已实现盈亏' : 'Realized P&L'}
-                    </th>
-                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '100px' }}>
-                      {language === 'zh' ? '状态' : 'Status'}
-                    </th>
-                    <th className="pb-3 px-2 font-semibold whitespace-nowrap" style={{ color: '#848E9C', minWidth: '150px' }}>
-                      {language === 'zh' ? '平仓时间' : 'Closed At'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {closedPositions.map((pos, i) => (
-                    <tr
-                      key={pos.id || i}
-                      className="border-b last:border-0 hover:bg-opacity-50 transition-colors"
-                      style={{ borderColor: 'var(--navy-light)' }}
-                    >
-                      <td className="py-3 px-2 font-mono font-semibold whitespace-nowrap" style={{ color: '#EAECEF' }}>
-                        {pos.symbol}
-                      </td>
-                      <td className="py-3 px-2 whitespace-nowrap">
+              {/* Mobile Card View */}
+              <div className="lg:hidden space-y-3">
+                {closedPositions.map((pos, i) => (
+                  <div
+                    key={pos.id || i}
+                    className="p-4 rounded-lg border"
+                    style={{
+                      background: 'rgba(30, 35, 41, 0.5)',
+                      borderColor: 'var(--navy-light)',
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="font-mono font-bold"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.symbol}
+                        </span>
                         <span
                           className="px-2 py-1 rounded text-xs font-bold"
                           style={
@@ -1452,206 +1922,155 @@ export default function TraderDashboard() {
                         >
                           {t(pos.side === 'long' ? 'long' : 'short', language)}
                         </span>
-                      </td>
-                      <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
-                        {pos.entry_price?.toFixed(4) || '-'}
-                      </td>
-                      <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
-                        {pos.exit_price?.toFixed(4) || '-'}
-                      </td>
-                      <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: '#EAECEF' }}>
-                        {pos.quantity?.toFixed(4) || '-'}
-                      </td>
-                      <td className="py-3 px-2 font-mono whitespace-nowrap" style={{ color: 'var(--green-primary)' }}>
-                        {pos.leverage}x
-                      </td>
-                      <td className="py-3 px-2 font-mono whitespace-nowrap">
-                        <span
-                          style={{
-                            color: (pos.realized_pnl || 0) >= 0 ? '#0ECB81' : '#F6465D',
-                            fontWeight: 'bold',
-                          }}
-                        >
-                          {(pos.realized_pnl || 0) >= 0 ? '+' : ''}
-                          {(pos.realized_pnl || 0).toFixed(2)} USDT
-                        </span>
-                      </td>
-                      <td className="py-3 px-2 whitespace-nowrap">
-                        <span
-                          className="px-2 py-1 rounded text-xs font-bold"
-                          style={
-                            pos.status === 'open'
-                              ? {
-                                  background: 'rgba(14, 203, 129, 0.1)',
-                                  color: '#0ECB81',
-                                }
-                              : {
-                                  background: 'rgba(132, 142, 156, 0.1)',
-                                  color: '#848E9C',
-                                }
-                          }
-                        >
-                          {pos.status === 'open' ? (language === 'zh' ? '持仓中' : 'Open') : (language === 'zh' ? '已关闭' : 'Closed')}
-                        </span>
-                      </td>
-                      <td className="py-3 px-2 whitespace-nowrap" style={{ color: '#848E9C' }}>
-                        {pos.closed_at
-                          ? new Date(pos.closed_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', {
-                              month: 'short',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="lg:hidden space-y-3">
-              {closedPositions.map((pos, i) => (
-                <div
-                  key={pos.id || i}
-                  className="p-4 rounded-lg border"
-                  style={{
-                    background: 'rgba(30, 35, 41, 0.5)',
-                    borderColor: 'var(--navy-light)',
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold" style={{ color: '#EAECEF' }}>
-                        {pos.symbol}
-                      </span>
+                      </div>
                       <span
-                        className="px-2 py-1 rounded text-xs font-bold"
-                        style={
-                          pos.side === 'long'
-                            ? {
-                                background: 'rgba(14, 203, 129, 0.1)',
-                                color: '#0ECB81',
-                              }
-                            : {
-                                background: 'rgba(246, 70, 93, 0.1)',
-                                color: '#F6465D',
-                              }
-                        }
+                        className="font-mono font-bold text-sm"
+                        style={{
+                          color:
+                            (pos.realized_pnl || 0) >= 0
+                              ? '#0ECB81'
+                              : '#F6465D',
+                        }}
                       >
-                        {t(pos.side === 'long' ? 'long' : 'short', language)}
+                        {(pos.realized_pnl || 0) >= 0 ? '+' : ''}
+                        {(pos.realized_pnl || 0).toFixed(2)} USDT
                       </span>
                     </div>
-                    <span
-                      className="font-mono font-bold text-sm"
-                      style={{
-                        color: (pos.realized_pnl || 0) >= 0 ? '#0ECB81' : '#F6465D',
-                      }}
-                    >
-                      {(pos.realized_pnl || 0) >= 0 ? '+' : ''}
-                      {(pos.realized_pnl || 0).toFixed(2)} USDT
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <div style={{ color: '#848E9C' }}>{t('entryPrice', language)}</div>
-                      <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
-                        {pos.entry_price?.toFixed(4) || '-'}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: '#848E9C' }}>{language === 'zh' ? '平仓价格' : 'Exit Price'}</div>
-                      <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
-                        {pos.exit_price?.toFixed(4) || '-'}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: '#848E9C' }}>{t('quantity', language)}</div>
-                      <div className="font-mono font-semibold" style={{ color: '#EAECEF' }}>
-                        {pos.quantity?.toFixed(4) || '-'}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: '#848E9C' }}>{language === 'zh' ? '状态' : 'Status'}</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span
-                          className="px-2 py-1 rounded text-xs font-bold"
-                          style={
-                            pos.status === 'open'
-                              ? {
-                                  background: 'rgba(14, 203, 129, 0.1)',
-                                  color: '#0ECB81',
-                                }
-                              : {
-                                  background: 'rgba(132, 142, 156, 0.1)',
-                                  color: '#848E9C',
-                                }
-                          }
+                        <div style={{ color: '#848E9C' }}>
+                          {t('entryPrice', language)}
+                        </div>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#EAECEF' }}
                         >
-                          {pos.status === 'open' ? (language === 'zh' ? '持仓中' : 'Open') : (language === 'zh' ? '已关闭' : 'Closed')}
-                        </span>
+                          {pos.entry_price?.toFixed(4) || '-'}
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <div style={{ color: '#848E9C' }}>{language === 'zh' ? '平仓时间' : 'Closed At'}</div>
-                      <div className="font-semibold" style={{ color: '#848E9C' }}>
-                        {pos.closed_at
-                          ? new Date(pos.closed_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', {
-                              month: 'short',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : '-'}
+                      <div>
+                        <div style={{ color: '#848E9C' }}>
+                          {language === 'zh' ? '平仓价格' : 'Exit Price'}
+                        </div>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.exit_price?.toFixed(4) || '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#848E9C' }}>
+                          {t('quantity', language)}
+                        </div>
+                        <div
+                          className="font-mono font-semibold"
+                          style={{ color: '#EAECEF' }}
+                        >
+                          {pos.quantity?.toFixed(4) || '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#848E9C' }}>
+                          {language === 'zh' ? '状态' : 'Status'}
+                        </div>
+                        <div>
+                          <span
+                            className="px-2 py-1 rounded text-xs font-bold"
+                            style={
+                              pos.status === 'open'
+                                ? {
+                                    background: 'rgba(14, 203, 129, 0.1)',
+                                    color: '#0ECB81',
+                                  }
+                                : {
+                                    background: 'rgba(132, 142, 156, 0.1)',
+                                    color: '#848E9C',
+                                  }
+                            }
+                          >
+                            {pos.status === 'open'
+                              ? language === 'zh'
+                                ? '持仓中'
+                                : 'Open'
+                              : language === 'zh'
+                                ? '已关闭'
+                                : 'Closed'}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#848E9C' }}>
+                          {language === 'zh' ? '平仓时间' : 'Closed At'}
+                        </div>
+                        <div
+                          className="font-semibold"
+                          style={{ color: '#848E9C' }}
+                        >
+                          {pos.closed_at
+                            ? new Date(pos.closed_at).toLocaleString(
+                                language === 'zh' ? 'zh-CN' : 'en-US',
+                                {
+                                  month: 'short',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                }
+                              )
+                            : '-'}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination Controls */}
-            {hasMoreClosedPositions && (
-              <div className="mt-6 flex justify-center">
-                <button
-                  onClick={loadMoreClosedPositions}
-                  disabled={isLoadingMoreClosedPositions}
-                  className="px-6 py-2 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    background: isLoadingMoreClosedPositions
-                      ? 'rgba(132, 142, 156, 0.2)'
-                      : 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
-                    color: isLoadingMoreClosedPositions ? '#848E9C' : '#0B0E11',
-                    boxShadow: isLoadingMoreClosedPositions
-                      ? 'none'
-                      : '0 4px 12px rgba(0, 255, 127, 0.3)',
-                  }}
-                >
-                  {isLoadingMoreClosedPositions ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 inline-block animate-spin mr-2" />
-                      {language === 'zh' ? '加载中...' : 'Loading...'}
-                    </>
-                  ) : (
-                    <>
-                      {language === 'zh' ? '加载更多' : 'Load More'}
-                    </>
-                  )}
-                </button>
+                ))}
               </div>
-            )}
+
+              {/* Pagination Controls */}
+              {hasMoreClosedPositions && (
+                <div className="mt-6 flex justify-center">
+                  <button
+                    onClick={loadMoreClosedPositions}
+                    disabled={isLoadingMoreClosedPositions}
+                    className="px-6 py-2 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      background: isLoadingMoreClosedPositions
+                        ? 'rgba(132, 142, 156, 0.2)'
+                        : 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+                      color: isLoadingMoreClosedPositions
+                        ? '#848E9C'
+                        : '#0B0E11',
+                      boxShadow: isLoadingMoreClosedPositions
+                        ? 'none'
+                        : '0 4px 12px rgba(0, 255, 127, 0.3)',
+                    }}
+                  >
+                    {isLoadingMoreClosedPositions ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 inline-block animate-spin mr-2" />
+                        {language === 'zh' ? '加载中...' : 'Loading...'}
+                      </>
+                    ) : (
+                      <>{language === 'zh' ? '加载更多' : 'Load More'}</>
+                    )}
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center py-16" style={{ color: '#848E9C' }}>
               <div className="mb-4 opacity-50 flex justify-center">
                 <History className="w-16 h-16" />
               </div>
-              <div className="text-lg font-semibold mb-2" style={{ color: '#EAECEF' }}>
+              <div
+                className="text-lg font-semibold mb-2"
+                style={{ color: '#EAECEF' }}
+              >
                 {language === 'zh' ? '暂无持仓记录' : 'No Positions Yet'}
               </div>
               <div className="text-sm">
-                {language === 'zh' ? '持仓记录将显示在这里' : 'Position history will appear here'}
+                {language === 'zh'
+                  ? '持仓记录将显示在这里'
+                  : 'Position history will appear here'}
               </div>
             </div>
           )}
@@ -1715,7 +2134,10 @@ function StatCard({
 }
 
 // Helper function to translate AI error messages
-function translateAIErrorMessage(message: string, language: 'en' | 'zh'): string {
+function translateAIErrorMessage(
+  message: string,
+  language: 'en' | 'zh'
+): string {
   if (!message) return message
 
   // If message contains Chinese characters and language is English, try to translate
@@ -1724,7 +2146,8 @@ function translateAIErrorMessage(message: string, language: 'en' | 'zh'): string
     let translated = message.replace(/^AI拒绝:\s*/i, t('aiRejected', language))
 
     // Pattern: 信号价格X与当前市场价Y严重不符（相差Z%）
-    const priceMismatchPattern = /信号价格([\d.]+)与当前市场价([\d.]+)严重不符（相差([\d.]+)%）/
+    const priceMismatchPattern =
+      /信号价格([\d.]+)与当前市场价([\d.]+)严重不符（相差([\d.]+)%）/
     while (priceMismatchPattern.test(translated)) {
       const match = translated.match(priceMismatchPattern)
       if (match) {
@@ -1917,7 +2340,9 @@ function DecisionCard({
                 {action.action}
               </span>
               {action.leverage > 0 && (
-                <span style={{ color: 'var(--green-primary)' }}>{action.leverage}x</span>
+                <span style={{ color: 'var(--green-primary)' }}>
+                  {action.leverage}x
+                </span>
               )}
               {action.price > 0 && (
                 <span
@@ -1951,15 +2376,20 @@ function DecisionCard({
           style={{ background: 'var(--navy-primary)', color: '#848E9C' }}
         >
           <span>
-            {t('totalEquity', language)}: {decision.account_state.total_balance.toFixed(2)} USDT
+            {t('totalEquity', language)}:{' '}
+            {decision.account_state.total_balance.toFixed(2)} USDT
           </span>
           <span>
-            {t('availableBalance', language)}: {decision.account_state.available_balance.toFixed(2)} USDT
+            {t('availableBalance', language)}:{' '}
+            {decision.account_state.available_balance.toFixed(2)} USDT
           </span>
           <span>
-            {t('margin', language)}: {decision.account_state.margin_used_pct.toFixed(1)}%
+            {t('margin', language)}:{' '}
+            {decision.account_state.margin_used_pct.toFixed(1)}%
           </span>
-          <span>{t('positions', language)}: {decision.account_state.position_count}</span>
+          <span>
+            {t('positions', language)}: {decision.account_state.position_count}
+          </span>
           <span
             style={{
               color:
@@ -2036,7 +2466,8 @@ function DecisionCard({
           className="text-sm rounded px-3 py-2 mt-3 flex items-center gap-2"
           style={{ color: '#F6465D', background: 'rgba(246, 70, 93, 0.1)' }}
         >
-          <XCircle className="w-4 h-4" /> {translateAIErrorMessage(decision.error_message, language)}
+          <XCircle className="w-4 h-4" />{' '}
+          {translateAIErrorMessage(decision.error_message, language)}
         </div>
       )}
     </div>

@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth, isFollower } from '../contexts/AuthContext'
 import { api } from '../lib/api'
 import { toast } from 'sonner'
-import type { TraderApplication, CreateTraderApplicationRequest, SocialLinks } from '../types'
+import type {
+  TraderApplication,
+  CreateTraderApplicationRequest,
+  SocialLinks,
+} from '../types'
 import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 
 export default function TraderApplicationPage() {
@@ -25,7 +29,8 @@ export default function TraderApplicationPage() {
   })
   const [loading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [existingApplication, setExistingApplication] = useState<TraderApplication | null>(null)
+  const [existingApplication, setExistingApplication] =
+    useState<TraderApplication | null>(null)
   const [loadingApplication, setLoadingApplication] = useState(true)
 
   // Redirect if not follower
@@ -56,12 +61,14 @@ export default function TraderApplicationPage() {
           strategy_overview: app.strategy_overview,
           social_links: app.social_links || {},
         })
-        setSocialLinks(app.social_links || {
-          twitter: '',
-          telegram: '',
-          discord: '',
-          website: '',
-        })
+        setSocialLinks(
+          app.social_links || {
+            twitter: '',
+            telegram: '',
+            discord: '',
+            website: '',
+          }
+        )
       }
     } catch (error: any) {
       console.error('Failed to load application:', error)
@@ -114,7 +121,10 @@ export default function TraderApplicationPage() {
 
       const request: CreateTraderApplicationRequest = {
         ...formData,
-        social_links: Object.keys(filteredSocialLinks).length > 0 ? filteredSocialLinks : undefined,
+        social_links:
+          Object.keys(filteredSocialLinks).length > 0
+            ? filteredSocialLinks
+            : undefined,
       }
 
       await api.createTraderApplication(request)
@@ -171,11 +181,15 @@ export default function TraderApplicationPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+        <h1
+          className="text-3xl font-bold mb-2"
+          style={{ color: 'var(--text-primary)' }}
+        >
           Become a Trader
         </h1>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Fill in the following information to apply to become a trader and let other users follow your trading strategies
+          Fill in the following information to apply to become a trader and let
+          other users follow your trading strategies
         </p>
       </div>
 
@@ -188,23 +202,39 @@ export default function TraderApplicationPage() {
           }}
         >
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h3
+              className="font-semibold"
+              style={{ color: 'var(--text-primary)' }}
+            >
               Current Application Status
             </h3>
             {getStatusBadge(existingApplication.status)}
           </div>
           {existingApplication.admin_notes && (
-            <div className="mt-3 p-3 rounded" style={{ background: 'var(--navy-dark)', border: '1px solid var(--panel-border)' }}>
-            <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
-              Admin Notes:
-            </p>
-            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
-              {existingApplication.admin_notes}
-            </p>
-          </div>
+            <div
+              className="mt-3 p-3 rounded"
+              style={{
+                background: 'var(--navy-dark)',
+                border: '1px solid var(--panel-border)',
+              }}
+            >
+              <p
+                className="text-sm font-semibold mb-1"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Admin Notes:
+              </p>
+              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                {existingApplication.admin_notes}
+              </p>
+            </div>
           )}
-          <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
-            Submitted: {new Date(existingApplication.created_at).toLocaleString()}
+          <p
+            className="text-xs mt-2"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Submitted:{' '}
+            {new Date(existingApplication.created_at).toLocaleString()}
           </p>
         </div>
       )}
@@ -228,8 +258,14 @@ export default function TraderApplicationPage() {
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              disabled={existingApplication?.status === 'pending' || existingApplication?.status === 'approved' || submitting}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              disabled={
+                existingApplication?.status === 'pending' ||
+                existingApplication?.status === 'approved' ||
+                submitting
+              }
               className="w-full px-4 py-2 rounded-lg border"
               style={{
                 background: 'var(--input-bg)',
@@ -252,8 +288,14 @@ export default function TraderApplicationPage() {
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={existingApplication?.status === 'pending' || existingApplication?.status === 'approved' || submitting}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              disabled={
+                existingApplication?.status === 'pending' ||
+                existingApplication?.status === 'approved' ||
+                submitting
+              }
               className="w-full px-4 py-2 rounded-lg border"
               style={{
                 background: 'var(--input-bg)',
@@ -275,8 +317,14 @@ export default function TraderApplicationPage() {
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              disabled={existingApplication?.status === 'pending' || existingApplication?.status === 'approved' || submitting}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              disabled={
+                existingApplication?.status === 'pending' ||
+                existingApplication?.status === 'approved' ||
+                submitting
+              }
               rows={4}
               className="w-full px-4 py-2 rounded-lg border resize-none"
               style={{
@@ -302,7 +350,11 @@ export default function TraderApplicationPage() {
               onChange={(e) =>
                 setFormData({ ...formData, trading_experience: e.target.value })
               }
-              disabled={existingApplication?.status === 'pending' || existingApplication?.status === 'approved' || submitting}
+              disabled={
+                existingApplication?.status === 'pending' ||
+                existingApplication?.status === 'approved' ||
+                submitting
+              }
               rows={5}
               className="w-full px-4 py-2 rounded-lg border resize-none"
               style={{
@@ -328,7 +380,11 @@ export default function TraderApplicationPage() {
               onChange={(e) =>
                 setFormData({ ...formData, strategy_overview: e.target.value })
               }
-              disabled={existingApplication?.status === 'pending' || existingApplication?.status === 'approved' || submitting}
+              disabled={
+                existingApplication?.status === 'pending' ||
+                existingApplication?.status === 'approved' ||
+                submitting
+              }
               rows={5}
               className="w-full px-4 py-2 rounded-lg border resize-none"
               style={{
@@ -351,7 +407,10 @@ export default function TraderApplicationPage() {
             </label>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
+                <label
+                  className="block text-xs mb-1"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   Twitter
                 </label>
                 <input
@@ -360,7 +419,11 @@ export default function TraderApplicationPage() {
                   onChange={(e) =>
                     setSocialLinks({ ...socialLinks, twitter: e.target.value })
                   }
-                  disabled={existingApplication?.status === 'pending' || existingApplication?.status === 'approved' || submitting}
+                  disabled={
+                    existingApplication?.status === 'pending' ||
+                    existingApplication?.status === 'approved' ||
+                    submitting
+                  }
                   className="w-full px-4 py-2 rounded-lg border"
                   style={{
                     background: 'var(--input-bg)',
@@ -371,7 +434,10 @@ export default function TraderApplicationPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
+                <label
+                  className="block text-xs mb-1"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   Telegram
                 </label>
                 <input
@@ -380,7 +446,11 @@ export default function TraderApplicationPage() {
                   onChange={(e) =>
                     setSocialLinks({ ...socialLinks, telegram: e.target.value })
                   }
-                  disabled={existingApplication?.status === 'pending' || existingApplication?.status === 'approved' || submitting}
+                  disabled={
+                    existingApplication?.status === 'pending' ||
+                    existingApplication?.status === 'approved' ||
+                    submitting
+                  }
                   className="w-full px-4 py-2 rounded-lg border"
                   style={{
                     background: 'var(--input-bg)',
@@ -391,7 +461,10 @@ export default function TraderApplicationPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
+                <label
+                  className="block text-xs mb-1"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   Discord
                 </label>
                 <input
@@ -400,7 +473,11 @@ export default function TraderApplicationPage() {
                   onChange={(e) =>
                     setSocialLinks({ ...socialLinks, discord: e.target.value })
                   }
-                  disabled={existingApplication?.status === 'pending' || existingApplication?.status === 'approved' || submitting}
+                  disabled={
+                    existingApplication?.status === 'pending' ||
+                    existingApplication?.status === 'approved' ||
+                    submitting
+                  }
                   className="w-full px-4 py-2 rounded-lg border"
                   style={{
                     background: 'var(--input-bg)',
@@ -411,7 +488,10 @@ export default function TraderApplicationPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
+                <label
+                  className="block text-xs mb-1"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   Personal Website
                 </label>
                 <input
@@ -420,7 +500,11 @@ export default function TraderApplicationPage() {
                   onChange={(e) =>
                     setSocialLinks({ ...socialLinks, website: e.target.value })
                   }
-                  disabled={existingApplication?.status === 'pending' || existingApplication?.status === 'approved' || submitting}
+                  disabled={
+                    existingApplication?.status === 'pending' ||
+                    existingApplication?.status === 'approved' ||
+                    submitting
+                  }
                   className="w-full px-4 py-2 rounded-lg border"
                   style={{
                     background: 'var(--input-bg)',
@@ -451,7 +535,9 @@ export default function TraderApplicationPage() {
               <button
                 type="submit"
                 disabled={
-                  existingApplication?.status === 'pending' || submitting || loading
+                  existingApplication?.status === 'pending' ||
+                  submitting ||
+                  loading
                 }
                 className="px-6 py-2 rounded-lg font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 style={{
@@ -482,9 +568,13 @@ export default function TraderApplicationPage() {
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5" style={{ color: '#10B981' }} />
+                  <CheckCircle2
+                    className="w-5 h-5"
+                    style={{ color: '#10B981' }}
+                  />
                   <p className="font-semibold" style={{ color: '#10B981' }}>
-                    Your application has been approved! Your role has been upgraded to trader.
+                    Your application has been approved! Your role has been
+                    upgraded to trader.
                   </p>
                 </div>
               </div>
@@ -495,4 +585,3 @@ export default function TraderApplicationPage() {
     </div>
   )
 }
-

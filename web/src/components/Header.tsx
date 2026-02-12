@@ -16,20 +16,31 @@ export function Header({ simple = false }: HeaderProps) {
           {/* Left - Logo and Title */}
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center">
-              <img src="/icons/nofx.svg" alt="AI Trading 24x7 Logo" className="w-8 h-8" width="32" height="32" />
+              <img
+                src="/icons/nofx.svg"
+                alt="AI Trading 24x7 Logo"
+                className="w-8 h-8"
+                width="32"
+                height="32"
+              />
             </div>
             <div>
-              <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              <h1
+                className="text-xl font-bold"
+                style={{ color: 'var(--text-primary)' }}
+              >
                 {t('appTitle', language)}
               </h1>
               {!simple && (
-                <p className="text-xs mono" style={{ color: 'var(--text-secondary)' }}>
+                <p
+                  className="text-xs mono"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   {t('subtitle', language)}
                 </p>
               )}
             </div>
           </div>
-
         </div>
       </Container>
     </header>

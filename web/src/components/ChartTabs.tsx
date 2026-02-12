@@ -26,7 +26,7 @@ export function ChartTabs({
   exchangeId,
   autoSwitchEnabled = false,
   autoSwitchInterval = 10,
-  onTabSwitchComplete
+  onTabSwitchComplete,
 }: ChartTabsProps) {
   const { language } = useLanguage()
   const [activeTab, setActiveTab] = useState<ChartTab>('equity')
@@ -45,7 +45,7 @@ export function ChartTabs({
     if (!autoSwitchEnabled) return
 
     const interval = setInterval(() => {
-      setActiveTab(prev => {
+      setActiveTab((prev) => {
         const newTab = prev === 'equity' ? 'kline' : 'equity'
         soundSystem.playChartSwitch()
         return newTab
@@ -69,10 +69,11 @@ export function ChartTabs({
           onClick={() => {
             setActiveTab('equity')
           }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'equity'
-            ? 'bg-green-500/10 text-green-500 border border-green-500/30 shadow-[0_0_10px_rgba(0,255,127,0.15)]'
-            : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
-            }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === 'equity'
+              ? 'bg-green-500/10 text-green-500 border border-green-500/30 shadow-[0_0_10px_rgba(0,255,127,0.15)]'
+              : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+          }`}
         >
           <BarChart3 className="w-4 h-4" />
           {t('accountEquityCurve', language)}
@@ -82,10 +83,11 @@ export function ChartTabs({
           onClick={() => {
             setActiveTab('kline')
           }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'kline'
-            ? 'bg-green-500/10 text-green-500 border border-green-500/30 shadow-[0_0_10px_rgba(0,255,127,0.15)]'
-            : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
-            }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === 'kline'
+              ? 'bg-green-500/10 text-green-500 border border-green-500/30 shadow-[0_0_10px_rgba(0,255,127,0.15)]'
+              : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+          }`}
         >
           <CandlestickChart className="w-4 h-4" />
           {t('marketChart', language)}
@@ -93,7 +95,13 @@ export function ChartTabs({
       </div>
 
       {/* Tab Content */}
-      <div className="relative overflow-hidden flex-1" style={{ minHeight: 'clamp(400px, calc(100vh - 350px), 800px)', height: '100%' }}>
+      <div
+        className="relative overflow-hidden flex-1"
+        style={{
+          minHeight: 'clamp(400px, calc(100vh - 350px), 800px)',
+          height: '100%',
+        }}
+      >
         <AnimatePresence mode="wait">
           {activeTab === 'equity' ? (
             <motion.div
@@ -133,4 +141,3 @@ export function ChartTabs({
     </div>
   )
 }
-

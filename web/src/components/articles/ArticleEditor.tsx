@@ -2,7 +2,19 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
-import { Bold, Italic, List, ListOrdered, Quote, Heading1, Heading2, Link as LinkIcon, Image as ImageIcon, Undo, Redo } from 'lucide-react'
+import {
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Quote,
+  Heading1,
+  Heading2,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Undo,
+  Redo,
+} from 'lucide-react'
 import { useState } from 'react'
 import { extractDirectImageUrl, convertImgBBUrl } from '../../utils/imgbb'
 
@@ -38,7 +50,8 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none focus:outline-none min-h-[400px] p-4',
+        class:
+          'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none focus:outline-none min-h-[400px] p-4',
         style: 'color: #000000;',
       },
       handleDOMEvents: {
@@ -56,7 +69,11 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
           if (!pastedText) return false
 
           // Check if pasted text contains ImgBB embed code or URL
-          if (pastedText.includes('ibb.co') || pastedText.includes('<img') || pastedText.includes('[img]')) {
+          if (
+            pastedText.includes('ibb.co') ||
+            pastedText.includes('<img') ||
+            pastedText.includes('[img]')
+          ) {
             const directUrl = extractDirectImageUrl(pastedText)
             if (directUrl) {
               // If we found a direct image URL, insert it as an image
@@ -66,7 +83,10 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
             } else {
               // Try to convert if it's a page URL
               const convertedUrl = convertImgBBUrl(pastedText)
-              if (convertedUrl !== pastedText && convertedUrl.includes('i.ibb.co')) {
+              if (
+                convertedUrl !== pastedText &&
+                convertedUrl.includes('i.ibb.co')
+              ) {
                 event.preventDefault()
                 editor.chain().focus().setImage({ src: convertedUrl }).run()
                 return true
@@ -82,7 +102,8 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
   const insertImage = () => {
     if (imageUrl && editor) {
       // Extract direct image URL from ImgBB embed codes or convert page URLs
-      const directUrl = extractDirectImageUrl(imageUrl) || convertImgBBUrl(imageUrl)
+      const directUrl =
+        extractDirectImageUrl(imageUrl) || convertImgBBUrl(imageUrl)
       editor.chain().focus().setImage({ src: directUrl }).run()
       setImageUrl('')
       setShowImageDialog(false)
@@ -93,11 +114,20 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
     if (linkUrl && editor) {
       const { from, to } = editor.state.selection
       const text = editor.state.doc.textBetween(from, to)
-      
+
       if (text) {
-        editor.chain().focus().extendMarkRange('link').setLink({ href: linkUrl }).run()
+        editor
+          .chain()
+          .focus()
+          .extendMarkRange('link')
+          .setLink({ href: linkUrl })
+          .run()
       } else {
-        editor.chain().focus().insertContent(`<a href="${linkUrl}">${linkUrl}</a>`).run()
+        editor
+          .chain()
+          .focus()
+          .insertContent(`<a href="${linkUrl}">${linkUrl}</a>`)
+          .run()
       }
       setLinkUrl('')
       setShowLinkDialog(false)
@@ -109,12 +139,15 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
   }
 
   return (
-    <div className="rounded-md" style={{ borderColor: 'var(--border-color, #d1d5db)' }}>
+    <div
+      className="rounded-md"
+      style={{ borderColor: 'var(--border-color, #d1d5db)' }}
+    >
       {/* Toolbar */}
-      <div 
-        className="flex flex-wrap items-center gap-1 p-2 border-b sticky top-0 z-10 rounded-t-md" 
-        style={{ 
-          borderColor: 'var(--border-color, #e5e7eb)', 
+      <div
+        className="flex flex-wrap items-center gap-1 p-2 border-b sticky top-0 z-10 rounded-t-md"
+        style={{
+          borderColor: 'var(--border-color, #e5e7eb)',
           backgroundColor: 'var(--bg-secondary, #f9fafb)',
           position: 'sticky',
           top: 0,
@@ -145,24 +178,42 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
         >
           <Italic size={18} />
         </button>
-        <div className="w-px h-6" style={{ backgroundColor: 'var(--border-color, #d1d5db)' }} />
+        <div
+          className="w-px h-6"
+          style={{ backgroundColor: 'var(--border-color, #d1d5db)' }}
+        />
         <button
           type="button"
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 1 }).run()
+          }
           className={`p-2 rounded-md transition-colors ${editor.isActive('heading', { level: 1 }) ? 'bg-blue-600 text-white' : 'hover:bg-gray-200'}`}
-          style={{ color: editor.isActive('heading', { level: 1 }) ? 'white' : '#000000' }}
+          style={{
+            color: editor.isActive('heading', { level: 1 })
+              ? 'white'
+              : '#000000',
+          }}
         >
           <Heading1 size={18} />
         </button>
         <button
           type="button"
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run()
+          }
           className={`p-2 rounded-md transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-blue-600 text-white' : 'hover:bg-gray-200'}`}
-          style={{ color: editor.isActive('heading', { level: 2 }) ? 'white' : '#000000' }}
+          style={{
+            color: editor.isActive('heading', { level: 2 })
+              ? 'white'
+              : '#000000',
+          }}
         >
           <Heading2 size={18} />
         </button>
-        <div className="w-px h-6" style={{ backgroundColor: 'var(--border-color, #d1d5db)' }} />
+        <div
+          className="w-px h-6"
+          style={{ backgroundColor: 'var(--border-color, #d1d5db)' }}
+        />
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -175,7 +226,9 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
           type="button"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           className={`p-2 rounded-md transition-colors ${editor.isActive('orderedList') ? 'bg-blue-600 text-white' : 'hover:bg-gray-200'}`}
-          style={{ color: editor.isActive('orderedList') ? 'white' : '#000000' }}
+          style={{
+            color: editor.isActive('orderedList') ? 'white' : '#000000',
+          }}
         >
           <ListOrdered size={18} />
         </button>
@@ -187,7 +240,10 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
         >
           <Quote size={18} />
         </button>
-        <div className="w-px h-6" style={{ backgroundColor: 'var(--border-color, #d1d5db)' }} />
+        <div
+          className="w-px h-6"
+          style={{ backgroundColor: 'var(--border-color, #d1d5db)' }}
+        />
         <button
           type="button"
           onClick={() => setShowLinkDialog(true)}
@@ -204,7 +260,10 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
         >
           <ImageIcon size={18} />
         </button>
-        <div className="w-px h-6" style={{ backgroundColor: 'var(--border-color, #d1d5db)' }} />
+        <div
+          className="w-px h-6"
+          style={{ backgroundColor: 'var(--border-color, #d1d5db)' }}
+        />
         <button
           type="button"
           onClick={() => editor.chain().focus().undo().run()}
@@ -226,8 +285,8 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
       </div>
 
       {/* Editor Content */}
-      <div 
-        className="min-h-[400px] p-4 rounded-b-md" 
+      <div
+        className="min-h-[400px] p-4 rounded-b-md"
         style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}
         onClick={() => editor.commands.focus()}
       >
@@ -237,14 +296,31 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
       {/* Image Dialog */}
       {showImageDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl" style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}>
-            <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary, #1f2937)' }}>Insert Image</h3>
-            <p className="text-xs mb-4" style={{ color: 'var(--text-secondary, #6b7280)' }}>
-              Recommended dimensions: 1200 x 900 px (preferred) or 900 x 600 px (acceptable) for optimal display quality
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
+            style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}
+          >
+            <h3
+              className="text-lg font-semibold mb-2"
+              style={{ color: 'var(--text-primary, #1f2937)' }}
+            >
+              Insert Image
+            </h3>
+            <p
+              className="text-xs mb-4"
+              style={{ color: 'var(--text-secondary, #6b7280)' }}
+            >
+              Recommended dimensions: 1200 x 900 px (preferred) or 900 x 600 px
+              (acceptable) for optimal display quality
             </p>
-            <p className="text-xs mb-4" style={{ color: 'var(--text-secondary, #6b7280)' }}>
-              <strong>For ImgBB images:</strong> Paste the direct image URL from ImgBB's embed codes (HTML or BBCode) for best results. 
-              You can also paste the page URL (https://ibb.co/...) and it will be converted automatically.
+            <p
+              className="text-xs mb-4"
+              style={{ color: 'var(--text-secondary, #6b7280)' }}
+            >
+              <strong>For ImgBB images:</strong> Paste the direct image URL from
+              ImgBB's embed codes (HTML or BBCode) for best results. You can
+              also paste the page URL (https://ibb.co/...) and it will be
+              converted automatically.
             </p>
             <input
               type="url"
@@ -256,8 +332,13 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
                 // Extract direct URL from pasted embed code
                 const pastedText = e.clipboardData.getData('text/plain')
                 if (pastedText) {
-                  const directUrl = extractDirectImageUrl(pastedText) || convertImgBBUrl(pastedText)
-                  if (directUrl !== pastedText || directUrl.includes('i.ibb.co')) {
+                  const directUrl =
+                    extractDirectImageUrl(pastedText) ||
+                    convertImgBBUrl(pastedText)
+                  if (
+                    directUrl !== pastedText ||
+                    directUrl.includes('i.ibb.co')
+                  ) {
                     e.preventDefault()
                     setImageUrl(directUrl)
                   }
@@ -265,10 +346,10 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
               }}
               placeholder="Enter image URL or paste ImgBB embed code"
               className="w-full px-3 py-2 border rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              style={{ 
-                borderColor: 'var(--border-color, #d1d5db)', 
-                color: 'var(--text-primary, #111827)', 
-                backgroundColor: 'var(--bg-primary, #ffffff)' 
+              style={{
+                borderColor: 'var(--border-color, #d1d5db)',
+                color: 'var(--text-primary, #111827)',
+                backgroundColor: 'var(--bg-primary, #ffffff)',
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -285,9 +366,9 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
                 type="button"
                 onClick={() => setShowImageDialog(false)}
                 className="px-4 py-2 border rounded-md hover:bg-gray-50 transition-colors font-medium"
-                style={{ 
-                  borderColor: 'var(--border-color, #d1d5db)', 
-                  color: 'var(--text-primary, #374151)' 
+                style={{
+                  borderColor: 'var(--border-color, #d1d5db)',
+                  color: 'var(--text-primary, #374151)',
                 }}
               >
                 Cancel
@@ -307,18 +388,26 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
       {/* Link Dialog */}
       {showLinkDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl" style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}>
-            <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary, #1f2937)' }}>Insert Link</h3>
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
+            style={{ backgroundColor: 'var(--bg-primary, #ffffff)' }}
+          >
+            <h3
+              className="text-lg font-semibold mb-4"
+              style={{ color: 'var(--text-primary, #1f2937)' }}
+            >
+              Insert Link
+            </h3>
             <input
               type="url"
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
               placeholder="Enter URL"
               className="w-full px-3 py-2 border rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              style={{ 
-                borderColor: 'var(--border-color, #d1d5db)', 
-                color: 'var(--text-primary, #111827)', 
-                backgroundColor: 'var(--bg-primary, #ffffff)' 
+              style={{
+                borderColor: 'var(--border-color, #d1d5db)',
+                color: 'var(--text-primary, #111827)',
+                backgroundColor: 'var(--bg-primary, #ffffff)',
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -335,9 +424,9 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
                 type="button"
                 onClick={() => setShowLinkDialog(false)}
                 className="px-4 py-2 border rounded-md hover:bg-gray-50 transition-colors font-medium"
-                style={{ 
-                  borderColor: 'var(--border-color, #d1d5db)', 
-                  color: 'var(--text-primary, #374151)' 
+                style={{
+                  borderColor: 'var(--border-color, #d1d5db)',
+                  color: 'var(--text-primary, #374151)',
                 }}
               >
                 Cancel

@@ -25,7 +25,9 @@ const customRenderer = () => (
 
 export function DevToastController() {
   const [type, setType] = useState<ToastType>('success')
-  const [message, setMessage] = useState('Test notification from Dev controller')
+  const [message, setMessage] = useState(
+    'Test notification from Dev controller'
+  )
   const [duration, setDuration] = useState(2200)
 
   if (!import.meta.env.DEV) {

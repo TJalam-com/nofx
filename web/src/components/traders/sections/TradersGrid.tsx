@@ -17,7 +17,10 @@ function formatStrategyName(templateName: string | undefined | null): string {
     'risk-management': 'Risk Management',
   }
   const lowerName = templateName.toLowerCase()
-  return nameMap[lowerName] || templateName.charAt(0).toUpperCase() + templateName.slice(1)
+  return (
+    nameMap[lowerName] ||
+    templateName.charAt(0).toUpperCase() + templateName.slice(1)
+  )
 }
 
 interface TradersGridProps {
@@ -59,7 +62,10 @@ export function TradersGrid({
         <div
           key={trader.trader_id}
           className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 rounded transition-all hover:translate-y-[-1px] gap-3 md:gap-4"
-          style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+          style={{
+            background: 'var(--navy-primary)',
+            border: '1px solid var(--panel-border)',
+          }}
         >
           <div className="flex items-center gap-3 md:gap-4">
             <div
@@ -196,21 +202,24 @@ export function TradersGrid({
                         color: '#848E9C',
                       }
                     : trader.show_in_competition !== false
-                    ? {
-                        background: 'rgba(14, 203, 129, 0.1)',
-                        color: '#0ECB81',
-                      }
-                    : {
-                        background: 'rgba(132, 142, 156, 0.1)',
-                        color: '#848E9C',
-                      }
+                      ? {
+                          background: 'rgba(14, 203, 129, 0.1)',
+                          color: '#0ECB81',
+                        }
+                      : {
+                          background: 'rgba(132, 142, 156, 0.1)',
+                          color: '#848E9C',
+                        }
                 }
                 title={
                   !trader.is_running
-                    ? t('startTraderFirst', language) || 'Start trader to enable competition visibility'
+                    ? t('startTraderFirst', language) ||
+                      'Start trader to enable competition visibility'
                     : trader.show_in_competition !== false
-                    ? t('competitionVisibilityShown', language) || 'Visible in competition'
-                    : t('competitionVisibilityHidden', language) || 'Hidden from competition'
+                      ? t('competitionVisibilityShown', language) ||
+                        'Visible in competition'
+                      : t('competitionVisibilityHidden', language) ||
+                        'Hidden from competition'
                 }
               >
                 {trader.show_in_competition !== false ? (

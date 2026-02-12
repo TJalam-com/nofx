@@ -32,7 +32,7 @@ export function extractDirectUrlFromBBCode(bbcode: string): string | null {
   if (!bbcode) return null
 
   // Try to match img tag in BBCode
-  const imgMatch = bbcode.match(/\[img\]([^\[]+)\[\/img\]/i)
+  const imgMatch = bbcode.match(/\[img\]([^[]+)\[\/img\]/i)
   if (imgMatch && imgMatch[1]) {
     const url = imgMatch[1].trim()
     // Verify it's an ImgBB direct URL
@@ -70,7 +70,7 @@ export function convertPageUrlToDirectUrl(pageUrl: string): string {
   // Pattern 2: https://i.ibb.co/{id}/{id}.png
   // Pattern 3: https://i.ibb.co/{id}/{id}.jpeg
   // Pattern 4: https://i.ibb.co/{id}/{id} (no extension, less common)
-  
+
   // Note: We can't determine the actual format without fetching the page,
   // so we'll try the most common pattern (jpg) first
   // The actual implementation should ideally fetch the page or use ImgBB API
@@ -154,4 +154,3 @@ export function extractDirectImageUrl(input: string): string | null {
   // Return null to indicate we couldn't extract a direct URL
   return null
 }
-

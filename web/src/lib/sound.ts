@@ -11,7 +11,8 @@ class SoundSystem {
     // Initialize audio context lazily when first sound is played
     if (typeof window !== 'undefined' && 'AudioContext' in window) {
       try {
-        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        this.audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)()
       } catch (e) {
         console.warn('AudioContext not supported, sounds will be disabled')
       }
@@ -35,12 +36,17 @@ class SoundSystem {
   /**
    * Play a simple beep sound
    */
-  private playBeep(frequency: number, duration: number, volume: number = 0.1): void {
+  private playBeep(
+    frequency: number,
+    duration: number,
+    volume: number = 0.1
+  ): void {
     if (!this.isEnabled()) return
 
     try {
       if (!this.audioContext) {
-        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        this.audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)()
       }
 
       const oscillator = this.audioContext.createOscillator()
@@ -53,8 +59,14 @@ class SoundSystem {
       oscillator.type = 'sine'
 
       gainNode.gain.setValueAtTime(0, this.audioContext.currentTime)
-      gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01)
-      gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration)
+      gainNode.gain.linearRampToValueAtTime(
+        volume,
+        this.audioContext.currentTime + 0.01
+      )
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.01,
+        this.audioContext.currentTime + duration
+      )
 
       oscillator.start(this.audioContext.currentTime)
       oscillator.stop(this.audioContext.currentTime + duration)

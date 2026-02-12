@@ -149,7 +149,8 @@ export const api = {
       `${API_BASE}/traders/${traderId}/competition`,
       { show_in_competition: showInCompetition }
     )
-    if (!result.success) throw new Error('Failed to update competition visibility')
+    if (!result.success)
+      throw new Error('Failed to update competition visibility')
   },
 
   async getTraderConfig(traderId: string): Promise<TraderConfigData> {
@@ -239,7 +240,9 @@ export const api = {
   },
 
   async deletePromptTemplate(id: string): Promise<void> {
-    const result = await httpClient.delete(`${API_BASE}/user/prompt-templates/${id}`)
+    const result = await httpClient.delete(
+      `${API_BASE}/user/prompt-templates/${id}`
+    )
     if (!result.success) throw new Error('删除提示词模板失败')
   },
 
@@ -279,19 +282,30 @@ export const api = {
   },
 
   async getStrategy(id: string): Promise<Strategy> {
-    const result = await httpClient.get<Strategy>(`${API_BASE}/strategies/${id}`)
+    const result = await httpClient.get<Strategy>(
+      `${API_BASE}/strategies/${id}`
+    )
     if (!result.success) throw new Error('获取策略失败')
     return result.data!
   },
 
   async createStrategy(data: CreateStrategyRequest): Promise<Strategy> {
-    const result = await httpClient.post<Strategy>(`${API_BASE}/strategies`, data)
+    const result = await httpClient.post<Strategy>(
+      `${API_BASE}/strategies`,
+      data
+    )
     if (!result.success) throw new Error('创建策略失败')
     return result.data!
   },
 
-  async updateStrategy(id: string, data: UpdateStrategyRequest): Promise<Strategy> {
-    const result = await httpClient.put<Strategy>(`${API_BASE}/strategies/${id}`, data)
+  async updateStrategy(
+    id: string,
+    data: UpdateStrategyRequest
+  ): Promise<Strategy> {
+    const result = await httpClient.put<Strategy>(
+      `${API_BASE}/strategies/${id}`,
+      data
+    )
     if (!result.success) throw new Error('更新策略失败')
     return result.data!
   },
@@ -313,9 +327,12 @@ export const api = {
   },
 
   async importStrategy(strategyData: Record<string, any>): Promise<Strategy> {
-    const result = await httpClient.post<Strategy>(`${API_BASE}/strategies/import`, {
-      strategy_data: strategyData,
-    })
+    const result = await httpClient.post<Strategy>(
+      `${API_BASE}/strategies/import`,
+      {
+        strategy_data: strategyData,
+      }
+    )
     if (!result.success) throw new Error('导入策略失败')
     return result.data!
   },
@@ -340,7 +357,10 @@ export const api = {
       const cryptoConfig = await this.getCryptoConfig()
       transportEncryptionEnabled = cryptoConfig.transport_encryption_enabled
     } catch (error) {
-      console.warn('Failed to get crypto config, defaulting to plain JSON:', error)
+      console.warn(
+        'Failed to get crypto config, defaulting to plain JSON:',
+        error
+      )
       transportEncryptionEnabled = false
     }
 
@@ -363,12 +383,17 @@ export const api = {
       )
 
       // Send encrypted data
-      const result = await httpClient.put(`${API_BASE}/models`, encryptedPayload)
-      if (!result.success) throw new Error('Failed to update model configuration')
+      const result = await httpClient.put(
+        `${API_BASE}/models`,
+        encryptedPayload
+      )
+      if (!result.success)
+        throw new Error('Failed to update model configuration')
     } else {
       // Transport encryption disabled, send plain JSON
       const result = await httpClient.put(`${API_BASE}/models`, request)
-      if (!result.success) throw new Error('Failed to update model configuration')
+      if (!result.success)
+        throw new Error('Failed to update model configuration')
     }
   },
 
@@ -392,7 +417,8 @@ export const api = {
     request: UpdateExchangeConfigRequest
   ): Promise<void> {
     const result = await httpClient.put(`${API_BASE}/exchanges`, request)
-    if (!result.success) throw new Error('Failed to update exchange configuration')
+    if (!result.success)
+      throw new Error('Failed to update exchange configuration')
   },
 
   // Update exchange configuration with encrypted transport (when TRANSPORT_ENCRYPTION=true)
@@ -406,7 +432,10 @@ export const api = {
       const cryptoConfig = await this.getCryptoConfig()
       transportEncryptionEnabled = cryptoConfig.transport_encryption_enabled
     } catch (error) {
-      console.warn('Failed to get crypto config, defaulting to plain JSON:', error)
+      console.warn(
+        'Failed to get crypto config, defaulting to plain JSON:',
+        error
+      )
       transportEncryptionEnabled = false
     }
 
@@ -433,11 +462,13 @@ export const api = {
         `${API_BASE}/exchanges`,
         encryptedPayload
       )
-      if (!result.success) throw new Error('Failed to update exchange configuration')
+      if (!result.success)
+        throw new Error('Failed to update exchange configuration')
     } else {
       // Transport encryption disabled, send plain JSON
       const result = await httpClient.put(`${API_BASE}/exchanges`, request)
-      if (!result.success) throw new Error('Failed to update exchange configuration')
+      if (!result.success)
+        throw new Error('Failed to update exchange configuration')
     }
   },
 
@@ -703,7 +734,10 @@ export const api = {
   },
 
   async testWebhook(payload: object): Promise<any> {
-    const result = await httpClient.post(`${API_BASE}/webhook/tradingview`, payload)
+    const result = await httpClient.post(
+      `${API_BASE}/webhook/tradingview`,
+      payload
+    )
     if (!result.success) throw new Error('测试webhook失败')
     return result.data
   },
@@ -751,7 +785,9 @@ export const api = {
     return handleJSONResponse<BacktestRunsResponse>(res)
   },
 
-  async startBacktest(config: BacktestStartConfig): Promise<BacktestRunMetadata> {
+  async startBacktest(
+    config: BacktestStartConfig
+  ): Promise<BacktestRunMetadata> {
     const res = await fetch(`${API_BASE}/backtest/start`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -919,9 +955,12 @@ export const api = {
   },
 
   async updateUserRole(userId: string, role: string): Promise<void> {
-    const result = await httpClient.put(`${API_BASE}/admin/users/${userId}/role`, {
-      role,
-    })
+    const result = await httpClient.put(
+      `${API_BASE}/admin/users/${userId}/role`,
+      {
+        role,
+      }
+    )
     if (!result.success) {
       throw new Error(result.message || '更新用户角色失败')
     }
@@ -929,9 +968,11 @@ export const api = {
 
   // 获取当前用户信息（用于刷新角色等）
   async getCurrentUser(): Promise<{ id: string; email: string; role: string }> {
-    const result = await httpClient.get<{ id: string; email: string; role: string }>(
-      `${API_BASE}/user/me`
-    )
+    const result = await httpClient.get<{
+      id: string
+      email: string
+      role: string
+    }>(`${API_BASE}/user/me`)
     if (!result.success) {
       throw new Error(result.message || '获取用户信息失败')
     }
@@ -994,13 +1035,19 @@ export const api = {
   },
 
   // Article APIs (Admin)
-  async getArticles(status?: string, limit?: number, offset?: number): Promise<Article[]> {
+  async getArticles(
+    status?: string,
+    limit?: number,
+    offset?: number
+  ): Promise<Article[]> {
     const params = new URLSearchParams()
     if (status) params.append('status', status)
     if (limit) params.append('limit', limit.toString())
     if (offset) params.append('offset', offset.toString())
     const query = params.toString()
-    const url = query ? `${API_BASE}/admin/articles?${query}` : `${API_BASE}/admin/articles`
+    const url = query
+      ? `${API_BASE}/admin/articles?${query}`
+      : `${API_BASE}/admin/articles`
     const result = await httpClient.get<ArticlesResponse>(url)
     if (!result.success) {
       throw new Error(result.message || '获取文章列表失败')
@@ -1009,7 +1056,9 @@ export const api = {
   },
 
   async getArticle(id: string): Promise<Article> {
-    const result = await httpClient.get<Article>(`${API_BASE}/admin/articles/${id}`)
+    const result = await httpClient.get<Article>(
+      `${API_BASE}/admin/articles/${id}`
+    )
     if (!result.success) {
       throw new Error(result.message || '获取文章失败')
     }
@@ -1017,15 +1066,24 @@ export const api = {
   },
 
   async createArticle(article: CreateArticleRequest): Promise<Article> {
-    const result = await httpClient.post<Article>(`${API_BASE}/admin/articles`, article)
+    const result = await httpClient.post<Article>(
+      `${API_BASE}/admin/articles`,
+      article
+    )
     if (!result.success) {
       throw new Error(result.message || '创建文章失败')
     }
     return result.data!
   },
 
-  async updateArticle(id: string, article: UpdateArticleRequest): Promise<Article> {
-    const result = await httpClient.put<Article>(`${API_BASE}/admin/articles/${id}`, article)
+  async updateArticle(
+    id: string,
+    article: UpdateArticleRequest
+  ): Promise<Article> {
+    const result = await httpClient.put<Article>(
+      `${API_BASE}/admin/articles/${id}`,
+      article
+    )
     if (!result.success) {
       throw new Error(result.message || '更新文章失败')
     }
@@ -1040,7 +1098,10 @@ export const api = {
   },
 
   async publishArticle(id: string): Promise<Article> {
-    const result = await httpClient.post<Article>(`${API_BASE}/admin/articles/${id}/publish`, {})
+    const result = await httpClient.post<Article>(
+      `${API_BASE}/admin/articles/${id}/publish`,
+      {}
+    )
     if (!result.success) {
       throw new Error(result.message || '发布文章失败')
     }
@@ -1048,7 +1109,10 @@ export const api = {
   },
 
   async unpublishArticle(id: string): Promise<Article> {
-    const result = await httpClient.post<Article>(`${API_BASE}/admin/articles/${id}/unpublish`, {})
+    const result = await httpClient.post<Article>(
+      `${API_BASE}/admin/articles/${id}/unpublish`,
+      {}
+    )
     if (!result.success) {
       throw new Error(result.message || '取消发布文章失败')
     }
@@ -1056,7 +1120,10 @@ export const api = {
   },
 
   // Public Article APIs
-  async getPublishedArticles(limit?: number, offset?: number): Promise<Article[]> {
+  async getPublishedArticles(
+    limit?: number,
+    offset?: number
+  ): Promise<Article[]> {
     const params = new URLSearchParams()
     if (limit) params.append('limit', limit.toString())
     if (offset) params.append('offset', offset.toString())

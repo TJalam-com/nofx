@@ -5,6 +5,6 @@ interface FooterSectionProps {
   language: Language
 }
 
-export default function FooterSection({}: FooterSectionProps) {
-  return <Footer variant="full" />
+export default function FooterSection({ language }: FooterSectionProps) {
+  return <Footer variant="full" language={language} />
 }

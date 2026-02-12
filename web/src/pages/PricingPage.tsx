@@ -7,10 +7,10 @@ import { OfferSchema, BreadcrumbListSchema } from '../components/StructuredData'
 
 /**
  * Pricing Page
- * 
+ *
  * Displays current pricing information (free till testing) and
  * placeholder structure for future pricing tiers.
- * 
+ *
  * Accessibility: Full keyboard navigation support, semantic HTML structure
  * Responsive: Mobile-first design with proper breakpoints
  * Dark/Light Mode: Uses CSS variables for theme compatibility
@@ -23,17 +23,21 @@ export function PricingPage() {
   return (
     <>
       <SEOComponent />
-      <OfferSchema offer={{
-        name: 'Free Trial',
-        price: '0',
-        priceCurrency: 'USD',
-        availability: 'https://schema.org/InStock',
-        url: `${baseUrl}/register`,
-      }} />
-      <BreadcrumbListSchema items={[
-        { name: 'Home', url: '/' },
-        { name: 'Pricing', url: '/pricing' },
-      ]} />
+      <OfferSchema
+        offer={{
+          name: 'Free Trial',
+          price: '0',
+          priceCurrency: 'USD',
+          availability: 'https://schema.org/InStock',
+          url: `${baseUrl}/register`,
+        }}
+      />
+      <BreadcrumbListSchema
+        items={[
+          { name: 'Home', url: '/' },
+          { name: 'Pricing', url: '/pricing' },
+        ]}
+      />
       <Container className="py-12">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -73,10 +77,7 @@ export function PricingPage() {
             >
               {t('pricingCurrentStatusPrice', language)}
             </p>
-            <p
-              className="text-sm"
-              style={{ color: 'var(--text-secondary)' }}
-            >
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               {t('pricingCurrentStatusDescription', language)}
             </p>
           </div>
@@ -95,7 +96,7 @@ export function PricingPage() {
             >
               {t('pricingCurrentPlanTitle', language)}
             </h2>
-            
+
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <h3
@@ -144,7 +145,10 @@ export function PricingPage() {
                     'pricingLimitation3',
                   ].map((limitationKey) => (
                     <li key={limitationKey} className="flex items-start gap-3">
-                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      <span
+                        className="text-sm"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
                         • {t(limitationKey, language)}
                       </span>
                     </li>
@@ -162,7 +166,7 @@ export function PricingPage() {
             >
               {t('pricingFutureTiersTitle', language)}
             </h2>
-            
+
             <div className="grid md:grid-cols-3 gap-6">
               {/* Professional Tier Placeholder */}
               <div
@@ -190,7 +194,10 @@ export function PricingPage() {
                 >
                   {t('pricingTierProfessionalDescription', language)}
                 </p>
-                <div className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
+                <div
+                  className="text-xs text-center"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
                   {t('pricingComingSoon', language)}
                 </div>
               </div>
@@ -221,7 +228,10 @@ export function PricingPage() {
                 >
                   {t('pricingTierEnterpriseDescription', language)}
                 </p>
-                <div className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
+                <div
+                  className="text-xs text-center"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
                   {t('pricingComingSoon', language)}
                 </div>
               </div>
@@ -252,7 +262,10 @@ export function PricingPage() {
                 >
                   {t('pricingTierCustomDescription', language)}
                 </p>
-                <div className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
+                <div
+                  className="text-xs text-center"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
                   {t('pricingComingSoon', language)}
                 </div>
               </div>

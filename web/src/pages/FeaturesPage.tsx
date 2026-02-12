@@ -2,15 +2,27 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { useSEO } from '../hooks/useSEO'
 import { Container } from '../components/Container'
-import { Check, Zap, Shield, GitBranch, BarChart3, Webhook, Users, Cpu } from 'lucide-react'
-import { SoftwareApplicationSchema, BreadcrumbListSchema } from '../components/StructuredData'
+import {
+  Check,
+  Zap,
+  Shield,
+  GitBranch,
+  BarChart3,
+  Webhook,
+  Users,
+  Cpu,
+} from 'lucide-react'
+import {
+  SoftwareApplicationSchema,
+  BreadcrumbListSchema,
+} from '../components/StructuredData'
 
 /**
  * Features Page
- * 
+ *
  * Deep dive into platform capabilities, showcasing all features
  * and functionality of AI Trading 24x7.
- * 
+ *
  * Accessibility: Full keyboard navigation support, semantic HTML structure
  * Responsive: Mobile-first design with proper breakpoints
  * Dark/Light Mode: Uses CSS variables for theme compatibility
@@ -101,10 +113,12 @@ export function FeaturesPage() {
         operatingSystem="Web"
         url={`${baseUrl}/features`}
       />
-      <BreadcrumbListSchema items={[
-        { name: 'Home', url: '/' },
-        { name: 'Features', url: '/features' },
-      ]} />
+      <BreadcrumbListSchema
+        items={[
+          { name: 'Home', url: '/' },
+          { name: 'Features', url: '/features' },
+        ]}
+      />
       <Container className="py-12">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -141,7 +155,10 @@ export function FeaturesPage() {
                       className="rounded-lg p-3 flex-shrink-0"
                       style={{ background: 'var(--navy-primary)' }}
                     >
-                      <Icon size={32} style={{ color: 'var(--green-primary)' }} />
+                      <Icon
+                        size={32}
+                        style={{ color: 'var(--green-primary)' }}
+                      />
                     </div>
                     <div className="flex-1">
                       <h2
@@ -206,7 +223,11 @@ export function FeaturesPage() {
                   'featuresTechnical6',
                 ].map((key) => (
                   <div key={key} className="flex items-start gap-3">
-                    <Zap size={18} style={{ color: 'var(--green-primary)' }} className="flex-shrink-0 mt-1" />
+                    <Zap
+                      size={18}
+                      style={{ color: 'var(--green-primary)' }}
+                      className="flex-shrink-0 mt-1"
+                    />
                     <span
                       className="text-sm"
                       style={{ color: 'var(--text-secondary)' }}

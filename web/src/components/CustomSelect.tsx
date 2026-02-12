@@ -48,20 +48,20 @@ export function CustomSelect({
   useEffect(() => {
     if (isOpen && selectRef.current && dropdownRef.current) {
       let rafId: number | null = null
-      
+
       const updatePosition = () => {
         if (selectRef.current && dropdownRef.current) {
           const rect = selectRef.current.getBoundingClientRect()
           const top = rect.bottom + 4
           const left = rect.left
           const width = rect.width
-          
+
           dropdownRef.current.style.top = `${top}px`
           dropdownRef.current.style.left = `${left}px`
           dropdownRef.current.style.width = `${width}px`
         }
       }
-      
+
       const throttledUpdate = () => {
         if (rafId !== null) return
         rafId = requestAnimationFrame(() => {
@@ -69,11 +69,11 @@ export function CustomSelect({
           rafId = null
         })
       }
-      
+
       updatePosition()
       window.addEventListener('scroll', throttledUpdate, true)
       window.addEventListener('resize', throttledUpdate)
-      
+
       return () => {
         if (rafId !== null) {
           cancelAnimationFrame(rafId)
@@ -109,7 +109,8 @@ export function CustomSelect({
           }}
           className="w-full px-4 py-2.5 text-left text-[#EAECEF] hover:bg-[var(--navy-primary)] transition-colors"
           style={{
-            background: value === option.value ? 'var(--navy-primary)' : 'transparent',
+            background:
+              value === option.value ? 'var(--navy-primary)' : 'transparent',
           }}
         >
           {option.label}
@@ -144,4 +145,3 @@ export function CustomSelect({
     </>
   )
 }
-

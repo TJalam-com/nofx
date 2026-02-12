@@ -15,14 +15,15 @@ export function StructuredData({ data }: StructuredDataProps) {
 // Organization Schema for homepage
 export function OrganizationSchema() {
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
-  
+
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'AI Trading 24x7',
     url: baseUrl,
     logo: `${baseUrl}/icons/nofx.svg`,
-    description: 'Multi-AI Model Trading Platform for automated cryptocurrency trading',
+    description:
+      'Multi-AI Model Trading Platform for automated cryptocurrency trading',
     sameAs: [
       'https://github.com/NoFxAiOS/nofx',
       // Add other social media links as they become available
@@ -35,7 +36,7 @@ export function OrganizationSchema() {
 // WebSite Schema with SearchAction
 export function WebSiteSchema() {
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
-  
+
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -55,7 +56,11 @@ export function WebSiteSchema() {
 }
 
 // FAQPage Schema
-export function FAQPageSchema({ faqs }: { faqs: Array<{ question: string; answer: string }> }) {
+export function FAQPageSchema({
+  faqs,
+}: {
+  faqs: Array<{ question: string; answer: string }>
+}) {
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -73,9 +78,13 @@ export function FAQPageSchema({ faqs }: { faqs: Array<{ question: string; answer
 }
 
 // BreadcrumbList Schema
-export function BreadcrumbListSchema({ items }: { items: Array<{ name: string; url: string }> }) {
+export function BreadcrumbListSchema({
+  items,
+}: {
+  items: Array<{ name: string; url: string }>
+}) {
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
-  
+
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -101,7 +110,7 @@ export interface OfferData {
 
 export function OfferSchema({ offer }: { offer: OfferData }) {
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
-  
+
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Offer',
@@ -123,7 +132,11 @@ export interface AggregateRatingData {
   worstRating?: number
 }
 
-export function AggregateRatingSchema({ rating }: { rating: AggregateRatingData }) {
+export function AggregateRatingSchema({
+  rating,
+}: {
+  rating: AggregateRatingData
+}) {
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'AggregateRating',
@@ -157,7 +170,7 @@ export function SoftwareApplicationSchema({
   url,
 }: SoftwareApplicationData = {}) {
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
-  
+
   const schema: Record<string, any> = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -190,4 +203,3 @@ export function SoftwareApplicationSchema({
 
   return <StructuredData data={schema} />
 }
-

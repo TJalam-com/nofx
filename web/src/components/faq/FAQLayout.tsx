@@ -65,14 +65,21 @@ export function FAQLayout({ language }: FAQLayoutProps) {
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center"
             style={{
-              background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+              background:
+                'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               boxShadow: '0 8px 24px var(--green-glow)',
             }}
           >
-            <HelpCircle className="w-8 h-8" style={{ color: 'var(--navy-primary)' }} />
+            <HelpCircle
+              className="w-8 h-8"
+              style={{ color: 'var(--navy-primary)' }}
+            />
           </div>
         </div>
-        <h1 className="text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h1
+          className="text-4xl font-bold mb-4"
+          style={{ color: 'var(--text-primary)' }}
+        >
           {t('faqTitle', language)}
         </h1>
         <p className="text-lg mb-8" style={{ color: 'var(--text-secondary)' }}>
@@ -126,7 +133,6 @@ export function FAQLayout({ language }: FAQLayoutProps) {
           )}
         </main>
       </div>
-
     </Container>
   )
 }

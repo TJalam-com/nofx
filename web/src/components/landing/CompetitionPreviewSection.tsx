@@ -8,7 +8,9 @@ interface CompetitionPreviewSectionProps {
   language: Language
 }
 
-export default function CompetitionPreviewSection({ language }: CompetitionPreviewSectionProps) {
+export default function CompetitionPreviewSection({
+  language,
+}: CompetitionPreviewSectionProps) {
   const isZh = language === 'zh'
 
   return (
@@ -77,7 +79,8 @@ export default function CompetitionPreviewSection({ language }: CompetitionPrevi
             <div
               className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
               style={{
-                background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
+                background:
+                  'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
                 border: '1px solid rgba(0, 255, 127, 0.3)',
               }}
             >
@@ -123,7 +126,8 @@ export default function CompetitionPreviewSection({ language }: CompetitionPrevi
             <div
               className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
               style={{
-                background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
+                background:
+                  'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
                 border: '1px solid rgba(0, 255, 127, 0.3)',
               }}
             >
@@ -169,7 +173,8 @@ export default function CompetitionPreviewSection({ language }: CompetitionPrevi
             <div
               className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
               style={{
-                background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
+                background:
+                  'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
                 border: '1px solid rgba(0, 255, 127, 0.3)',
               }}
             >
@@ -227,4 +232,3 @@ export default function CompetitionPreviewSection({ language }: CompetitionPrevi
     </AnimatedSection>
   )
 }
-

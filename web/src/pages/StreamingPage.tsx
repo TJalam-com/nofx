@@ -13,25 +13,34 @@ import { api } from '../lib/api'
 import { AccountInfo, StreamingConfig, TraderInfo } from '../types'
 import { generateTraderSlug, parseTraderSlug } from '../lib/utils'
 import { soundSystem } from '../lib/sound'
-import { TrendingUp, DollarSign, Activity, PieChart, Loader2, AlertTriangle } from 'lucide-react'
+import {
+  TrendingUp,
+  DollarSign,
+  Activity,
+  PieChart,
+  Loader2,
+  AlertTriangle,
+} from 'lucide-react'
 
 export default function StreamingPage() {
   const { user, token } = useAuth()
   const navigate = useNavigate()
   const { slug } = useParams<{ slug?: string }>()
-  const [selectedTraderId, setSelectedTraderId] = useState<string | undefined>(undefined)
+  const [selectedTraderId, setSelectedTraderId] = useState<string | undefined>(
+    undefined
+  )
   const [account, setAccount] = useState<AccountInfo | null>(null)
   const [traderNotFound, setTraderNotFound] = useState(false)
 
   // Get trader list (only when user is logged in)
-  const { data: traders, error: tradersError, isLoading: tradersLoading } = useSWR<TraderInfo[]>(
-    user && token ? 'traders' : null,
-    api.getTraders,
-    {
-      refreshInterval: 10000,
-      shouldRetryOnError: false,
-    }
-  )
+  const {
+    data: traders,
+    error: tradersError,
+    isLoading: tradersLoading,
+  } = useSWR<TraderInfo[]>(user && token ? 'traders' : null, api.getTraders, {
+    refreshInterval: 10000,
+    shouldRetryOnError: false,
+  })
   const [config, setConfig] = useState<StreamingConfig>({
     id: '',
     admin_id: user?.id || '',
@@ -87,7 +96,9 @@ export default function StreamingPage() {
 
   // Ref to track if auto-scroll is still enabled (to cancel promises)
   const autoScrollEnabledRef = useRef(false)
-  const waitForAnimationsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const waitForAnimationsTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null)
 
   // Human-like auto-scroll for full page (waits for animations to complete each cycle)
   useEffect(() => {
@@ -99,13 +110,15 @@ export default function StreamingPage() {
     // Mark as enabled
     autoScrollEnabledRef.current = true
 
-
     let rafId: number | null = null
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     let scrollCycleActive = false
 
     const getDocumentHeight = () =>
-      Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)
+      Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      )
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
@@ -124,7 +137,7 @@ export default function StreamingPage() {
         let chartAnimationStartTime = performance.now()
         const AI_SCROLL_TIMEOUT = 5000 // 5 seconds timeout for AI scroll
         const CHART_ANIMATION_TIMEOUT = 10000 // 10 seconds timeout for chart animation
-        
+
         const checkAnimations = () => {
           // Check if auto-scroll was disabled - cancel if so
           if (!autoScrollEnabledRef.current) {
@@ -144,7 +157,7 @@ export default function StreamingPage() {
               checkAnimations()
               return
             }
-            
+
             if (aiScrollComplete) {
               aiScrollWaited = true
               chartAnimationStartTime = performance.now() // Start timing chart animation when AI scroll completes
@@ -169,7 +182,7 @@ export default function StreamingPage() {
               return
             }
           }
-          
+
           // Step 2: After AI scroll completes, wait for 1 cycle of tab switch to complete
           // Add timeout: if chart animation doesn't complete within 10 seconds, skip it
           if (!chartCycleWaited) {
@@ -188,7 +201,7 @@ export default function StreamingPage() {
               waitForAnimationsTimeoutRef.current = checkTimeoutId
               return
             }
-            
+
             if (chartAnimationComplete) {
               chartCycleWaited = true
               // Step 3: Wait 2 seconds after tab switch cycle completion
@@ -224,22 +237,27 @@ export default function StreamingPage() {
 
       // If near bottom, pause then jump to top and wait for next animation cycle
       if (current >= maxScroll - 50) {
-        timeoutId = setTimeout(() => {
-          window.scrollTo({ top: 0, behavior: 'smooth' })
-          // Reset completion flags to wait for next animation cycle
-          setChartAnimationComplete(false)
-          setAiAnalysisComplete(false)
-          setAiScrollComplete(false)
-          // Wait for the full sequence: AI scroll -> Tab switch cycle -> 2 seconds -> Page scroll
-          waitForAnimations().then(() => {
-            if (autoScrollEnabledRef.current && scrollCycleActive) {
-              scrollCycleActive = true
-              startScrollCycle()
-            }
-          }).catch(() => {
-            // Auto-scroll was disabled, ignore
-          })
-        }, (1500 + Math.random() * 800) / config.auto_scroll_page_speed)
+        timeoutId = setTimeout(
+          () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+            // Reset completion flags to wait for next animation cycle
+            setChartAnimationComplete(false)
+            setAiAnalysisComplete(false)
+            setAiScrollComplete(false)
+            // Wait for the full sequence: AI scroll -> Tab switch cycle -> 2 seconds -> Page scroll
+            waitForAnimations()
+              .then(() => {
+                if (autoScrollEnabledRef.current && scrollCycleActive) {
+                  scrollCycleActive = true
+                  startScrollCycle()
+                }
+              })
+              .catch(() => {
+                // Auto-scroll was disabled, ignore
+              })
+          },
+          (1500 + Math.random() * 800) / config.auto_scroll_page_speed
+        )
         return
       }
 
@@ -264,14 +282,16 @@ export default function StreamingPage() {
           setAiAnalysisComplete(false)
           setAiScrollComplete(false)
           // Wait for the full sequence: AI scroll -> Tab switch cycle -> 2 seconds -> Page scroll
-          waitForAnimations().then(() => {
-            if (autoScrollEnabledRef.current && scrollCycleActive) {
-              scrollCycleActive = true
-              startScrollCycle()
-            }
-          }).catch(() => {
-            // Auto-scroll was disabled, ignore
-          })
+          waitForAnimations()
+            .then(() => {
+              if (autoScrollEnabledRef.current && scrollCycleActive) {
+                scrollCycleActive = true
+                startScrollCycle()
+              }
+            })
+            .catch(() => {
+              // Auto-scroll was disabled, ignore
+            })
         }
       }
 
@@ -285,14 +305,16 @@ export default function StreamingPage() {
 
     // Wait for the proper sequence: AI scroll -> Tab switch cycle -> 2 seconds -> Page scroll
     // Don't start scrolling immediately - wait for the full sequence to complete
-    waitForAnimations().then(() => {
-      if (autoScrollEnabledRef.current) {
-        scrollCycleActive = true
-        startScrollCycle()
-      }
-    }).catch(() => {
-      // Auto-scroll was disabled, ignore
-    })
+    waitForAnimations()
+      .then(() => {
+        if (autoScrollEnabledRef.current) {
+          scrollCycleActive = true
+          startScrollCycle()
+        }
+      })
+      .catch(() => {
+        // Auto-scroll was disabled, ignore
+      })
 
     return () => {
       autoScrollEnabledRef.current = false
@@ -304,7 +326,13 @@ export default function StreamingPage() {
         waitForAnimationsTimeoutRef.current = null
       }
     }
-  }, [config.auto_scroll_page, config.auto_scroll_page_speed, chartAnimationComplete, aiAnalysisComplete, aiScrollComplete])
+  }, [
+    config.auto_scroll_page,
+    config.auto_scroll_page_speed,
+    chartAnimationComplete,
+    aiAnalysisComplete,
+    aiScrollComplete,
+  ])
 
   // Resolve trader ID from slug
   useEffect(() => {
@@ -326,7 +354,10 @@ export default function StreamingPage() {
     // Priority 1: Check slug format from URL path (/stream/:slug)
     // Try to find trader by matching slug
     for (const trader of safeTraders) {
-      const traderSlug = generateTraderSlug(trader.trader_name, trader.trader_id)
+      const traderSlug = generateTraderSlug(
+        trader.trader_name,
+        trader.trader_id
+      )
       if (traderSlug === slug) {
         traderId = trader.trader_id
         break
@@ -394,11 +425,21 @@ export default function StreamingPage() {
   // Loading state: traders list is loading
   if (tradersLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--navy-primary)' }}>
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ background: 'var(--navy-primary)' }}
+      >
         <div className="text-center">
-          <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin" style={{ color: 'var(--green-primary)' }} />
-          <h2 className="text-2xl font-bold mb-2" style={{ color: '#EAECEF' }}>Loading Stream...</h2>
-          <p className="text-sm" style={{ color: '#848E9C' }}>Resolving trader information</p>
+          <Loader2
+            className="w-8 h-8 mx-auto mb-4 animate-spin"
+            style={{ color: 'var(--green-primary)' }}
+          />
+          <h2 className="text-2xl font-bold mb-2" style={{ color: '#EAECEF' }}>
+            Loading Stream...
+          </h2>
+          <p className="text-sm" style={{ color: '#848E9C' }}>
+            Resolving trader information
+          </p>
         </div>
       </div>
     )
@@ -407,11 +448,21 @@ export default function StreamingPage() {
   // Error state: traders list failed to load
   if (tradersError) {
     return (
-      <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--navy-primary)' }}>
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ background: 'var(--navy-primary)' }}
+      >
         <div className="text-center">
-          <AlertTriangle className="w-8 h-8 mx-auto mb-4" style={{ color: '#F6465D' }} />
-          <h2 className="text-2xl font-bold mb-2" style={{ color: '#EAECEF' }}>Failed to Load Traders</h2>
-          <p className="text-sm mb-4" style={{ color: '#848E9C' }}>Unable to fetch trader list</p>
+          <AlertTriangle
+            className="w-8 h-8 mx-auto mb-4"
+            style={{ color: '#F6465D' }}
+          />
+          <h2 className="text-2xl font-bold mb-2" style={{ color: '#EAECEF' }}>
+            Failed to Load Traders
+          </h2>
+          <p className="text-sm mb-4" style={{ color: '#848E9C' }}>
+            Unable to fetch trader list
+          </p>
           <button
             onClick={() => navigate('/dashboard')}
             className="px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
@@ -431,10 +482,18 @@ export default function StreamingPage() {
   // Error state: trader not found
   if (traderNotFound || !selectedTraderId) {
     return (
-      <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--navy-primary)' }}>
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ background: 'var(--navy-primary)' }}
+      >
         <div className="text-center">
-          <AlertTriangle className="w-8 h-8 mx-auto mb-4" style={{ color: '#F6465D' }} />
-          <h2 className="text-2xl font-bold mb-2" style={{ color: '#EAECEF' }}>Trader Not Found</h2>
+          <AlertTriangle
+            className="w-8 h-8 mx-auto mb-4"
+            style={{ color: '#F6465D' }}
+          />
+          <h2 className="text-2xl font-bold mb-2" style={{ color: '#EAECEF' }}>
+            Trader Not Found
+          </h2>
           <p className="text-sm mb-4" style={{ color: '#848E9C' }}>
             The trader "{slug}" could not be found
           </p>
@@ -455,9 +514,11 @@ export default function StreamingPage() {
   }
 
   const layoutClasses: Record<string, string> = {
-    dashboard: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 items-start',
+    dashboard:
+      'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 items-start',
     chart_focus: 'flex flex-col gap-4 lg:gap-6',
-    position_focus: 'grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 items-start',
+    position_focus:
+      'grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 items-start',
   }
 
   return (
@@ -470,19 +531,28 @@ export default function StreamingPage() {
         style={{
           background: 'var(--navy-primary)',
           borderBottom: '1px solid var(--navy-light)',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
         }}
       >
         <div className="flex items-center justify-between max-w-[1920px] mx-auto">
           <div className="flex items-center gap-3">
             <motion.div
               animate={{ rotate: config.is_streaming ? 360 : 0 }}
-              transition={{ duration: 2, repeat: config.is_streaming ? Infinity : 0, ease: 'linear' }}
+              transition={{
+                duration: 2,
+                repeat: config.is_streaming ? Infinity : 0,
+                ease: 'linear',
+              }}
             >
-              <Activity className="w-4 h-4" style={{ color: 'var(--green-primary)' }} />
+              <Activity
+                className="w-4 h-4"
+                style={{ color: 'var(--green-primary)' }}
+              />
             </motion.div>
             <span className="text-sm font-bold" style={{ color: '#EAECEF' }}>
-              Live Trading Stream - {(traders || []).find(t => t.trader_id === selectedTraderId)?.trader_name || selectedTraderId}
+              Live Trading Stream -{' '}
+              {(traders || []).find((t) => t.trader_id === selectedTraderId)
+                ?.trader_name || selectedTraderId}
             </span>
           </div>
 
@@ -496,13 +566,21 @@ export default function StreamingPage() {
                 border: `1px solid ${config.is_streaming ? '#0ECB81' : '#F6465D'}`,
               }}
               animate={config.is_streaming ? { opacity: [1, 0.7, 1] } : {}}
-              transition={{ duration: 1, repeat: config.is_streaming ? Infinity : 0 }}
+              transition={{
+                duration: 1,
+                repeat: config.is_streaming ? Infinity : 0,
+              }}
             >
               <motion.div
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ background: config.is_streaming ? '#0ECB81' : '#F6465D' }}
+                style={{
+                  background: config.is_streaming ? '#0ECB81' : '#F6465D',
+                }}
                 animate={config.is_streaming ? { scale: [1, 1.2, 1] } : {}}
-                transition={{ duration: 0.8, repeat: config.is_streaming ? Infinity : 0 }}
+                transition={{
+                  duration: 0.8,
+                  repeat: config.is_streaming ? Infinity : 0,
+                }}
               />
               <span style={{ color: '#EAECEF' }}>
                 {config.is_streaming ? 'LIVE' : 'OFFLINE'}
@@ -536,7 +614,11 @@ export default function StreamingPage() {
           <AnimatePresence>
             {config.widget_visibility.equity && (
               <motion.div
-                className={config.layout_type === 'chart_focus' ? 'col-span-full' : 'md:col-span-2 lg:col-span-2'}
+                className={
+                  config.layout_type === 'chart_focus'
+                    ? 'col-span-full'
+                    : 'md:col-span-2 lg:col-span-2'
+                }
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
@@ -547,7 +629,11 @@ export default function StreamingPage() {
                     traderId={selectedTraderId}
                     selectedSymbol={selectedChartSymbol}
                     updateKey={chartUpdateKey}
-                    exchangeId={(traders || []).find(t => t.trader_id === selectedTraderId)?.exchange_id}
+                    exchangeId={
+                      (traders || []).find(
+                        (t) => t.trader_id === selectedTraderId
+                      )?.exchange_id
+                    }
                     autoSwitchEnabled={config.auto_switch_charts}
                     autoSwitchInterval={config.auto_switch_interval}
                     onTabSwitchComplete={() => {
@@ -572,8 +658,14 @@ export default function StreamingPage() {
                 transition={{ duration: 0.3, delay: 0.1 }}
               >
                 <div className="binance-card p-6 h-fit min-h-[200px] flex flex-col">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2" style={{ color: '#EAECEF' }}>
-                    <Activity className="w-5 h-5" style={{ color: 'var(--green-primary)' }} />
+                  <h3
+                    className="text-xl font-bold mb-4 flex items-center gap-2"
+                    style={{ color: '#EAECEF' }}
+                  >
+                    <Activity
+                      className="w-5 h-5"
+                      style={{ color: 'var(--green-primary)' }}
+                    />
                     Metrics
                   </h3>
                   <motion.div
@@ -584,55 +676,58 @@ export default function StreamingPage() {
                   >
                     {[
                       {
-                        title: "Total Equity",
+                        title: 'Total Equity',
                         value: account?.total_equity || 0,
                         change: account?.total_pnl_pct,
                         positive: (account?.total_pnl || 0) >= 0,
-                        color: "#0ECB81",
-                        icon: <DollarSign size={16} />
+                        color: '#0ECB81',
+                        icon: <DollarSign size={16} />,
                       },
                       {
-                        title: "Available Balance",
+                        title: 'Available Balance',
                         value: account?.available_balance || 0,
                         subtitle: `${account?.available_balance && account?.total_equity ? ((account.available_balance / account.total_equity) * 100).toFixed(1) : '0.0'}% free`,
-                        color: "#60a5fa"
+                        color: '#60a5fa',
                       },
                       {
-                        title: "Positions",
+                        title: 'Positions',
                         value: account?.position_count || 0,
                         subtitle: `Margin: ${account?.margin_used_pct?.toFixed(1) || '0.0'}%`,
-                        color: "#c084fc",
-                        icon: <PieChart size={16} />
+                        color: '#c084fc',
+                        icon: <PieChart size={16} />,
                       },
                       {
-                        title: "Daily P&L",
+                        title: 'Daily P&L',
                         value: account?.daily_pnl || 0,
-                        change: account?.daily_pnl && account?.total_equity ? (account.daily_pnl / account.total_equity) * 100 : 0,
+                        change:
+                          account?.daily_pnl && account?.total_equity
+                            ? (account.daily_pnl / account.total_equity) * 100
+                            : 0,
                         positive: (account?.daily_pnl || 0) >= 0,
-                        color: "#f59e0b",
-                        icon: <TrendingUp size={16} />
-                      }
+                        color: '#f59e0b',
+                        icon: <TrendingUp size={16} />,
+                      },
                     ].map((metric, index) => (
                       <motion.div
                         key={metric.title}
                         initial={{
                           opacity: 0,
                           y: 20,
-                          scale: 0.9
+                          scale: 0.9,
                         }}
                         animate={{
                           opacity: 1,
                           y: 0,
-                          scale: 1
+                          scale: 1,
                         }}
                         transition={{
                           duration: 0.4,
                           delay: index * 0.1,
-                          ease: [0.34, 1.56, 0.64, 1] // Bounce effect
+                          ease: [0.34, 1.56, 0.64, 1], // Bounce effect
                         }}
                         whileHover={{
                           scale: 1.02,
-                          transition: { duration: 0.2 }
+                          transition: { duration: 0.2 },
                         }}
                         whileTap={{ scale: 0.98 }}
                       >
@@ -658,7 +753,11 @@ export default function StreamingPage() {
           <AnimatePresence>
             {config.widget_visibility.positions && (
               <motion.div
-                className={config.layout_type === 'position_focus' ? 'col-span-full' : 'md:col-span-1 lg:col-span-1'}
+                className={
+                  config.layout_type === 'position_focus'
+                    ? 'col-span-full'
+                    : 'md:col-span-1 lg:col-span-1'
+                }
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
@@ -679,7 +778,11 @@ export default function StreamingPage() {
           <AnimatePresence>
             {config.widget_visibility.decisions && (
               <motion.div
-                className={config.layout_type === 'chart_focus' ? 'col-span-full' : 'md:col-span-1 lg:col-span-1'}
+                className={
+                  config.layout_type === 'chart_focus'
+                    ? 'col-span-full'
+                    : 'md:col-span-1 lg:col-span-1'
+                }
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -756,4 +859,3 @@ export default function StreamingPage() {
     </div>
   )
 }
-

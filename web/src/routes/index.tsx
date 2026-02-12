@@ -1,4 +1,9 @@
-import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  useLocation,
+} from 'react-router-dom'
 import { lazy, Suspense, ReactNode, useEffect } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import AuthLayout from '../layouts/AuthLayout'
@@ -46,10 +51,20 @@ const lazyWithErrorHandling = <T extends React.ComponentType<any>>(
       console.error('Failed to load module:', error)
       // Return a fallback component that shows an error message
       const FallbackComponent: React.ComponentType = () => (
-        <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--navy-primary)' }}>
+        <div
+          className="flex items-center justify-center min-h-screen"
+          style={{ background: 'var(--navy-primary)' }}
+        >
           <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Failed to load page</h2>
-            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>Please refresh the page or try again later.</p>
+            <h2
+              className="text-2xl font-bold mb-4"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              Failed to load page
+            </h2>
+            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
+              Please refresh the page or try again later.
+            </p>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
@@ -64,23 +79,50 @@ const lazyWithErrorHandling = <T extends React.ComponentType<any>>(
   })
 }
 
-const FAQPage = lazyWithErrorHandling(() => import('../pages/FAQPage').then(m => ({ default: m.FAQPage })))
-const FollowersPage = lazyWithErrorHandling(() => import('../pages/FollowersPage'))
+const FAQPage = lazyWithErrorHandling(() =>
+  import('../pages/FAQPage').then((m) => ({ default: m.FAQPage }))
+)
+const FollowersPage = lazyWithErrorHandling(
+  () => import('../pages/FollowersPage')
+)
 const StatsPage = lazyWithErrorHandling(() => import('../pages/StatsPage'))
-const BacktestPage = lazyWithErrorHandling(() => import('../components/BacktestPage').then(m => ({ default: m.BacktestPage })))
+const BacktestPage = lazyWithErrorHandling(() =>
+  import('../components/BacktestPage').then((m) => ({
+    default: m.BacktestPage,
+  }))
+)
 const WebhookPage = lazyWithErrorHandling(() => import('../pages/WebhookPage'))
-const TraderApplicationPage = lazyWithErrorHandling(() => import('../pages/TraderApplicationPage'))
-const AdminTraderApplicationsPage = lazyWithErrorHandling(() => import('../pages/AdminTraderApplicationsPage'))
-const AdminArticlesPage = lazyWithErrorHandling(() => import('../pages/AdminArticlesPage'))
-const StrategyStudioPage = lazyWithErrorHandling(() => import('../pages/StrategyStudioPage').then(m => ({ default: m.StrategyStudioPage })))
-const BlogPage = lazyWithErrorHandling(() => import('../pages/BlogPage').then(m => ({ default: m.BlogPage })))
-const ArticlePage = lazyWithErrorHandling(() => import('../pages/ArticlePage').then(m => ({ default: m.ArticlePage })))
-const StreamingPage = lazyWithErrorHandling(() => import('../pages/StreamingPage'))
+const TraderApplicationPage = lazyWithErrorHandling(
+  () => import('../pages/TraderApplicationPage')
+)
+const AdminTraderApplicationsPage = lazyWithErrorHandling(
+  () => import('../pages/AdminTraderApplicationsPage')
+)
+const AdminArticlesPage = lazyWithErrorHandling(
+  () => import('../pages/AdminArticlesPage')
+)
+const StrategyStudioPage = lazyWithErrorHandling(() =>
+  import('../pages/StrategyStudioPage').then((m) => ({
+    default: m.StrategyStudioPage,
+  }))
+)
+const BlogPage = lazyWithErrorHandling(() =>
+  import('../pages/BlogPage').then((m) => ({ default: m.BlogPage }))
+)
+const ArticlePage = lazyWithErrorHandling(() =>
+  import('../pages/ArticlePage').then((m) => ({ default: m.ArticlePage }))
+)
+const StreamingPage = lazyWithErrorHandling(
+  () => import('../pages/StreamingPage')
+)
 
 // Loading fallback component
 function RouteLoadingFallback() {
   return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--navy-primary)' }}>
+    <div
+      className="flex items-center justify-center min-h-screen"
+      style={{ background: 'var(--navy-primary)' }}
+    >
       <div className="text-center">
         <div className="spinner mx-auto mb-4" />
         <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
@@ -130,7 +172,11 @@ function AdminProtectedRoute({ children }: { children: ReactNode }) {
 export const router = createBrowserRouter([
   {
     element: <RootLayout />,
-    errorElement: <ErrorBoundary><div /></ErrorBoundary>,
+    errorElement: (
+      <ErrorBoundary>
+        <div />
+      </ErrorBoundary>
+    ),
     children: [
       {
         path: '/',
@@ -226,7 +272,9 @@ export const router = createBrowserRouter([
             path: '/stream/:slug',
             element: (
               <Suspense fallback={<RouteLoadingFallback />}>
-                <AdminProtectedRoute><StreamingPage /></AdminProtectedRoute>
+                <AdminProtectedRoute>
+                  <StreamingPage />
+                </AdminProtectedRoute>
               </Suspense>
             ),
           },
@@ -258,7 +306,9 @@ export const router = createBrowserRouter([
             path: '/stats',
             element: (
               <Suspense fallback={<RouteLoadingFallback />}>
-                <AdminProtectedRoute><StatsPage /></AdminProtectedRoute>
+                <AdminProtectedRoute>
+                  <StatsPage />
+                </AdminProtectedRoute>
               </Suspense>
             ),
           },
@@ -274,7 +324,9 @@ export const router = createBrowserRouter([
             path: '/admin/trader-applications',
             element: (
               <Suspense fallback={<RouteLoadingFallback />}>
-                <AdminProtectedRoute><AdminTraderApplicationsPage /></AdminProtectedRoute>
+                <AdminProtectedRoute>
+                  <AdminTraderApplicationsPage />
+                </AdminProtectedRoute>
               </Suspense>
             ),
           },
@@ -282,7 +334,9 @@ export const router = createBrowserRouter([
             path: '/admin/articles',
             element: (
               <Suspense fallback={<RouteLoadingFallback />}>
-                <AdminProtectedRoute><AdminArticlesPage /></AdminProtectedRoute>
+                <AdminProtectedRoute>
+                  <AdminArticlesPage />
+                </AdminProtectedRoute>
               </Suspense>
             ),
           },

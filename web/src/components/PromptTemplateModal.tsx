@@ -1,9 +1,24 @@
 import { useState, useEffect } from 'react'
-import type { PromptTemplate, CreatePromptTemplateRequest, UpdatePromptTemplateRequest } from '../types'
+import type {
+  PromptTemplate,
+  CreatePromptTemplateRequest,
+  UpdatePromptTemplateRequest,
+} from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { toast } from 'sonner'
-import { X as IconX, Save, Trash2, Copy, Eye, FileText, ArrowLeft, Search, Download, Upload } from 'lucide-react'
+import {
+  X as IconX,
+  Save,
+  Trash2,
+  Copy,
+  Eye,
+  FileText,
+  ArrowLeft,
+  Search,
+  Download,
+  Upload,
+} from 'lucide-react'
 import { api } from '../lib/api'
 
 interface PromptTemplateModalProps {
@@ -35,8 +50,11 @@ export function PromptTemplateModal({
 
   // Template selection and copy feature
   const [activeTab, setActiveTab] = useState<'create' | 'copy'>('create')
-  const [availableTemplates, setAvailableTemplates] = useState<PromptTemplate[]>([])
-  const [selectedTemplateForView, setSelectedTemplateForView] = useState<PromptTemplate | null>(null)
+  const [availableTemplates, setAvailableTemplates] = useState<
+    PromptTemplate[]
+  >([])
+  const [selectedTemplateForView, setSelectedTemplateForView] =
+    useState<PromptTemplate | null>(null)
   const [viewMode, setViewMode] = useState<'browse' | 'view'>('browse')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
@@ -72,7 +90,12 @@ export function PromptTemplateModal({
 
   // Fetch available templates when opening modal in copy mode
   useEffect(() => {
-    if (isOpen && !isEditMode && activeTab === 'copy' && availableTemplates.length === 0) {
+    if (
+      isOpen &&
+      !isEditMode &&
+      activeTab === 'copy' &&
+      availableTemplates.length === 0
+    ) {
       fetchAvailableTemplates()
     }
   }, [isOpen, isEditMode, activeTab])
@@ -84,7 +107,9 @@ export function PromptTemplateModal({
       setAvailableTemplates(userTemplates)
     } catch (error) {
       console.error('Failed to fetch templates:', error)
-      toast.error(t('failedToFetchTemplates', language) || 'Failed to fetch templates')
+      toast.error(
+        t('failedToFetchTemplates', language) || 'Failed to fetch templates'
+      )
     } finally {
       setIsLoadingTemplates(false)
     }
@@ -94,7 +119,7 @@ export function PromptTemplateModal({
     // Generate unique copy name
     let copyName = `${templateToCopy.name} (Copy)`
     let counter = 1
-    while (availableTemplates.some(t => t.name === copyName)) {
+    while (availableTemplates.some((t) => t.name === copyName)) {
       counter++
       copyName = `${templateToCopy.name} (Copy ${counter})`
     }
@@ -104,26 +129,33 @@ export function PromptTemplateModal({
     setActiveTab('create')
     setViewMode('browse')
     setSelectedTemplateForView(null)
-    toast.success(t('templateCopied', language) || 'Template copied to create form')
+    toast.success(
+      t('templateCopied', language) || 'Template copied to create form'
+    )
   }
 
-  const filteredTemplates = availableTemplates.filter(t => 
-    t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.content.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTemplates = availableTemplates.filter(
+    (t) =>
+      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.content.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const systemTemplates = filteredTemplates.filter(t => t.is_system)
-  const userTemplates = filteredTemplates.filter(t => !t.is_system)
+  const systemTemplates = filteredTemplates.filter((t) => t.is_system)
+  const userTemplates = filteredTemplates.filter((t) => !t.is_system)
 
   if (!isOpen) return null
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast.error(t('templateNameRequired', language) || 'Template name is required')
+      toast.error(
+        t('templateNameRequired', language) || 'Template name is required'
+      )
       return
     }
     if (!content.trim()) {
-      toast.error(t('templateContentRequired', language) || 'Template content is required')
+      toast.error(
+        t('templateContentRequired', language) || 'Template content is required'
+      )
       return
     }
 
@@ -134,11 +166,15 @@ export function PromptTemplateModal({
           name: name.trim(),
           content: content.trim(),
         }
-        const updatedTemplate = (await toast.promise(api.updatePromptTemplate(template!.id, updateRequest), {
-          loading: t('savingTemplate', language) || 'Saving template...',
-          success: t('templateSaved', language) || 'Template saved',
-          error: t('templateSaveFailed', language) || 'Failed to save template',
-        })) as unknown as PromptTemplate
+        const updatedTemplate = (await toast.promise(
+          api.updatePromptTemplate(template!.id, updateRequest),
+          {
+            loading: t('savingTemplate', language) || 'Saving template...',
+            success: t('templateSaved', language) || 'Template saved',
+            error:
+              t('templateSaveFailed', language) || 'Failed to save template',
+          }
+        )) as unknown as PromptTemplate
         // Auto-select updated template if callback provided
         if (updatedTemplate && onSelectTemplate) {
           onSelectTemplate(updatedTemplate.id)
@@ -148,11 +184,16 @@ export function PromptTemplateModal({
           name: name.trim(),
           content: content.trim(),
         }
-        const newTemplate = (await toast.promise(api.createPromptTemplate(createRequest), {
-          loading: t('creatingTemplate', language) || 'Creating template...',
-          success: t('templateCreated', language) || 'Template created',
-          error: t('templateCreateFailed', language) || 'Failed to create template',
-        })) as unknown as PromptTemplate
+        const newTemplate = (await toast.promise(
+          api.createPromptTemplate(createRequest),
+          {
+            loading: t('creatingTemplate', language) || 'Creating template...',
+            success: t('templateCreated', language) || 'Template created',
+            error:
+              t('templateCreateFailed', language) ||
+              'Failed to create template',
+          }
+        )) as unknown as PromptTemplate
         // Auto-select newly created template if callback provided
         if (newTemplate && onSelectTemplate) {
           onSelectTemplate(newTemplate.id)
@@ -170,7 +211,9 @@ export function PromptTemplateModal({
   const handleDelete = async () => {
     if (!template || isSystemTemplate) return
 
-    const confirmMessage = t('confirmDeleteTemplate', language) || 'Are you sure you want to delete this template?'
+    const confirmMessage =
+      t('confirmDeleteTemplate', language) ||
+      'Are you sure you want to delete this template?'
     if (!window.confirm(confirmMessage)) {
       return
     }
@@ -180,7 +223,8 @@ export function PromptTemplateModal({
       await toast.promise(api.deletePromptTemplate(template.id), {
         loading: t('deletingTemplate', language) || 'Deleting template...',
         success: t('templateDeleted', language) || 'Template deleted',
-        error: t('templateDeleteFailed', language) || 'Failed to delete template',
+        error:
+          t('templateDeleteFailed', language) || 'Failed to delete template',
       })
       // Clear selection after deletion if callback provided
       if (onSelectTemplate) {
@@ -197,7 +241,10 @@ export function PromptTemplateModal({
 
   const handleExport = () => {
     if (!name.trim() || !content.trim()) {
-      toast.error(t('templateNameAndContentRequired', language) || 'Template name and content are required for export')
+      toast.error(
+        t('templateNameAndContentRequired', language) ||
+          'Template name and content are required for export'
+      )
       return
     }
 
@@ -206,7 +253,9 @@ export function PromptTemplateModal({
       content: content.trim(),
       is_system: isSystemTemplate,
     }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -215,7 +264,9 @@ export function PromptTemplateModal({
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    toast.success(t('templateExported', language) || 'Template exported successfully')
+    toast.success(
+      t('templateExported', language) || 'Template exported successfully'
+    )
   }
 
   const handleImport = () => {
@@ -233,7 +284,10 @@ export function PromptTemplateModal({
           if (file.name.endsWith('.json')) {
             const data = JSON.parse(text)
             if (!data.name || !data.content) {
-              toast.error(t('invalidTemplateFile', language) || 'Invalid template file: name and content are required')
+              toast.error(
+                t('invalidTemplateFile', language) ||
+                  'Invalid template file: name and content are required'
+              )
               return
             }
             setName(data.name)
@@ -245,10 +299,15 @@ export function PromptTemplateModal({
             setContent(text)
           }
           setActiveTab('create')
-          toast.success(t('templateImported', language) || 'Template imported successfully')
+          toast.success(
+            t('templateImported', language) || 'Template imported successfully'
+          )
         } catch (error) {
           console.error('Failed to import template:', error)
-          toast.error(t('failedToImportTemplate', language) || 'Failed to import template. Please check the file format.')
+          toast.error(
+            t('failedToImportTemplate', language) ||
+              'Failed to import template. Please check the file format.'
+          )
         }
       }
       reader.readAsText(file)
@@ -257,17 +316,32 @@ export function PromptTemplateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto"
+      style={{ background: 'rgba(0, 31, 63, 0.5)' }}
+    >
       <div
         className="rounded-xl shadow-2xl max-w-4xl w-full my-8"
-        style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)', maxHeight: 'calc(100vh - 4rem)' }}
+        style={{
+          background: 'var(--navy-dark)',
+          border: '1px solid var(--navy-light)',
+          maxHeight: 'calc(100vh - 4rem)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b sticky top-0 z-10 rounded-t-xl"
-        style={{ borderColor: 'var(--navy-light)', background: 'var(--navy-dark)' }}>
+        <div
+          className="flex items-center justify-between p-6 border-b sticky top-0 z-10 rounded-t-xl"
+          style={{
+            borderColor: 'var(--navy-light)',
+            background: 'var(--navy-dark)',
+          }}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#00CC66] to-[#00AA55] flex items-center justify-center" style={{ color: 'var(--navy-primary)' }}>
+            <div
+              className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#00CC66] to-[#00AA55] flex items-center justify-center"
+              style={{ color: 'var(--navy-primary)' }}
+            >
               <Save className="w-5 h-5" />
             </div>
             <div>
@@ -276,20 +350,27 @@ export function PromptTemplateModal({
                   ? t('editTemplate', language) || 'Edit Template'
                   : t('createTemplate', language) || 'Create Template'}
               </h2>
-              <p className="text-sm mt-1" style={{ color: 'var(--navy-light)' }}>
+              <p
+                className="text-sm mt-1"
+                style={{ color: 'var(--navy-light)' }}
+              >
                 {isEditMode
-                  ? t('editTemplateSubtitle', language) || 'Edit your prompt template'
-                  : t('createTemplateSubtitle', language) || 'Create a new prompt template'}
+                  ? t('editTemplateSubtitle', language) ||
+                    'Edit your prompt template'
+                  : t('createTemplateSubtitle', language) ||
+                    'Create a new prompt template'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg hover:text-[#EAECEF] transition-colors flex items-center justify-center"
-            style={{ 
-              color: 'var(--navy-light)',
-              '--hover-bg': 'var(--navy-light)' 
-            } as React.CSSProperties}
+            style={
+              {
+                color: 'var(--navy-light)',
+                '--hover-bg': 'var(--navy-light)',
+              } as React.CSSProperties
+            }
           >
             <IconX className="w-4 h-4" />
           </button>
@@ -297,7 +378,10 @@ export function PromptTemplateModal({
 
         {/* Tabs - Only show when creating new (not editing) */}
         {!isEditMode && (
-          <div className="border-b px-6" style={{ borderColor: 'var(--navy-light)' }}>
+          <div
+            className="border-b px-6"
+            style={{ borderColor: 'var(--navy-light)' }}
+          >
             <div className="flex gap-1">
               <button
                 onClick={() => {
@@ -310,7 +394,9 @@ export function PromptTemplateModal({
                     ? 'border-[#00CC66] text-[#00CC66]'
                     : 'border-transparent hover:text-[#EAECEF]'
                 }`}
-                style={activeTab !== 'create' ? { color: 'var(--navy-light)' } : {}}
+                style={
+                  activeTab !== 'create' ? { color: 'var(--navy-light)' } : {}
+                }
               >
                 {t('createNew', language) || 'Create New'}
               </button>
@@ -327,7 +413,9 @@ export function PromptTemplateModal({
                     ? 'border-[#00CC66] text-[#00CC66]'
                     : 'border-transparent hover:text-[#EAECEF]'
                 }`}
-                style={activeTab !== 'copy' ? { color: 'var(--navy-light)' } : {}}
+                style={
+                  activeTab !== 'copy' ? { color: 'var(--navy-light)' } : {}
+                }
               >
                 {t('copyFromTemplate', language) || 'Copy from Template'}
               </button>
@@ -347,20 +435,32 @@ export function PromptTemplateModal({
                 <>
                   {/* Search */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--navy-light)' }} />
+                    <Search
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
+                      style={{ color: 'var(--navy-light)' }}
+                    />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={t('searchTemplates', language) || 'Search templates...'}
+                      placeholder={
+                        t('searchTemplates', language) || 'Search templates...'
+                      }
                       className="w-full pl-10 pr-3 py-2 rounded text-[#EAECEF] focus:border-[#00CC66] focus:outline-none"
-                      style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                      style={{
+                        background: 'var(--navy-primary)',
+                        border: '1px solid var(--navy-light)',
+                      }}
                     />
                   </div>
 
                   {isLoadingTemplates ? (
-                    <div className="text-center py-8" style={{ color: 'var(--navy-light)' }}>
-                      {t('loadingTemplates', language) || 'Loading templates...'}
+                    <div
+                      className="text-center py-8"
+                      style={{ color: 'var(--navy-light)' }}
+                    >
+                      {t('loadingTemplates', language) ||
+                        'Loading templates...'}
                     </div>
                   ) : (
                     <>
@@ -369,7 +469,8 @@ export function PromptTemplateModal({
                         <div>
                           <h3 className="text-sm font-semibold text-[#EAECEF] mb-3 flex items-center gap-2">
                             <FileText className="w-4 h-4" />
-                            {t('systemTemplates', language) || 'System Templates'}
+                            {t('systemTemplates', language) ||
+                              'System Templates'}
                           </h3>
                           <div className="grid grid-cols-1 gap-3">
                             {systemTemplates.map((tmpl) => (
@@ -380,21 +481,39 @@ export function PromptTemplateModal({
                                   setViewMode('view')
                                 }}
                                 className="p-4 rounded-lg hover:border-[#00CC66] cursor-pointer transition-colors"
-                                style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                                style={{
+                                  background: 'var(--navy-primary)',
+                                  border: '1px solid var(--navy-light)',
+                                }}
                               >
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <h4 className="text-sm font-medium text-[#EAECEF]">{tmpl.name}</h4>
-                                      <span className="px-2 py-0.5 text-xs rounded" style={{ background: 'var(--navy-light)', color: '#EAECEF' }}>
-                                        {t('templateSystem', language) || 'System'}
+                                      <h4 className="text-sm font-medium text-[#EAECEF]">
+                                        {tmpl.name}
+                                      </h4>
+                                      <span
+                                        className="px-2 py-0.5 text-xs rounded"
+                                        style={{
+                                          background: 'var(--navy-light)',
+                                          color: '#EAECEF',
+                                        }}
+                                      >
+                                        {t('templateSystem', language) ||
+                                          'System'}
                                       </span>
                                     </div>
-                                    <p className="text-xs line-clamp-2" style={{ color: 'var(--navy-light)' }}>
+                                    <p
+                                      className="text-xs line-clamp-2"
+                                      style={{ color: 'var(--navy-light)' }}
+                                    >
                                       {tmpl.content.substring(0, 150)}...
                                     </p>
                                   </div>
-                                  <Eye className="w-4 h-4 ml-2 flex-shrink-0" style={{ color: 'var(--navy-light)' }} />
+                                  <Eye
+                                    className="w-4 h-4 ml-2 flex-shrink-0"
+                                    style={{ color: 'var(--navy-light)' }}
+                                  />
                                 </div>
                               </div>
                             ))}
@@ -418,24 +537,40 @@ export function PromptTemplateModal({
                                   setViewMode('view')
                                 }}
                                 className="p-4 rounded-lg hover:border-[#00CC66] cursor-pointer transition-colors"
-                                style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                                style={{
+                                  background: 'var(--navy-primary)',
+                                  border: '1px solid var(--navy-light)',
+                                }}
                               >
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <h4 className="text-sm font-medium text-[#EAECEF]">{tmpl.name}</h4>
+                                      <h4 className="text-sm font-medium text-[#EAECEF]">
+                                        {tmpl.name}
+                                      </h4>
                                       <span className="px-2 py-0.5 text-xs bg-[#00CC66] bg-opacity-20 text-[#00CC66] rounded">
                                         {t('templateUser', language) || 'User'}
                                       </span>
                                     </div>
-                                    <p className="text-xs line-clamp-2" style={{ color: 'var(--navy-light)' }}>
+                                    <p
+                                      className="text-xs line-clamp-2"
+                                      style={{ color: 'var(--navy-light)' }}
+                                    >
                                       {tmpl.content.substring(0, 150)}...
                                     </p>
-                                    <p className="text-xs mt-1" style={{ color: 'var(--navy-light)' }}>
-                                      {new Date(tmpl.updated_at).toLocaleDateString()}
+                                    <p
+                                      className="text-xs mt-1"
+                                      style={{ color: 'var(--navy-light)' }}
+                                    >
+                                      {new Date(
+                                        tmpl.updated_at
+                                      ).toLocaleDateString()}
                                     </p>
                                   </div>
-                                  <Eye className="w-4 h-4 ml-2 flex-shrink-0" style={{ color: 'var(--navy-light)' }} />
+                                  <Eye
+                                    className="w-4 h-4 ml-2 flex-shrink-0"
+                                    style={{ color: 'var(--navy-light)' }}
+                                  />
                                 </div>
                               </div>
                             ))}
@@ -443,13 +578,19 @@ export function PromptTemplateModal({
                         </div>
                       )}
 
-                      {filteredTemplates.length === 0 && !isLoadingTemplates && (
-                        <div className="text-center py-8" style={{ color: 'var(--navy-light)' }}>
-                          {searchQuery
-                            ? t('noTemplatesFound', language) || 'No templates found'
-                            : t('noTemplatesAvailable', language) || 'No templates available'}
-                        </div>
-                      )}
+                      {filteredTemplates.length === 0 &&
+                        !isLoadingTemplates && (
+                          <div
+                            className="text-center py-8"
+                            style={{ color: 'var(--navy-light)' }}
+                          >
+                            {searchQuery
+                              ? t('noTemplatesFound', language) ||
+                                'No templates found'
+                              : t('noTemplatesAvailable', language) ||
+                                'No templates available'}
+                          </div>
+                        )}
                     </>
                   )}
                 </>
@@ -469,10 +610,18 @@ export function PromptTemplateModal({
                       {t('backToList', language) || 'Back to List'}
                     </button>
 
-                    <div className="p-4 rounded-lg" style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}>
+                    <div
+                      className="p-4 rounded-lg"
+                      style={{
+                        background: 'var(--navy-primary)',
+                        border: '1px solid var(--navy-light)',
+                      }}
+                    >
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <h3 className="text-lg font-semibold text-[#EAECEF]">{selectedTemplateForView.name}</h3>
+                          <h3 className="text-lg font-semibold text-[#EAECEF]">
+                            {selectedTemplateForView.name}
+                          </h3>
                           <div className="flex items-center gap-2 mt-1">
                             <span
                               className={`px-2 py-0.5 text-xs rounded ${
@@ -480,20 +629,31 @@ export function PromptTemplateModal({
                                   ? ''
                                   : 'bg-[#00CC66] bg-opacity-20 text-[#00CC66]'
                               }`}
-                              style={selectedTemplateForView.is_system ? { color: 'var(--navy-light)' } : {}}
+                              style={
+                                selectedTemplateForView.is_system
+                                  ? { color: 'var(--navy-light)' }
+                                  : {}
+                              }
                             >
                               {selectedTemplateForView.is_system
                                 ? t('templateSystem', language) || 'System'
                                 : t('templateUser', language) || 'User'}
                             </span>
-                            <span className="text-xs" style={{ color: 'var(--navy-light)' }}>
+                            <span
+                              className="text-xs"
+                              style={{ color: 'var(--navy-light)' }}
+                            >
                               {t('templateUpdated', language) || 'Updated'}:{' '}
-                              {new Date(selectedTemplateForView.updated_at).toLocaleDateString()}
+                              {new Date(
+                                selectedTemplateForView.updated_at
+                              ).toLocaleDateString()}
                             </span>
                           </div>
                         </div>
                         <button
-                          onClick={() => handleCopyTemplate(selectedTemplateForView)}
+                          onClick={() =>
+                            handleCopyTemplate(selectedTemplateForView)
+                          }
                           className="px-4 py-2 bg-gradient-to-r from-[#00CC66] to-[#00AA55] rounded-lg hover:from-[#00AA55] hover:to-[#008844] transition-all duration-200 font-medium flex items-center gap-2"
                           style={{ color: 'var(--navy-primary)' }}
                         >
@@ -502,7 +662,13 @@ export function PromptTemplateModal({
                         </button>
                       </div>
 
-                      <div className="mt-4 p-4 rounded-lg" style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}>
+                      <div
+                        className="mt-4 p-4 rounded-lg"
+                        style={{
+                          background: 'var(--navy-dark)',
+                          border: '1px solid var(--navy-light)',
+                        }}
+                      >
                         <pre className="text-sm text-[#EAECEF] whitespace-pre-wrap font-mono overflow-x-auto">
                           {selectedTemplateForView.content}
                         </pre>
@@ -528,12 +694,22 @@ export function PromptTemplateModal({
                   onChange={(e) => setName(e.target.value)}
                   disabled={isSystemTemplate}
                   className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[#00CC66] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
-                  placeholder={t('templateNamePlaceholder', language) || 'Enter template name'}
+                  style={{
+                    background: 'var(--navy-primary)',
+                    border: '1px solid var(--navy-light)',
+                  }}
+                  placeholder={
+                    t('templateNamePlaceholder', language) ||
+                    'Enter template name'
+                  }
                 />
                 {isSystemTemplate && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--navy-light)' }}>
-                    {t('systemTemplateReadOnly', language) || 'System templates are read-only'}
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: 'var(--navy-light)' }}
+                  >
+                    {t('systemTemplateReadOnly', language) ||
+                      'System templates are read-only'}
                   </p>
                 )}
               </div>
@@ -544,7 +720,10 @@ export function PromptTemplateModal({
                   <label className="text-sm text-[#EAECEF]">
                     {t('templateContent', language) || 'Template Content'}
                   </label>
-                  <span className="text-xs" style={{ color: 'var(--navy-light)' }}>
+                  <span
+                    className="text-xs"
+                    style={{ color: 'var(--navy-light)' }}
+                  >
                     {content.length} {t('characters', language) || 'characters'}
                   </span>
                 </div>
@@ -553,12 +732,22 @@ export function PromptTemplateModal({
                   onChange={(e) => setContent(e.target.value)}
                   disabled={isSystemTemplate}
                   className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[#00CC66] focus:outline-none h-96 resize-y font-mono text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
-                  placeholder={t('templateContentPlaceholder', language) || 'Enter template content...'}
+                  style={{
+                    background: 'var(--navy-primary)',
+                    border: '1px solid var(--navy-light)',
+                  }}
+                  placeholder={
+                    t('templateContentPlaceholder', language) ||
+                    'Enter template content...'
+                  }
                 />
                 {isSystemTemplate && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--navy-light)' }}>
-                    {t('systemTemplateReadOnly', language) || 'System templates are read-only'}
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: 'var(--navy-light)' }}
+                  >
+                    {t('systemTemplateReadOnly', language) ||
+                      'System templates are read-only'}
                   </p>
                 )}
               </div>
@@ -567,8 +756,13 @@ export function PromptTemplateModal({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center p-6 border-t sticky bottom-0 z-10 rounded-b-xl"
-        style={{ borderColor: 'var(--navy-light)', background: 'var(--navy-dark)' }}>
+        <div
+          className="flex justify-between items-center p-6 border-t sticky bottom-0 z-10 rounded-b-xl"
+          style={{
+            borderColor: 'var(--navy-light)',
+            background: 'var(--navy-dark)',
+          }}
+        >
           <div className="flex items-center gap-3">
             {isEditMode && !isSystemTemplate && (
               <button
@@ -580,21 +774,29 @@ export function PromptTemplateModal({
                 {t('delete', language) || 'Delete'}
               </button>
             )}
-            {(!isEditMode || !isSystemTemplate) && name.trim() && content.trim() && (
-              <button
-                onClick={handleExport}
-                className="px-4 py-2 text-[#EAECEF] rounded-lg transition-colors flex items-center gap-2"
-                style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}
-              >
-                <Download className="w-4 h-4" />
-                {t('export', language) || 'Export'}
-              </button>
-            )}
+            {(!isEditMode || !isSystemTemplate) &&
+              name.trim() &&
+              content.trim() && (
+                <button
+                  onClick={handleExport}
+                  className="px-4 py-2 text-[#EAECEF] rounded-lg transition-colors flex items-center gap-2"
+                  style={{
+                    background: 'var(--navy-dark)',
+                    border: '1px solid var(--navy-light)',
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                  {t('export', language) || 'Export'}
+                </button>
+              )}
             {!isEditMode && (
               <button
                 onClick={handleImport}
                 className="px-4 py-2 text-[#EAECEF] rounded-lg transition-colors flex items-center gap-2"
-                style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}
+                style={{
+                  background: 'var(--navy-dark)',
+                  border: '1px solid var(--navy-light)',
+                }}
               >
                 <Upload className="w-4 h-4" />
                 {t('import', language) || 'Import'}
@@ -605,7 +807,10 @@ export function PromptTemplateModal({
             <button
               onClick={onClose}
               className="px-6 py-3 text-[#EAECEF] rounded-lg transition-all duration-200"
-              style={{ background: 'var(--navy-dark)', border: '1px solid var(--navy-light)' }}
+              style={{
+                background: 'var(--navy-dark)',
+                border: '1px solid var(--navy-light)',
+              }}
             >
               {t('cancel', language) || 'Cancel'}
             </button>
@@ -628,4 +833,3 @@ export function PromptTemplateModal({
     </div>
   )
 }
-

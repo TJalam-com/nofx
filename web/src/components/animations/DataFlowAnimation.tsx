@@ -162,7 +162,11 @@ export function DataFlowAnimation({
                   viewBox="0 0 24 24"
                   fill="none"
                   style={{
-                    color: isPast ? '#0ECB81' : isActive ? '#60a5fa' : '#848E9C',
+                    color: isPast
+                      ? '#0ECB81'
+                      : isActive
+                        ? '#60a5fa'
+                        : '#848E9C',
                   }}
                 >
                   <motion.path

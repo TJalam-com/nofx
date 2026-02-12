@@ -17,7 +17,7 @@ export function SEO({
 }: SEOProps) {
   const baseUrl = import.meta.env.VITE_BASE_URL || 'https://aitrading247.com'
   const fullCanonical = canonical || baseUrl
-  
+
   // Prefer WebP for OG images, fallback to PNG
   const getOgImage = (imagePath: string): string => {
     if (imagePath.startsWith('http')) return imagePath
@@ -25,8 +25,10 @@ export function SEO({
     const webpPath = imagePath.replace(/\.png$/, '.webp')
     return `${baseUrl}${webpPath}`
   }
-  const fullOgImage = ogImage 
-    ? (ogImage.startsWith('http') ? ogImage : getOgImage(ogImage))
+  const fullOgImage = ogImage
+    ? ogImage.startsWith('http')
+      ? ogImage
+      : getOgImage(ogImage)
     : `${baseUrl}/images/main.webp`
   const ogLocale = lang === 'zh' ? 'zh_CN' : 'en_US'
 
@@ -44,10 +46,14 @@ export function SEO({
 
       {/* Canonical URL */}
       <link rel="canonical" href={fullCanonical} />
-      
+
       {/* Alternate language versions */}
       <link rel="alternate" hrefLang="en" href={fullCanonical} />
-      <link rel="alternate" hrefLang="zh-CN" href={`${fullCanonical}?lang=zh`} />
+      <link
+        rel="alternate"
+        hrefLang="zh-CN"
+        href={`${fullCanonical}?lang=zh`}
+      />
       <link rel="alternate" hrefLang="x-default" href={fullCanonical} />
 
       {/* Open Graph / Facebook */}
@@ -61,7 +67,10 @@ export function SEO({
       <meta property="og:image:alt" content={title} />
       <meta property="og:site_name" content="AI Trading 24x7" />
       <meta property="og:locale" content={ogLocale} />
-      <meta property="og:locale:alternate" content={lang === 'zh' ? 'en_US' : 'zh_CN'} />
+      <meta
+        property="og:locale:alternate"
+        content={lang === 'zh' ? 'en_US' : 'zh_CN'}
+      />
 
       {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
@@ -77,4 +86,3 @@ export function SEO({
     </Helmet>
   )
 }
-

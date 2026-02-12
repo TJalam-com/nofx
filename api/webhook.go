@@ -106,7 +106,7 @@ func (s *Server) extractTraderIDs(payload map[string]interface{}, userID string)
 // IMPORTANT: We reuse the parsed TradingViewAlert from the database so the child
 // receives the same structured information (symbol, side, entry, SL/TP, size)
 // that the parent sees, instead of relying on raw JSON field names.
-func (s *Server) forwardTradingViewAlertToFollowers(traderID, alertID string, payload map[string]interface{}, symbol, action string) {
+func (s *Server) forwardTradingViewAlertToFollowers(traderID, alertID string) {
 	// Get all follower traders from database
 	followerRecords, err := s.database.GetFollowerTraders(traderID)
 	if err != nil {
@@ -332,7 +332,7 @@ func (s *Server) processTraderWebhook(userID, traderID string, payload map[strin
 
 	// ⚡ INSTANT FORWARDING: Forward alert immediately to followers (before parent AI processing)
 	// This allows followers to react instantly using their own AI prompts/models
-	go s.forwardTradingViewAlertToFollowers(traderID, alertID, payload, symbol, action)
+	go s.forwardTradingViewAlertToFollowers(traderID, alertID)
 
 	// Build response object
 	response := gin.H{
@@ -531,14 +531,10 @@ func normalizeSymbol(symbol string) string {
 
 	// Handle TradingView perpetual format (e.g., "BTCUSDT.P" or "BTCUSDT:PERP")
 	// Remove .P suffix (TradingView perpetual format)
-	if strings.HasSuffix(symbol, ".P") {
-		symbol = strings.TrimSuffix(symbol, ".P")
-	}
+	symbol = strings.TrimSuffix(symbol, ".P")
 
 	// Remove :PERP suffix
-	if strings.HasSuffix(symbol, ":PERP") {
-		symbol = strings.TrimSuffix(symbol, ":PERP")
-	}
+	symbol = strings.TrimSuffix(symbol, ":PERP")
 
 	// Remove :USDT:PERP format
 	if strings.Contains(symbol, ":USDT:PERP") {

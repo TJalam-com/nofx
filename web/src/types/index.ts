@@ -140,7 +140,11 @@ export interface StreamingConfig {
 
 // WebSocket message types
 export interface WebSocketMessage {
-  type: 'equity_update' | 'position_update' | 'decision_update' | 'account_update'
+  type:
+    | 'equity_update'
+    | 'position_update'
+    | 'decision_update'
+    | 'account_update'
   data: any
   timestamp: string
 }

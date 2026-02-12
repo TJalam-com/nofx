@@ -2,14 +2,17 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { useSEO } from '../hooks/useSEO'
 import { Container } from '../components/Container'
-import { OrganizationSchema, BreadcrumbListSchema } from '../components/StructuredData'
+import {
+  OrganizationSchema,
+  BreadcrumbListSchema,
+} from '../components/StructuredData'
 
 /**
  * About Us Page
- * 
+ *
  * Tells the story of AI Trading 24x7, builds credibility, and explains
  * the mission and vision of the platform.
- * 
+ *
  * Accessibility: Full keyboard navigation support, semantic HTML structure
  * Responsive: Mobile-first design with proper breakpoints
  * Dark/Light Mode: Uses CSS variables for theme compatibility
@@ -17,15 +20,17 @@ import { OrganizationSchema, BreadcrumbListSchema } from '../components/Structur
 export function AboutPage() {
   const { language } = useLanguage()
   const { SEOComponent } = useSEO()
-  
+
   return (
     <>
       <SEOComponent />
       <OrganizationSchema />
-      <BreadcrumbListSchema items={[
-        { name: 'Home', url: '/' },
-        { name: 'About', url: '/about' },
-      ]} />
+      <BreadcrumbListSchema
+        items={[
+          { name: 'Home', url: '/' },
+          { name: 'About', url: '/about' },
+        ]}
+      />
       <Container className="py-12">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -78,8 +83,9 @@ export function AboutPage() {
                     </a>
                   </p>
                   <p>
-                    This is a modified version of the NOFX software, rebranded as AI Trading 24x7.
-                    All modifications are licensed under AGPL-3.0 and the complete source code is publicly available.
+                    This is a modified version of the NOFX software, rebranded
+                    as AI Trading 24x7. All modifications are licensed under
+                    AGPL-3.0 and the complete source code is publicly available.
                   </p>
                 </div>
               </div>

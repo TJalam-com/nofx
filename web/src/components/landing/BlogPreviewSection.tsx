@@ -12,14 +12,13 @@ interface BlogPreviewSectionProps {
   language: Language
 }
 
-export default function BlogPreviewSection({ language }: BlogPreviewSectionProps) {
+export default function BlogPreviewSection({
+  language,
+}: BlogPreviewSectionProps) {
   const isZh = language === 'zh'
 
   // Fetch latest 3 articles
-  const {
-    data: articles,
-    isLoading: articlesLoading,
-  } = useSWR<Article[]>(
+  const { data: articles, isLoading: articlesLoading } = useSWR<Article[]>(
     'landing-blog-preview',
     () => api.getPublishedArticles(3, 0),
     { revalidateOnFocus: false }
@@ -75,11 +74,17 @@ export default function BlogPreviewSection({ language }: BlogPreviewSectionProps
 
         {/* Articles Grid */}
         {articlesLoading ? (
-          <div className="text-center py-12" style={{ color: 'var(--text-secondary)' }}>
+          <div
+            className="text-center py-12"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             {isZh ? '加载中...' : 'Loading articles...'}
           </div>
         ) : !articles || articles.length === 0 ? (
-          <div className="text-center py-12" style={{ color: 'var(--text-secondary)' }}>
+          <div
+            className="text-center py-12"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             <FileText size={48} className="mx-auto mb-4 opacity-50" />
             <p>{isZh ? '暂无文章' : 'No articles available'}</p>
           </div>
@@ -107,11 +112,14 @@ export default function BlogPreviewSection({ language }: BlogPreviewSectionProps
                         borderColor: 'var(--panel-border)',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--green-primary)'
-                        e.currentTarget.style.boxShadow = '0 0 25px var(--green-glow)'
+                        e.currentTarget.style.borderColor =
+                          'var(--green-primary)'
+                        e.currentTarget.style.boxShadow =
+                          '0 0 25px var(--green-glow)'
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--panel-border)'
+                        e.currentTarget.style.borderColor =
+                          'var(--panel-border)'
                         e.currentTarget.style.boxShadow = 'none'
                       }}
                     >
@@ -122,7 +130,8 @@ export default function BlogPreviewSection({ language }: BlogPreviewSectionProps
                             alt={article.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none'
+                              ;(e.target as HTMLImageElement).style.display =
+                                'none'
                             }}
                           />
                         </div>
@@ -140,16 +149,27 @@ export default function BlogPreviewSection({ language }: BlogPreviewSectionProps
                         >
                           {article.excerpt || article.meta_description}
                         </p>
-                        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                        <div
+                          className="flex items-center gap-2 text-xs"
+                          style={{ color: 'var(--text-tertiary)' }}
+                        >
                           <Calendar size={14} />
                           {article.published_at
                             ? new Date(article.published_at).toLocaleDateString(
                                 isZh ? 'zh-CN' : 'en-US',
-                                { year: 'numeric', month: 'short', day: 'numeric' }
+                                {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                }
                               )
                             : new Date(article.created_at).toLocaleDateString(
                                 isZh ? 'zh-CN' : 'en-US',
-                                { year: 'numeric', month: 'short', day: 'numeric' }
+                                {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                }
                               )}
                         </div>
                       </div>
@@ -193,4 +213,3 @@ export default function BlogPreviewSection({ language }: BlogPreviewSectionProps
     </AnimatedSection>
   )
 }
-

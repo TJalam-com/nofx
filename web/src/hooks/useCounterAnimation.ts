@@ -16,7 +16,7 @@ export function useCounterAnimation({
   // Ensure end is a valid number
   const safeEnd = typeof end === 'number' && !isNaN(end) ? end : 0
   const safeStart = typeof start === 'number' && !isNaN(start) ? start : 0
-  
+
   const [count, setCount] = useState(safeStart)
 
   useEffect(() => {
@@ -57,5 +57,7 @@ export function useCounterAnimation({
 
   // Ensure count is a valid number before calling toFixed
   const safeCount = typeof count === 'number' && !isNaN(count) ? count : 0
-  return decimals > 0 ? parseFloat(safeCount.toFixed(decimals)) : Math.floor(safeCount)
+  return decimals > 0
+    ? parseFloat(safeCount.toFixed(decimals))
+    : Math.floor(safeCount)
 }

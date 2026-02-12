@@ -14,21 +14,27 @@ import { RegistrationDisabled } from './RegistrationDisabled'
 // Helper function to translate backend error messages
 function translateBackendError(message: string, language: 'en' | 'zh'): string {
   if (!message) return message
-  
+
   const errorMap: Record<string, { en: string; zh: string }> = {
-    '邮箱已被注册': { en: 'Email already registered', zh: '邮箱已被注册' },
-    'email already registered': { en: 'Email already registered', zh: '邮箱已被注册' },
-    '登录失败': { en: 'Login failed', zh: '登录失败' },
-    '登录失败，请重试': { en: 'Login failed, please try again', zh: '登录失败，请重试' },
-    '未知错误': { en: 'Unknown error', zh: '未知错误' },
-    '注册失败': { en: 'Registration failed', zh: '注册失败' },
+    邮箱已被注册: { en: 'Email already registered', zh: '邮箱已被注册' },
+    'email already registered': {
+      en: 'Email already registered',
+      zh: '邮箱已被注册',
+    },
+    登录失败: { en: 'Login failed', zh: '登录失败' },
+    '登录失败，请重试': {
+      en: 'Login failed, please try again',
+      zh: '登录失败，请重试',
+    },
+    未知错误: { en: 'Unknown error', zh: '未知错误' },
+    注册失败: { en: 'Registration failed', zh: '注册失败' },
   }
-  
+
   // Check for exact matches first
   if (errorMap[message]) {
     return errorMap[message][language]
   }
-  
+
   // Check for partial matches
   const lowerMessage = message.toLowerCase()
   for (const [key, translations] of Object.entries(errorMap)) {
@@ -36,7 +42,7 @@ function translateBackendError(message: string, language: 'en' | 'zh'): string {
       return translations[language]
     }
   }
-  
+
   // If message contains Chinese characters and language is English, try to translate common patterns
   if (language === 'en' && /[\u4e00-\u9fff]/.test(message)) {
     if (message.includes('邮箱已被注册') || message.includes('已注册')) {
@@ -49,7 +55,7 @@ function translateBackendError(message: string, language: 'en' | 'zh'): string {
       return 'Registration failed'
     }
   }
-  
+
   return message
 }
 
@@ -244,7 +250,11 @@ export function RegisterPage() {
                   />
                   <button
                     type="button"
-                    aria-label={showPassword ? t('hidePassword', language) : t('showPassword', language)}
+                    aria-label={
+                      showPassword
+                        ? t('hidePassword', language)
+                        : t('showPassword', language)
+                    }
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute inset-y-0 right-2 w-8 h-10 flex items-center justify-center rounded bg-transparent p-0 m-0 border-0 outline-none focus:outline-none focus:ring-0 appearance-none cursor-pointer btn-icon"
@@ -365,7 +375,9 @@ export function RegisterPage() {
                   onChange={(e) => setTermsAccepted(e.target.checked)}
                   className="mt-1 w-4 h-4 rounded cursor-pointer"
                   style={{
-                    background: termsAccepted ? 'var(--green-primary)' : 'var(--navy-primary)',
+                    background: termsAccepted
+                      ? 'var(--green-primary)'
+                      : 'var(--navy-primary)',
                     border: '1px solid var(--panel-border)',
                     accentColor: 'var(--green-primary)',
                   }}
@@ -405,7 +417,10 @@ export function RegisterPage() {
               <button
                 type="submit"
                 disabled={
-                  loading || (betaMode && !betaCode.trim()) || !passwordValid || !termsAccepted
+                  loading ||
+                  (betaMode && !betaCode.trim()) ||
+                  !passwordValid ||
+                  !termsAccepted
                 }
                 className="w-full px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
                 style={{
@@ -613,7 +628,10 @@ export function RegisterPage() {
                   type="submit"
                   disabled={loading || otpCode.length !== 6}
                   className="flex-1 px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50"
-                  style={{ background: '#00CC66', color: 'var(--navy-primary)' }}
+                  style={{
+                    background: '#00CC66',
+                    color: 'var(--navy-primary)',
+                  }}
                 >
                   {loading
                     ? t('loading', language)

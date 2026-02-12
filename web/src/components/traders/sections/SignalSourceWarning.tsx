@@ -33,7 +33,11 @@ export function SignalSourceWarning({
             <strong>{t('solutions', language)}</strong>
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2 mt-1">
-            <li>{t('solution1', language, { signalSource: t('signalSource', language) })}</li>
+            <li>
+              {t('solution1', language, {
+                signalSource: t('signalSource', language),
+              })}
+            </li>
             <li>{t('solution2', language)}</li>
             <li>{t('solution3', language)}</li>
           </ul>

@@ -4,7 +4,14 @@ import { api } from '../lib/api'
 import { getArticleSEOConfig } from '../config/seo'
 import { useLanguage } from '../contexts/LanguageContext'
 import { Helmet } from 'react-helmet-async'
-import { Calendar, ArrowLeft, Share2, Twitter, Facebook, Linkedin } from 'lucide-react'
+import {
+  Calendar,
+  ArrowLeft,
+  Share2,
+  Twitter,
+  Facebook,
+  Linkedin,
+} from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { convertImgBBUrl } from '../utils/imgbb'
 
@@ -30,7 +37,7 @@ export function ArticlePage() {
     if (!articleContentRef.current || !article) return
     const contentEl = articleContentRef.current
     const images = contentEl.querySelectorAll('img')
-    
+
     const processImage = (img: HTMLImageElement) => {
       // Skip if already processed
       if (img.dataset.processed === 'true') {
@@ -56,7 +63,7 @@ export function ArticlePage() {
       // Remove width/height attributes from DOM (not just styles)
       img.removeAttribute('width')
       img.removeAttribute('height')
-      
+
       // Set image to display at natural size - NO RESIZING
       // Only constrain max-width and center
       img.style.display = 'block'
@@ -73,7 +80,7 @@ export function ArticlePage() {
       img.style.minHeight = '0'
       img.style.objectFit = 'none' // No scaling at all
       img.style.imageRendering = 'auto' // Use browser's best rendering
-      
+
       // Force natural dimensions after image loads
       const ensureNaturalSize = () => {
         if (img.naturalWidth > 0 && img.naturalHeight > 0) {
@@ -84,14 +91,14 @@ export function ArticlePage() {
           img.style.maxHeight = 'none'
         }
       }
-      
+
       // Ensure natural size when image loads
       if (img.complete) {
         ensureNaturalSize()
       } else {
         img.addEventListener('load', ensureNaturalSize, { once: true })
       }
-      
+
       // Force center alignment and larger size with 3:2 aspect ratio (900x600)
       img.style.display = 'block'
       img.style.marginLeft = 'auto'
@@ -101,13 +108,13 @@ export function ArticlePage() {
       img.style.height = 'auto'
       img.style.aspectRatio = '3 / 2'
       img.style.objectFit = 'contain'
-      
+
       // Add error handling
       img.onerror = () => {
         img.style.display = 'none'
       }
     }
-    
+
     images.forEach((img) => {
       if (img.complete && img.naturalWidth > 0) {
         // Image already loaded
@@ -123,10 +130,12 @@ export function ArticlePage() {
   // Ensure featured image maintains 3:2 aspect ratio (900x600)
   useEffect(() => {
     if (!article?.featured_image_url) return
-    
+
     // Wait for DOM to update
     const timer = setTimeout(() => {
-      const featuredImg = document.querySelector('.article-featured-image') as HTMLImageElement
+      const featuredImg = document.querySelector(
+        '.article-featured-image'
+      ) as HTMLImageElement
       if (featuredImg) {
         const handleLoad = () => {
           // Ensure 3:2 aspect ratio is maintained
@@ -134,7 +143,7 @@ export function ArticlePage() {
           featuredImg.style.aspectRatio = '3 / 2'
           featuredImg.style.objectFit = 'contain'
         }
-        
+
         if (featuredImg.complete) {
           handleLoad()
         } else {
@@ -143,7 +152,7 @@ export function ArticlePage() {
         }
       }
     }, 100)
-    
+
     return () => clearTimeout(timer)
   }, [article])
 
@@ -151,22 +160,30 @@ export function ArticlePage() {
   const articleUrl = `${baseUrl}/blog/${slug}`
 
   // SEO configuration
-  const seoConfig = article ? getArticleSEOConfig({
-    title: article.title,
-    metaTitle: article.meta_title,
-    metaDescription: article.meta_description || '',
-    metaKeywords: article.meta_keywords,
-    ogImageUrl: article.og_image_url,
-    featuredImageUrl: article.featured_image_url || '',
-    slug: article.slug,
-    publishedAt: article.published_at,
-    authorId: article.author_id,
-  }, language) : null
+  const seoConfig = article
+    ? getArticleSEOConfig(
+        {
+          title: article.title,
+          metaTitle: article.meta_title,
+          metaDescription: article.meta_description || '',
+          metaKeywords: article.meta_keywords,
+          ogImageUrl: article.og_image_url,
+          featuredImageUrl: article.featured_image_url || '',
+          slug: article.slug,
+          publishedAt: article.published_at,
+          authorId: article.author_id,
+        },
+        language
+      )
+    : null
 
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="text-center py-12" style={{ color: 'var(--text-secondary, #6b7280)' }}>
+        <div
+          className="text-center py-12"
+          style={{ color: 'var(--text-secondary, #6b7280)' }}
+        >
           Loading article...
         </div>
       </div>
@@ -177,13 +194,13 @@ export function ArticlePage() {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center py-12">
-          <h1 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-primary, #111827)' }}>
+          <h1
+            className="text-2xl font-bold mb-4"
+            style={{ color: 'var(--text-primary, #111827)' }}
+          >
             Article not found
           </h1>
-          <Link
-            to="/blog"
-            className="text-blue-500 hover:text-blue-700"
-          >
+          <Link to="/blog" className="text-blue-500 hover:text-blue-700">
             Back to blog
           </Link>
         </div>
@@ -210,17 +227,22 @@ export function ArticlePage() {
     '@type': 'Article',
     headline: article.meta_title || article.title,
     description: article.meta_description || article.excerpt,
-    image: article.og_image_url || article.featured_image_url || `${baseUrl}/images/main.webp`,
+    image:
+      article.og_image_url ||
+      article.featured_image_url ||
+      `${baseUrl}/images/main.webp`,
     datePublished: article.published_at,
     dateModified: article.updated_at,
-    author: article.author_email ? {
-      '@type': 'Person',
-      name: article.author_email,
-      email: article.author_email,
-    } : {
-      '@type': 'Organization',
-      name: 'AI Trading 24x7',
-    },
+    author: article.author_email
+      ? {
+          '@type': 'Person',
+          name: article.author_email,
+          email: article.author_email,
+        }
+      : {
+          '@type': 'Organization',
+          name: 'AI Trading 24x7',
+        },
     publisher: {
       '@type': 'Organization',
       name: 'AI Trading 24x7',
@@ -236,7 +258,10 @@ export function ArticlePage() {
   }
 
   // Determine the date to display - prioritize created_at
-  const displayDate = article.created_at || article.updated_at || (article.status === 'published' ? article.published_at : null)
+  const displayDate =
+    article.created_at ||
+    article.updated_at ||
+    (article.status === 'published' ? article.published_at : null)
 
   // Helper function to convert ImgBB URLs to direct image URLs
   // Uses utility function that handles page URLs, HTML embed codes, and BBCode
@@ -245,42 +270,82 @@ export function ArticlePage() {
   }
 
   // Process article content to fix image URLs
-  const processedContent = article.content ? (() => {
-    let content = article.content
-    // Find all img tags and fix their src attributes
-    content = content.replace(/<img([^>]+)src=["']([^"']+)["']([^>]*)>/gi, (_match, before, src, after) => {
-      const fixedSrc = convertImgBBUrlLocal(src)
-      return `<img${before}src="${fixedSrc}"${after}>`
-    })
-    return content
-  })() : article.content
+  const processedContent = article.content
+    ? (() => {
+        let content = article.content
+        // Find all img tags and fix their src attributes
+        content = content.replace(
+          /<img([^>]+)src=["']([^"']+)["']([^>]*)>/gi,
+          (_match, before, src, after) => {
+            const fixedSrc = convertImgBBUrlLocal(src)
+            return `<img${before}src="${fixedSrc}"${after}>`
+          }
+        )
+        return content
+      })()
+    : article.content
 
   // Fix featured image URL if needed
-  const processedFeaturedImageUrl = article.featured_image_url ? convertImgBBUrlLocal(article.featured_image_url) : article.featured_image_url
+  const processedFeaturedImageUrl = article.featured_image_url
+    ? convertImgBBUrlLocal(article.featured_image_url)
+    : article.featured_image_url
 
   return (
     <>
       <Helmet>
         <title>{seoConfig?.title || article.title}</title>
-        <meta name="description" content={seoConfig?.description || article.meta_description} />
-        {seoConfig?.keywords && <meta name="keywords" content={seoConfig.keywords} />}
+        <meta
+          name="description"
+          content={seoConfig?.description || article.meta_description}
+        />
+        {seoConfig?.keywords && (
+          <meta name="keywords" content={seoConfig.keywords} />
+        )}
         <link rel="canonical" href={seoConfig?.canonical || articleUrl} />
 
         {/* Open Graph */}
         <meta property="og:type" content="article" />
-        <meta property="og:title" content={article.meta_title || article.title} />
-        <meta property="og:description" content={article.meta_description || article.excerpt} />
-        <meta property="og:image" content={article.og_image_url || article.featured_image_url || `${baseUrl}/images/main.webp`} />
+        <meta
+          property="og:title"
+          content={article.meta_title || article.title}
+        />
+        <meta
+          property="og:description"
+          content={article.meta_description || article.excerpt}
+        />
+        <meta
+          property="og:image"
+          content={
+            article.og_image_url ||
+            article.featured_image_url ||
+            `${baseUrl}/images/main.webp`
+          }
+        />
         <meta property="og:url" content={articleUrl} />
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={article.meta_title || article.title} />
-        <meta name="twitter:description" content={article.meta_description || article.excerpt} />
-        <meta name="twitter:image" content={article.og_image_url || article.featured_image_url || `${baseUrl}/images/main.webp`} />
+        <meta
+          name="twitter:title"
+          content={article.meta_title || article.title}
+        />
+        <meta
+          name="twitter:description"
+          content={article.meta_description || article.excerpt}
+        />
+        <meta
+          name="twitter:image"
+          content={
+            article.og_image_url ||
+            article.featured_image_url ||
+            `${baseUrl}/images/main.webp`
+          }
+        />
 
         {/* Structured Data */}
-        <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
       </Helmet>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -295,31 +360,48 @@ export function ArticlePage() {
 
         {/* Article Header */}
         <header className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4" style={{ color: 'var(--text-primary, #111827)' }}>
+          <h1
+            className="text-4xl md:text-5xl font-bold mb-4"
+            style={{ color: 'var(--text-primary, #111827)' }}
+          >
             {article.title}
           </h1>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--text-secondary, #6b7280)' }}>
+            <div
+              className="flex items-center gap-4 text-sm"
+              style={{ color: 'var(--text-secondary, #6b7280)' }}
+            >
               <div className="flex items-center gap-2">
                 <Calendar size={16} />
-                {displayDate ? new Date(displayDate).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                }) : 'Not published'}
+                {displayDate
+                  ? new Date(displayDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })
+                  : 'Not published'}
               </div>
             </div>
             <div className="relative">
               <button
                 onClick={() => setShowShareMenu(!showShareMenu)}
                 className="flex items-center gap-2 px-4 py-2 border rounded hover:bg-gray-100"
-                style={{ borderColor: 'var(--border-color, #e5e7eb)', color: 'var(--text-primary, #111827)' }}
+                style={{
+                  borderColor: 'var(--border-color, #e5e7eb)',
+                  color: 'var(--text-primary, #111827)',
+                }}
               >
                 <Share2 size={18} />
                 Share
               </button>
               {showShareMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-10" style={{ borderColor: 'var(--border-color, #e5e7eb)', backgroundColor: 'var(--bg-primary, #ffffff)' }}>
+                <div
+                  className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-10"
+                  style={{
+                    borderColor: 'var(--border-color, #e5e7eb)',
+                    backgroundColor: 'var(--bg-primary, #ffffff)',
+                  }}
+                >
                   <button
                     onClick={() => handleShare('twitter')}
                     className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-100 text-left"
@@ -367,7 +449,7 @@ export function ArticlePage() {
                 objectFit: 'contain',
               }}
               onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none'
+                ;(e.target as HTMLImageElement).style.display = 'none'
               }}
             />
           </div>
@@ -377,18 +459,18 @@ export function ArticlePage() {
         <article
           ref={articleContentRef}
           className="prose prose-lg dark:prose-invert max-w-none mb-8"
-          style={{ 
+          style={{
             color: 'var(--text-primary, #EAECEF)',
           }}
           dangerouslySetInnerHTML={{ __html: processedContent }}
         />
 
         {/* Footer */}
-        <div className="border-t pt-8 mt-8" style={{ borderColor: 'var(--border-color, #e5e7eb)' }}>
-          <Link
-            to="/blog"
-            className="text-blue-500 hover:text-blue-700"
-          >
+        <div
+          className="border-t pt-8 mt-8"
+          style={{ borderColor: 'var(--border-color, #e5e7eb)' }}
+        >
+          <Link to="/blog" className="text-blue-500 hover:text-blue-700">
             ← Back to Blog
           </Link>
         </div>

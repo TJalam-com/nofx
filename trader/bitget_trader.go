@@ -887,14 +887,11 @@ func (t *BitgetTrader) GetOrderStatus(symbol string, orderID string) (map[string
 
 	// Map Bitget status to standard status
 	status := strings.ToUpper(order.Status)
-	if status == "FILLED" {
-		status = "FILLED"
-	} else if status == "PARTIAL_FILLED" {
+	switch status {
+	case "PARTIAL_FILLED":
 		status = "PARTIALLY_FILLED"
-	} else if status == "NEW" {
-		status = "NEW"
-	} else if status == "CANCELED" {
-		status = "CANCELED"
+	case "FILLED", "NEW", "CANCELED":
+		// Already correct
 	}
 
 	return map[string]interface{}{

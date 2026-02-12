@@ -15,7 +15,11 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { useNavigate } from 'react-router-dom'
 import { useSEO } from '../hooks/useSEO'
-import { OrganizationSchema, WebSiteSchema, SoftwareApplicationSchema } from '../components/StructuredData'
+import {
+  OrganizationSchema,
+  WebSiteSchema,
+  SoftwareApplicationSchema,
+} from '../components/StructuredData'
 
 export function LandingPage() {
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -88,7 +92,10 @@ export function LandingPage() {
           color: 'var(--text-primary)',
         }}
       >
-        <HeroSection language={language} onGetStarted={() => setShowLoginModal(true)} />
+        <HeroSection
+          language={language}
+          onGetStarted={() => setShowLoginModal(true)}
+        />
         <CompetitionPreviewSection language={language} />
         <BlogPreviewSection language={language} />
         <AboutSection language={language} />

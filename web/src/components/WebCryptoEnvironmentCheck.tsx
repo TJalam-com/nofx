@@ -91,7 +91,9 @@ export function WebCryptoEnvironmentCheck({
   const containerClass = isCompact
     ? 'p-3 rounded border border-gray-700 bg-gray-900 space-y-3'
     : 'p-4 rounded border space-y-4'
-  const containerStyle = !isCompact ? { borderColor: 'var(--panel-border)', background: 'var(--navy-primary)' } : undefined
+  const containerStyle = !isCompact
+    ? { borderColor: 'var(--panel-border)', background: 'var(--navy-primary)' }
+    : undefined
 
   const descriptionColor = isCompact ? '#CBD5F5' : '#A1AEC8'
   const showInfo = status !== 'idle'

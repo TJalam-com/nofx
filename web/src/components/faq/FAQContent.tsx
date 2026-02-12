@@ -62,8 +62,14 @@ export function FAQContent({
             className="flex items-center gap-3 mb-6 pb-3"
             style={{ borderBottom: '2px solid var(--panel-border)' }}
           >
-            <category.icon className="w-7 h-7" style={{ color: 'var(--green-primary)' }} />
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            <category.icon
+              className="w-7 h-7"
+              style={{ color: 'var(--green-primary)' }}
+            />
+            <h2
+              className="text-2xl font-bold"
+              style={{ color: 'var(--text-primary)' }}
+            >
               {t(category.titleKey, language)}
             </h2>
           </div>
@@ -236,7 +242,9 @@ export function FAQContent({
                       >
                         {language === 'zh' ? (
                           <div className="text-sm">
-                            <strong style={{ color: 'var(--green-primary)' }}>提示：</strong>{' '}
+                            <strong style={{ color: 'var(--green-primary)' }}>
+                              提示：
+                            </strong>{' '}
                             参与贡献将享有激励制度（如
                             Bounty/奖金、荣誉徽章与鸣谢、优先
                             Review/合并与内测资格 等）。 可在任务中优先选择带
@@ -261,7 +269,9 @@ export function FAQContent({
                           </div>
                         ) : (
                           <div className="text-sm">
-                            <strong style={{ color: 'var(--green-primary)' }}>Note:</strong>{' '}
+                            <strong style={{ color: 'var(--green-primary)' }}>
+                              Note:
+                            </strong>{' '}
                             Contribution incentives are available (e.g., cash
                             bounties, badges & shout-outs, priority
                             review/merge, beta access). Prefer tasks with
@@ -392,7 +402,9 @@ export function FAQContent({
                       >
                         {language === 'zh' ? (
                           <div className="text-sm">
-                            <strong style={{ color: 'var(--green-primary)' }}>提示：</strong>{' '}
+                            <strong style={{ color: 'var(--green-primary)' }}>
+                              提示：
+                            </strong>{' '}
                             我们为高质量贡献提供激励（Bounty/奖金、荣誉徽章与鸣谢、优先
                             Review/合并与内测资格 等）。 详情可关注带
                             <a
@@ -416,7 +428,9 @@ export function FAQContent({
                           </div>
                         ) : (
                           <div className="text-sm">
-                            <strong style={{ color: 'var(--green-primary)' }}>Note:</strong>{' '}
+                            <strong style={{ color: 'var(--green-primary)' }}>
+                              Note:
+                            </strong>{' '}
                             We offer contribution incentives (bounties, badges,
                             shout-outs, priority review/merge, beta access).
                             Look for tasks with
@@ -448,7 +462,10 @@ export function FAQContent({
                 </div>
 
                 {/* Divider */}
-                <div className="mt-6 h-px" style={{ background: 'var(--panel-border)' }} />
+                <div
+                  className="mt-6 h-px"
+                  style={{ background: 'var(--panel-border)' }}
+                />
               </section>
             ))}
           </div>

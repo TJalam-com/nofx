@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
-import type { AIModel, Exchange, CreateTraderRequest, RunningTrader } from '../types'
+import type {
+  AIModel,
+  Exchange,
+  CreateTraderRequest,
+  RunningTrader,
+} from '../types'
 import type { PromptTemplate } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isFollower } from '../contexts/AuthContext'
@@ -101,12 +106,18 @@ export function TraderConfigModal({
   const [isSaving, setIsSaving] = useState(false)
   const [_availableCoins, setAvailableCoins] = useState<string[]>([])
   const [_selectedCoins, setSelectedCoins] = useState<string[]>([])
-  const [_promptTemplates, setPromptTemplates] = useState<{ name: string }[]>([])
-  const [_userPromptTemplates, setUserPromptTemplates] = useState<PromptTemplate[]>([])
+  const [_promptTemplates, setPromptTemplates] = useState<{ name: string }[]>(
+    []
+  )
+  const [_userPromptTemplates, setUserPromptTemplates] = useState<
+    PromptTemplate[]
+  >([])
   const [isFetchingBalance, setIsFetchingBalance] = useState(false)
   const [balanceFetchError, setBalanceFetchError] = useState<string>('')
   const [showTemplateModal, setShowTemplateModal] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null)
+  const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(
+    null
+  )
   const [runningTraders, setRunningTraders] = useState<RunningTrader[]>([])
   const [selectedTraderToCopy, setSelectedTraderToCopy] = useState<string>('')
   const [loadingRunningTraders, setLoadingRunningTraders] = useState(false)
@@ -133,15 +144,18 @@ export function TraderConfigModal({
       'scalping',
     ]
     const nameLower = name.toLowerCase().trim()
-    return promptTemplateNames.some((templateName) => 
-      nameLower === templateName.toLowerCase()
+    return promptTemplateNames.some(
+      (templateName) => nameLower === templateName.toLowerCase()
     )
   }
 
   // Filter models: exclude prompt template names, show real AI models
   const filteredModels = availableModels.filter((model) => {
     // Exclude models that are actually prompt template names
-    if (isPromptTemplateName(model.id) || isPromptTemplateName(model.name || '')) {
+    if (
+      isPromptTemplateName(model.id) ||
+      isPromptTemplateName(model.name || '')
+    ) {
       return false
     }
     return true
@@ -151,27 +165,35 @@ export function TraderConfigModal({
   const getDefaultAIModel = (): string => {
     // Try to find deepseek or qwen first (common models)
     const preferredModel = filteredModels.find(
-      (m) => (m.id || m.name || '').toLowerCase().includes('deepseek') ||
-             (m.id || m.name || '').toLowerCase().includes('qwen')
+      (m) =>
+        (m.id || m.name || '').toLowerCase().includes('deepseek') ||
+        (m.id || m.name || '').toLowerCase().includes('qwen')
     )
     if (preferredModel) return preferredModel.id
-    
+
     // Fall back to first available model
     if (filteredModels.length > 0) return filteredModels[0].id
-    
+
     return ''
   }
 
   // Auto-select default AI model and risk_management prompt template for followers when modal opens
   useEffect(() => {
-    if (userIsFollower && !isEditMode && isOpen && !formData.ai_model && filteredModels.length > 0) {
+    if (
+      userIsFollower &&
+      !isEditMode &&
+      isOpen &&
+      !formData.ai_model &&
+      filteredModels.length > 0
+    ) {
       const defaultModel = getDefaultAIModel()
       if (defaultModel) {
         setFormData((prev) => ({
           ...prev,
           ai_model: defaultModel,
           // Auto-select risk_management as system prompt template for followers
-          system_prompt_template: prev.system_prompt_template || 'risk_management',
+          system_prompt_template:
+            prev.system_prompt_template || 'risk_management',
         }))
       }
     }
@@ -185,7 +207,7 @@ export function TraderConfigModal({
         if (prev.system_prompt_template !== 'risk_management') {
           return {
             ...prev,
-            system_prompt_template: 'risk_management'
+            system_prompt_template: 'risk_management',
           }
         }
         return prev
@@ -203,9 +225,9 @@ export function TraderConfigModal({
             ...prev,
             // Don't prefill custom_prompt - users should write their own or use examples
             // For followers, always preserve risk_management; for others use config or current value
-            system_prompt_template: userIsFollower 
-              ? 'risk_management' 
-              : (config.prompt_template || prev.system_prompt_template),
+            system_prompt_template: userIsFollower
+              ? 'risk_management'
+              : config.prompt_template || prev.system_prompt_template,
           }))
         })
         .catch((err) => {
@@ -221,9 +243,9 @@ export function TraderConfigModal({
       userIsFollower,
       isEditMode,
       isOpen,
-      user: user ? { id: user.id, role: user.role } : null
+      user: user ? { id: user.id, role: user.role } : null,
     })
-    
+
     if (userIsFollower && !isEditMode && isOpen) {
       console.log('✅ Conditions met, loading running traders for follower')
       setLoadingRunningTraders(true)
@@ -233,13 +255,13 @@ export function TraderConfigModal({
           console.log('📋 Loaded running traders:', traders.length, 'traders')
           setRunningTraders(traders)
           setLoadingRunningTraders(false)
-          
+
           // Check if we should pre-select a trader from sessionStorage (from CompetitionPage)
           const copyTraderId = sessionStorage.getItem('copyTraderId')
-          
+
           if (copyTraderId) {
             const trader = traders.find((t) => t.trader_id === copyTraderId)
-            
+
             if (trader) {
               setSelectedTraderToCopy(copyTraderId)
               // Set the followed_trader_id directly
@@ -247,33 +269,49 @@ export function TraderConfigModal({
                 const newData = {
                   ...prev,
                   followed_trader_id: copyTraderId,
-                  trader_name: prev.trader_name || `${trader.trader_name} (Copy)`,
+                  trader_name:
+                    prev.trader_name || `${trader.trader_name} (Copy)`,
                   // Auto-select default risk management model and exchange if not already selected
                   ai_model: prev.ai_model || getDefaultAIModel(),
-                  exchange_id: prev.exchange_id || (availableExchanges.length > 0 ? availableExchanges[0].id : ''),
+                  exchange_id:
+                    prev.exchange_id ||
+                    (availableExchanges.length > 0
+                      ? availableExchanges[0].id
+                      : ''),
                 }
                 return newData
               })
-              toast.success('Trader selected. All settings will be copied when you save.')
+              toast.success(
+                'Trader selected. All settings will be copied when you save.'
+              )
               // Clear sessionStorage only after successful load
               sessionStorage.removeItem('copyTraderId')
             } else {
               // Try to get from public config if not in running traders
-              api.getPublicTraderConfig(copyTraderId)
+              api
+                .getPublicTraderConfig(copyTraderId)
                 .then((publicConfig) => {
                   setSelectedTraderToCopy(copyTraderId)
                   setFormData((prev) => {
                     const newData = {
                       ...prev,
                       followed_trader_id: copyTraderId,
-                      trader_name: prev.trader_name || `${publicConfig.trader_name || 'Trader'} (Copy)`,
+                      trader_name:
+                        prev.trader_name ||
+                        `${publicConfig.trader_name || 'Trader'} (Copy)`,
                       // Auto-select default risk management model and exchange if not already selected
                       ai_model: prev.ai_model || getDefaultAIModel(),
-                      exchange_id: prev.exchange_id || (availableExchanges.length > 0 ? availableExchanges[0].id : ''),
+                      exchange_id:
+                        prev.exchange_id ||
+                        (availableExchanges.length > 0
+                          ? availableExchanges[0].id
+                          : ''),
                     }
                     return newData
                   })
-                  toast.success('Trader selected. All settings will be copied when you save.')
+                  toast.success(
+                    'Trader selected. All settings will be copied when you save.'
+                  )
                   // Clear sessionStorage only after successful load
                   sessionStorage.removeItem('copyTraderId')
                 })
@@ -292,7 +330,11 @@ export function TraderConfigModal({
         })
     } else {
       console.log('⏭️ Skipping running traders load:', {
-        reason: !userIsFollower ? 'not a follower' : isEditMode ? 'edit mode' : 'modal not open'
+        reason: !userIsFollower
+          ? 'not a follower'
+          : isEditMode
+            ? 'edit mode'
+            : 'modal not open',
       })
     }
   }, [userIsFollower, isEditMode, isOpen])
@@ -310,7 +352,7 @@ export function TraderConfigModal({
     try {
       // Find the trader in the running traders list
       const trader = runningTraders.find((t) => t.trader_id === traderId)
-      
+
       if (!trader) {
         // If not in running traders list, try to get it from public config (for CompetitionPage)
         try {
@@ -318,12 +360,18 @@ export function TraderConfigModal({
           setFormData((prev) => ({
             ...prev,
             followed_trader_id: traderId,
-            trader_name: prev.trader_name || `${publicConfig.trader_name || 'Trader'} (Copy)`,
+            trader_name:
+              prev.trader_name ||
+              `${publicConfig.trader_name || 'Trader'} (Copy)`,
             // Auto-select default risk management model and exchange if not already selected
             ai_model: prev.ai_model || getDefaultAIModel(),
-            exchange_id: prev.exchange_id || (availableExchanges.length > 0 ? availableExchanges[0].id : ''),
+            exchange_id:
+              prev.exchange_id ||
+              (availableExchanges.length > 0 ? availableExchanges[0].id : ''),
           }))
-          toast.success('Trader selected. All settings will be copied when you save.')
+          toast.success(
+            'Trader selected. All settings will be copied when you save.'
+          )
           return
         } catch (err) {
           console.error('Failed to get trader config:', err)
@@ -340,17 +388,24 @@ export function TraderConfigModal({
           trader_name: prev.trader_name || `${trader.trader_name} (Copy)`,
           // Auto-select default AI model and exchange if not already selected
           ai_model: prev.ai_model || getDefaultAIModel(),
-          exchange_id: prev.exchange_id || (availableExchanges.length > 0 ? availableExchanges[0].id : ''),
+          exchange_id:
+            prev.exchange_id ||
+            (availableExchanges.length > 0 ? availableExchanges[0].id : ''),
         }
-        console.log('📝 DEBUG [TraderConfigModal]: Setting followed_trader_id:', {
-          traderId,
-          followed_trader_id: newData.followed_trader_id,
-          fullData: newData
-        })
+        console.log(
+          '📝 DEBUG [TraderConfigModal]: Setting followed_trader_id:',
+          {
+            traderId,
+            followed_trader_id: newData.followed_trader_id,
+            fullData: newData,
+          }
+        )
         return newData
       })
-      
-      toast.success('Trader selected. All settings will be copied when you save.')
+
+      toast.success(
+        'Trader selected. All settings will be copied when you save.'
+      )
     } catch (error) {
       console.error('Failed to copy trader:', error)
       toast.error('Failed to copy trader settings')
@@ -387,7 +442,11 @@ export function TraderConfigModal({
         indicator_timeframe: prev.indicator_timeframe || '3m',
         quant_data_url: prev.quant_data_url || '',
       }))
-      toast.success(language === 'zh' ? '策略已清除，可使用自定义配置' : 'Strategy cleared, using custom config')
+      toast.success(
+        language === 'zh'
+          ? '策略已清除，可使用自定义配置'
+          : 'Strategy cleared, using custom config'
+      )
       return
     }
 
@@ -398,34 +457,41 @@ export function TraderConfigModal({
       // Strategy Studio is the single source of truth
       setFormData((prev) => {
         return {
-        ...prev,
-        strategy_id: strategyId,
-        // Clear strategy-related fields (they'll be loaded from strategy when needed)
-        btc_eth_leverage: 0,
-        altcoin_leverage: 0,
-        trading_symbols: '',
-        custom_prompt: '',
-        override_base_prompt: false,
-        system_prompt_template: '',
-        is_cross_margin: true,
-        use_coin_pool: false,
-        use_oi_top: false,
-        use_tradingview: false,
-        enable_raw_klines: true,
-        enable_ema: false,
-        enable_macd: false,
-        enable_rsi: false,
-        enable_atr: false,
-        enable_volume: true,
-        enable_oi: true,
-        enable_funding: true,
-        indicator_timeframe: '',
-        quant_data_url: '',
+          ...prev,
+          strategy_id: strategyId,
+          // Clear strategy-related fields (they'll be loaded from strategy when needed)
+          btc_eth_leverage: 0,
+          altcoin_leverage: 0,
+          trading_symbols: '',
+          custom_prompt: '',
+          override_base_prompt: false,
+          system_prompt_template: '',
+          is_cross_margin: true,
+          use_coin_pool: false,
+          use_oi_top: false,
+          use_tradingview: false,
+          enable_raw_klines: true,
+          enable_ema: false,
+          enable_macd: false,
+          enable_rsi: false,
+          enable_atr: false,
+          enable_volume: true,
+          enable_oi: true,
+          enable_funding: true,
+          indicator_timeframe: '',
+          quant_data_url: '',
         }
       })
-      toast.success(language === 'zh' ? `策略 "${strategy.name}" 已选择，设置将从策略加载` : `Strategy "${strategy.name}" selected, settings will be loaded from strategy`)
+      toast.success(
+        language === 'zh'
+          ? `策略 "${strategy.name}" 已选择，设置将从策略加载`
+          : `Strategy "${strategy.name}" selected, settings will be loaded from strategy`
+      )
     } catch (error: any) {
-      toast.error(error.message || (language === 'zh' ? '加载策略失败' : 'Failed to load strategy'))
+      toast.error(
+        error.message ||
+          (language === 'zh' ? '加载策略失败' : 'Failed to load strategy')
+      )
       setSelectedStrategyId('')
       setFormData((prev) => ({
         ...prev,
@@ -434,7 +500,6 @@ export function TraderConfigModal({
     }
   }
 
-
   useEffect(() => {
     if (traderData) {
       console.log('🔍 DEBUG [TraderConfigModal]: Loading traderData:', {
@@ -442,9 +507,9 @@ export function TraderConfigModal({
         trader_id: traderData.trader_id,
         trader_name: traderData.trader_name,
         strategy_id: traderData.strategy_id,
-        isEditMode: isEditMode
+        isEditMode: isEditMode,
       })
-      
+
       // If trader has strategy_id, only load trader-specific fields (Strategy Studio is single source of truth)
       if (traderData.strategy_id) {
         setFormData({
@@ -484,7 +549,8 @@ export function TraderConfigModal({
         setFormData({
           ...traderData,
           // Ensure system_prompt_template has a default value if empty/undefined
-          system_prompt_template: traderData.system_prompt_template || 'default',
+          system_prompt_template:
+            traderData.system_prompt_template || 'default',
           // Ensure indicator config has defaults if not present
           enable_raw_klines: traderData.enable_raw_klines ?? true,
           enable_ema: traderData.enable_ema ?? false,
@@ -499,9 +565,12 @@ export function TraderConfigModal({
         })
         setSelectedStrategyId('')
       }
-      
-      console.log('🔍 DEBUG [TraderConfigModal]: Set formData with system_prompt_template:', traderData.system_prompt_template || 'default')
-      
+
+      console.log(
+        '🔍 DEBUG [TraderConfigModal]: Set formData with system_prompt_template:',
+        traderData.system_prompt_template || 'default'
+      )
+
       // 设置已选择的币种 (only if no strategy_id - strategy manages trading symbols)
       if (!traderData.strategy_id && traderData.trading_symbols) {
         const coins = traderData.trading_symbols
@@ -514,26 +583,33 @@ export function TraderConfigModal({
       }
     } else if (!isEditMode) {
       // For followers, auto-select risk_management as system prompt template
-      const defaultAIModel = filteredModels.length > 0 
-        ? getDefaultAIModel()
-        : (availableModels[0]?.id || '')
-      
+      const defaultAIModel =
+        filteredModels.length > 0
+          ? getDefaultAIModel()
+          : availableModels[0]?.id || ''
+
       // Preserve followed_trader_id if it was already set (from copy trader flow)
       // Use functional update to avoid clearing it when dependencies change
       setFormData((prev) => {
         // Only reset if followed_trader_id is not already set
         if (prev.followed_trader_id) {
-          console.log('🔍 DEBUG [TraderConfigModal]: Preserving followed_trader_id:', prev.followed_trader_id)
+          console.log(
+            '🔍 DEBUG [TraderConfigModal]: Preserving followed_trader_id:',
+            prev.followed_trader_id
+          )
           // Still ensure risk_management for followers even when preserving followed_trader_id
-          if (userIsFollower && prev.system_prompt_template !== 'risk_management') {
+          if (
+            userIsFollower &&
+            prev.system_prompt_template !== 'risk_management'
+          ) {
             return {
               ...prev,
-              system_prompt_template: 'risk_management'
+              system_prompt_template: 'risk_management',
             }
           }
           return prev // Don't reset if followed_trader_id is already set
         }
-        
+
         // Otherwise, reset to defaults
         return {
           trader_name: '',
@@ -555,7 +631,9 @@ export function TraderConfigModal({
           trading_symbols: '',
           custom_prompt: '',
           override_base_prompt: false,
-          system_prompt_template: userIsFollower ? 'risk_management' : 'default',
+          system_prompt_template: userIsFollower
+            ? 'risk_management'
+            : 'default',
           is_cross_margin: true,
           use_coin_pool: false,
           use_oi_top: false,
@@ -568,7 +646,14 @@ export function TraderConfigModal({
       })
       setSelectedStrategyId('')
     }
-  }, [traderData, isEditMode, availableModels, availableExchanges, userIsFollower, filteredModels.length])
+  }, [
+    traderData,
+    isEditMode,
+    availableModels,
+    availableExchanges,
+    userIsFollower,
+    filteredModels.length,
+  ])
 
   // 获取系统配置中的币种列表
   useEffect(() => {
@@ -613,9 +698,9 @@ export function TraderConfigModal({
     const fetchPromptTemplates = async () => {
       try {
         // 获取系统模板（公开）
-        const publicResult = await httpClient.get<{ templates?: { name: string }[] }>(
-          '/api/prompt-templates'
-        )
+        const publicResult = await httpClient.get<{
+          templates?: { name: string }[]
+        }>('/api/prompt-templates')
         if (publicResult.success && publicResult.data?.templates) {
           setPromptTemplates(publicResult.data.templates)
         } else {
@@ -700,9 +785,11 @@ export function TraderConfigModal({
 
     // Require strategy selection for non-followers when creating new trader
     if (!userIsFollower && !isEditMode && !formData.strategy_id) {
-      toast.error(language === 'zh' 
-        ? '请先选择策略或创建新策略。所有交易配置必须在策略工作室中管理。'
-        : 'Please select a strategy or create a new one first. All trading configuration must be managed in Strategy Studio.')
+      toast.error(
+        language === 'zh'
+          ? '请先选择策略或创建新策略。所有交易配置必须在策略工作室中管理。'
+          : 'Please select a strategy or create a new one first. All trading configuration must be managed in Strategy Studio.'
+      )
       return
     }
 
@@ -714,7 +801,7 @@ export function TraderConfigModal({
         hasStrategy,
         followed_trader_id: formData.followed_trader_id,
       })
-      
+
       // Pure reference model: if strategy_id is set, only send strategy_id and trader-specific fields
       // If strategy_id is not set, send individual settings (only allowed for followers or existing traders)
       const saveData: CreateTraderRequest = {
@@ -728,7 +815,10 @@ export function TraderConfigModal({
       if (hasStrategy) {
         // Strategy reference mode: only send strategy_id
         saveData.strategy_id = formData.strategy_id
-        console.log('✓ Using strategy reference mode - sending only strategy_id:', formData.strategy_id)
+        console.log(
+          '✓ Using strategy reference mode - sending only strategy_id:',
+          formData.strategy_id
+        )
       } else {
         // Custom config mode: send individual settings (only for followers or existing traders without strategy)
         saveData.btc_eth_leverage = formData.btc_eth_leverage
@@ -764,7 +854,7 @@ export function TraderConfigModal({
         strategy_id: saveData.strategy_id,
         hasStrategy,
         isEditMode: isEditMode,
-        fullSaveData: saveData
+        fullSaveData: saveData,
       })
 
       await toast.promise(onSave(saveData), {
@@ -783,17 +873,32 @@ export function TraderConfigModal({
   // Note: getTooltipContent and getPromptExamples are currently unused but kept for future UI enhancements
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto"
+      style={{ background: 'rgba(0, 31, 63, 0.5)' }}
+    >
       <div
         className="border rounded-xl shadow-2xl max-w-3xl w-full my-8"
-        style={{ background: 'var(--navy-dark)', borderColor: 'var(--panel-border)', maxHeight: 'calc(100vh - 4rem)' }}
+        style={{
+          background: 'var(--navy-dark)',
+          borderColor: 'var(--panel-border)',
+          maxHeight: 'calc(100vh - 4rem)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b sticky top-0 z-10 rounded-t-xl"
-        style={{ borderColor: 'var(--panel-border)', background: 'var(--navy-dark)' }}>
+        <div
+          className="flex items-center justify-between p-6 border-b sticky top-0 z-10 rounded-t-xl"
+          style={{
+            borderColor: 'var(--panel-border)',
+            background: 'var(--navy-dark)',
+          }}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--green-primary)] to-[var(--green-dark)] flex items-center justify-center" style={{ color: 'var(--navy-primary)' }}>
+            <div
+              className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--green-primary)] to-[var(--green-dark)] flex items-center justify-center"
+              style={{ color: 'var(--navy-primary)' }}
+            >
               {isEditMode ? (
                 <Pencil className="w-5 h-5" />
               ) : (
@@ -802,17 +907,23 @@ export function TraderConfigModal({
             </div>
             <div>
               <h2 className="text-xl font-bold text-[#EAECEF]">
-                {isEditMode ? t('editTrader', language) : t('createTrader', language)}
+                {isEditMode
+                  ? t('editTrader', language)
+                  : t('createTrader', language)}
               </h2>
               <p className="text-sm text-[#848E9C] mt-1">
-                {isEditMode ? t('editTraderSubtitle', language) : t('createTraderSubtitle', language)}
+                {isEditMode
+                  ? t('editTraderSubtitle', language)
+                  : t('createTraderSubtitle', language)}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg text-[#848E9C] hover:text-[#EAECEF] transition-colors flex items-center justify-center"
-            style={{ '--hover-bg': 'var(--panel-border)' } as React.CSSProperties}
+            style={
+              { '--hover-bg': 'var(--panel-border)' } as React.CSSProperties
+            }
           >
             <IconX className="w-4 h-4" />
           </button>
@@ -825,7 +936,13 @@ export function TraderConfigModal({
         >
           {/* Copy Trader Section (Followers only, create mode) */}
           {userIsFollower && !isEditMode && (
-            <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
+            <div
+              className="rounded-lg p-5"
+              style={{
+                background: 'var(--navy-primary)',
+                border: '1px solid var(--panel-border)',
+              }}
+            >
               <h3 className="text-lg font-semibold text-[#EAECEF] mb-4 flex items-center gap-2">
                 📋 Copy Trader
               </h3>
@@ -834,7 +951,9 @@ export function TraderConfigModal({
                   Select a running trader to copy
                 </label>
                 {loadingRunningTraders ? (
-                  <div className="text-sm text-[#848E9C]">Loading traders...</div>
+                  <div className="text-sm text-[#848E9C]">
+                    Loading traders...
+                  </div>
                 ) : runningTraders.length === 0 ? (
                   <div className="text-sm text-[#848E9C]">
                     No running traders available to copy
@@ -849,7 +968,10 @@ export function TraderConfigModal({
                       }
                     }}
                     className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
+                    }}
                   >
                     <option value="">-- Select a trader to copy --</option>
                     {runningTraders.map((trader) => (
@@ -860,7 +982,7 @@ export function TraderConfigModal({
                   </select>
                 )}
                 <div className="text-xs text-[#848E9C] mt-2">
-                  {userIsFollower 
+                  {userIsFollower
                     ? 'Select a running trader from any user to copy all their settings. You can then customize the exchange and AI risk management model.'
                     : 'Select a running trader from any user to copy all their settings. You can customize the exchange, AI model, and other configurations.'}
                 </div>
@@ -869,7 +991,13 @@ export function TraderConfigModal({
           )}
 
           {/* Basic Info */}
-          <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
+          <div
+            className="rounded-lg p-5"
+            style={{
+              background: 'var(--navy-primary)',
+              border: '1px solid var(--panel-border)',
+            }}
+          >
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
               🤖 {t('basicConfig', language)}
             </h3>
@@ -885,7 +1013,10 @@ export function TraderConfigModal({
                     handleInputChange('trader_name', e.target.value)
                   }
                   className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                  style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                  style={{
+                    background: 'var(--navy-primary)',
+                    border: '1px solid var(--panel-border)',
+                  }}
                   placeholder={t('traderNamePlaceholder', language)}
                 />
               </div>
@@ -906,7 +1037,11 @@ export function TraderConfigModal({
                           handleInputChange('ai_model', e.target.value)
                         }
                         className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)', color: '#EAECEF' }}
+                        style={{
+                          background: 'var(--navy-primary)',
+                          border: '1px solid var(--navy-light)',
+                          color: '#EAECEF',
+                        }}
                       >
                         {filteredModels.map((model) => (
                           <option key={model.id} value={model.id}>
@@ -927,7 +1062,11 @@ export function TraderConfigModal({
                       handleInputChange('exchange_id', e.target.value)
                     }
                     className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)', color: '#EAECEF' }}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--navy-light)',
+                      color: '#EAECEF',
+                    }}
                   >
                     {availableExchanges.map((exchange) => (
                       <option key={exchange.id} value={exchange.id}>
@@ -943,7 +1082,13 @@ export function TraderConfigModal({
           </div>
 
           {/* Trading Configuration */}
-          <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
+          <div
+            className="rounded-lg p-5"
+            style={{
+              background: 'var(--navy-primary)',
+              border: '1px solid var(--panel-border)',
+            }}
+          >
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
               ⚖️ {t('tradingConfig', language)}
             </h3>
@@ -963,7 +1108,9 @@ export function TraderConfigModal({
                         className="px-3 py-1 text-xs bg-[var(--green-primary)] rounded hover:bg-[var(--green-dark)] transition-colors disabled:bg-[#848E9C] disabled:cursor-not-allowed"
                         style={{ color: 'var(--navy-primary)' }}
                       >
-                        {isFetchingBalance ? t('fetchingBalance', language) : t('fetchCurrentBalance', language)}
+                        {isFetchingBalance
+                          ? t('fetchingBalance', language)
+                          : t('fetchCurrentBalance', language)}
                       </button>
                     </div>
                     <input
@@ -983,7 +1130,10 @@ export function TraderConfigModal({
                         }
                       }}
                       className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                      style={{
+                        background: 'var(--navy-primary)',
+                        border: '1px solid var(--panel-border)',
+                      }}
                       min="100"
                       step="0.01"
                     />
@@ -1002,8 +1152,13 @@ export function TraderConfigModal({
                     <label className="text-sm text-[#EAECEF] mb-2 block">
                       {t('initialBalanceLabel', language)}
                     </label>
-                    <div className="w-full px-3 py-2 rounded text-[#848E9C] flex items-center gap-2"
-                    style={{ background: 'var(--navy-dark)', border: '1px solid var(--panel-border)' }}>
+                    <div
+                      className="w-full px-3 py-2 rounded text-[#848E9C] flex items-center gap-2"
+                      style={{
+                        background: 'var(--navy-dark)',
+                        border: '1px solid var(--panel-border)',
+                      }}
+                    >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="w-4 h-4 text-[var(--green-primary)]"
@@ -1043,7 +1198,10 @@ export function TraderConfigModal({
                       handleInputChange('scan_interval_minutes', safeValue)
                     }}
                     className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--panel-border)',
+                    }}
                     min="3"
                     max="60"
                     step="1"
@@ -1054,13 +1212,18 @@ export function TraderConfigModal({
                 </div>
                 <div></div>
               </div>
-
             </div>
           </div>
 
           {/* Strategy Selection - Only show for non-followers */}
           {!userIsFollower && (
-            <div className="rounded-lg p-5" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
+            <div
+              className="rounded-lg p-5"
+              style={{
+                background: 'var(--navy-primary)',
+                border: '1px solid var(--panel-border)',
+              }}
+            >
               <h3 className="text-lg font-semibold text-[#EAECEF] mb-4 flex items-center gap-2">
                 🎯 {language === 'zh' ? '策略选择' : 'Strategy Selection'}
               </h3>
@@ -1068,7 +1231,9 @@ export function TraderConfigModal({
                 <div>
                   <label className="text-sm text-[#EAECEF] block mb-2">
                     {language === 'zh' ? '选择策略' : 'Select Strategy'}
-                    <span className="text-xs text-[var(--green-primary)] ml-2">*</span>
+                    <span className="text-xs text-[var(--green-primary)] ml-2">
+                      *
+                    </span>
                   </label>
                   <select
                     value={selectedStrategyId}
@@ -1076,9 +1241,17 @@ export function TraderConfigModal({
                       handleStrategyChange(e.target.value)
                     }}
                     className="w-full px-3 py-2 rounded text-[#EAECEF] focus:border-[var(--green-primary)] focus:outline-none"
-                    style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)', color: '#EAECEF' }}
+                    style={{
+                      background: 'var(--navy-primary)',
+                      border: '1px solid var(--navy-light)',
+                      color: '#EAECEF',
+                    }}
                   >
-                    <option value="">{language === 'zh' ? '-- 请选择策略 --' : '-- Please Select a Strategy --'}</option>
+                    <option value="">
+                      {language === 'zh'
+                        ? '-- 请选择策略 --'
+                        : '-- Please Select a Strategy --'}
+                    </option>
                     {strategies?.map((strategy) => (
                       <option key={strategy.id} value={strategy.id}>
                         {strategy.name}
@@ -1086,9 +1259,15 @@ export function TraderConfigModal({
                     ))}
                   </select>
                   {!selectedStrategyId && (
-                    <div className="mt-2 p-3 rounded" style={{ background: 'rgba(255, 193, 7, 0.1)', border: '1px solid rgba(255, 193, 7, 0.3)' }}>
+                    <div
+                      className="mt-2 p-3 rounded"
+                      style={{
+                        background: 'rgba(255, 193, 7, 0.1)',
+                        border: '1px solid rgba(255, 193, 7, 0.3)',
+                      }}
+                    >
                       <div className="text-xs" style={{ color: '#FFC107' }}>
-                        {language === 'zh' 
+                        {language === 'zh'
                           ? '⚠️ 请先选择策略或创建新策略。所有交易配置（杠杆、币种、信号源、指标、提示词等）都在策略工作室中管理。'
                           : '⚠️ Please select a strategy or create a new one first. All trading configuration (leverage, symbols, signal sources, indicators, prompts, etc.) is managed in Strategy Studio.'}
                       </div>
@@ -1100,32 +1279,91 @@ export function TraderConfigModal({
                           className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[var(--green-primary)] rounded hover:bg-[var(--green-dark)] transition-colors"
                           style={{ color: 'var(--navy-primary)' }}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-3 h-3"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            />
                           </svg>
-                          {language === 'zh' ? '前往策略工作室' : 'Go to Strategy Studio'}
+                          {language === 'zh'
+                            ? '前往策略工作室'
+                            : 'Go to Strategy Studio'}
                         </a>
                       </div>
                     </div>
                   )}
                   {selectedStrategyId && (
-                    <div className="mt-2 p-4 rounded" style={{ background: 'rgba(0, 255, 127, 0.1)', border: '1px solid rgba(0, 255, 127, 0.3)' }}>
-                      <div className="text-xs font-semibold mb-2" style={{ color: 'var(--green-primary)' }}>
-                        {language === 'zh' ? '✓ 策略模式已启用' : '✓ Strategy Mode Active'}
+                    <div
+                      className="mt-2 p-4 rounded"
+                      style={{
+                        background: 'rgba(0, 255, 127, 0.1)',
+                        border: '1px solid rgba(0, 255, 127, 0.3)',
+                      }}
+                    >
+                      <div
+                        className="text-xs font-semibold mb-2"
+                        style={{ color: 'var(--green-primary)' }}
+                      >
+                        {language === 'zh'
+                          ? '✓ 策略模式已启用'
+                          : '✓ Strategy Mode Active'}
                       </div>
-                      <div className="text-xs mb-3" style={{ color: '#848E9C' }}>
-                        {language === 'zh' 
-                          ? `所有交易配置由策略 "${strategies?.find(s => s.id === selectedStrategyId)?.name || selectedStrategyId}" 管理。以下设置已从交易员配置中移除：`
-                          : `All trading configuration is managed by strategy "${strategies?.find(s => s.id === selectedStrategyId)?.name || selectedStrategyId}". The following settings have been removed from trader config:`}
+                      <div
+                        className="text-xs mb-3"
+                        style={{ color: '#848E9C' }}
+                      >
+                        {language === 'zh'
+                          ? `所有交易配置由策略 "${strategies?.find((s) => s.id === selectedStrategyId)?.name || selectedStrategyId}" 管理。以下设置已从交易员配置中移除：`
+                          : `All trading configuration is managed by strategy "${strategies?.find((s) => s.id === selectedStrategyId)?.name || selectedStrategyId}". The following settings have been removed from trader config:`}
                       </div>
-                      <div className="text-xs mb-3 space-y-1" style={{ color: '#848E9C' }}>
-                        <div>• {language === 'zh' ? '交易配置' : 'Trading Configuration'} ({language === 'zh' ? '杠杆、交易币种、保证金模式' : 'leverage, trading symbols, margin mode'})</div>
-                        <div>• {language === 'zh' ? '信号源' : 'Signal Sources'} ({language === 'zh' ? '币池、OI Top、TradingView' : 'coin pool, OI top, TradingView'})</div>
-                        <div>• {language === 'zh' ? '指标配置' : 'Indicator Configuration'}</div>
-                        <div>• {language === 'zh' ? '交易提示词' : 'Trading Prompts'} ({language === 'zh' ? '系统模板、自定义提示词' : 'system template, custom prompt'})</div>
+                      <div
+                        className="text-xs mb-3 space-y-1"
+                        style={{ color: '#848E9C' }}
+                      >
+                        <div>
+                          •{' '}
+                          {language === 'zh'
+                            ? '交易配置'
+                            : 'Trading Configuration'}{' '}
+                          (
+                          {language === 'zh'
+                            ? '杠杆、交易币种、保证金模式'
+                            : 'leverage, trading symbols, margin mode'}
+                          )
+                        </div>
+                        <div>
+                          • {language === 'zh' ? '信号源' : 'Signal Sources'} (
+                          {language === 'zh'
+                            ? '币池、OI Top、TradingView'
+                            : 'coin pool, OI top, TradingView'}
+                          )
+                        </div>
+                        <div>
+                          •{' '}
+                          {language === 'zh'
+                            ? '指标配置'
+                            : 'Indicator Configuration'}
+                        </div>
+                        <div>
+                          •{' '}
+                          {language === 'zh' ? '交易提示词' : 'Trading Prompts'}{' '}
+                          (
+                          {language === 'zh'
+                            ? '系统模板、自定义提示词'
+                            : 'system template, custom prompt'}
+                          )
+                        </div>
                       </div>
                       <div className="text-xs" style={{ color: '#848E9C' }}>
-                        {language === 'zh' 
+                        {language === 'zh'
                           ? '策略更新将自动应用到所有使用该策略的交易员。在策略工作室中编辑策略以修改这些设置。'
                           : 'Strategy updates will automatically apply to all traders using this strategy. Edit the strategy in Strategy Studio to modify these settings.'}
                       </div>
@@ -1137,18 +1375,31 @@ export function TraderConfigModal({
                           className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-[var(--green-primary)] rounded hover:bg-[var(--green-dark)] transition-colors"
                           style={{ color: 'var(--navy-primary)' }}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            />
                           </svg>
-                          {language === 'zh' ? '在策略工作室中编辑' : 'Edit in Strategy Studio'}
+                          {language === 'zh'
+                            ? '在策略工作室中编辑'
+                            : 'Edit in Strategy Studio'}
                         </a>
                       </div>
                     </div>
                   )}
                   {!selectedStrategyId && (
                     <div className="text-xs text-[#848E9C] mt-2">
-                      {language === 'zh' 
-                        ? '选择策略后，所有策略相关设置将从交易员配置中移除，由策略统一管理。如需自定义设置，请创建新策略。' 
+                      {language === 'zh'
+                        ? '选择策略后，所有策略相关设置将从交易员配置中移除，由策略统一管理。如需自定义设置，请创建新策略。'
                         : 'When a strategy is selected, all strategy-related settings will be removed from trader config and managed by the strategy. To customize settings, create a new strategy.'}
                     </div>
                   )}
@@ -1156,36 +1407,66 @@ export function TraderConfigModal({
               </div>
             </div>
           )}
-
         </div>
 
         {/* Validation Messages */}
-        {(!formData.trader_name || !formData.ai_model || !formData.exchange_id) && (
+        {(!formData.trader_name ||
+          !formData.ai_model ||
+          !formData.exchange_id) && (
           <div className="px-6 pb-2">
-            <div className="text-xs text-[var(--green-primary)] flex items-center gap-2 rounded-lg p-3"
-            style={{ background: 'var(--navy-dark)', border: '1px solid rgba(0, 204, 102, 0.3)' }}>
-              <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            <div
+              className="text-xs text-[var(--green-primary)] flex items-center gap-2 rounded-lg p-3"
+              style={{
+                background: 'var(--navy-dark)',
+                border: '1px solid rgba(0, 204, 102, 0.3)',
+              }}
+            >
+              <svg
+                className="w-4 h-4 flex-shrink-0"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
               </svg>
               <span>
                 Please fill in all required fields:{' '}
-                {!formData.trader_name && <span className="font-semibold">Trader Name</span>}
-                {!formData.trader_name && (!formData.ai_model || !formData.exchange_id) && ', '}
-                {!formData.ai_model && <span className="font-semibold">AI Model</span>}
+                {!formData.trader_name && (
+                  <span className="font-semibold">Trader Name</span>
+                )}
+                {!formData.trader_name &&
+                  (!formData.ai_model || !formData.exchange_id) &&
+                  ', '}
+                {!formData.ai_model && (
+                  <span className="font-semibold">AI Model</span>
+                )}
                 {!formData.ai_model && !formData.exchange_id && ', '}
-                {!formData.exchange_id && <span className="font-semibold">Exchange</span>}
+                {!formData.exchange_id && (
+                  <span className="font-semibold">Exchange</span>
+                )}
               </span>
             </div>
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t sticky bottom-0 z-10 rounded-b-xl"
-        style={{ borderColor: 'var(--panel-border)', background: 'var(--navy-dark)' }}>
+        <div
+          className="flex justify-end gap-3 p-6 border-t sticky bottom-0 z-10 rounded-b-xl"
+          style={{
+            borderColor: 'var(--panel-border)',
+            background: 'var(--navy-dark)',
+          }}
+        >
           <button
             onClick={onClose}
             className="px-6 py-3 text-[#EAECEF] rounded-lg transition-all duration-200"
-            style={{ background: 'var(--panel-border)', border: '1px solid var(--panel-border)' }}
+            style={{
+              background: 'var(--panel-border)',
+              border: '1px solid var(--panel-border)',
+            }}
           >
             {t('cancel', language)}
           </button>
@@ -1201,7 +1482,11 @@ export function TraderConfigModal({
               className="px-8 py-3 bg-gradient-to-r from-[var(--green-primary)] to-[var(--green-dark)] rounded-lg hover:from-[var(--green-dark)] hover:to-[var(--green-primary)] transition-all duration-200 disabled:bg-[#848E9C] disabled:cursor-not-allowed font-medium shadow-lg"
               style={{ color: 'var(--navy-primary)' }}
             >
-              {isSaving ? t('savingTrader', language) : isEditMode ? t('save', language) : t('createTrader', language)}
+              {isSaving
+                ? t('savingTrader', language)
+                : isEditMode
+                  ? t('save', language)
+                  : t('createTrader', language)}
             </button>
           )}
         </div>
@@ -1225,13 +1510,14 @@ export function TraderConfigModal({
           const userTemplates = await api.getUserPromptTemplates()
           setUserPromptTemplates(userTemplates)
           // Reset to default if deleted template was selected
-          if (editingTemplate && formData.system_prompt_template === editingTemplate.id) {
+          if (
+            editingTemplate &&
+            formData.system_prompt_template === editingTemplate.id
+          ) {
             handleInputChange('system_prompt_template', 'default')
           }
         }}
       />
-
     </div>
   )
 }
-

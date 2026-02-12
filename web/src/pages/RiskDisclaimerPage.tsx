@@ -5,10 +5,10 @@ import { Container } from '../components/Container'
 
 /**
  * Risk Disclaimer Page
- * 
+ *
  * Critical trading risk warnings for fintech compliance.
  * Displays comprehensive risk disclaimers about cryptocurrency trading.
- * 
+ *
  * Accessibility: Full keyboard navigation support, semantic HTML structure
  * Responsive: Mobile-first design with proper breakpoints
  * Dark/Light Mode: Uses CSS variables for theme compatibility
@@ -30,10 +30,7 @@ export function RiskDisclaimerPage() {
             >
               {t('riskDisclaimerTitle', language)}
             </h1>
-            <p
-              className="text-sm"
-              style={{ color: 'var(--text-secondary)' }}
-            >
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               {t('riskDisclaimerLastUpdated', language)}
             </p>
           </div>
@@ -86,10 +83,7 @@ export function RiskDisclaimerPage() {
               >
                 <p>{t('riskDisclaimerTestingPhase1', language)}</p>
                 <p>{t('riskDisclaimerTestingPhase2', language)}</p>
-                <p
-                  className="font-semibold"
-                  style={{ color: 'var(--error)' }}
-                >
+                <p className="font-semibold" style={{ color: 'var(--error)' }}>
                   {t('riskDisclaimerTestingPhase3', language)}
                 </p>
                 <p>{t('riskDisclaimerTestingPhase4', language)}</p>

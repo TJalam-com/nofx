@@ -27,7 +27,10 @@ export function FAQSidebar({
           <div key={category.id}>
             {/* Category Title */}
             <div className="flex items-center gap-2 mb-3 px-3">
-              <category.icon className="w-5 h-5" style={{ color: 'var(--green-primary)' }} />
+              <category.icon
+                className="w-5 h-5"
+                style={{ color: 'var(--green-primary)' }}
+              />
               <h3
                 className="text-sm font-bold uppercase tracking-wide"
                 style={{ color: 'var(--green-primary)' }}
@@ -49,7 +52,9 @@ export function FAQSidebar({
                         background: isActive
                           ? 'rgba(0, 255, 127, 0.1)'
                           : 'transparent',
-                        color: isActive ? 'var(--green-primary)' : 'var(--text-secondary)',
+                        color: isActive
+                          ? 'var(--green-primary)'
+                          : 'var(--text-secondary)',
                         borderLeft: isActive
                           ? '3px solid var(--green-primary)'
                           : '3px solid transparent',

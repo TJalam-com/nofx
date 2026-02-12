@@ -5,10 +5,10 @@ import { Container } from '../components/Container'
 
 /**
  * Terms and Conditions Page
- * 
+ *
  * Displays comprehensive terms and conditions for trading platform usage,
  * including risk warnings, disclaimers, and AGPL-3.0 license reference.
- * 
+ *
  * Accessibility: Full keyboard navigation support, semantic HTML structure
  * Responsive: Mobile-first design with proper breakpoints
  * Dark/Light Mode: Uses CSS variables for theme compatibility
@@ -30,10 +30,7 @@ export function TermsAndConditionsPage() {
             >
               {t('termsTitle', language)}
             </h1>
-            <p
-              className="text-sm"
-              style={{ color: 'var(--text-secondary)' }}
-            >
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               {t('termsLastUpdated', language)}
             </p>
           </div>
@@ -77,7 +74,9 @@ export function TermsAndConditionsPage() {
               >
                 <p>{t('termsTestingPhase1', language)}</p>
                 <p>{t('termsTestingPhase2', language)}</p>
-                <p className="font-semibold">{t('termsTestingPhase3', language)}</p>
+                <p className="font-semibold">
+                  {t('termsTestingPhase3', language)}
+                </p>
                 <p>{t('termsTestingPhase4', language)}</p>
                 <p>{t('termsTestingPhase5', language)}</p>
               </div>
@@ -235,4 +234,3 @@ export function TermsAndConditionsPage() {
     </>
   )
 }
-

@@ -11,36 +11,40 @@ const getFeatureCards = (language: Language) => [
   {
     icon: Zap,
     title: language === 'en' ? 'AI-Powered' : 'AI 驱动',
-    description: language === 'en' 
-      ? 'Multi-model support (DeepSeek, Qwen) with custom prompts and intelligent decision-making'
-      : '多模型支持（DeepSeek、Qwen），自定义提示词，智能决策',
+    description:
+      language === 'en'
+        ? 'Multi-model support (DeepSeek, Qwen) with custom prompts and intelligent decision-making'
+        : '多模型支持（DeepSeek、Qwen），自定义提示词，智能决策',
   },
   {
     icon: Globe,
     title: language === 'en' ? 'Cloud-Based' : '云端服务',
-    description: language === 'en'
-      ? 'Accessible anywhere, anytime. No local setup required. Fully managed SaaS platform'
-      : '随时随地访问，无需本地设置。完全托管的 SaaS 平台',
+    description:
+      language === 'en'
+        ? 'Accessible anywhere, anytime. No local setup required. Fully managed SaaS platform'
+        : '随时随地访问，无需本地设置。完全托管的 SaaS 平台',
   },
   {
     icon: Lock,
     title: language === 'en' ? 'Secure' : '安全可靠',
-    description: language === 'en'
-      ? 'Non-custodial platform with fine-grained API controls and real-time risk monitoring'
-      : '非托管平台，API 权限精细控制，实时风险监控',
+    description:
+      language === 'en'
+        ? 'Non-custodial platform with fine-grained API controls and real-time risk monitoring'
+        : '非托管平台，API 权限精细控制，实时风险监控',
   },
   {
     icon: TrendingUp,
     title: language === 'en' ? 'Advanced Features' : '高级功能',
-    description: language === 'en'
-      ? 'Copy trading, TradingView webhook integration, and automated strategy execution'
-      : '跟单交易、TradingView Webhook 集成和自动化策略执行',
+    description:
+      language === 'en'
+        ? 'Copy trading, TradingView webhook integration, and automated strategy execution'
+        : '跟单交易、TradingView Webhook 集成和自动化策略执行',
   },
 ]
 
 export default function AboutSection({ language }: AboutSectionProps) {
   const featureCards = getFeatureCards(language)
-  
+
   return (
     <AnimatedSection id="about" backgroundColor="var(--navy-dark)">
       <div className="max-w-7xl mx-auto">
@@ -79,7 +83,7 @@ export default function AboutSection({ language }: AboutSectionProps) {
             >
               {t('whatIsNofx', language)}
             </h2>
-            
+
             <div className="space-y-4">
               <p
                 className="text-lg leading-relaxed"
@@ -117,7 +121,8 @@ export default function AboutSection({ language }: AboutSectionProps) {
               <div
                 className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
+                  background:
+                    'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
                   border: '1px solid rgba(0, 255, 127, 0.3)',
                 }}
               >
@@ -176,13 +181,14 @@ export default function AboutSection({ language }: AboutSectionProps) {
                   <motion.div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                      background: 'radial-gradient(circle at center, var(--green-glow) 0%, transparent 70%)',
+                      background:
+                        'radial-gradient(circle at center, var(--green-glow) 0%, transparent 70%)',
                     }}
                     initial={{ opacity: 0 }}
                     whileHover={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
                   />
-                  
+
                   {/* Subtle pattern overlay */}
                   <div
                     className="absolute inset-0 opacity-5 pointer-events-none"
@@ -191,12 +197,13 @@ export default function AboutSection({ language }: AboutSectionProps) {
                       backgroundSize: '24px 24px',
                     }}
                   />
-                  
+
                   <div className="relative z-10 flex flex-col h-full">
                     <div
                       className="w-14 h-14 lg:w-16 lg:h-16 rounded-xl flex items-center justify-center mb-4 flex-shrink-0"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
+                        background:
+                          'linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 255, 127, 0.05) 100%)',
                         border: '1px solid rgba(0, 255, 127, 0.3)',
                         boxShadow: '0 4px 12px rgba(0, 255, 127, 0.1)',
                       }}

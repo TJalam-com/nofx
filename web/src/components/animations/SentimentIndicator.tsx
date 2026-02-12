@@ -54,7 +54,12 @@ export function SentimentIndicator({
       }}
       animate={{
         scale: [1, 1 + 0.2 * animationIntensity, 1],
-        rotate: sentiment === 'positive' ? [0, 5, -5, 0] : sentiment === 'negative' ? [0, -5, 5, 0] : 0,
+        rotate:
+          sentiment === 'positive'
+            ? [0, 5, -5, 0]
+            : sentiment === 'negative'
+              ? [0, -5, 5, 0]
+              : 0,
       }}
       transition={{
         duration: 1.5,

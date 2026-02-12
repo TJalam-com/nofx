@@ -64,7 +64,13 @@ export default function HeaderBar({
           to="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <img src="/icons/nofx.svg" alt="AI Trading 24x7 Logo" className="w-8 h-8" width="32" height="32" />
+          <img
+            src="/icons/nofx.svg"
+            alt="AI Trading 24x7 Logo"
+            className="w-8 h-8"
+            width="32"
+            height="32"
+          />
           <span
             className="text-xl font-bold"
             style={{ color: 'var(--brand-yellow)' }}
@@ -277,7 +283,8 @@ export default function HeaderBar({
                       }}
                       onMouseLeave={(e) => {
                         if (currentPage !== 'stats') {
-                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                          e.currentTarget.style.color =
+                            'var(--brand-light-gray)'
                         }
                       }}
                     >
@@ -291,7 +298,6 @@ export default function HeaderBar({
                           pointerEvents: 'none',
                         }}
                       />
-
                       Stats
                     </button>
                     <button
@@ -319,7 +325,8 @@ export default function HeaderBar({
                       }}
                       onMouseLeave={(e) => {
                         if (currentPage !== 'applications') {
-                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                          e.currentTarget.style.color =
+                            'var(--brand-light-gray)'
                         }
                       }}
                     >
@@ -332,7 +339,6 @@ export default function HeaderBar({
                           pointerEvents: 'none',
                         }}
                       />
-
                       Applications
                     </button>
                     <button
@@ -360,7 +366,8 @@ export default function HeaderBar({
                       }}
                       onMouseLeave={(e) => {
                         if (currentPage !== 'articles') {
-                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                          e.currentTarget.style.color =
+                            'var(--brand-light-gray)'
                         }
                       }}
                     >
@@ -429,7 +436,8 @@ export default function HeaderBar({
                       }}
                       onMouseLeave={(e) => {
                         if (currentPage !== 'followers') {
-                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                          e.currentTarget.style.color =
+                            'var(--brand-light-gray)'
                         }
                       }}
                     >
@@ -443,7 +451,6 @@ export default function HeaderBar({
                           pointerEvents: 'none',
                         }}
                       />
-
                       Followers
                     </button>
 
@@ -472,7 +479,8 @@ export default function HeaderBar({
                       }}
                       onMouseLeave={(e) => {
                         if (currentPage !== 'backtest') {
-                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                          e.currentTarget.style.color =
+                            'var(--brand-light-gray)'
                         }
                       }}
                     >
@@ -485,7 +493,6 @@ export default function HeaderBar({
                           pointerEvents: 'none',
                         }}
                       />
-
                       Backtest
                     </button>
 
@@ -514,7 +521,8 @@ export default function HeaderBar({
                       }}
                       onMouseLeave={(e) => {
                         if (currentPage !== 'webhook') {
-                          e.currentTarget.style.color = 'var(--brand-light-gray)'
+                          e.currentTarget.style.color =
+                            'var(--brand-light-gray)'
                         }
                       }}
                     >
@@ -527,7 +535,6 @@ export default function HeaderBar({
                           pointerEvents: 'none',
                         }}
                       />
-
                       Webhook
                     </button>
                   </>
@@ -547,9 +554,10 @@ export default function HeaderBar({
                     }}
                     className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                     style={{
-                      color: location.pathname === '/competition'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
+                      color:
+                        location.pathname === '/competition'
+                          ? 'var(--brand-yellow)'
+                          : 'var(--brand-light-gray)',
                       padding: '8px 16px',
                       borderRadius: '8px',
                       position: 'relative',
@@ -586,26 +594,35 @@ export default function HeaderBar({
                     }}
                     className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                     style={{
-                      color: location.pathname === '/blog' || location.pathname.startsWith('/blog/')
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
+                      color:
+                        location.pathname === '/blog' ||
+                        location.pathname.startsWith('/blog/')
+                          ? 'var(--brand-yellow)'
+                          : 'var(--brand-light-gray)',
                       padding: '8px 16px',
                       borderRadius: '8px',
                       position: 'relative',
                     }}
                     onMouseEnter={(e) => {
-                      if (location.pathname !== '/blog' && !location.pathname.startsWith('/blog/')) {
+                      if (
+                        location.pathname !== '/blog' &&
+                        !location.pathname.startsWith('/blog/')
+                      ) {
                         e.currentTarget.style.color = 'var(--brand-yellow)'
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (location.pathname !== '/blog' && !location.pathname.startsWith('/blog/')) {
+                      if (
+                        location.pathname !== '/blog' &&
+                        !location.pathname.startsWith('/blog/')
+                      ) {
                         e.currentTarget.style.color = 'var(--brand-light-gray)'
                       }
                     }}
                   >
                     {/* Background for selected state */}
-                    {(location.pathname === '/blog' || location.pathname.startsWith('/blog/')) && (
+                    {(location.pathname === '/blog' ||
+                      location.pathname.startsWith('/blog/')) && (
                       <span
                         className="absolute inset-0 rounded-lg transition-opacity duration-300"
                         style={{
@@ -631,10 +648,11 @@ export default function HeaderBar({
                 <Link
                   to="/faq"
                   className="text-sm transition-colors relative group"
-                  style={{ 
-                    color: location.pathname === '/faq' 
-                      ? 'var(--brand-yellow)' 
-                      : 'var(--brand-light-gray)' 
+                  style={{
+                    color:
+                      location.pathname === '/faq'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
                   }}
                   onMouseEnter={(e) => {
                     if (location.pathname !== '/faq') {
@@ -655,14 +673,22 @@ export default function HeaderBar({
                     />
                   )}
                 </Link>
-                <span style={{ color: 'var(--brand-light-gray)', fontSize: '0.75rem' }}>•</span>
+                <span
+                  style={{
+                    color: 'var(--brand-light-gray)',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  •
+                </span>
                 <Link
                   to="/about"
                   className="text-sm transition-colors relative group"
-                  style={{ 
-                    color: location.pathname === '/about' 
-                      ? 'var(--brand-yellow)' 
-                      : 'var(--brand-light-gray)' 
+                  style={{
+                    color:
+                      location.pathname === '/about'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
                   }}
                   onMouseEnter={(e) => {
                     if (location.pathname !== '/about') {
@@ -683,14 +709,22 @@ export default function HeaderBar({
                     />
                   )}
                 </Link>
-                <span style={{ color: 'var(--brand-light-gray)', fontSize: '0.75rem' }}>•</span>
+                <span
+                  style={{
+                    color: 'var(--brand-light-gray)',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  •
+                </span>
                 <Link
                   to="/features"
                   className="text-sm transition-colors relative group"
-                  style={{ 
-                    color: location.pathname === '/features' 
-                      ? 'var(--brand-yellow)' 
-                      : 'var(--brand-light-gray)' 
+                  style={{
+                    color:
+                      location.pathname === '/features'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
                   }}
                   onMouseEnter={(e) => {
                     if (location.pathname !== '/features') {
@@ -727,8 +761,7 @@ export default function HeaderBar({
                       border: '1px solid var(--panel-border)',
                     }}
                     onMouseEnter={(e) =>
-                      (e.currentTarget.style.background =
-                        'var(--navy-light)')
+                      (e.currentTarget.style.background = 'var(--navy-light)')
                     }
                     onMouseLeave={(e) =>
                       (e.currentTarget.style.background = 'var(--navy-dark)')
@@ -826,7 +859,6 @@ export default function HeaderBar({
                 </div>
               )
             )}
-
           </div>
         </div>
 
@@ -1205,7 +1237,8 @@ export default function HeaderBar({
                 className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-green-500"
                 style={{
                   color:
-                    location.pathname === '/blog' || location.pathname.startsWith('/blog/')
+                    location.pathname === '/blog' ||
+                    location.pathname.startsWith('/blog/')
                       ? 'var(--brand-yellow)'
                       : 'var(--brand-light-gray)',
                   padding: '12px 16px',
@@ -1215,7 +1248,8 @@ export default function HeaderBar({
                   textAlign: 'left',
                 }}
               >
-                {(location.pathname === '/blog' || location.pathname.startsWith('/blog/')) && (
+                {(location.pathname === '/blog' ||
+                  location.pathname.startsWith('/blog/')) && (
                   <span
                     className="absolute inset-0 rounded-lg transition-opacity duration-300"
                     style={{

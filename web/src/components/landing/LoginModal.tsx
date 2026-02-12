@@ -27,7 +27,7 @@ export default function LoginModal({ onClose, language }: LoginModalProps) {
         className="relative max-w-md w-full rounded-2xl p-8"
         style={{
           background: 'var(--navy-dark)',
-                border: '1px solid rgba(0, 255, 127, 0.2)',
+          border: '1px solid rgba(0, 255, 127, 0.2)',
         }}
         initial={{ scale: 0.9, y: 50 }}
         animate={{ scale: 1, y: 0 }}

@@ -34,7 +34,6 @@ import type {
   Page,
 } from './types'
 
-
 function App() {
   const { language } = useLanguage()
   const { user, token, logout, isLoading } = useAuth()
@@ -51,7 +50,8 @@ function App() {
     if (path === '/backtest' || hash === 'backtest') return 'backtest'
     if (path === '/webhook' || hash === 'webhook') return 'webhook'
     if (path === '/stats' || hash === 'stats') return 'stats'
-    if (path === '/strategy-studio' || hash === 'strategy-studio') return 'strategy-studio'
+    if (path === '/strategy-studio' || hash === 'strategy-studio')
+      return 'strategy-studio'
     if (path === '/dashboard' || hash === 'trader' || hash === 'details')
       return 'trader'
     return 'competition' // 默认为竞赛页面
@@ -337,11 +337,11 @@ function App() {
               window.history.pushState({}, '', '/webhook')
               setRoute('/webhook')
               setCurrentPage('webhook')
-          } else if (page === 'followers') {
-            console.log('Navigating to followers')
-            window.history.pushState({}, '', '/followers')
-            setRoute('/followers')
-            setCurrentPage('followers')
+            } else if (page === 'followers') {
+              console.log('Navigating to followers')
+              window.history.pushState({}, '', '/followers')
+              setRoute('/followers')
+              setCurrentPage('followers')
             }
 
             console.log(
@@ -560,14 +560,23 @@ function TraderDetailsPage({
   onDecisionsLimitChange: (limit: number) => void
   language: Language
 }) {
-  const [closingPositions, setClosingPositions] = useState<Set<string>>(new Set())
-  const [_selectedChartSymbol, setSelectedChartSymbol] = useState<string | undefined>(undefined)
+  const [closingPositions, setClosingPositions] = useState<Set<string>>(
+    new Set()
+  )
+  const [_selectedChartSymbol, setSelectedChartSymbol] = useState<
+    string | undefined
+  >(undefined)
   const [_chartUpdateKey, setChartUpdateKey] = useState(0)
   const chartSectionRef = useRef<HTMLDivElement | null>(null)
 
-  const handleClosePosition = async (symbol: string, side: 'long' | 'short') => {
+  const handleClosePosition = async (
+    symbol: string,
+    side: 'long' | 'short'
+  ) => {
     if (!selectedTraderId) {
-      notify.error(t('selectTraderFirst', language) || 'Please select a trader first')
+      notify.error(
+        t('selectTraderFirst', language) || 'Please select a trader first'
+      )
       return
     }
 
@@ -577,7 +586,8 @@ function TraderDetailsPage({
     }
 
     // Confirmation dialog
-    const sideText = side === 'long' ? t('long', language) : t('short', language)
+    const sideText =
+      side === 'long' ? t('long', language) : t('short', language)
     const confirmMsg =
       t('confirmClosePosition', language, { symbol, side: sideText }) ||
       `Are you sure you want to close ${side} position for ${symbol}?`
@@ -816,7 +826,10 @@ function TraderDetailsPage({
             [...decisions]
               .sort((a, b) => {
                 // Sort by timestamp (most recent first) - cycle_number is not reliable for TradingView alerts
-                return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+                return (
+                  new Date(b.timestamp).getTime() -
+                  new Date(a.timestamp).getTime()
+                )
               })
               .map((decision, i) => (
                 <DecisionCard key={i} decision={decision} language={language} />
@@ -878,25 +891,46 @@ function TraderDetailsPage({
                     <th className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-center">
                       {language === 'zh' ? '操作' : 'Action'}
                     </th>
-                    <th className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right" title={t('entryPrice', language)}>
+                    <th
+                      className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right"
+                      title={t('entryPrice', language)}
+                    >
                       {language === 'zh' ? '入场价' : 'Entry'}
                     </th>
-                    <th className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right" title={t('markPrice', language)}>
+                    <th
+                      className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right"
+                      title={t('markPrice', language)}
+                    >
                       {language === 'zh' ? '标记价' : 'Mark'}
                     </th>
-                    <th className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right" title={t('quantity', language)}>
+                    <th
+                      className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right"
+                      title={t('quantity', language)}
+                    >
                       {language === 'zh' ? '数量' : 'Qty'}
                     </th>
-                    <th className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right" title={t('positionValue', language)}>
+                    <th
+                      className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right"
+                      title={t('positionValue', language)}
+                    >
                       {language === 'zh' ? '价值' : 'Value'}
                     </th>
-                    <th className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-center" title={t('leverage', language)}>
+                    <th
+                      className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-center"
+                      title={t('leverage', language)}
+                    >
                       {language === 'zh' ? '杠杆' : 'Lev.'}
                     </th>
-                    <th className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right" title={t('unrealizedPnL', language)}>
+                    <th
+                      className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right"
+                      title={t('unrealizedPnL', language)}
+                    >
                       {language === 'zh' ? '未实现盈亏' : 'uPnL'}
                     </th>
-                    <th className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right" title={t('liqPrice', language)}>
+                    <th
+                      className="px-1 pb-3 font-semibold text-gray-400 whitespace-nowrap text-right"
+                      title={t('liqPrice', language)}
+                    >
                       {language === 'zh' ? '强平价' : 'Liq.'}
                     </th>
                   </tr>
@@ -911,7 +945,10 @@ function TraderDetailsPage({
                         setChartUpdateKey(Date.now())
                         // Smooth scroll to chart with ref
                         if (chartSectionRef.current) {
-                          chartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          chartSectionRef.current.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                          })
                         }
                       }}
                     >
@@ -941,9 +978,14 @@ function TraderDetailsPage({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation() // Prevent row click
-                            handleClosePosition(pos.symbol, pos.side as 'long' | 'short')
+                            handleClosePosition(
+                              pos.symbol,
+                              pos.side as 'long' | 'short'
+                            )
                           }}
-                          disabled={closingPositions.has(`${pos.symbol}-${pos.side}`)}
+                          disabled={closingPositions.has(
+                            `${pos.symbol}-${pos.side}`
+                          )}
                           className="btn-danger inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
                           title={language === 'zh' ? '平仓' : 'Close Position'}
                         >
@@ -988,7 +1030,8 @@ function TraderDetailsPage({
                       <td className="px-1 py-3 font-mono whitespace-nowrap text-right">
                         <span
                           style={{
-                            color: pos.unrealized_pnl >= 0 ? '#0ECB81' : '#F6465D',
+                            color:
+                              pos.unrealized_pnl >= 0 ? '#0ECB81' : '#F6465D',
                             fontWeight: 'bold',
                           }}
                         >
@@ -1026,7 +1069,6 @@ function TraderDetailsPage({
     </div>
   )
 }
-
 
 // Wrap App with providers
 export default function AppWithProviders() {

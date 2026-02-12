@@ -2,14 +2,21 @@
 import { t } from '../i18n/translations'
 import { useSEO } from '../hooks/useSEO'
 import { Container } from '../components/Container'
-import { Shield, Lock, Key, Eye, AlertTriangle, CheckCircle } from 'lucide-react'
+import {
+  Shield,
+  Lock,
+  Key,
+  Eye,
+  AlertTriangle,
+  CheckCircle,
+} from 'lucide-react'
 
 /**
  * Security Page
- * 
+ *
  * Builds trust by explaining security measures, encryption,
  * and best practices implemented in the platform.
- * 
+ *
  * Accessibility: Full keyboard navigation support, semantic HTML structure
  * Responsive: Mobile-first design with proper breakpoints
  * Dark/Light Mode: Uses CSS variables for theme compatibility
@@ -103,7 +110,11 @@ export function SecurityPage() {
             }}
           >
             <div className="flex items-start gap-4">
-              <CheckCircle size={24} style={{ color: 'var(--green-primary)' }} className="flex-shrink-0 mt-1" />
+              <CheckCircle
+                size={24}
+                style={{ color: 'var(--green-primary)' }}
+                className="flex-shrink-0 mt-1"
+              />
               <div>
                 <h2
                   className="text-xl font-semibold mb-2"
@@ -135,7 +146,11 @@ export function SecurityPage() {
                   }}
                 >
                   <div className="flex items-start gap-4 mb-4">
-                    <Icon size={24} style={{ color: 'var(--green-primary)' }} className="flex-shrink-0 mt-1" />
+                    <Icon
+                      size={24}
+                      style={{ color: 'var(--green-primary)' }}
+                      className="flex-shrink-0 mt-1"
+                    />
                     <div className="flex-1">
                       <h3
                         className="text-lg font-semibold mb-2"
@@ -152,7 +167,11 @@ export function SecurityPage() {
                       <ul className="space-y-2">
                         {feature.items.map((itemKey) => (
                           <li key={itemKey} className="flex items-start gap-2">
-                            <CheckCircle size={16} style={{ color: 'var(--green-primary)' }} className="flex-shrink-0 mt-0.5" />
+                            <CheckCircle
+                              size={16}
+                              style={{ color: 'var(--green-primary)' }}
+                              className="flex-shrink-0 mt-0.5"
+                            />
                             <span
                               className="text-sm"
                               style={{ color: 'var(--text-secondary)' }}
@@ -202,7 +221,11 @@ export function SecurityPage() {
             }}
           >
             <div className="flex items-start gap-4">
-              <AlertTriangle size={24} style={{ color: 'var(--error)' }} className="flex-shrink-0 mt-1" />
+              <AlertTriangle
+                size={24}
+                style={{ color: 'var(--error)' }}
+                className="flex-shrink-0 mt-1"
+              />
               <div>
                 <h2
                   className="text-xl font-semibold mb-2"

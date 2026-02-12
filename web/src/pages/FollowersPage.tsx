@@ -40,10 +40,14 @@ export default function FollowersPage() {
     isFollower: user ? isFollower(user) : null,
     shouldFetch,
     userId: user?.id,
-    userRole: user?.role
+    userRole: user?.role,
   })
 
-  const { data: followersData, error, isLoading } = useSWR<UserFollowersResponse>(
+  const {
+    data: followersData,
+    error,
+    isLoading,
+  } = useSWR<UserFollowersResponse>(
     shouldFetch ? 'user-followers' : null,
     () => {
       console.log('🔍 DEBUG [FollowersPage]: Calling api.getUserFollowers()')
@@ -56,12 +60,16 @@ export default function FollowersPage() {
       onSuccess: (data) => {
         console.log('✅ DEBUG [FollowersPage]: API call successful:', {
           parentTradersCount: data?.parent_traders?.length || 0,
-          totalFollowers: data?.parent_traders?.reduce((sum, p) => sum + p.followers.length, 0) || 0
+          totalFollowers:
+            data?.parent_traders?.reduce(
+              (sum, p) => sum + p.followers.length,
+              0
+            ) || 0,
         })
       },
       onError: (err) => {
         console.error('❌ DEBUG [FollowersPage]: API call failed:', err)
-      }
+      },
     }
   )
 
@@ -149,7 +157,8 @@ export default function FollowersPage() {
             onClick={() => window.location.reload()}
             className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105 active:scale-95"
             style={{
-              background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+              background:
+                'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               color: '#0B0E11',
               boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)',
             }}
@@ -175,9 +184,15 @@ export default function FollowersPage() {
                 border: '2px solid rgba(0, 255, 127, 0.3)',
               }}
             >
-              <Users className="w-12 h-12" style={{ color: 'var(--green-primary)' }} />
+              <Users
+                className="w-12 h-12"
+                style={{ color: 'var(--green-primary)' }}
+              />
             </div>
-            <h2 className="text-2xl font-bold mb-3" style={{ color: '#EAECEF' }}>
+            <h2
+              className="text-2xl font-bold mb-3"
+              style={{ color: '#EAECEF' }}
+            >
               {t('noFollowersTitle', language) || 'No Followers Yet'}
             </h2>
             <p className="text-base mb-6" style={{ color: '#848E9C' }}>
@@ -204,7 +219,10 @@ export default function FollowersPage() {
               border: '2px solid rgba(0, 255, 127, 0.3)',
             }}
           >
-            <Users className="w-12 h-12" style={{ color: 'var(--green-primary)' }} />
+            <Users
+              className="w-12 h-12"
+              style={{ color: 'var(--green-primary)' }}
+            />
           </div>
           <h2 className="text-2xl font-bold mb-3" style={{ color: '#EAECEF' }}>
             {t('noFollowersTitle', language) || 'No Followers Yet'}
@@ -238,14 +256,18 @@ export default function FollowersPage() {
             <span
               className="w-12 h-12 rounded-full flex items-center justify-center"
               style={{
-                background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+                background:
+                  'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
               }}
             >
               <Users className="w-6 h-6" style={{ color: '#0B0E11' }} />
             </span>
             {t('followersPageTitle', language) || 'My Followers'}
           </h1>
-          <div className="flex items-center gap-2 text-sm" style={{ color: '#848E9C' }}>
+          <div
+            className="flex items-center gap-2 text-sm"
+            style={{ color: '#848E9C' }}
+          >
             <RefreshCw className="w-4 h-4" />
             <span>{t('autoRefresh', language) || 'Auto-refresh: 30s'}</span>
           </div>
@@ -270,7 +292,10 @@ export default function FollowersPage() {
           <div className="text-sm mb-2" style={{ color: '#848E9C' }}>
             {t('activeFollowers', language) || 'Active Followers'}
           </div>
-          <div className="text-2xl font-bold flex items-center gap-2" style={{ color: '#0ECB81' }}>
+          <div
+            className="text-2xl font-bold flex items-center gap-2"
+            style={{ color: '#0ECB81' }}
+          >
             <Activity className="w-5 h-5" />
             {summaryStats.activeFollowers}
           </div>
@@ -279,7 +304,10 @@ export default function FollowersPage() {
           <div className="text-sm mb-2" style={{ color: '#848E9C' }}>
             {t('parentTraders', language) || 'Parent Traders'}
           </div>
-          <div className="text-2xl font-bold" style={{ color: 'var(--green-primary)' }}>
+          <div
+            className="text-2xl font-bold"
+            style={{ color: 'var(--green-primary)' }}
+          >
             {summaryStats.totalParents}
           </div>
         </div>
@@ -290,21 +318,37 @@ export default function FollowersPage() {
         {followersData.parent_traders.map((parent) => {
           const isExpanded = expandedParents.has(parent.trader_id)
           return (
-            <div key={parent.trader_id} className="binance-card overflow-hidden">
+            <div
+              key={parent.trader_id}
+              className="binance-card overflow-hidden"
+            >
               {/* Parent Trader Header */}
               <button
                 onClick={() => toggleParentExpanded(parent.trader_id)}
                 className="w-full p-6 flex items-center justify-between hover:opacity-80 transition-opacity"
-                style={{ background: isExpanded ? 'rgba(0, 255, 127, 0.05)' : 'transparent' }}
+                style={{
+                  background: isExpanded
+                    ? 'rgba(0, 255, 127, 0.05)'
+                    : 'transparent',
+                }}
               >
                 <div className="flex items-center gap-4">
                   {isExpanded ? (
-                    <ChevronUp className="w-5 h-5" style={{ color: 'var(--green-primary)' }} />
+                    <ChevronUp
+                      className="w-5 h-5"
+                      style={{ color: 'var(--green-primary)' }}
+                    />
                   ) : (
-                    <ChevronDown className="w-5 h-5" style={{ color: '#848E9C' }} />
+                    <ChevronDown
+                      className="w-5 h-5"
+                      style={{ color: '#848E9C' }}
+                    />
                   )}
                   <div className="text-left">
-                    <h3 className="text-xl font-bold" style={{ color: '#EAECEF' }}>
+                    <h3
+                      className="text-xl font-bold"
+                      style={{ color: '#EAECEF' }}
+                    >
                       {parent.trader_name}
                     </h3>
                     <div className="text-sm mt-1" style={{ color: '#848E9C' }}>
@@ -359,7 +403,12 @@ interface FollowerCardProps {
   parentTraderName: string
 }
 
-function FollowerCard({ follower, language, parentTraderId, parentTraderName }: FollowerCardProps) {
+function FollowerCard({
+  follower,
+  language,
+  parentTraderId,
+  parentTraderName,
+}: FollowerCardProps) {
   const account = follower.account as any
   const hasError = 'error' in follower.account
   const navigate = useNavigate()
@@ -417,16 +466,18 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
             <div className="font-semibold" style={{ color: '#EAECEF' }}>
               {follower.user_email || follower.user_id}
             </div>
-            {follower.user_email && follower.user_email !== follower.user_id && (
-              <div className="text-xs">
-                {t('userID', language) || 'User ID'}: {follower.user_id}
-              </div>
-            )}
-            {follower.user_name && follower.user_name !== follower.user_email && (
-              <div className="text-xs">
-                {t('name', language) || 'Name'}: {follower.user_name}
-              </div>
-            )}
+            {follower.user_email &&
+              follower.user_email !== follower.user_id && (
+                <div className="text-xs">
+                  {t('userID', language) || 'User ID'}: {follower.user_id}
+                </div>
+              )}
+            {follower.user_name &&
+              follower.user_name !== follower.user_email && (
+                <div className="text-xs">
+                  {t('name', language) || 'Name'}: {follower.user_name}
+                </div>
+              )}
           </div>
         </div>
         <button
@@ -445,8 +496,12 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
 
       {/* Account Info */}
       {hasError ? (
-        <div className="mb-4 p-3 rounded text-sm" style={{ background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }}>
-          {t('accountInfoUnavailable', language) || 'Account information unavailable'}
+        <div
+          className="mb-4 p-3 rounded text-sm"
+          style={{ background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }}
+        >
+          {t('accountInfoUnavailable', language) ||
+            'Account information unavailable'}
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -464,7 +519,9 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
             </div>
             <div
               className={`text-lg font-bold flex items-center gap-1 ${
-                (account?.total_pnl ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                (account?.total_pnl ?? 0) >= 0
+                  ? 'text-green-500'
+                  : 'text-red-500'
               }`}
             >
               {(account?.total_pnl ?? 0) >= 0 ? (
@@ -472,7 +529,9 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
               ) : (
                 <TrendingDown className="w-4 h-4" />
               )}
-              {account?.total_pnl !== undefined && account.total_pnl >= 0 ? '+' : ''}
+              {account?.total_pnl !== undefined && account.total_pnl >= 0
+                ? '+'
+                : ''}
               {account?.total_pnl?.toFixed(2) || '0.00'} USDT
             </div>
             <div className="text-xs" style={{ color: '#848E9C' }}>
@@ -501,15 +560,22 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
       {/* Positions */}
       {follower.positions && follower.positions.length > 0 && (
         <div className="mb-4">
-          <div className="text-sm font-semibold mb-2" style={{ color: '#848E9C' }}>
-            {t('currentPositions', language) || 'Current Positions'} ({follower.positions.length})
+          <div
+            className="text-sm font-semibold mb-2"
+            style={{ color: '#848E9C' }}
+          >
+            {t('currentPositions', language) || 'Current Positions'} (
+            {follower.positions.length})
           </div>
           <div className="space-y-2">
             {follower.positions.slice(0, 3).map((pos: any, idx: number) => (
               <div
                 key={idx}
                 className="p-3 rounded text-sm"
-                style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                style={{
+                  background: 'var(--navy-primary)',
+                  border: '1px solid var(--navy-light)',
+                }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -533,7 +599,10 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
                   </div>
                   <div className="text-right">
                     <div className="font-mono">
-                      {pos.unrealized_pnl !== undefined && pos.unrealized_pnl >= 0 ? '+' : ''}
+                      {pos.unrealized_pnl !== undefined &&
+                      pos.unrealized_pnl >= 0
+                        ? '+'
+                        : ''}
                       {pos.unrealized_pnl?.toFixed(2) || '0.00'} USDT
                     </div>
                     <div className="text-xs" style={{ color: '#848E9C' }}>
@@ -544,7 +613,10 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
               </div>
             ))}
             {follower.positions.length > 3 && (
-              <div className="text-xs text-center pt-2" style={{ color: '#848E9C' }}>
+              <div
+                className="text-xs text-center pt-2"
+                style={{ color: '#848E9C' }}
+              >
                 +{follower.positions.length - 3} {t('more', language) || 'More'}
               </div>
             )}
@@ -555,7 +627,10 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
       {/* Recent Decisions */}
       {follower.latest_decisions && follower.latest_decisions.length > 0 && (
         <div>
-          <div className="text-sm font-semibold mb-2" style={{ color: '#848E9C' }}>
+          <div
+            className="text-sm font-semibold mb-2"
+            style={{ color: '#848E9C' }}
+          >
             {t('recentDecisions', language) || 'Recent Decisions'} (
             {follower.latest_decisions.length})
           </div>
@@ -564,14 +639,23 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
               <div
                 key={idx}
                 className="p-3 rounded text-sm"
-                style={{ background: 'var(--navy-primary)', border: '1px solid var(--navy-light)' }}
+                style={{
+                  background: 'var(--navy-primary)',
+                  border: '1px solid var(--navy-light)',
+                }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     {decision.success ? (
-                      <div className="w-2 h-2 rounded-full" style={{ background: '#0ECB81' }}></div>
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ background: '#0ECB81' }}
+                      ></div>
                     ) : (
-                      <div className="w-2 h-2 rounded-full" style={{ background: '#F6465D' }}></div>
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ background: '#F6465D' }}
+                      ></div>
                     )}
                     <span className="text-xs" style={{ color: '#848E9C' }}>
                       Cycle #{decision.cycle_number}
@@ -602,4 +686,3 @@ function FollowerCard({ follower, language, parentTraderId, parentTraderName }: 
     </div>
   )
 }
-

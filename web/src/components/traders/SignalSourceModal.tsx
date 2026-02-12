@@ -41,8 +41,8 @@ export function SignalSourceModal({
   // Check if follower has configured models and exchanges
   const hasConfiguredModels = configuredModels.length > 0
   const hasConfiguredExchanges = configuredExchanges.length > 0
-  const canSaveAsFollower = userIsFollower 
-    ? (hasConfiguredModels && hasConfiguredExchanges && selectedTraderId !== '')
+  const canSaveAsFollower = userIsFollower
+    ? hasConfiguredModels && hasConfiguredExchanges && selectedTraderId !== ''
     : true
 
   // Load default URLs
@@ -93,7 +93,10 @@ export function SignalSourceModal({
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto"
+      style={{ background: 'rgba(0, 31, 63, 0.5)' }}
+    >
       <div
         className="bg-gray-800 rounded-lg w-full max-w-lg relative my-8"
         style={{
@@ -146,44 +149,66 @@ export function SignalSourceModal({
                     ))}
                   </select>
                 )}
-                <div className="text-xs mt-1 space-y-1" style={{ color: '#848E9C' }}>
+                <div
+                  className="text-xs mt-1 space-y-1"
+                  style={{ color: '#848E9C' }}
+                >
                   <div>
-                    <strong>Important:</strong> Followers cannot create independent traders. You must use copy trading to follow a parent trader.
+                    <strong>Important:</strong> Followers cannot create
+                    independent traders. You must use copy trading to follow a
+                    parent trader.
                   </div>
                   <div>
-                    Select a running trader to copy their trades. If the parent trader has TradingView enabled, you will receive <strong>instant signals</strong> using your configured AI prompt and model settings.
+                    Select a running trader to copy their trades. If the parent
+                    trader has TradingView enabled, you will receive{' '}
+                    <strong>instant signals</strong> using your configured AI
+                    prompt and model settings.
                   </div>
                   <div>
-                    Click "Create Trader" to open the trader configuration with this trader's settings.
+                    Click "Create Trader" to open the trader configuration with
+                    this trader's settings.
                   </div>
                 </div>
-                {userIsFollower && (!hasConfiguredModels || !hasConfiguredExchanges) && (
-                  <div
-                    className="p-3 rounded mt-3"
-                    style={{
-                      background: 'rgba(246, 70, 93, 0.1)',
-                      border: '1px solid rgba(246, 70, 93, 0.2)',
-                    }}
-                  >
+                {userIsFollower &&
+                  (!hasConfiguredModels || !hasConfiguredExchanges) && (
                     <div
-                      className="text-sm font-semibold mb-1"
-                      style={{ color: '#F6465D' }}
+                      className="p-3 rounded mt-3"
+                      style={{
+                        background: 'rgba(246, 70, 93, 0.1)',
+                        border: '1px solid rgba(246, 70, 93, 0.2)',
+                      }}
                     >
-                      ⚠️ Configuration Required
-                    </div>
-                    <div className="text-xs space-y-1" style={{ color: '#848E9C' }}>
-                      {!hasConfiguredModels && (
-                        <div>• Please configure at least one AI model with API key</div>
-                      )}
-                      {!hasConfiguredExchanges && (
-                        <div>• Please configure at least one exchange with API keys</div>
-                      )}
-                      <div className="mt-2">
-                        You must configure both before selecting a trader to follow. Your selected AI prompt and model will be used to process instant TradingView signals from the parent trader.
+                      <div
+                        className="text-sm font-semibold mb-1"
+                        style={{ color: '#F6465D' }}
+                      >
+                        ⚠️ Configuration Required
+                      </div>
+                      <div
+                        className="text-xs space-y-1"
+                        style={{ color: '#848E9C' }}
+                      >
+                        {!hasConfiguredModels && (
+                          <div>
+                            • Please configure at least one AI model with API
+                            key
+                          </div>
+                        )}
+                        {!hasConfiguredExchanges && (
+                          <div>
+                            • Please configure at least one exchange with API
+                            keys
+                          </div>
+                        )}
+                        <div className="mt-2">
+                          You must configure both before selecting a trader to
+                          follow. Your selected AI prompt and model will be used
+                          to process instant TradingView signals from the parent
+                          trader.
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             ) : (
               // Regular user mode: Show URL inputs
@@ -207,7 +232,8 @@ export function SignalSourceModal({
                           border: '1px solid var(--panel-border)',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'var(--navy-primary)'
+                          e.currentTarget.style.background =
+                            'var(--navy-primary)'
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = 'var(--navy-light)'
@@ -253,7 +279,8 @@ export function SignalSourceModal({
                           border: '1px solid var(--panel-border)',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'var(--navy-primary)'
+                          e.currentTarget.style.background =
+                            'var(--navy-primary)'
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = 'var(--navy-light)'
@@ -293,7 +320,10 @@ export function SignalSourceModal({
                   >
                     ℹ️ {t('information', language)}
                   </div>
-                  <div className="text-xs space-y-1" style={{ color: '#848E9C' }}>
+                  <div
+                    className="text-xs space-y-1"
+                    style={{ color: '#848E9C' }}
+                  >
                     <div>{t('signalSourceInfo1', language)}</div>
                     <div>{t('signalSourceInfo2', language)}</div>
                     <div>{t('signalSourceInfo3', language)}</div>
@@ -305,7 +335,7 @@ export function SignalSourceModal({
 
           <div
             className="flex gap-3 mt-6 pt-4 sticky bottom-0"
-              style={{ background: 'var(--navy-dark)' }}
+            style={{ background: 'var(--navy-dark)' }}
           >
             <button
               type="button"
@@ -319,12 +349,16 @@ export function SignalSourceModal({
               type="submit"
               disabled={!canSaveAsFollower}
               className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ 
-                background: canSaveAsFollower ? 'var(--green-primary)' : 'var(--navy-light)', 
-                color: canSaveAsFollower ? '#000' : '#848E9C' 
+              style={{
+                background: canSaveAsFollower
+                  ? 'var(--green-primary)'
+                  : 'var(--navy-light)',
+                color: canSaveAsFollower ? '#000' : '#848E9C',
               }}
             >
-              {userIsFollower ? (t('createTrader', language) || 'Create Trader') : t('save', language)}
+              {userIsFollower
+                ? t('createTrader', language) || 'Create Trader'
+                : t('save', language)}
             </button>
           </div>
         </form>

@@ -31,11 +31,15 @@ export function PageHeader({
         <div
           className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center"
           style={{
-            background: 'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
+            background:
+              'linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%)',
             boxShadow: '0 4px 14px var(--green-glow)',
           }}
         >
-          <Bot className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--navy-primary)' }} />
+          <Bot
+            className="w-5 h-5 md:w-6 md:h-6"
+            style={{ color: 'var(--navy-primary)' }}
+          />
         </div>
         <div>
           <h1
@@ -122,8 +126,12 @@ export function PageHeader({
           disabled={!canCreateTrader}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 md:gap-2 whitespace-nowrap"
           style={{
-            background: canCreateTrader ? 'var(--green-primary)' : 'var(--navy-dark)',
-            color: canCreateTrader ? 'var(--navy-primary)' : 'var(--text-tertiary)',
+            background: canCreateTrader
+              ? 'var(--green-primary)'
+              : 'var(--navy-dark)',
+            color: canCreateTrader
+              ? 'var(--navy-primary)'
+              : 'var(--text-tertiary)',
             border: canCreateTrader ? 'none' : '1px solid var(--panel-border)',
           }}
         >

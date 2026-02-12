@@ -1,7 +1,6 @@
 package decision
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"nofx/config"
@@ -9,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 )
 
 // PromptTemplate system prompt template
@@ -116,28 +114,7 @@ func (pm *PromptManager) GetTemplate(name string) (*PromptTemplate, error) {
 		// But since this is a global function, temporarily use default
 		templateConfig, err := db.GetPromptTemplate("default", name)
 		if err == nil {
-			// #region agent log
-			// Log successful database template load
-			logFile, _ := os.OpenFile("d:\\nofx\\nofx\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if logFile != nil {
-				logData := map[string]interface{}{
-					"location": "prompt_manager.go:115",
-					"message": "Template loaded from database",
-					"data": map[string]interface{}{
-						"template_name": name,
-						"template_id": templateConfig.ID,
-						"is_system": templateConfig.IsSystem,
-					},
-					"timestamp": time.Now().UnixMilli(),
-					"sessionId": "debug-session",
-					"runId": "run1",
-					"hypothesisId": "E",
-				}
-				json.NewEncoder(logFile).Encode(logData)
-				logFile.Close()
-			}
-			// #endregion
-			return &PromptTemplate{
+return &PromptTemplate{
 				Name:    templateConfig.Name,
 				Content: templateConfig.Content,
 			}, nil

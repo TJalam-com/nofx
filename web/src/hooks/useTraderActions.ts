@@ -18,7 +18,10 @@ interface UseTraderActionsParams {
   supportedModels: AIModel[]
   supportedExchanges: Exchange[]
   language: Language
-  mutateTraders: (data?: TraderInfo[], options?: { revalidate?: boolean }) => Promise<any>
+  mutateTraders: (
+    data?: TraderInfo[],
+    options?: { revalidate?: boolean }
+  ) => Promise<any>
   setAllModels: (models: AIModel[]) => void
   setAllExchanges: (exchanges: Exchange[]) => void
   setUserSignalSource: (config: {
@@ -91,9 +94,6 @@ export function useTraderActions({
   }
 
   const handleCreateTrader = async (data: CreateTraderRequest) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTraderActions.ts:93',message:'handleCreateTrader called',data:{strategy_id:data.strategy_id,hasStrategyId:!!data.strategy_id,dataKeys:Object.keys(data)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     try {
       const model = allModels?.find((m) => m.id === data.ai_model_id)
       const exchange = allExchanges?.find((e) => e.id === data.exchange_id)
@@ -107,10 +107,6 @@ export function useTraderActions({
         toast.error(t('exchangeNotConfigured', language))
         return
       }
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTraderActions.ts:108',message:'About to call api.createTrader',data:{strategy_id:data.strategy_id,hasStrategyId:!!data.strategy_id,fullData:data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       await toast.promise(api.createTrader(data), {
         loading: t('creatingTrader', language),
         success: t('traderCreated', language),
@@ -137,9 +133,6 @@ export function useTraderActions({
   }
 
   const handleSaveEditTrader = async (data: CreateTraderRequest) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTraderActions.ts:133',message:'handleSaveEditTrader called',data:{strategy_id:data.strategy_id,hasStrategyId:!!data.strategy_id,editingTraderId:editingTrader?.trader_id,receivedData:data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     if (!editingTrader || !editingTrader.trader_id) return
 
     try {
@@ -210,13 +203,7 @@ export function useTraderActions({
         indicator_timeframe: data.indicator_timeframe,
         quant_data_url: data.quant_data_url,
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTraderActions.ts:207',message:'Request object constructed',data:{strategy_id:request.strategy_id,hasStrategyId:!!request.strategy_id,hasIndicatorConfig:!!request.enable_raw_klines,requestKeys:Object.keys(request)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/39c2a80e-ec81-42f5-9ee5-0a97e070d0b3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTraderActions.ts:210',message:'About to call api.updateTrader',data:{traderId:editingTrader.trader_id,strategy_id:request.strategy_id,enable_raw_klines:request.enable_raw_klines,enable_ema:request.enable_ema},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       await toast.promise(api.updateTrader(editingTrader.trader_id, request), {
         loading: t('savingTrader', language),
         success: t('traderSaved', language),
@@ -283,7 +270,7 @@ export function useTraderActions({
       // Refresh from server to ensure we have the latest state
       // Longer delay for Start/Stop as backend needs to actually start/stop the trader process
       // The optimistic update keeps the UI responsive, so we can wait longer for accurate server state
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await new Promise((resolve) => setTimeout(resolve, 2000))
       await mutateTraders() // Force revalidation
     } catch (error) {
       console.error('Failed to toggle trader:', error)
@@ -299,7 +286,7 @@ export function useTraderActions({
   ) => {
     // Find the trader to check if it's running
     const trader = traders?.find((t) => t.trader_id === traderId)
-    
+
     // Safety check: prevent toggling if trader is not running
     if (!trader?.is_running) {
       toast.error(
@@ -312,9 +299,7 @@ export function useTraderActions({
     // Optimistically update the UI immediately
     const newValue = !currentShowInCompetition
     const optimisticTraders = traders?.map((t) =>
-      t.trader_id === traderId
-        ? { ...t, show_in_competition: newValue }
-        : t
+      t.trader_id === traderId ? { ...t, show_in_competition: newValue } : t
     )
 
     // Update UI optimistically
@@ -334,7 +319,7 @@ export function useTraderActions({
       // Refresh from server to ensure we have the latest state
       // Delay to ensure backend has processed the request
       // The optimistic update keeps the UI responsive, so we can wait for accurate server state
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 1000))
       await mutateTraders()
     } catch (error) {
       console.error('Failed to toggle competition visibility:', error)
@@ -566,9 +551,10 @@ export function useTraderActions({
               aster_user: exchange.asterUser || '',
               aster_signer: exchange.asterSigner || '',
               aster_private_key: exchange.asterPrivateKey || '',
-                lighter_wallet_addr: exchange.lighterWalletAddr || '',
-                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
-                lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
+              lighter_wallet_addr: exchange.lighterWalletAddr || '',
+              lighter_api_key_private_key:
+                exchange.lighterAPIKeyPrivateKey || '',
+              lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
               okx_passphrase: exchange.okxPassphrase || '',
             },
           ])
@@ -632,9 +618,18 @@ export function useTraderActions({
                   asterPrivateKey,
                   okxPassphrase,
                   // Lighter fields: always use provided values if available, otherwise keep existing
-                  lighterWalletAddr: lighterWalletAddr !== undefined ? lighterWalletAddr : (e.lighterWalletAddr ?? ''),
-                  lighterAPIKeyPrivateKey: lighterAPIKeyPrivateKey !== undefined ? lighterAPIKeyPrivateKey : (e.lighterAPIKeyPrivateKey ?? ''),
-                  lighterAPIKeyIndex: lighterAPIKeyIndex !== undefined ? lighterAPIKeyIndex : (e.lighterAPIKeyIndex ?? 0),
+                  lighterWalletAddr:
+                    lighterWalletAddr !== undefined
+                      ? lighterWalletAddr
+                      : (e.lighterWalletAddr ?? ''),
+                  lighterAPIKeyPrivateKey:
+                    lighterAPIKeyPrivateKey !== undefined
+                      ? lighterAPIKeyPrivateKey
+                      : (e.lighterAPIKeyPrivateKey ?? ''),
+                  lighterAPIKeyIndex:
+                    lighterAPIKeyIndex !== undefined
+                      ? lighterAPIKeyIndex
+                      : (e.lighterAPIKeyIndex ?? 0),
                   enabled: true,
                 }
               : e
@@ -650,9 +645,14 @@ export function useTraderActions({
           asterUser,
           asterSigner,
           asterPrivateKey,
-          lighterWalletAddr: lighterWalletAddr !== undefined ? lighterWalletAddr : '',
-          lighterAPIKeyPrivateKey: lighterAPIKeyPrivateKey !== undefined ? lighterAPIKeyPrivateKey : '',
-          lighterAPIKeyIndex: lighterAPIKeyIndex !== undefined ? lighterAPIKeyIndex : 0,
+          lighterWalletAddr:
+            lighterWalletAddr !== undefined ? lighterWalletAddr : '',
+          lighterAPIKeyPrivateKey:
+            lighterAPIKeyPrivateKey !== undefined
+              ? lighterAPIKeyPrivateKey
+              : '',
+          lighterAPIKeyIndex:
+            lighterAPIKeyIndex !== undefined ? lighterAPIKeyIndex : 0,
           okxPassphrase,
           enabled: true,
         }
@@ -674,7 +674,8 @@ export function useTraderActions({
                 aster_signer: exchange.asterSigner || '',
                 aster_private_key: exchange.asterPrivateKey || '',
                 lighter_wallet_addr: exchange.lighterWalletAddr || '',
-                lighter_api_key_private_key: exchange.lighterAPIKeyPrivateKey || '',
+                lighter_api_key_private_key:
+                  exchange.lighterAPIKeyPrivateKey || '',
                 lighter_api_key_index: exchange.lighterAPIKeyIndex || 0,
                 okx_passphrase: exchange.okxPassphrase || '',
               },

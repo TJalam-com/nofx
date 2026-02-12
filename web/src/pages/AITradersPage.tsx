@@ -97,11 +97,11 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         }
       }
     }
-    
+
     // Reset configsReady when user/token changes
     setConfigsReady(false)
     loadConfigsAsync()
-    
+
     return () => {
       cancelled = true
     }
@@ -113,7 +113,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     if (isLoading) {
       return
     }
-    
+
     // Wait for configs to be ready before checking copy intent
     // This prevents premature "missing config" errors when configs are still loading
     if (!configsReady) {
@@ -121,23 +121,25 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       const urlParams = new URLSearchParams(window.location.search)
       const action = urlParams.get('action')
       const hasCopyIntent = copyTraderId || action === 'copy'
-      
+
       if (hasCopyIntent) {
-        console.log('⏳ AITradersPage - Configs not ready yet, waiting before checking copy intent')
+        console.log(
+          '⏳ AITradersPage - Configs not ready yet, waiting before checking copy intent'
+        )
       }
       return
     }
-    
+
     const copyTraderId = sessionStorage.getItem('copyTraderId')
     const urlParams = new URLSearchParams(window.location.search)
     const action = urlParams.get('action')
-    
+
     // Early return if there's no copy intent - avoid unnecessary checks and logs
     const hasCopyIntent = copyTraderId || action === 'copy'
     if (!hasCopyIntent) {
       return // Normal page load, no copy action - exit silently
     }
-    
+
     // Only log when there's actual copy intent
     console.log('🔍 AITradersPage - Checking copy action:', {
       copyTraderId,
@@ -150,10 +152,16 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       allModelsCount: allModels?.length || 0,
       allExchangesCount: allExchanges?.length || 0,
       currentPath: window.location.pathname,
-      currentSearch: window.location.search
+      currentSearch: window.location.search,
     })
-    
-    if (copyTraderId && action === 'copy' && user && token && !showCreateModal) {
+
+    if (
+      copyTraderId &&
+      action === 'copy' &&
+      user &&
+      token &&
+      !showCreateModal
+    ) {
       // Check if AI models and exchanges are configured
       const enabledModels = allModels?.filter((m) => m.enabled) || []
       const enabledExchanges =
@@ -167,18 +175,25 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           }
           return true
         }) || []
-      
+
       if (enabledModels.length === 0 || enabledExchanges.length === 0) {
-        console.log('❌ AITradersPage - Missing AI model or exchange configuration (configs loaded but none enabled)')
-        toast.error('Please configure an AI model and exchange first. The copy action will be available after configuration.')
+        console.log(
+          '❌ AITradersPage - Missing AI model or exchange configuration (configs loaded but none enabled)'
+        )
+        toast.error(
+          'Please configure an AI model and exchange first. The copy action will be available after configuration.'
+        )
         // Don't clear copyTraderId - keep it so user can configure and retry
         // Only clean up URL query params
         window.history.replaceState({}, '', '/traders')
         return
       }
-      
-      console.log('✅ AITradersPage - All conditions met, opening create modal with copyTraderId:', copyTraderId)
-      
+
+      console.log(
+        '✅ AITradersPage - All conditions met, opening create modal with copyTraderId:',
+        copyTraderId
+      )
+
       // Check if user has any strategies (only for non-followers)
       if (!isFollower(user)) {
         if (!strategies || strategies.length === 0) {
@@ -195,7 +210,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           return
         }
       }
-      
+
       setShowCreateModal(true)
       // Clean up URL query param but keep copyTraderId in sessionStorage for TraderConfigModal
       // The TraderConfigModal will clear copyTraderId after successfully loading the trader config
@@ -203,14 +218,28 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     } else {
       // Only log errors when we're actually expecting a copy action
       if (hasCopyIntent) {
-        if (!copyTraderId) console.log('❌ AITradersPage - No copyTraderId found in sessionStorage')
-        if (action !== 'copy') console.log('❌ AITradersPage - Action is not "copy", got:', action)
+        if (!copyTraderId)
+          console.log(
+            '❌ AITradersPage - No copyTraderId found in sessionStorage'
+          )
+        if (action !== 'copy')
+          console.log('❌ AITradersPage - Action is not "copy", got:', action)
         if (!user) console.log('❌ AITradersPage - User not available')
         if (!token) console.log('❌ AITradersPage - Token not available')
-        if (showCreateModal) console.log('⚠️ AITradersPage - Create modal already open')
+        if (showCreateModal)
+          console.log('⚠️ AITradersPage - Create modal already open')
       }
     }
-  }, [user, token, showCreateModal, setShowCreateModal, allModels, allExchanges, isLoading, configsReady])
+  }, [
+    user,
+    token,
+    showCreateModal,
+    setShowCreateModal,
+    allModels,
+    allExchanges,
+    isLoading,
+    configsReady,
+  ])
 
   // Business logic hook
   const {
@@ -372,20 +401,35 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         <div
           className="rounded-lg p-6 border-2"
           style={{
-            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%)',
+            background:
+              'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%)',
             borderColor: 'var(--green-primary)',
           }}
         >
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex-1">
-              <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+              <h3
+                className="text-xl font-bold mb-2"
+                style={{ color: 'var(--text-primary)' }}
+              >
                 Become a Trader
               </h3>
-              <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
-                Currently, as a follower, you can only copy trades from other traders. Apply to become a trader and unlock the ability to create your own AI trading bots, configure trading strategies, and let others follow your trades.
+              <p
+                className="text-sm mb-2"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Currently, as a follower, you can only copy trades from other
+                traders. Apply to become a trader and unlock the ability to
+                create your own AI trading bots, configure trading strategies,
+                and let others follow your trades.
               </p>
-              <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
-                After you submit your application, an admin will review it. Once approved, your role will be upgraded and you'll gain access to all trader features.
+              <p
+                className="text-xs mb-4"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                After you submit your application, an admin will review it. Once
+                approved, your role will be upgraded and you'll gain access to
+                all trader features.
               </p>
             </div>
             <button
@@ -454,7 +498,11 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           language={language}
           configuredModels={configuredModels}
           configuredExchanges={configuredExchanges}
-          onCopyTrader={user && isFollower(user) ? handleCopyTraderFromSignalSource : undefined}
+          onCopyTrader={
+            user && isFollower(user)
+              ? handleCopyTraderFromSignalSource
+              : undefined
+          }
         />
       )}
     </div>

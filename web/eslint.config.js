@@ -8,7 +8,7 @@ import prettier from 'eslint-plugin-prettier'
 
 export default [
   {
-    ignores: ['dist', 'node_modules', 'build', '*.config.js']
+    ignores: ['dist', 'node_modules', 'build', '*.config.js', 'scripts/**', 'vitest.config.ts']
   },
   js.configs.recommended,
   {

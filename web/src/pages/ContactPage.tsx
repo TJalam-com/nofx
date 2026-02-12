@@ -3,14 +3,17 @@ import { t } from '../i18n/translations'
 import { useSEO } from '../hooks/useSEO'
 import { Container } from '../components/Container'
 import { Mail, AlertCircle, HelpCircle, Bug } from 'lucide-react'
-import { OrganizationSchema, BreadcrumbListSchema } from '../components/StructuredData'
+import {
+  OrganizationSchema,
+  BreadcrumbListSchema,
+} from '../components/StructuredData'
 
 /**
  * Contact Page
- * 
+ *
  * Provides support channels and contact information for users
  * to get help, report issues, or reach out to the team.
- * 
+ *
  * Accessibility: Full keyboard navigation support, semantic HTML structure
  * Responsive: Mobile-first design with proper breakpoints
  * Dark/Light Mode: Uses CSS variables for theme compatibility
@@ -38,15 +41,17 @@ export function ContactPage() {
       descKey: 'contactSecurityDesc',
     },
   ]
-  
+
   return (
     <>
       <SEOComponent />
       <OrganizationSchema />
-      <BreadcrumbListSchema items={[
-        { name: 'Home', url: '/' },
-        { name: 'Contact', url: '/contact' },
-      ]} />
+      <BreadcrumbListSchema
+        items={[
+          { name: 'Home', url: '/' },
+          { name: 'Contact', url: '/contact' },
+        ]}
+      />
       <Container className="py-12">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -75,7 +80,11 @@ export function ContactPage() {
                 borderColor: 'var(--green-primary)',
               }}
             >
-              <Mail size={48} style={{ color: 'var(--green-primary)' }} className="mx-auto mb-4" />
+              <Mail
+                size={48}
+                style={{ color: 'var(--green-primary)' }}
+                className="mx-auto mb-4"
+              />
               <h3
                 className="text-xl font-semibold mb-2"
                 style={{ color: 'var(--text-primary)' }}
@@ -116,7 +125,11 @@ export function ContactPage() {
                 const Icon = type.icon
                 return (
                   <div key={type.titleKey} className="flex items-start gap-4">
-                    <Icon size={24} style={{ color: 'var(--green-primary)' }} className="flex-shrink-0 mt-1" />
+                    <Icon
+                      size={24}
+                      style={{ color: 'var(--green-primary)' }}
+                      className="flex-shrink-0 mt-1"
+                    />
                     <div>
                       <h3
                         className="text-lg font-semibold mb-2"

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { api } from '../lib/api'
@@ -20,25 +20,28 @@ import {
 export default function AdminTraderApplicationsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>(
-    'all'
-  )
+  const [filterStatus, setFilterStatus] = useState<
+    'all' | 'pending' | 'approved' | 'rejected'
+  >('all')
   const [expandedApps, setExpandedApps] = useState<Set<string>>(new Set())
   const [approvingApps, setApprovingApps] = useState<Set<string>>(new Set())
   const [rejectingApps, setRejectingApps] = useState<Set<string>>(new Set())
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({})
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null)
-  
+
   // Search and pagination state
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const applicationsPerPage = 10
 
-  // Redirect if not admin
-  if (!isAdmin(user)) {
-    navigate('/traders')
-    return null
-  }
+  const isUserAdmin = isAdmin(user)
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!isUserAdmin) {
+      navigate('/traders')
+    }
+  }, [isUserAdmin, navigate])
 
   // Fetch all trader applications
   const {
@@ -46,7 +49,7 @@ export default function AdminTraderApplicationsPage() {
     mutate: mutateApplications,
     isLoading: applicationsLoading,
   } = useSWR<TraderApplication[]>(
-    user ? 'admin-trader-applications' : null,
+    isUserAdmin ? 'admin-trader-applications' : null,
     () => api.getAllTraderApplications(),
     { refreshInterval: 10000 }
   )
@@ -54,14 +57,14 @@ export default function AdminTraderApplicationsPage() {
   // Filter applications by status and search query
   const filteredApplications = useMemo(() => {
     if (!applications) return []
-    
+
     let filtered = applications
-    
+
     // Filter by status
     if (filterStatus !== 'all') {
       filtered = filtered.filter((app) => app.status === filterStatus)
     }
-    
+
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
@@ -76,17 +79,22 @@ export default function AdminTraderApplicationsPage() {
           app.strategy_overview.toLowerCase().includes(query)
       )
     }
-    
+
     return filtered
   }, [applications, filterStatus, searchQuery])
 
   // Paginate filtered applications
   const paginatedApplications = useMemo(() => {
     const startIndex = (currentPage - 1) * applicationsPerPage
-    return filteredApplications.slice(startIndex, startIndex + applicationsPerPage)
+    return filteredApplications.slice(
+      startIndex,
+      startIndex + applicationsPerPage
+    )
   }, [filteredApplications, currentPage, applicationsPerPage])
 
-  const totalPages = Math.ceil(filteredApplications.length / applicationsPerPage)
+  const totalPages = Math.ceil(
+    filteredApplications.length / applicationsPerPage
+  )
 
   // Reset to page 1 when search query or filter status changes
   const handleSearchChange = (query: string) => {
@@ -94,7 +102,9 @@ export default function AdminTraderApplicationsPage() {
     setCurrentPage(1)
   }
 
-  const handleFilterChange = (status: 'all' | 'pending' | 'approved' | 'rejected') => {
+  const handleFilterChange = (
+    status: 'all' | 'pending' | 'approved' | 'rejected'
+  ) => {
     setFilterStatus(status)
     setCurrentPage(1)
   }
@@ -220,16 +230,25 @@ export default function AdminTraderApplicationsPage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+          <h1
+            className="text-2xl sm:text-3xl font-bold mb-2"
+            style={{ color: 'var(--text-primary)' }}
+          >
             Application Management
           </h1>
-          <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p
+            className="text-xs sm:text-sm"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             Review and manage user applications
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
+              style={{ color: 'var(--text-secondary)' }}
+            />
             <input
               type="text"
               value={searchQuery}
@@ -262,7 +281,10 @@ export default function AdminTraderApplicationsPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6 border-b overflow-x-auto" style={{ borderColor: 'var(--panel-border)' }}>
+      <div
+        className="flex gap-2 mb-6 border-b overflow-x-auto"
+        style={{ borderColor: 'var(--panel-border)' }}
+      >
         {(['all', 'pending', 'approved', 'rejected'] as const).map((status) => (
           <button
             key={status}
@@ -282,10 +304,10 @@ export default function AdminTraderApplicationsPage() {
             {status === 'all'
               ? 'All'
               : status === 'pending'
-              ? 'Pending'
-              : status === 'approved'
-              ? 'Approved'
-              : 'Rejected'}
+                ? 'Pending'
+                : status === 'approved'
+                  ? 'Approved'
+                  : 'Rejected'}
             {status !== 'all' &&
               applications &&
               ` (${applications.filter((a) => a.status === status).length})`}
@@ -310,190 +332,247 @@ export default function AdminTraderApplicationsPage() {
             {searchQuery
               ? 'No applications found matching your search'
               : filterStatus === 'all'
-              ? 'No applications'
-              : `No ${filterStatus === 'pending' ? 'pending' : filterStatus === 'approved' ? 'approved' : 'rejected'} applications`}
+                ? 'No applications'
+                : `No ${filterStatus === 'pending' ? 'pending' : filterStatus === 'approved' ? 'approved' : 'rejected'} applications`}
           </p>
         </div>
       ) : (
         <>
           <div className="space-y-4">
             {paginatedApplications.map((app) => {
-            const isExpanded = expandedApps.has(app.id)
-            const isApproving = approvingApps.has(app.id)
-            const isRejecting = rejectingApps.has(app.id)
-            const canAction = app.status === 'pending' && !isApproving && !isRejecting
+              const isExpanded = expandedApps.has(app.id)
+              const isApproving = approvingApps.has(app.id)
+              const isRejecting = rejectingApps.has(app.id)
+              const canAction =
+                app.status === 'pending' && !isApproving && !isRejecting
 
-            return (
-              <div
-                key={app.id}
-                className="rounded-lg border p-4"
-                style={{
-                  background: 'var(--navy-dark)',
-                  borderColor: 'var(--panel-border)',
-                }}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
-                      <h3 className="text-base sm:text-lg font-semibold break-words" style={{ color: 'var(--text-primary)' }}>
-                        {app.name}
-                      </h3>
-                      {getStatusBadge(app.status)}
+              return (
+                <div
+                  key={app.id}
+                  className="rounded-lg border p-4"
+                  style={{
+                    background: 'var(--navy-dark)',
+                    borderColor: 'var(--panel-border)',
+                  }}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                        <h3
+                          className="text-base sm:text-lg font-semibold break-words"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          {app.name}
+                        </h3>
+                        {getStatusBadge(app.status)}
+                      </div>
+                      <div
+                        className="text-xs sm:text-sm space-y-1"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        <p className="break-words">
+                          <span className="font-semibold">User:</span>{' '}
+                          {app.user_email || app.user_id}
+                        </p>
+                        <p className="break-words">
+                          <span className="font-semibold">
+                            Communication Email:
+                          </span>{' '}
+                          {app.email}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Submitted:</span>{' '}
+                          {new Date(app.created_at).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-xs sm:text-sm space-y-1" style={{ color: 'var(--text-secondary)' }}>
-                      <p className="break-words">
-                        <span className="font-semibold">User:</span> {app.user_email || app.user_id}
-                      </p>
-                      <p className="break-words">
-                        <span className="font-semibold">Communication Email:</span> {app.email}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Submitted:</span>{' '}
-                        {new Date(app.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    {(canAction || isApproving || isRejecting) && (
-                      <>
-                        {(app.status === 'pending' || isApproving) && (
-                          <button
-                            onClick={() => handleApprove(app.id)}
-                            disabled={isApproving || app.status !== 'pending'}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                            style={{
-                              background: 'var(--green-primary)',
-                              color: 'var(--navy-primary)',
-                            }}
-                          >
-                            {isApproving ? (
-                              <>
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                                Approving...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle2 className="w-4 h-4" />
-                                Approve
-                              </>
-                            )}
-                          </button>
-                        )}
-                        {(app.status === 'pending' || isRejecting) && (
-                          <button
-                            onClick={() => setShowRejectModal(app.id)}
-                            disabled={isRejecting || app.status !== 'pending'}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border"
-                            style={{
-                              background: 'var(--navy-dark)',
-                              borderColor: 'var(--panel-border)',
-                              color: 'var(--text-primary)',
-                            }}
-                          >
-                            <XCircle className="w-4 h-4" />
-                            Reject
-                          </button>
-                        )}
-                      </>
-                    )}
-                    <button
-                      onClick={() => toggleExpand(app.id)}
-                      className="p-2 rounded-lg border transition-colors"
-                      style={{
-                        background: 'var(--navy-dark)',
-                        borderColor: 'var(--panel-border)',
-                        color: 'var(--text-primary)',
-                      }}
-                    >
-                      {isExpanded ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: 'var(--panel-border)' }}>
-                    <div>
-                      <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                        Trader Description
-                      </h4>
-                      <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
-                        {app.description}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                        Trading Experience
-                      </h4>
-                      <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
-                        {app.trading_experience}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                        Strategy Overview
-                      </h4>
-                      <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
-                        {app.strategy_overview}
-                      </p>
-                    </div>
-                    {app.social_links && Object.keys(app.social_links).length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                          Social Links
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {Object.entries(app.social_links).map(([key, value]) => (
-                            <a
-                              key={key}
-                              href={value}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm px-3 py-1 rounded border transition-colors hover:opacity-80"
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      {(canAction || isApproving || isRejecting) && (
+                        <>
+                          {(app.status === 'pending' || isApproving) && (
+                            <button
+                              onClick={() => handleApprove(app.id)}
+                              disabled={isApproving || app.status !== 'pending'}
+                              className="px-4 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                              style={{
+                                background: 'var(--green-primary)',
+                                color: 'var(--navy-primary)',
+                              }}
+                            >
+                              {isApproving ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  Approving...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  Approve
+                                </>
+                              )}
+                            </button>
+                          )}
+                          {(app.status === 'pending' || isRejecting) && (
+                            <button
+                              onClick={() => setShowRejectModal(app.id)}
+                              disabled={isRejecting || app.status !== 'pending'}
+                              className="px-4 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border"
                               style={{
                                 background: 'var(--navy-dark)',
                                 borderColor: 'var(--panel-border)',
-                                color: 'var(--green-primary)',
+                                color: 'var(--text-primary)',
                               }}
                             >
-                              {key}: {value}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {app.admin_notes && (
+                              <XCircle className="w-4 h-4" />
+                              Reject
+                            </button>
+                          )}
+                        </>
+                      )}
+                      <button
+                        onClick={() => toggleExpand(app.id)}
+                        className="p-2 rounded-lg border transition-colors"
+                        style={{
+                          background: 'var(--navy-dark)',
+                          borderColor: 'var(--panel-border)',
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div
+                      className="mt-4 pt-4 border-t space-y-4"
+                      style={{ borderColor: 'var(--panel-border)' }}
+                    >
                       <div>
-                        <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                          Admin Notes
+                        <h4
+                          className="text-sm font-semibold mb-2"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Trader Description
                         </h4>
-                        <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
-                          {app.admin_notes}
+                        <p
+                          className="text-sm whitespace-pre-wrap"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {app.description}
                         </p>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
+                      <div>
+                        <h4
+                          className="text-sm font-semibold mb-2"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Trading Experience
+                        </h4>
+                        <p
+                          className="text-sm whitespace-pre-wrap"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {app.trading_experience}
+                        </p>
+                      </div>
+                      <div>
+                        <h4
+                          className="text-sm font-semibold mb-2"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Strategy Overview
+                        </h4>
+                        <p
+                          className="text-sm whitespace-pre-wrap"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {app.strategy_overview}
+                        </p>
+                      </div>
+                      {app.social_links &&
+                        Object.keys(app.social_links).length > 0 && (
+                          <div>
+                            <h4
+                              className="text-sm font-semibold mb-2"
+                              style={{ color: 'var(--text-primary)' }}
+                            >
+                              Social Links
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {Object.entries(app.social_links).map(
+                                ([key, value]) => (
+                                  <a
+                                    key={key}
+                                    href={value}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm px-3 py-1 rounded border transition-colors hover:opacity-80"
+                                    style={{
+                                      background: 'var(--navy-dark)',
+                                      borderColor: 'var(--panel-border)',
+                                      color: 'var(--green-primary)',
+                                    }}
+                                  >
+                                    {key}: {value}
+                                  </a>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      {app.admin_notes && (
+                        <div>
+                          <h4
+                            className="text-sm font-semibold mb-2"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            Admin Notes
+                          </h4>
+                          <p
+                            className="text-sm whitespace-pre-wrap"
+                            style={{ color: 'var(--text-secondary)' }}
+                          >
+                            {app.admin_notes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
             })}
           </div>
-          
+
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 px-4 py-3 rounded-lg border" style={{ 
-              background: 'var(--navy-dark)',
-              borderColor: 'var(--panel-border)',
-            }}>
-              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Showing {(currentPage - 1) * applicationsPerPage + 1} to {Math.min(currentPage * applicationsPerPage, filteredApplications.length)} of {filteredApplications.length} applications
+            <div
+              className="flex items-center justify-between mt-6 px-4 py-3 rounded-lg border"
+              style={{
+                background: 'var(--navy-dark)',
+                borderColor: 'var(--panel-border)',
+              }}
+            >
+              <div
+                className="text-sm"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Showing {(currentPage - 1) * applicationsPerPage + 1} to{' '}
+                {Math.min(
+                  currentPage * applicationsPerPage,
+                  filteredApplications.length
+                )}{' '}
+                of {filteredApplications.length} applications
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
                   disabled={currentPage === 1}
                   className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                   style={{
@@ -525,9 +604,18 @@ export default function AdminTraderApplicationsPage() {
                           currentPage === pageNum ? 'border-2' : 'border'
                         }`}
                         style={{
-                          background: currentPage === pageNum ? 'var(--green-primary)' : 'var(--navy-dark)',
-                          borderColor: currentPage === pageNum ? 'var(--green-primary)' : 'var(--panel-border)',
-                          color: currentPage === pageNum ? 'var(--navy-primary)' : 'var(--text-primary)',
+                          background:
+                            currentPage === pageNum
+                              ? 'var(--green-primary)'
+                              : 'var(--navy-dark)',
+                          borderColor:
+                            currentPage === pageNum
+                              ? 'var(--green-primary)'
+                              : 'var(--panel-border)',
+                          color:
+                            currentPage === pageNum
+                              ? 'var(--navy-primary)'
+                              : 'var(--text-primary)',
                         }}
                       >
                         {pageNum}
@@ -536,7 +624,9 @@ export default function AdminTraderApplicationsPage() {
                   })}
                 </div>
                 <button
-                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
                   disabled={currentPage === totalPages}
                   className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                   style={{
@@ -556,7 +646,10 @@ export default function AdminTraderApplicationsPage() {
 
       {/* Reject Modal */}
       {showRejectModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0, 31, 63, 0.5)' }}>
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          style={{ background: 'rgba(0, 31, 63, 0.5)' }}
+        >
           <div
             className="max-w-md w-full rounded-lg p-6 border"
             style={{
@@ -564,16 +657,25 @@ export default function AdminTraderApplicationsPage() {
               borderColor: 'var(--panel-border)',
             }}
           >
-            <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+            <h3
+              className="text-lg font-semibold mb-4"
+              style={{ color: 'var(--text-primary)' }}
+            >
               Reject Application
             </h3>
-            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+            <p
+              className="text-sm mb-4"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               Please provide rejection reason (required)
             </p>
             <textarea
               value={adminNotes[showRejectModal] || ''}
               onChange={(e) =>
-                setAdminNotes({ ...adminNotes, [showRejectModal]: e.target.value })
+                setAdminNotes({
+                  ...adminNotes,
+                  [showRejectModal]: e.target.value,
+                })
               }
               rows={4}
               className="w-full px-4 py-2 rounded-lg border resize-none mb-4"
@@ -605,7 +707,10 @@ export default function AdminTraderApplicationsPage() {
               </button>
               <button
                 onClick={() => handleReject(showRejectModal)}
-                disabled={!adminNotes[showRejectModal]?.trim() || rejectingApps.has(showRejectModal)}
+                disabled={
+                  !adminNotes[showRejectModal]?.trim() ||
+                  rejectingApps.has(showRejectModal)
+                }
                 className="px-4 py-2 rounded-lg font-semibold text-white transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 style={{ background: '#ef4444' }}
               >
@@ -628,4 +733,3 @@ export default function AdminTraderApplicationsPage() {
     </div>
   )
 }
-

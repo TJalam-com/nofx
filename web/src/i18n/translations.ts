@@ -33,7 +33,8 @@ export const translations = {
 
     // Footer
     footerTitle: 'Best AI Trading 24x7 app',
-    footerWarning: '⚠️ Risk Warning: Cryptocurrency trading involves substantial risk of loss. Past performance does not guarantee future results. Only trade with funds you can afford to lose. AI Trading 24x7 is a non-custodial platform with no official trading strategies. Market conditions can change rapidly, and you may lose all or more than your initial investment. Please trade responsibly and seek independent financial advice if needed.',
+    footerWarning:
+      '⚠️ Risk Warning: Cryptocurrency trading involves substantial risk of loss. Past performance does not guarantee future results. Only trade with funds you can afford to lose. AI Trading 24x7 is a non-custodial platform with no official trading strategies. Market conditions can change rapidly, and you may lose all or more than your initial investment. Please trade responsibly and seek independent financial advice if needed.',
     footerLinkTerms: 'Terms of Service',
     footerLinkRiskDisclaimer: 'Risk Disclaimer',
     footerLinkLicense: 'License',
@@ -43,88 +44,137 @@ export const translations = {
     riskDisclaimerTitle: 'Risk Disclaimer',
     riskDisclaimerLastUpdated: 'Last Updated: January 2025',
     riskDisclaimerCriticalWarning: 'CRITICAL RISK WARNING',
-    riskDisclaimerCriticalWarningText: 'Cryptocurrency trading involves substantial risk of loss. You may lose all or more than your initial investment. Only trade with funds you can afford to lose. Past performance does not guarantee future results.',
+    riskDisclaimerCriticalWarningText:
+      'Cryptocurrency trading involves substantial risk of loss. You may lose all or more than your initial investment. Only trade with funds you can afford to lose. Past performance does not guarantee future results.',
     riskDisclaimerIntroductionTitle: 'Introduction',
-    riskDisclaimerIntroduction1: 'This Risk Disclaimer is a critical document that outlines the substantial risks associated with cryptocurrency trading on the AI Trading 24x7 platform. By using this platform, you acknowledge that you have read, understood, and accept all risks described herein.',
-    riskDisclaimerIntroduction2: 'Trading cryptocurrencies involves significant financial risk. The value of cryptocurrencies can fluctuate dramatically, and you may experience substantial losses, including the potential loss of your entire investment.',
+    riskDisclaimerIntroduction1:
+      'This Risk Disclaimer is a critical document that outlines the substantial risks associated with cryptocurrency trading on the AI Trading 24x7 platform. By using this platform, you acknowledge that you have read, understood, and accept all risks described herein.',
+    riskDisclaimerIntroduction2:
+      'Trading cryptocurrencies involves significant financial risk. The value of cryptocurrencies can fluctuate dramatically, and you may experience substantial losses, including the potential loss of your entire investment.',
     riskDisclaimerTradingRisksTitle: 'Trading Risks',
-    riskDisclaimerTradingRisks1: 'Cryptocurrency trading carries inherent risks that every trader must understand:',
-    riskDisclaimerTradingRisks2: 'High volatility: Cryptocurrency prices can change rapidly and unpredictably',
-    riskDisclaimerTradingRisks3: 'Market liquidity: Some markets may have limited liquidity, making it difficult to execute trades at desired prices',
-    riskDisclaimerTradingRisks4: '24/7 markets: Cryptocurrency markets operate continuously, increasing exposure to risk',
-    riskDisclaimerTradingRisks5: 'Regulatory changes: Government regulations can significantly impact cryptocurrency values',
-    riskDisclaimerTradingRisks6: 'Technical issues: Exchange outages, network congestion, or technical failures can prevent trading',
-    riskDisclaimerTradingRisks7: 'Counterparty risk: Exchanges or trading partners may default or become insolvent',
+    riskDisclaimerTradingRisks1:
+      'Cryptocurrency trading carries inherent risks that every trader must understand:',
+    riskDisclaimerTradingRisks2:
+      'High volatility: Cryptocurrency prices can change rapidly and unpredictably',
+    riskDisclaimerTradingRisks3:
+      'Market liquidity: Some markets may have limited liquidity, making it difficult to execute trades at desired prices',
+    riskDisclaimerTradingRisks4:
+      '24/7 markets: Cryptocurrency markets operate continuously, increasing exposure to risk',
+    riskDisclaimerTradingRisks5:
+      'Regulatory changes: Government regulations can significantly impact cryptocurrency values',
+    riskDisclaimerTradingRisks6:
+      'Technical issues: Exchange outages, network congestion, or technical failures can prevent trading',
+    riskDisclaimerTradingRisks7:
+      'Counterparty risk: Exchanges or trading partners may default or become insolvent',
     riskDisclaimerMarketVolatilityTitle: 'Market Volatility',
-    riskDisclaimerMarketVolatility1: 'Cryptocurrency markets are highly volatile. Prices can experience extreme fluctuations within short periods, sometimes losing or gaining significant value in minutes or hours.',
-    riskDisclaimerMarketVolatility2: 'This volatility can result in substantial losses, even for experienced traders. Market conditions can change rapidly due to various factors including news events, regulatory announcements, technological developments, or market manipulation.',
-    riskDisclaimerMarketVolatility3: 'You should be prepared to lose your entire investment and potentially more if using leverage or margin trading.',
+    riskDisclaimerMarketVolatility1:
+      'Cryptocurrency markets are highly volatile. Prices can experience extreme fluctuations within short periods, sometimes losing or gaining significant value in minutes or hours.',
+    riskDisclaimerMarketVolatility2:
+      'This volatility can result in substantial losses, even for experienced traders. Market conditions can change rapidly due to various factors including news events, regulatory announcements, technological developments, or market manipulation.',
+    riskDisclaimerMarketVolatility3:
+      'You should be prepared to lose your entire investment and potentially more if using leverage or margin trading.',
     riskDisclaimerLeverageTitle: 'Leverage and Margin Risks',
-    riskDisclaimerLeverage1: 'Trading with leverage or margin amplifies both potential profits and losses. While leverage can increase returns, it also significantly increases the risk of substantial losses.',
-    riskDisclaimerLeverage2: 'Margin calls and forced liquidations can occur if your account equity falls below required maintenance levels, potentially resulting in the loss of your entire position and additional funds.',
-    riskDisclaimerLeverage3: 'You may lose more than your initial investment when trading with leverage. Always understand the margin requirements and liquidation prices before entering leveraged positions.',
+    riskDisclaimerLeverage1:
+      'Trading with leverage or margin amplifies both potential profits and losses. While leverage can increase returns, it also significantly increases the risk of substantial losses.',
+    riskDisclaimerLeverage2:
+      'Margin calls and forced liquidations can occur if your account equity falls below required maintenance levels, potentially resulting in the loss of your entire position and additional funds.',
+    riskDisclaimerLeverage3:
+      'You may lose more than your initial investment when trading with leverage. Always understand the margin requirements and liquidation prices before entering leveraged positions.',
     riskDisclaimerPlatformRisksTitle: 'Platform and Technology Risks',
-    riskDisclaimerPlatformRisks1: 'While we strive to maintain a secure and reliable platform, various technical risks exist:',
-    riskDisclaimerPlatformRisks2: 'System failures, bugs, or errors may occur that could affect trading execution',
-    riskDisclaimerPlatformRisks3: 'Network connectivity issues may prevent access to the platform or delay trade execution',
-    riskDisclaimerPlatformRisks4: 'Third-party service providers (exchanges, APIs) may experience outages or failures',
-    riskDisclaimerPlatformRisks5: 'Security breaches, hacking, or unauthorized access could result in loss of funds',
+    riskDisclaimerPlatformRisks1:
+      'While we strive to maintain a secure and reliable platform, various technical risks exist:',
+    riskDisclaimerPlatformRisks2:
+      'System failures, bugs, or errors may occur that could affect trading execution',
+    riskDisclaimerPlatformRisks3:
+      'Network connectivity issues may prevent access to the platform or delay trade execution',
+    riskDisclaimerPlatformRisks4:
+      'Third-party service providers (exchanges, APIs) may experience outages or failures',
+    riskDisclaimerPlatformRisks5:
+      'Security breaches, hacking, or unauthorized access could result in loss of funds',
     riskDisclaimerAIRisksTitle: 'AI and Automated Trading Risks',
-    riskDisclaimerAIRisks1: 'AI Trading 24x7 uses artificial intelligence models to make trading decisions. While AI can analyze market data and identify patterns, it is not infallible and may make incorrect decisions.',
-    riskDisclaimerAIRisks2: 'AI models may misinterpret market conditions, react to false signals, or fail to adapt to sudden market changes. Past performance of AI trading strategies does not guarantee future results.',
-    riskDisclaimerAIRisks3: 'Automated trading systems can execute trades rapidly, potentially amplifying losses if market conditions change unexpectedly. You should monitor your positions regularly and be prepared to intervene if necessary.',
+    riskDisclaimerAIRisks1:
+      'AI Trading 24x7 uses artificial intelligence models to make trading decisions. While AI can analyze market data and identify patterns, it is not infallible and may make incorrect decisions.',
+    riskDisclaimerAIRisks2:
+      'AI models may misinterpret market conditions, react to false signals, or fail to adapt to sudden market changes. Past performance of AI trading strategies does not guarantee future results.',
+    riskDisclaimerAIRisks3:
+      'Automated trading systems can execute trades rapidly, potentially amplifying losses if market conditions change unexpectedly. You should monitor your positions regularly and be prepared to intervene if necessary.',
     riskDisclaimerNoGuaranteesTitle: 'No Guarantees or Investment Advice',
-    riskDisclaimerNoGuarantees1: 'AI Trading 24x7 does not provide investment advice, financial advice, or trading recommendations. The platform is a tool for executing trades based on AI-generated signals, but all trading decisions and their consequences are your sole responsibility.',
-    riskDisclaimerNoGuarantees2: 'We make no guarantees about the performance of any trading strategy, AI model, or the platform itself. There is no assurance that you will profit from trading or that your losses will be limited.',
+    riskDisclaimerNoGuarantees1:
+      'AI Trading 24x7 does not provide investment advice, financial advice, or trading recommendations. The platform is a tool for executing trades based on AI-generated signals, but all trading decisions and their consequences are your sole responsibility.',
+    riskDisclaimerNoGuarantees2:
+      'We make no guarantees about the performance of any trading strategy, AI model, or the platform itself. There is no assurance that you will profit from trading or that your losses will be limited.',
     riskDisclaimerRegulatoryTitle: 'Regulatory and Legal Risks',
-    riskDisclaimerRegulatory1: 'Cryptocurrency regulations vary by jurisdiction and are subject to change. Regulatory actions, including bans, restrictions, or new requirements, can significantly impact the value of cryptocurrencies and your ability to trade.',
-    riskDisclaimerRegulatory2: 'You are responsible for ensuring that your use of this platform complies with all applicable laws and regulations in your jurisdiction. We do not provide legal or tax advice.',
+    riskDisclaimerRegulatory1:
+      'Cryptocurrency regulations vary by jurisdiction and are subject to change. Regulatory actions, including bans, restrictions, or new requirements, can significantly impact the value of cryptocurrencies and your ability to trade.',
+    riskDisclaimerRegulatory2:
+      'You are responsible for ensuring that your use of this platform complies with all applicable laws and regulations in your jurisdiction. We do not provide legal or tax advice.',
     riskDisclaimerTestingPhaseTitle: 'Testing Phase Warning',
-    riskDisclaimerTestingPhase1: 'AI Trading 24x7 is currently in active development and testing phase.',
-    riskDisclaimerTestingPhase2: 'The platform, AI models, and trading systems are experimental and may exhibit unexpected behavior.',
-    riskDisclaimerTestingPhase3: 'You must test with only small amounts that you can afford to lose completely.',
-    riskDisclaimerTestingPhase4: 'We assume no liability for any losses, errors, glitches, or unusual behavior of the AI trading system or platform.',
-    riskDisclaimerTestingPhase5: 'The platform may experience bugs, technical issues, or unexpected trading behavior at any time.',
+    riskDisclaimerTestingPhase1:
+      'AI Trading 24x7 is currently in active development and testing phase.',
+    riskDisclaimerTestingPhase2:
+      'The platform, AI models, and trading systems are experimental and may exhibit unexpected behavior.',
+    riskDisclaimerTestingPhase3:
+      'You must test with only small amounts that you can afford to lose completely.',
+    riskDisclaimerTestingPhase4:
+      'We assume no liability for any losses, errors, glitches, or unusual behavior of the AI trading system or platform.',
+    riskDisclaimerTestingPhase5:
+      'The platform may experience bugs, technical issues, or unexpected trading behavior at any time.',
     riskDisclaimerFinalWarningTitle: 'FINAL WARNING',
-    riskDisclaimerFinalWarning1: 'CRYPTOCURRENCY TRADING IS HIGHLY SPECULATIVE AND INVOLVES SUBSTANTIAL RISK OF LOSS.',
-    riskDisclaimerFinalWarning2: 'You should only trade with funds you can afford to lose completely. Never invest money that you need for essential expenses such as housing, food, healthcare, or education. Seek independent financial and legal advice before trading if you are unsure about any aspect of cryptocurrency trading or this platform.',
+    riskDisclaimerFinalWarning1:
+      'CRYPTOCURRENCY TRADING IS HIGHLY SPECULATIVE AND INVOLVES SUBSTANTIAL RISK OF LOSS.',
+    riskDisclaimerFinalWarning2:
+      'You should only trade with funds you can afford to lose completely. Never invest money that you need for essential expenses such as housing, food, healthcare, or education. Seek independent financial and legal advice before trading if you are unsure about any aspect of cryptocurrency trading or this platform.',
 
     // License Page
     licenseTitle: 'License - AGPL-3.0',
     licenseSubtitle: 'Open Source License Disclosure',
     licenseOverviewTitle: 'License Overview',
-    licenseOverview1: 'AI Trading 24x7 is licensed under the GNU Affero General Public License version 3.0 (AGPL-3.0). This is a copyleft license that requires anyone who distributes the software or modified versions to make the source code available under the same license.',
-    licenseOverview2: 'The AGPL-3.0 license ensures that the source code remains freely available and that improvements to the software benefit the entire community. It also requires that if you run a modified version of the software on a server and make it accessible to others, you must provide the source code.',
-    licenseOverview3: 'This license grants you the freedom to use, modify, and distribute the software, subject to the terms and conditions of the AGPL-3.0 license.',
+    licenseOverview1:
+      'AI Trading 24x7 is licensed under the GNU Affero General Public License version 3.0 (AGPL-3.0). This is a copyleft license that requires anyone who distributes the software or modified versions to make the source code available under the same license.',
+    licenseOverview2:
+      'The AGPL-3.0 license ensures that the source code remains freely available and that improvements to the software benefit the entire community. It also requires that if you run a modified version of the software on a server and make it accessible to others, you must provide the source code.',
+    licenseOverview3:
+      'This license grants you the freedom to use, modify, and distribute the software, subject to the terms and conditions of the AGPL-3.0 license.',
     licenseSourceCodeTitle: 'Source Code Access',
-    licenseSourceCode1: 'The complete source code for AI Trading 24x7 is publicly available on GitHub:',
-    licenseSourceCode2: 'You can view, download, fork, and contribute to the source code. All contributions are welcome and help improve the platform for everyone.',
+    licenseSourceCode1:
+      'The complete source code for AI Trading 24x7 is publicly available on GitHub:',
+    licenseSourceCode2:
+      'You can view, download, fork, and contribute to the source code. All contributions are welcome and help improve the platform for everyone.',
     licenseRightsTitle: 'Your Rights Under AGPL-3.0',
-    licenseRights1: 'Under the AGPL-3.0 license, you have the following rights:',
+    licenseRights1:
+      'Under the AGPL-3.0 license, you have the following rights:',
     licenseRights2: 'Freedom to use the software for any purpose',
     licenseRights3: 'Freedom to study how the software works and modify it',
     licenseRights4: 'Freedom to distribute copies of the software',
     licenseRights5: 'Freedom to distribute modified versions of the software',
-    licenseRights6: 'All of these freedoms are subject to the requirement that you must provide the source code and maintain the same license when distributing the software or modified versions.',
+    licenseRights6:
+      'All of these freedoms are subject to the requirement that you must provide the source code and maintain the same license when distributing the software or modified versions.',
     licenseCopyleftTitle: 'Copyleft Requirement',
-    licenseCopyleft1: 'The AGPL-3.0 is a copyleft license, which means that if you modify the software and distribute it (including making it available as a web service), you must:',
-    licenseCopyleft2: 'Make your modified source code available under the same AGPL-3.0 license',
-    licenseCopyleft3: 'Provide clear attribution to the original project and indicate what changes you made',
+    licenseCopyleft1:
+      'The AGPL-3.0 is a copyleft license, which means that if you modify the software and distribute it (including making it available as a web service), you must:',
+    licenseCopyleft2:
+      'Make your modified source code available under the same AGPL-3.0 license',
+    licenseCopyleft3:
+      'Provide clear attribution to the original project and indicate what changes you made',
     licenseFileTitle: 'License File',
-    licenseFile1: 'The full text of the AGPL-3.0 license is available in the LICENSE file in the repository:',
+    licenseFile1:
+      'The full text of the AGPL-3.0 license is available in the LICENSE file in the repository:',
     licenseFileLink: 'View LICENSE file on GitHub',
     licenseFullTextTitle: 'Full License Text',
-    licenseFullText1: 'For the complete text of the GNU Affero General Public License version 3.0, please visit:',
+    licenseFullText1:
+      'For the complete text of the GNU Affero General Public License version 3.0, please visit:',
     licenseFullTextLink: 'GNU AGPL-3.0 License Text',
     licenseContactTitle: 'Questions About Licensing',
-    licenseContact1: 'If you have questions about the license or how it applies to your use case, please open an issue on GitHub or contact the project maintainers.',
+    licenseContact1:
+      'If you have questions about the license or how it applies to your use case, please open an issue on GitHub or contact the project maintainers.',
 
     // Pricing Page
     pricingTitle: 'Pricing',
     pricingSubtitle: 'Transparent pricing for AI-powered trading',
     pricingCurrentStatusTitle: 'Currently Free During Testing',
     pricingCurrentStatusPrice: 'FREE',
-    pricingCurrentStatusDescription: 'AI Trading 24x7 is currently free to use during our testing phase. No credit card required, no hidden fees.',
+    pricingCurrentStatusDescription:
+      'AI Trading 24x7 is currently free to use during our testing phase. No credit card required, no hidden fees.',
     pricingCurrentPlanTitle: 'Current Plan Features',
     pricingCurrentPlanFeaturesTitle: 'Included Features',
     pricingCurrentPlanLimitationsTitle: 'Current Limitations',
@@ -149,68 +199,96 @@ export const translations = {
     pricingTierCustomDescription: 'Tailored solutions for your needs',
     pricingComingSoon: 'Coming Soon',
     pricingAdditionalInfoTitle: 'Additional Information',
-    pricingAdditionalInfo1: 'Pricing plans are subject to change. We will provide advance notice before implementing any paid tiers.',
-    pricingAdditionalInfo2: 'During the free testing phase, we welcome feedback and suggestions to help improve the platform.',
-    pricingAdditionalInfo3: 'For questions about pricing or to discuss custom enterprise solutions, please contact us through GitHub.',
+    pricingAdditionalInfo1:
+      'Pricing plans are subject to change. We will provide advance notice before implementing any paid tiers.',
+    pricingAdditionalInfo2:
+      'During the free testing phase, we welcome feedback and suggestions to help improve the platform.',
+    pricingAdditionalInfo3:
+      'For questions about pricing or to discuss custom enterprise solutions, please contact us through GitHub.',
 
     // About Page
     aboutTitle: 'About Us',
-    aboutSubtitle: 'Learn about our mission, vision, and the team behind AI Trading 24x7',
+    aboutSubtitle:
+      'Learn about our mission, vision, and the team behind AI Trading 24x7',
     aboutStoryTitle: 'Our Story',
-    aboutStory1: 'AI Trading 24x7 was born from a vision to create a universal AI trading operating system that works across all financial markets. We started in cryptocurrency markets, where 24/7 trading and high volatility provide the perfect testing ground for AI-driven strategies.',
-    aboutStory2: 'Our platform combines cutting-edge AI technology with proven trading infrastructure, enabling traders to leverage multiple AI models, compete strategies, and build a community around automated trading.',
-    aboutStory3: 'We believe in transparency, open source principles, and empowering traders with the tools they need to succeed in today\'s fast-paced financial markets.',
+    aboutStory1:
+      'AI Trading 24x7 was born from a vision to create a universal AI trading operating system that works across all financial markets. We started in cryptocurrency markets, where 24/7 trading and high volatility provide the perfect testing ground for AI-driven strategies.',
+    aboutStory2:
+      'Our platform combines cutting-edge AI technology with proven trading infrastructure, enabling traders to leverage multiple AI models, compete strategies, and build a community around automated trading.',
+    aboutStory3:
+      "We believe in transparency, open source principles, and empowering traders with the tools they need to succeed in today's fast-paced financial markets.",
     aboutMissionTitle: 'Our Mission',
-    aboutMission: 'To democratize AI-powered trading by providing a universal, open-source platform that enables traders to leverage multiple AI models, compete strategies, and build successful trading systems across all financial markets.',
+    aboutMission:
+      'To democratize AI-powered trading by providing a universal, open-source platform that enables traders to leverage multiple AI models, compete strategies, and build successful trading systems across all financial markets.',
     aboutVisionTitle: 'Our Vision',
-    aboutVision: 'To become the leading universal AI trading operating system, supporting stocks, futures, options, forex, and all financial markets with the same powerful architecture and agent framework.',
+    aboutVision:
+      'To become the leading universal AI trading operating system, supporting stocks, futures, options, forex, and all financial markets with the same powerful architecture and agent framework.',
     aboutValuesTitle: 'Core Values',
     aboutValue1Title: 'Open Source',
-    aboutValue1Desc: 'We believe in transparency and community-driven development. Our code is open source under AGPL-3.0, allowing users to inspect, modify, and contribute.',
+    aboutValue1Desc:
+      'We believe in transparency and community-driven development. Our code is open source under AGPL-3.0, allowing users to inspect, modify, and contribute.',
     aboutValue2Title: 'Innovation',
-    aboutValue2Desc: 'We continuously push the boundaries of AI trading technology, implementing cutting-edge models and strategies to stay ahead of the curve.',
+    aboutValue2Desc:
+      'We continuously push the boundaries of AI trading technology, implementing cutting-edge models and strategies to stay ahead of the curve.',
     aboutValue3Title: 'Community',
-    aboutValue3Desc: 'Our community is at the heart of everything we do. We value feedback, contributions, and collaboration from traders and developers worldwide.',
+    aboutValue3Desc:
+      'Our community is at the heart of everything we do. We value feedback, contributions, and collaboration from traders and developers worldwide.',
     aboutValue4Title: 'Transparency',
-    aboutValue4Desc: 'We are committed to transparency in our operations, code, and decision-making processes. No black boxes, no hidden agendas.',
+    aboutValue4Desc:
+      'We are committed to transparency in our operations, code, and decision-making processes. No black boxes, no hidden agendas.',
     aboutTeamTitle: 'Team & Backing',
-    aboutTeam1: 'AI Trading 24x7 is developed by a dedicated team of engineers, traders, and AI researchers passionate about democratizing automated trading.',
-    aboutTeam2: 'Our core team includes experienced developers and trading professionals who understand both the technical and practical aspects of algorithmic trading.',
+    aboutTeam1:
+      'AI Trading 24x7 is developed by a dedicated team of engineers, traders, and AI researchers passionate about democratizing automated trading.',
+    aboutTeam2:
+      'Our core team includes experienced developers and trading professionals who understand both the technical and practical aspects of algorithmic trading.',
     aboutBackingTitle: 'Backed by Amber.ac',
-    aboutBacking: 'AI Trading 24x7 is backed by Amber.ac, providing us with the resources and support needed to build a world-class trading platform.',
+    aboutBacking:
+      'AI Trading 24x7 is backed by Amber.ac, providing us with the resources and support needed to build a world-class trading platform.',
     aboutOpenSourceTitle: 'Open Source Commitment',
-    aboutOpenSource1: 'AI Trading 24x7 is fully open source under the AGPL-3.0 license. This means you can view, modify, and distribute the source code, subject to original licence and terms.',
-    aboutOpenSource2: 'We believe that open source software leads to better security, innovation, and community engagement. Our commitment to open source ensures that the platform remains transparent and community-driven.',
-    aboutOpenSource3: 'Contributors are welcome and appreciated. All contributions help improve the platform for everyone.',
+    aboutOpenSource1:
+      'AI Trading 24x7 is fully open source under the AGPL-3.0 license. This means you can view, modify, and distribute the source code, subject to original licence and terms.',
+    aboutOpenSource2:
+      'We believe that open source software leads to better security, innovation, and community engagement. Our commitment to open source ensures that the platform remains transparent and community-driven.',
+    aboutOpenSource3:
+      'Contributors are welcome and appreciated. All contributions help improve the platform for everyone.',
     aboutCommunityTitle: 'Join Our Community',
-    aboutCommunity1: 'We have an active community of traders, developers, and AI enthusiasts who share knowledge, strategies, and support each other.',
-    aboutCommunity2: 'Join our Telegram community, contribute on GitHub, or follow us on Twitter to stay updated and connect with other users.',
+    aboutCommunity1:
+      'We have an active community of traders, developers, and AI enthusiasts who share knowledge, strategies, and support each other.',
+    aboutCommunity2:
+      'Join our Telegram community, contribute on GitHub, or follow us on Twitter to stay updated and connect with other users.',
 
     // Features Page
     featuresTitle: 'Features',
-    featuresSubtitle: 'Comprehensive platform capabilities for AI-powered trading',
+    featuresSubtitle:
+      'Comprehensive platform capabilities for AI-powered trading',
     featuresAI: 'AI Models',
-    featuresAIDesc: 'Support for multiple AI models with customizable prompts and strategies',
-    featuresAI1: 'DeepSeek, Qwen, GPT-4, Claude, Gemini, Grok, and Kimi support',
+    featuresAIDesc:
+      'Support for multiple AI models with customizable prompts and strategies',
+    featuresAI1:
+      'DeepSeek, Qwen, GPT-4, Claude, Gemini, Grok, and Kimi support',
     featuresAI2: 'Customizable AI prompts and decision templates',
     featuresAI3: 'Multi-model comparison and performance tracking',
     featuresAI4: 'Historical performance analysis and learning',
     featuresAI5: 'Real-time AI decision making with chain of thought',
     featuresTrading: 'Trading Features',
-    featuresTradingDesc: 'Advanced trading capabilities across multiple exchanges',
-    featuresTrading1: 'Multi-exchange support (Binance, Hyperliquid, Aster DEX)',
+    featuresTradingDesc:
+      'Advanced trading capabilities across multiple exchanges',
+    featuresTrading1:
+      'Multi-exchange support (Binance, Hyperliquid, Aster DEX)',
     featuresTrading2: 'Real-time position monitoring and management',
     featuresTrading3: 'Automated order execution with risk controls',
     featuresTrading4: 'Backtesting with historical data',
     featuresTrading5: 'Performance analytics and reporting',
     featuresMultiAgent: 'Multi-Agent Competition',
-    featuresMultiAgentDesc: 'AI agents compete and evolve to find optimal strategies',
+    featuresMultiAgentDesc:
+      'AI agents compete and evolve to find optimal strategies',
     featuresMultiAgent1: 'Multiple AI agents running in parallel',
     featuresMultiAgent2: 'Real-time performance comparison and ranking',
     featuresMultiAgent3: 'Automatic strategy optimization based on results',
     featuresMultiAgent4: 'Cross-market strategy portability',
     featuresCopyTrading: 'Copy Trading',
-    featuresCopyTradingDesc: 'Follow top traders and replicate their strategies',
+    featuresCopyTradingDesc:
+      'Follow top traders and replicate their strategies',
     featuresCopyTrading1: 'Browse and follow top-performing traders',
     featuresCopyTrading2: 'Automatic position replication',
     featuresCopyTrading3: 'Follower management and analytics',
@@ -237,58 +315,77 @@ export const translations = {
 
     // Security Page
     securityTitle: 'Security',
-    securitySubtitle: 'Enterprise-grade security measures to protect your funds and data',
+    securitySubtitle:
+      'Enterprise-grade security measures to protect your funds and data',
     securityCommitmentTitle: 'Security Commitment',
-    securityCommitment: 'We take security seriously. AI Trading 24x7 handles real funds and sensitive API credentials, so we implement multiple layers of security to protect your assets and data.',
+    securityCommitment:
+      'We take security seriously. AI Trading 24x7 handles real funds and sensitive API credentials, so we implement multiple layers of security to protect your assets and data.',
     securityEncryptionTitle: 'Data Encryption',
-    securityEncryptionDesc: 'All sensitive data is encrypted both in transit and at rest',
+    securityEncryptionDesc:
+      'All sensitive data is encrypted both in transit and at rest',
     securityEncryption1: 'TLS 1.3 encryption for all network communications',
-    securityEncryption2: 'AES-256 encryption for API keys and credentials (planned)',
+    securityEncryption2:
+      'AES-256 encryption for API keys and credentials (planned)',
     securityEncryption3: 'Secure password hashing with bcrypt',
     securityEncryption4: 'Encrypted database storage for sensitive information',
     securityCredentialsTitle: 'Credential Management',
-    securityCredentialsDesc: 'Secure handling and storage of API keys and trading credentials',
+    securityCredentialsDesc:
+      'Secure handling and storage of API keys and trading credentials',
     securityCredentials1: 'API keys stored securely in encrypted format',
     securityCredentials2: 'Private keys encrypted before storage',
     securityCredentials3: 'No credentials exposed in logs or error messages',
     securityCredentials4: 'Key rotation and revocation support',
     securityAuthenticationTitle: 'Authentication & Authorization',
-    securityAuthenticationDesc: 'Robust authentication mechanisms to protect your account',
+    securityAuthenticationDesc:
+      'Robust authentication mechanisms to protect your account',
     securityAuthentication1: 'JWT token-based authentication',
     securityAuthentication2: 'Optional two-factor authentication (2FA)',
     securityAuthentication3: 'Session management with auto-logout',
     securityAuthentication4: 'Role-based access control (RBAC) support',
     securityMonitoringTitle: 'Monitoring & Auditing',
-    securityMonitoringDesc: 'Continuous monitoring and audit trails for security',
+    securityMonitoringDesc:
+      'Continuous monitoring and audit trails for security',
     securityMonitoring1: 'Comprehensive audit logging for all operations',
     securityMonitoring2: 'Real-time security monitoring and alerts',
     securityMonitoring3: 'Trading activity tracking and reporting',
     securityMonitoring4: 'Anomaly detection and threat response',
     securityBestPracticesTitle: 'Security Best Practices',
-    securityBestPractices1: 'Always use strong, unique passwords for your account and enable 2FA when available.',
-    securityBestPractices2: 'Never share your API keys or credentials with anyone. Use read-only API keys when possible.',
-    securityBestPractices3: 'Regularly review your account activity and trading logs. Report any suspicious activity immediately.',
+    securityBestPractices1:
+      'Always use strong, unique passwords for your account and enable 2FA when available.',
+    securityBestPractices2:
+      'Never share your API keys or credentials with anyone. Use read-only API keys when possible.',
+    securityBestPractices3:
+      'Regularly review your account activity and trading logs. Report any suspicious activity immediately.',
     securityReportingTitle: 'Reporting Security Issues',
-    securityReporting1: 'If you discover a security vulnerability, please report it responsibly. Do not publicly disclose vulnerabilities before we have had time to fix them.',
-    securityReporting2: 'Contact us privately via GitHub security advisory or Twitter DM to @Web3Tinkle.',
-    securityReporting3: 'We appreciate responsible disclosure and will acknowledge security researchers who help improve our platform.',
+    securityReporting1:
+      'If you discover a security vulnerability, please report it responsibly. Do not publicly disclose vulnerabilities before we have had time to fix them.',
+    securityReporting2:
+      'Contact us privately via GitHub security advisory or Twitter DM to @Web3Tinkle.',
+    securityReporting3:
+      'We appreciate responsible disclosure and will acknowledge security researchers who help improve our platform.',
 
     // Contact Page
     contactTitle: 'Contact Us',
     contactSubtitle: 'Get help, report issues, or reach out to our team',
     contactEmailTitle: 'Email Us',
-    contactEmailDesc: 'Send us an email for any questions, support requests, bug reports, or general inquiries',
+    contactEmailDesc:
+      'Send us an email for any questions, support requests, bug reports, or general inquiries',
     contactSupportTypesTitle: 'Support Types',
     contactGeneralSupportTitle: 'General Support',
-    contactGeneralSupportDesc: 'For general questions, feature requests, or platform usage help, please email contact@tjalam.com.',
+    contactGeneralSupportDesc:
+      'For general questions, feature requests, or platform usage help, please email contact@tjalam.com.',
     contactBugReportTitle: 'Bug Reports',
-    contactBugReportDesc: 'Found a bug? Please email contact@tjalam.com with detailed steps to reproduce, expected behavior, and actual behavior. Include logs and screenshots if possible.',
+    contactBugReportDesc:
+      'Found a bug? Please email contact@tjalam.com with detailed steps to reproduce, expected behavior, and actual behavior. Include logs and screenshots if possible.',
     contactSecurityTitle: 'Security Issues',
-    contactSecurityDesc: 'For security vulnerabilities, please email contact@tjalam.com. Please do not publicly disclose vulnerabilities until we have had time to address them.',
+    contactSecurityDesc:
+      'For security vulnerabilities, please email contact@tjalam.com. Please do not publicly disclose vulnerabilities until we have had time to address them.',
     contactResponseTitle: 'Response Times',
     contactResponse1: 'We aim to respond to all inquiries within 48 hours.',
-    contactResponse2: 'For critical security issues, we will respond within 24 hours.',
-    contactResponse3: 'We monitor our email inbox regularly, though official responses may take longer during weekends.',
+    contactResponse2:
+      'For critical security issues, we will respond within 24 hours.',
+    contactResponse3:
+      'We monitor our email inbox regularly, though official responses may take longer during weekends.',
 
     // Footer Links
     footerLinkFAQ: 'FAQ',
@@ -299,13 +396,15 @@ export const translations = {
 
     // Followers Page
     followersPageTitle: 'My Followers',
-    followersPageDescription: 'View all followers of your traders and their activities in one place.',
+    followersPageDescription:
+      'View all followers of your traders and their activities in one place.',
     totalFollowers: 'Total Followers',
     activeFollowers: 'Active Followers',
     parentTraders: 'Parent Traders',
     autoRefresh: 'Auto-refresh: 30s',
     noFollowersTitle: 'No Followers Yet',
-    noFollowersDescription: "You don't have any followers yet. When other users copy your traders, they will appear here.",
+    noFollowersDescription:
+      "You don't have any followers yet. When other users copy your traders, they will appear here.",
     errorLoadingFollowers: 'Failed to Load Followers',
     retry: 'Retry',
     owner: 'Owner',
@@ -343,11 +442,12 @@ export const translations = {
     action: 'Action',
     close: 'Close',
     closing: 'Closing...',
-    confirmClosePosition: 'Are you sure you want to close {side} position for {symbol}?',
+    confirmClosePosition:
+      'Are you sure you want to close {side} position for {symbol}?',
     positionClosed: 'Successfully closed {side} position for {symbol}',
     closePositionFailed: 'Failed to close position',
     selectTraderFirst: 'Please select a trader first',
-    
+
     // Pending Orders
     pendingOrders: 'Pending Orders',
     orderType: 'Order Type',
@@ -355,7 +455,7 @@ export const translations = {
     limitOrder: 'Limit',
     noPendingOrders: 'No Pending Orders',
     noPendingOrdersDesc: 'No pending SL/TP orders at this time',
-    
+
     equityChart: 'Equity Chart',
     performanceChart: 'Performance',
     comingSoon: 'Coming soon...',
@@ -403,7 +503,8 @@ export const translations = {
     // Backtest Page
     backtestPage: {
       title: 'Backtest Lab',
-      subtitle: 'Pick a model + time range to replay the full AI decision loop.',
+      subtitle:
+        'Pick a model + time range to replay the full AI decision loop.',
       start: 'Start Backtest',
       starting: 'Starting...',
       quickRanges: {
@@ -441,13 +542,13 @@ export const translations = {
         customTfPlaceholder: 'Custom TFs (comma separated, e.g. 2h,6h)',
         initialBalanceLabel: 'Initial balance (USDT)',
         feeLabel: 'Fee (bps)',
-      slippageLabel: 'Slippage (bps)',
-      btcEthLeverageLabel: 'BTC/ETH leverage (x)',
-      altcoinLeverageLabel: 'Altcoin leverage (x)',
-      fillPolicies: {
-        nextOpen: 'Next open',
-        barVwap: 'Bar VWAP',
-        midPrice: 'Mid price',
+        slippageLabel: 'Slippage (bps)',
+        btcEthLeverageLabel: 'BTC/ETH leverage (x)',
+        altcoinLeverageLabel: 'Altcoin leverage (x)',
+        fillPolicies: {
+          nextOpen: 'Next open',
+          barVwap: 'Bar VWAP',
+          midPrice: 'Mid price',
         },
         promptPresets: {
           baseline: 'Baseline',
@@ -522,7 +623,8 @@ export const translations = {
         title: 'AI Decision Trail',
         subtitle: 'Showing last {count} cycles',
         empty: 'No records yet',
-        emptyHint: 'The AI thought & execution log will appear once the run starts.',
+        emptyHint:
+          'The AI thought & execution log will appear once the run starts.',
       },
       charts: {
         equityTitle: 'Equity Curve',
@@ -654,14 +756,22 @@ export const translations = {
     sharpeStatusGood: '🟢 Good Performance',
     sharpeStatusVolatile: '🟡 High Volatility',
     sharpeStatusNeedsAdjustment: '🔴 Needs Adjustment',
-    sharpeAdviceExcellent: '✨ AI strategy is highly effective! Excellent risk-adjusted returns, can moderately increase position size while maintaining discipline.',
-    sharpeAdviceGood: '✅ Strategy performance is stable, risk-reward balance is good, continue maintaining current strategy.',
-    sharpeAdviceVolatile: '⚠️ Returns are positive but volatility is high, AI is optimizing strategy to reduce risk.',
-    sharpeAdvicePoor: '🚨 Current strategy needs adjustment! AI has automatically entered conservative mode, reducing position size and trading frequency.',
-    profitFactorAdviceExcellent: '🔥 Outstanding profitability! For every 1 USDT lost, can earn {factor} USDT, AI strategy performs excellently.',
-    profitFactorAdviceGood: '✓ Strategy is consistently profitable, profit-loss ratio is healthy, continue maintaining disciplined trading.',
-    profitFactorAdviceFair: '⚠️ Strategy is slightly profitable but needs optimization, AI is adjusting position size and stop-loss strategy.',
-    profitFactorAdvicePoor: '❌ Average losses exceed profits, need to adjust strategy or reduce trading frequency.',
+    sharpeAdviceExcellent:
+      '✨ AI strategy is highly effective! Excellent risk-adjusted returns, can moderately increase position size while maintaining discipline.',
+    sharpeAdviceGood:
+      '✅ Strategy performance is stable, risk-reward balance is good, continue maintaining current strategy.',
+    sharpeAdviceVolatile:
+      '⚠️ Returns are positive but volatility is high, AI is optimizing strategy to reduce risk.',
+    sharpeAdvicePoor:
+      '🚨 Current strategy needs adjustment! AI has automatically entered conservative mode, reducing position size and trading frequency.',
+    profitFactorAdviceExcellent:
+      '🔥 Outstanding profitability! For every 1 USDT lost, can earn {factor} USDT, AI strategy performs excellently.',
+    profitFactorAdviceGood:
+      '✓ Strategy is consistently profitable, profit-loss ratio is healthy, continue maintaining disciplined trading.',
+    profitFactorAdviceFair:
+      '⚠️ Strategy is slightly profitable but needs optimization, AI is adjusting position size and stop-loss strategy.',
+    profitFactorAdvicePoor:
+      '❌ Average losses exceed profits, need to adjust strategy or reduce trading frequency.',
     hour: 'h',
     minute: 'm',
     second: 's',
@@ -759,19 +869,26 @@ export const translations = {
     lighterApiKeyPrivateKey: 'API Key Private Key',
     enterLighterWalletAddress: 'Enter Ethereum wallet address (0x...)',
     enterLighterPrivateKey: 'Enter L1 private key (32 bytes)',
-    enterLighterApiKeyPrivateKey: 'Enter API Key private key (40 bytes, optional)',
-    lighterWalletAddressDesc: 'Your Ethereum wallet address for account identification',
-    lighterPrivateKeyDesc: 'L1 private key for account identification (32-byte ECDSA key)',
-    lighterApiKeyPrivateKeyDesc: 'API Key private key for transaction signing (40-byte Poseidon2 key)',
-    lighterApiKeyOptionalNote: 'Without API Key, system will use limited V1 mode',
+    enterLighterApiKeyPrivateKey:
+      'Enter API Key private key (40 bytes, optional)',
+    lighterWalletAddressDesc:
+      'Your Ethereum wallet address for account identification',
+    lighterPrivateKeyDesc:
+      'L1 private key for account identification (32-byte ECDSA key)',
+    lighterApiKeyPrivateKeyDesc:
+      'API Key private key for transaction signing (40-byte Poseidon2 key)',
+    lighterApiKeyOptionalNote:
+      'Without API Key, system will use limited V1 mode',
 
     // Wallet Address Display
     showAddress: 'Show full address',
     hideAddress: 'Hide address',
     copyAddress: 'Copy address',
     copiedToClipboard: 'Copied to clipboard',
-    lighterV1Description: 'Basic Mode - Limited functionality, testing framework only',
-    lighterV2Description: 'Full Mode - Supports Poseidon2 signing and real trading',
+    lighterV1Description:
+      'Basic Mode - Limited functionality, testing framework only',
+    lighterV2Description:
+      'Full Mode - Supports Poseidon2 signing and real trading',
     lighterPrivateKeyImported: 'LIGHTER private key imported',
 
     // Exchange names
@@ -1086,49 +1203,81 @@ export const translations = {
     termsViewTerms: 'View Terms and Conditions',
     termsMustAccept: 'You must accept the Terms and Conditions to continue',
     termsIntroductionTitle: 'Introduction',
-    termsIntroduction1: 'Welcome to AI Trading 24x7. By accessing and using this platform, you agree to be bound by these Terms and Conditions. Please read them carefully before proceeding.',
-    termsIntroduction2: 'These terms govern your use of our multi-exchange AI trading platform, including all services, features, and functionalities provided.',
+    termsIntroduction1:
+      'Welcome to AI Trading 24x7. By accessing and using this platform, you agree to be bound by these Terms and Conditions. Please read them carefully before proceeding.',
+    termsIntroduction2:
+      'These terms govern your use of our multi-exchange AI trading platform, including all services, features, and functionalities provided.',
     termsRiskWarningsTitle: 'Risk Warnings',
-    termsRiskWarnings1: 'Cryptocurrency trading involves substantial risk of loss and is not suitable for all investors. You should carefully consider whether trading is suitable for you in light of your circumstances, knowledge, and financial resources.',
-    termsRiskWarnings2: 'Past performance does not guarantee future results. The value of investments can go down as well as up, and you may lose all or more than your initial investment.',
-    termsRiskWarnings3: 'Trading cryptocurrencies carries significant risk, including but not limited to:',
-    termsRiskWarnings4: 'Market volatility: Cryptocurrency prices can be extremely volatile and may fluctuate widely in a short period',
-    termsRiskWarnings5: 'Liquidity risk: Some markets may have limited liquidity, making it difficult to execute trades at desired prices',
-    termsRiskWarnings6: 'Leverage risk: Trading with leverage can amplify both profits and losses, potentially resulting in losses exceeding your initial investment',
-    termsRiskWarnings7: 'Technical risk: System failures, network issues, or cyber attacks may affect your ability to trade',
-    termsRiskWarnings8: 'Regulatory risk: Changes in regulations may affect the legality or operation of cryptocurrency trading',
+    termsRiskWarnings1:
+      'Cryptocurrency trading involves substantial risk of loss and is not suitable for all investors. You should carefully consider whether trading is suitable for you in light of your circumstances, knowledge, and financial resources.',
+    termsRiskWarnings2:
+      'Past performance does not guarantee future results. The value of investments can go down as well as up, and you may lose all or more than your initial investment.',
+    termsRiskWarnings3:
+      'Trading cryptocurrencies carries significant risk, including but not limited to:',
+    termsRiskWarnings4:
+      'Market volatility: Cryptocurrency prices can be extremely volatile and may fluctuate widely in a short period',
+    termsRiskWarnings5:
+      'Liquidity risk: Some markets may have limited liquidity, making it difficult to execute trades at desired prices',
+    termsRiskWarnings6:
+      'Leverage risk: Trading with leverage can amplify both profits and losses, potentially resulting in losses exceeding your initial investment',
+    termsRiskWarnings7:
+      'Technical risk: System failures, network issues, or cyber attacks may affect your ability to trade',
+    termsRiskWarnings8:
+      'Regulatory risk: Changes in regulations may affect the legality or operation of cryptocurrency trading',
     termsPlatformDisclaimersTitle: 'Platform Disclaimers',
-    termsPlatformDisclaimers1: 'AI Trading 24x7 is a non-custodial platform. We do not hold, store, or have access to your funds, private keys, or trading credentials. You are solely responsible for the security of your accounts and credentials.',
-    termsPlatformDisclaimers2: 'This platform provides tools and infrastructure for automated trading but does not provide investment advice, trading recommendations, or guarantee any trading outcomes. All trading decisions are made by AI models or by you, and you are solely responsible for all trading activities.',
-    termsPlatformDisclaimers3: 'We do not warrant or guarantee that the platform will be available at all times, free from errors, or that it will meet your specific requirements. The platform is provided "as is" without warranties of any kind.',
-    termsPlatformDisclaimers4: 'AI models used on this platform are provided by third parties and may produce incorrect or suboptimal trading decisions. We are not responsible for the accuracy, reliability, or performance of any AI model.',
+    termsPlatformDisclaimers1:
+      'AI Trading 24x7 is a non-custodial platform. We do not hold, store, or have access to your funds, private keys, or trading credentials. You are solely responsible for the security of your accounts and credentials.',
+    termsPlatformDisclaimers2:
+      'This platform provides tools and infrastructure for automated trading but does not provide investment advice, trading recommendations, or guarantee any trading outcomes. All trading decisions are made by AI models or by you, and you are solely responsible for all trading activities.',
+    termsPlatformDisclaimers3:
+      'We do not warrant or guarantee that the platform will be available at all times, free from errors, or that it will meet your specific requirements. The platform is provided "as is" without warranties of any kind.',
+    termsPlatformDisclaimers4:
+      'AI models used on this platform are provided by third parties and may produce incorrect or suboptimal trading decisions. We are not responsible for the accuracy, reliability, or performance of any AI model.',
     termsUserResponsibilitiesTitle: 'User Responsibilities',
     termsUserResponsibilities1: 'By using this platform, you agree to:',
-    termsUserResponsibilities2: 'Use the platform only for lawful purposes and in compliance with all applicable laws and regulations',
-    termsUserResponsibilities3: 'Maintain the confidentiality and security of your account credentials, API keys, and private keys',
-    termsUserResponsibilities4: 'Monitor your trading activities and positions regularly and take appropriate action when necessary',
-    termsUserResponsibilities5: 'Only trade with funds you can afford to lose and never invest more than you are willing to lose',
-    termsUserResponsibilities6: 'Seek independent financial advice if you are unsure about any aspect of trading or investment',
+    termsUserResponsibilities2:
+      'Use the platform only for lawful purposes and in compliance with all applicable laws and regulations',
+    termsUserResponsibilities3:
+      'Maintain the confidentiality and security of your account credentials, API keys, and private keys',
+    termsUserResponsibilities4:
+      'Monitor your trading activities and positions regularly and take appropriate action when necessary',
+    termsUserResponsibilities5:
+      'Only trade with funds you can afford to lose and never invest more than you are willing to lose',
+    termsUserResponsibilities6:
+      'Seek independent financial advice if you are unsure about any aspect of trading or investment',
     termsLiabilityTitle: 'Limitation of Liability',
-    termsLiability1: 'To the maximum extent permitted by law, AI Trading 24x7, its operators, developers, and affiliates shall not be liable for any direct, indirect, incidental, special, consequential, or punitive damages arising from your use of the platform.',
-    termsLiability2: 'We are not responsible for any losses, damages, or costs resulting from trading activities, system failures, security breaches, or any other issues related to the use of this platform.',
-    termsLiability3: 'You acknowledge that trading cryptocurrencies involves risk and that you may lose all or more than your initial investment. You agree to bear full responsibility for all trading decisions and outcomes.',
+    termsLiability1:
+      'To the maximum extent permitted by law, AI Trading 24x7, its operators, developers, and affiliates shall not be liable for any direct, indirect, incidental, special, consequential, or punitive damages arising from your use of the platform.',
+    termsLiability2:
+      'We are not responsible for any losses, damages, or costs resulting from trading activities, system failures, security breaches, or any other issues related to the use of this platform.',
+    termsLiability3:
+      'You acknowledge that trading cryptocurrencies involves risk and that you may lose all or more than your initial investment. You agree to bear full responsibility for all trading decisions and outcomes.',
     termsTestingPhaseTitle: 'Testing Phase and Development Status',
-    termsTestingPhase1: 'AI Trading 24x7 is currently in active development and testing phase.',
-    termsTestingPhase2: 'The platform and all its features, including AI trading models, are experimental and subject to change without notice.',
-    termsTestingPhase3: 'Users are required to test with only small amounts and must not risk funds they cannot afford to lose.',
-    termsTestingPhase4: 'We disclaim all liability for any losses, damages, or issues arising from platform bugs, glitches, errors, AI behavior anomalies, or technical failures.',
-    termsTestingPhase5: 'By using this platform, you acknowledge that you are participating in a testing phase and accept all associated risks.',
+    termsTestingPhase1:
+      'AI Trading 24x7 is currently in active development and testing phase.',
+    termsTestingPhase2:
+      'The platform and all its features, including AI trading models, are experimental and subject to change without notice.',
+    termsTestingPhase3:
+      'Users are required to test with only small amounts and must not risk funds they cannot afford to lose.',
+    termsTestingPhase4:
+      'We disclaim all liability for any losses, damages, or issues arising from platform bugs, glitches, errors, AI behavior anomalies, or technical failures.',
+    termsTestingPhase5:
+      'By using this platform, you acknowledge that you are participating in a testing phase and accept all associated risks.',
     termsLicenseTitle: 'License Information',
-    termsLicense1: 'This software is licensed under the GNU Affero General Public License version 3 (AGPL-3.0). This means that the source code is freely available and can be modified and distributed under the terms of the AGPL-3.0 license.',
-    termsLicense2: 'If you modify this software and make it available over a network, you must make the source code of your modifications available to users under the same AGPL-3.0 license.',
+    termsLicense1:
+      'This software is licensed under the GNU Affero General Public License version 3 (AGPL-3.0). This means that the source code is freely available and can be modified and distributed under the terms of the AGPL-3.0 license.',
+    termsLicense2:
+      'If you modify this software and make it available over a network, you must make the source code of your modifications available to users under the same AGPL-3.0 license.',
     termsLicense3: 'For the full text of the license, please visit:',
     termsLicenseLink: 'GNU AGPL-3.0 License',
     termsAcceptanceTitle: 'Acceptance of Terms',
-    termsAcceptance1: 'By clicking "I agree" or by using this platform, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.',
-    termsAcceptance2: 'If you do not agree to these terms, you must not use this platform. Continued use of the platform after any changes to these terms constitutes acceptance of the modified terms.',
+    termsAcceptance1:
+      'By clicking "I agree" or by using this platform, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.',
+    termsAcceptance2:
+      'If you do not agree to these terms, you must not use this platform. Continued use of the platform after any changes to these terms constitutes acceptance of the modified terms.',
     termsContactTitle: 'Contact',
-    termsContact1: 'If you have any questions about these Terms and Conditions, please contact us through the official channels provided on the platform.',
+    termsContact1:
+      'If you have any questions about these Terms and Conditions, please contact us through the official channels provided on the platform.',
     registrationFailed: 'Registration failed. Please try again.',
     verificationFailed:
       'OTP verification failed. Please check the code and try again.',
@@ -1149,7 +1298,8 @@ export const translations = {
     betaCodeRequired: 'Beta code required during beta period',
     betaCodeLabel: 'Beta Code',
     betaCodePlaceholder: 'Enter 6-digit beta code',
-    betaCodeDescription: 'Beta code consists of 6 alphanumeric characters, case-sensitive',
+    betaCodeDescription:
+      'Beta code consists of 6 alphanumeric characters, case-sensitive',
     hidePassword: 'Hide password',
     showPassword: 'Show password',
     copyFailed: 'Copy failed, please copy manually',
@@ -1157,7 +1307,7 @@ export const translations = {
     yes: 'Yes',
     no: 'No',
     traderConfig: 'Trader Configuration',
-    traderConfigInfo: '{name}\'s configuration',
+    traderConfigInfo: "{name}'s configuration",
     traderId: 'Trader ID',
     basicInfo: 'Basic Information',
     useDefaultSymbols: 'Use default symbols',
@@ -1165,9 +1315,12 @@ export const translations = {
     configCopied: '✓ Config copied',
     copyFullConfig: '📋 Copy full configuration',
     aiRejected: 'AI rejected: ',
-    signalPriceMismatch: 'Signal price {signalPrice} does not match current market price {marketPrice} (difference {diff}%), signal is outdated or incorrect.',
-    insufficientBalance: 'Account balance is only {balance} USDT, cannot meet minimum trading requirements.',
-    technicalAnalysisNotSupport: 'Current technical analysis ({details}) does not support {action} operation.',
+    signalPriceMismatch:
+      'Signal price {signalPrice} does not match current market price {marketPrice} (difference {diff}%), signal is outdated or incorrect.',
+    insufficientBalance:
+      'Account balance is only {balance} USDT, cannot meet minimum trading requirements.',
+    technicalAnalysisNotSupport:
+      'Current technical analysis ({details}) does not support {action} operation.',
     aiRejectionReasoning: 'AI rejection reasoning',
 
     // Landing Page
@@ -1202,8 +1355,7 @@ export const translations = {
     // Features Section
     coreFeatures: 'Core Features',
     whyChooseNofx: 'Why Choose AI Trading 24x7?',
-    openCommunityDriven:
-      'Transparent, community-driven AI trading platform',
+    openCommunityDriven: 'Transparent, community-driven AI trading platform',
     openSourceSelfHosted: 'AI Trading 24x7 Platform',
     openSourceDesc:
       'Your framework, your rules. Non-black box, supports custom prompts, multi-models, copy trading, and TradingView webhook integration.',
@@ -1232,9 +1384,8 @@ export const translations = {
     aboutNofx: 'About AI Trading 24x7',
     whatIsNofx: 'What is AI Trading 24x7?',
     nofxNotAnotherBot:
-      "AI Trading 24x7 is a powerful SaaS platform for AI-powered trading —",
-    nofxDescription1:
-      'a cloud-based service that provides a unified',
+      'AI Trading 24x7 is a powerful SaaS platform for AI-powered trading —',
+    nofxDescription1: 'a cloud-based service that provides a unified',
     nofxDescription2:
       "'decision-risk-execution' layer, supporting all asset classes.",
     nofxDescription3:
@@ -1244,7 +1395,8 @@ export const translations = {
     nofxDescription5:
       'advanced features including copy trading and TradingView webhook integration.',
     youFullControl: 'Full Control',
-    fullControlDesc: 'Complete control over AI prompts, trading strategies, and your funds',
+    fullControlDesc:
+      'Complete control over AI prompts, trading strategies, and your funds',
     startupMessages1: 'Starting automated trading system...',
     startupMessages2: 'API server started on port 8080',
     startupMessages3: 'Web console http://127.0.0.1:3000',
@@ -1304,7 +1456,8 @@ export const translations = {
       'You have traders that enabled "Use Coin Pool" or "Use OI Top", but signal source API address is not configured yet. This will cause candidate coins count to be 0, and traders cannot work properly.',
     configureSignalSourceNow: 'Configure Signal Source Now',
     solution1: 'Click "{signalSource}" button to configure API endpoints',
-    solution2: 'Or disable "Use Coin Pool" and "Use OI Top" in trader configuration',
+    solution2:
+      'Or disable "Use Coin Pool" and "Use OI Top" in trader configuration',
     solution3: 'Or set custom symbol list in trader configuration',
 
     // Trader Config Modal
@@ -1325,9 +1478,12 @@ export const translations = {
     initialBalanceEditLabel: 'Initial Balance ($)',
     fetchCurrentBalance: 'Fetch Current Balance',
     fetchingBalance: 'Fetching...',
-    initialBalanceEditNote: 'Used to manually update initial balance baseline (e.g., after deposit/withdrawal)',
-    initialBalanceAutoNote: 'System will automatically fetch your account equity as initial balance',
-    tradingSymbolsLabel: 'Trading Symbols (comma-separated, leave empty for default)',
+    initialBalanceEditNote:
+      'Used to manually update initial balance baseline (e.g., after deposit/withdrawal)',
+    initialBalanceAutoNote:
+      'System will automatically fetch your account equity as initial balance',
+    tradingSymbolsLabel:
+      'Trading Symbols (comma-separated, leave empty for default)',
     tradingSymbolsExample: 'e.g.: BTCUSDT,ETHUSDT,ADAUSDT',
     quickSelect: 'Quick Select',
     collapseSelect: 'Collapse',
@@ -1338,18 +1494,21 @@ export const translations = {
     useOITopSignal: 'Use OI Top Signal',
     useTradingViewSignal: 'Use TradingView Signal',
     overrideBasePrompt: 'Override Default Prompt',
-    overrideBasePromptWarning: 'When enabled, will completely replace default strategy',
+    overrideBasePromptWarning:
+      'When enabled, will completely replace default strategy',
     customPromptLabel: 'Custom Prompt',
     appendPromptLabel: 'Additional Prompt',
     customPromptPlaceholder: 'Enter complete trading strategy prompt...',
     appendPromptPlaceholder: 'Enter additional trading strategy prompt...',
-    promptTemplateDescription: 'Select preset trading strategy template (includes trading philosophy, risk control principles, etc.)',
+    promptTemplateDescription:
+      'Select preset trading strategy template (includes trading philosophy, risk control principles, etc.)',
     savingTrader: 'Saving...',
     traderSaved: 'Saved successfully',
     traderSaveFailed: 'Save failed',
     balanceFetched: 'Current balance fetched',
     balanceFetchFailed: 'Failed to fetch balance',
-    balanceFetchError: 'Failed to fetch balance, please check network connection',
+    balanceFetchError:
+      'Failed to fetch balance, please check network connection',
     editModeOnlyError: 'Only available in edit mode',
 
     // Toast Messages
@@ -1598,7 +1757,8 @@ export const translations = {
         'Paste something else to clear clipboard, then continue',
       obfuscationManual: 'Manual obfuscation required',
       copyFailed: 'Copy failed, please manually copy the obfuscation string',
-      clipboardNotSupported: 'Current browser does not support auto-copy, please copy manually',
+      clipboardNotSupported:
+        'Current browser does not support auto-copy, please copy manually',
     },
 
     // Error Messages
@@ -1635,7 +1795,8 @@ export const translations = {
 
     // Footer
     footerTitle: 'Best AI Trading 24x7 app',
-    footerWarning: '⚠️ 风险提示：加密货币交易存在重大损失风险。过往表现不代表未来结果。请仅使用您能够承受损失的资金进行交易。AI Trading 24x7 是一个非托管平台，不提供官方交易策略。市场条件可能快速变化，您可能会损失全部或超过初始投资。请负责任地交易，如有需要，请寻求独立的财务建议。',
+    footerWarning:
+      '⚠️ 风险提示：加密货币交易存在重大损失风险。过往表现不代表未来结果。请仅使用您能够承受损失的资金进行交易。AI Trading 24x7 是一个非托管平台，不提供官方交易策略。市场条件可能快速变化，您可能会损失全部或超过初始投资。请负责任地交易，如有需要，请寻求独立的财务建议。',
     footerLinkTerms: '服务条款',
     footerLinkRiskDisclaimer: '风险免责声明',
     footerLinkLicense: '许可证',
@@ -1645,71 +1806,106 @@ export const translations = {
     riskDisclaimerTitle: '风险免责声明',
     riskDisclaimerLastUpdated: '最后更新：2025年1月',
     riskDisclaimerCriticalWarning: '重要风险警告',
-    riskDisclaimerCriticalWarningText: '加密货币交易涉及重大损失风险。您可能会损失全部或超过初始投资。请仅使用您能够承受损失的资金进行交易。过往表现不代表未来结果。',
+    riskDisclaimerCriticalWarningText:
+      '加密货币交易涉及重大损失风险。您可能会损失全部或超过初始投资。请仅使用您能够承受损失的资金进行交易。过往表现不代表未来结果。',
     riskDisclaimerIntroductionTitle: '介绍',
-    riskDisclaimerIntroduction1: '本风险免责声明是一份重要文件，概述了在AI Trading 24x7平台上进行加密货币交易的相关重大风险。使用本平台即表示您已阅读、理解并接受本文档中描述的所有风险。',
-    riskDisclaimerIntroduction2: '加密货币交易涉及重大金融风险。加密货币的价值可能剧烈波动，您可能会遭受重大损失，包括可能损失您的全部投资。',
+    riskDisclaimerIntroduction1:
+      '本风险免责声明是一份重要文件，概述了在AI Trading 24x7平台上进行加密货币交易的相关重大风险。使用本平台即表示您已阅读、理解并接受本文档中描述的所有风险。',
+    riskDisclaimerIntroduction2:
+      '加密货币交易涉及重大金融风险。加密货币的价值可能剧烈波动，您可能会遭受重大损失，包括可能损失您的全部投资。',
     riskDisclaimerTradingRisksTitle: '交易风险',
-    riskDisclaimerTradingRisks1: '加密货币交易具有每个交易者必须了解的内在风险：',
-    riskDisclaimerTradingRisks2: '高波动性：加密货币价格可能快速且不可预测地变化',
-    riskDisclaimerTradingRisks3: '市场流动性：某些市场可能流动性有限，难以以期望价格执行交易',
-    riskDisclaimerTradingRisks4: '24/7市场：加密货币市场持续运行，增加了风险暴露',
+    riskDisclaimerTradingRisks1:
+      '加密货币交易具有每个交易者必须了解的内在风险：',
+    riskDisclaimerTradingRisks2:
+      '高波动性：加密货币价格可能快速且不可预测地变化',
+    riskDisclaimerTradingRisks3:
+      '市场流动性：某些市场可能流动性有限，难以以期望价格执行交易',
+    riskDisclaimerTradingRisks4:
+      '24/7市场：加密货币市场持续运行，增加了风险暴露',
     riskDisclaimerTradingRisks5: '监管变化：政府法规可能显著影响加密货币价值',
-    riskDisclaimerTradingRisks6: '技术问题：交易所中断、网络拥堵或技术故障可能阻止交易',
+    riskDisclaimerTradingRisks6:
+      '技术问题：交易所中断、网络拥堵或技术故障可能阻止交易',
     riskDisclaimerTradingRisks7: '交易对手风险：交易所或交易伙伴可能违约或破产',
     riskDisclaimerMarketVolatilityTitle: '市场波动性',
-    riskDisclaimerMarketVolatility1: '加密货币市场高度波动。价格可能在短时间内经历极端波动，有时在几分钟或几小时内损失或获得显著价值。',
-    riskDisclaimerMarketVolatility2: '这种波动性可能导致重大损失，即使对于经验丰富的交易者也是如此。市场条件可能因各种因素而快速变化，包括新闻事件、监管公告、技术发展或市场操纵。',
-    riskDisclaimerMarketVolatility3: '您应该准备好损失全部投资，如果使用杠杆或保证金交易，可能会损失更多。',
+    riskDisclaimerMarketVolatility1:
+      '加密货币市场高度波动。价格可能在短时间内经历极端波动，有时在几分钟或几小时内损失或获得显著价值。',
+    riskDisclaimerMarketVolatility2:
+      '这种波动性可能导致重大损失，即使对于经验丰富的交易者也是如此。市场条件可能因各种因素而快速变化，包括新闻事件、监管公告、技术发展或市场操纵。',
+    riskDisclaimerMarketVolatility3:
+      '您应该准备好损失全部投资，如果使用杠杆或保证金交易，可能会损失更多。',
     riskDisclaimerLeverageTitle: '杠杆和保证金风险',
-    riskDisclaimerLeverage1: '使用杠杆或保证金交易会放大潜在利润和损失。虽然杠杆可以增加回报，但它也显著增加了重大损失的风险。',
-    riskDisclaimerLeverage2: '如果您的账户净值低于所需的维持水平，可能会发生追加保证金和强制平仓，可能导致您损失整个头寸和额外资金。',
-    riskDisclaimerLeverage3: '使用杠杆交易时，您可能会损失超过初始投资。在进入杠杆头寸之前，请始终了解保证金要求和清算价格。',
+    riskDisclaimerLeverage1:
+      '使用杠杆或保证金交易会放大潜在利润和损失。虽然杠杆可以增加回报，但它也显著增加了重大损失的风险。',
+    riskDisclaimerLeverage2:
+      '如果您的账户净值低于所需的维持水平，可能会发生追加保证金和强制平仓，可能导致您损失整个头寸和额外资金。',
+    riskDisclaimerLeverage3:
+      '使用杠杆交易时，您可能会损失超过初始投资。在进入杠杆头寸之前，请始终了解保证金要求和清算价格。',
     riskDisclaimerPlatformRisksTitle: '平台和技术风险',
-    riskDisclaimerPlatformRisks1: '虽然我们努力维护一个安全可靠的平台，但存在各种技术风险：',
+    riskDisclaimerPlatformRisks1:
+      '虽然我们努力维护一个安全可靠的平台，但存在各种技术风险：',
     riskDisclaimerPlatformRisks2: '可能发生系统故障、错误或错误，影响交易执行',
     riskDisclaimerPlatformRisks3: '网络连接问题可能阻止访问平台或延迟交易执行',
-    riskDisclaimerPlatformRisks4: '第三方服务提供商（交易所、API）可能遇到中断或故障',
-    riskDisclaimerPlatformRisks5: '安全漏洞、黑客攻击或未经授权的访问可能导致资金损失',
+    riskDisclaimerPlatformRisks4:
+      '第三方服务提供商（交易所、API）可能遇到中断或故障',
+    riskDisclaimerPlatformRisks5:
+      '安全漏洞、黑客攻击或未经授权的访问可能导致资金损失',
     riskDisclaimerAIRisksTitle: 'AI和自动化交易风险',
-    riskDisclaimerAIRisks1: 'AI Trading 24x7使用人工智能模型做出交易决策。虽然AI可以分析市场数据并识别模式，但它并非绝对可靠，可能会做出错误的决策。',
-    riskDisclaimerAIRisks2: 'AI模型可能误解市场条件，对错误信号做出反应，或无法适应突然的市场变化。AI交易策略的过往表现不能保证未来结果。',
-    riskDisclaimerAIRisks3: '自动化交易系统可以快速执行交易，如果市场条件意外变化，可能会放大损失。您应该定期监控您的头寸，并准备在必要时进行干预。',
+    riskDisclaimerAIRisks1:
+      'AI Trading 24x7使用人工智能模型做出交易决策。虽然AI可以分析市场数据并识别模式，但它并非绝对可靠，可能会做出错误的决策。',
+    riskDisclaimerAIRisks2:
+      'AI模型可能误解市场条件，对错误信号做出反应，或无法适应突然的市场变化。AI交易策略的过往表现不能保证未来结果。',
+    riskDisclaimerAIRisks3:
+      '自动化交易系统可以快速执行交易，如果市场条件意外变化，可能会放大损失。您应该定期监控您的头寸，并准备在必要时进行干预。',
     riskDisclaimerNoGuaranteesTitle: '无保证或投资建议',
-    riskDisclaimerNoGuarantees1: 'AI Trading 24x7不提供投资建议、财务建议或交易建议。该平台是基于AI生成的信号执行交易的工具，但所有交易决策及其后果均由您自行负责。',
-    riskDisclaimerNoGuarantees2: '我们不保证任何交易策略、AI模型或平台本身的性能。不能保证您将从交易中获利或您的损失将受到限制。',
+    riskDisclaimerNoGuarantees1:
+      'AI Trading 24x7不提供投资建议、财务建议或交易建议。该平台是基于AI生成的信号执行交易的工具，但所有交易决策及其后果均由您自行负责。',
+    riskDisclaimerNoGuarantees2:
+      '我们不保证任何交易策略、AI模型或平台本身的性能。不能保证您将从交易中获利或您的损失将受到限制。',
     riskDisclaimerRegulatoryTitle: '监管和法律风险',
-    riskDisclaimerRegulatory1: '加密货币法规因司法管辖区而异，并可能发生变化。监管行动，包括禁令、限制或新要求，可能显著影响加密货币的价值和您的交易能力。',
-    riskDisclaimerRegulatory2: '您有责任确保您使用本平台符合您所在司法管辖区的所有适用法律法规。我们不提供法律或税务建议。',
+    riskDisclaimerRegulatory1:
+      '加密货币法规因司法管辖区而异，并可能发生变化。监管行动，包括禁令、限制或新要求，可能显著影响加密货币的价值和您的交易能力。',
+    riskDisclaimerRegulatory2:
+      '您有责任确保您使用本平台符合您所在司法管辖区的所有适用法律法规。我们不提供法律或税务建议。',
     riskDisclaimerTestingPhaseTitle: '测试阶段警告',
     riskDisclaimerTestingPhase1: 'AI Trading 24x7目前处于积极开发和测试阶段。',
-    riskDisclaimerTestingPhase2: '平台、AI模型和交易系统都是实验性的，可能会表现出意外行为。',
-    riskDisclaimerTestingPhase3: '您必须仅使用您能够完全承受损失的小额资金进行测试。',
-    riskDisclaimerTestingPhase4: '我们对AI交易系统或平台的任何损失、错误、故障或异常行为不承担任何责任。',
-    riskDisclaimerTestingPhase5: '平台可能随时出现错误、技术问题或意外的交易行为。',
+    riskDisclaimerTestingPhase2:
+      '平台、AI模型和交易系统都是实验性的，可能会表现出意外行为。',
+    riskDisclaimerTestingPhase3:
+      '您必须仅使用您能够完全承受损失的小额资金进行测试。',
+    riskDisclaimerTestingPhase4:
+      '我们对AI交易系统或平台的任何损失、错误、故障或异常行为不承担任何责任。',
+    riskDisclaimerTestingPhase5:
+      '平台可能随时出现错误、技术问题或意外的交易行为。',
     riskDisclaimerFinalWarningTitle: '最终警告',
     riskDisclaimerFinalWarning1: '加密货币交易高度投机，涉及重大损失风险。',
-    riskDisclaimerFinalWarning2: '您应该仅使用您能够完全承受损失的资金进行交易。永远不要投资您用于基本开支（如住房、食物、医疗保健或教育）所需的资金。如果您对加密货币交易或本平台的任何方面不确定，请在交易前寻求独立的财务和法律建议。',
+    riskDisclaimerFinalWarning2:
+      '您应该仅使用您能够完全承受损失的资金进行交易。永远不要投资您用于基本开支（如住房、食物、医疗保健或教育）所需的资金。如果您对加密货币交易或本平台的任何方面不确定，请在交易前寻求独立的财务和法律建议。',
 
     // License Page
     licenseTitle: '许可证 - AGPL-3.0',
     licenseSubtitle: '开源许可证披露',
     licenseOverviewTitle: '许可证概述',
-    licenseOverview1: 'AI Trading 24x7采用GNU Affero通用公共许可证第3.0版（AGPL-3.0）许可。这是一个版权左派许可证，要求任何分发软件或修改版本的人必须在相同许可证下提供源代码。',
-    licenseOverview2: 'AGPL-3.0许可证确保源代码保持免费可用，并且对软件的改进使整个社区受益。它还要求如果您在服务器上运行软件的修改版本并使其可供他人访问，您必须提供源代码。',
-    licenseOverview3: '此许可证授予您使用、修改和分发软件的自由，但需遵守AGPL-3.0许可证的条款和条件。',
+    licenseOverview1:
+      'AI Trading 24x7采用GNU Affero通用公共许可证第3.0版（AGPL-3.0）许可。这是一个版权左派许可证，要求任何分发软件或修改版本的人必须在相同许可证下提供源代码。',
+    licenseOverview2:
+      'AGPL-3.0许可证确保源代码保持免费可用，并且对软件的改进使整个社区受益。它还要求如果您在服务器上运行软件的修改版本并使其可供他人访问，您必须提供源代码。',
+    licenseOverview3:
+      '此许可证授予您使用、修改和分发软件的自由，但需遵守AGPL-3.0许可证的条款和条件。',
     licenseSourceCodeTitle: '源代码访问',
     licenseSourceCode1: 'AI Trading 24x7的完整源代码在GitHub上公开可用：',
-    licenseSourceCode2: '您可以查看、下载、分叉和贡献源代码。欢迎所有贡献，有助于改善每个人的平台。',
+    licenseSourceCode2:
+      '您可以查看、下载、分叉和贡献源代码。欢迎所有贡献，有助于改善每个人的平台。',
     licenseRightsTitle: '您在AGPL-3.0下的权利',
     licenseRights1: '根据AGPL-3.0许可证，您拥有以下权利：',
     licenseRights2: '为任何目的使用软件的自由',
     licenseRights3: '研究软件工作原理并修改它的自由',
     licenseRights4: '分发软件副本的自由',
     licenseRights5: '分发软件修改版本的自由',
-    licenseRights6: '所有这些自由都受到以下要求的约束：在分发软件或修改版本时，您必须提供源代码并保持相同的许可证。',
+    licenseRights6:
+      '所有这些自由都受到以下要求的约束：在分发软件或修改版本时，您必须提供源代码并保持相同的许可证。',
     licenseCopyleftTitle: '版权左派要求',
-    licenseCopyleft1: 'AGPL-3.0是一个版权左派许可证，这意味着如果您修改软件并分发它（包括将其作为Web服务提供），您必须：',
+    licenseCopyleft1:
+      'AGPL-3.0是一个版权左派许可证，这意味着如果您修改软件并分发它（包括将其作为Web服务提供），您必须：',
     licenseCopyleft2: '在相同的AGPL-3.0许可证下提供您修改的源代码',
     licenseCopyleft3: '明确归属原始项目并说明您所做的更改',
     licenseFileTitle: '许可证文件',
@@ -1719,14 +1915,16 @@ export const translations = {
     licenseFullText1: '有关GNU Affero通用公共许可证第3.0版的完整文本，请访问：',
     licenseFullTextLink: 'GNU AGPL-3.0许可证文本',
     licenseContactTitle: '关于许可的问题',
-    licenseContact1: '如果您对许可证或其如何适用于您的用例有疑问，请在GitHub上提出问题或联系项目维护者。',
+    licenseContact1:
+      '如果您对许可证或其如何适用于您的用例有疑问，请在GitHub上提出问题或联系项目维护者。',
 
     // Pricing Page
     pricingTitle: '定价',
     pricingSubtitle: 'AI驱动交易的透明定价',
     pricingCurrentStatusTitle: '测试期间目前免费',
     pricingCurrentStatusPrice: '免费',
-    pricingCurrentStatusDescription: 'AI Trading 24x7在测试阶段目前免费使用。无需信用卡，无隐藏费用。',
+    pricingCurrentStatusDescription:
+      'AI Trading 24x7在测试阶段目前免费使用。无需信用卡，无隐藏费用。',
     pricingCurrentPlanTitle: '当前计划功能',
     pricingCurrentPlanFeaturesTitle: '包含的功能',
     pricingCurrentPlanLimitationsTitle: '当前限制',
@@ -1751,42 +1949,61 @@ export const translations = {
     pricingTierCustomDescription: '根据您的需求定制的解决方案',
     pricingComingSoon: '即将推出',
     pricingAdditionalInfoTitle: '其他信息',
-    pricingAdditionalInfo1: '定价计划可能会发生变化。在实施任何付费层级之前，我们将提前通知。',
-    pricingAdditionalInfo2: '在免费测试阶段，我们欢迎反馈和建议，以帮助改善平台。',
-    pricingAdditionalInfo3: '有关定价的问题或讨论定制企业解决方案，请通过GitHub联系我们。',
+    pricingAdditionalInfo1:
+      '定价计划可能会发生变化。在实施任何付费层级之前，我们将提前通知。',
+    pricingAdditionalInfo2:
+      '在免费测试阶段，我们欢迎反馈和建议，以帮助改善平台。',
+    pricingAdditionalInfo3:
+      '有关定价的问题或讨论定制企业解决方案，请通过GitHub联系我们。',
 
     // About Page
     aboutTitle: '关于我们',
     aboutSubtitle: '了解我们的使命、愿景和AI Trading 24x7背后的团队',
     aboutStoryTitle: '我们的故事',
-    aboutStory1: 'AI Trading 24x7诞生于创建一个适用于所有金融市场的通用AI交易操作系统的愿景。我们从加密货币市场起步，24/7交易和高波动性为AI驱动策略提供了完美的测试场。',
-    aboutStory2: '我们的平台将前沿AI技术与经过验证的交易基础设施相结合，使交易者能够利用多个AI模型、竞争策略，并围绕自动化交易建立社区。',
-    aboutStory3: '我们相信透明度、开源原则，并为交易者提供在当今快节奏金融市场中取得成功所需的工具。',
+    aboutStory1:
+      'AI Trading 24x7诞生于创建一个适用于所有金融市场的通用AI交易操作系统的愿景。我们从加密货币市场起步，24/7交易和高波动性为AI驱动策略提供了完美的测试场。',
+    aboutStory2:
+      '我们的平台将前沿AI技术与经过验证的交易基础设施相结合，使交易者能够利用多个AI模型、竞争策略，并围绕自动化交易建立社区。',
+    aboutStory3:
+      '我们相信透明度、开源原则，并为交易者提供在当今快节奏金融市场中取得成功所需的工具。',
     aboutMissionTitle: '我们的使命',
-    aboutMission: '通过提供一个通用的开源平台来民主化AI驱动的交易，使交易者能够利用多个AI模型、竞争策略，并在所有金融市场中构建成功的交易系统。',
+    aboutMission:
+      '通过提供一个通用的开源平台来民主化AI驱动的交易，使交易者能够利用多个AI模型、竞争策略，并在所有金融市场中构建成功的交易系统。',
     aboutVisionTitle: '我们的愿景',
-    aboutVision: '成为领先的通用AI交易操作系统，支持股票、期货、期权、外汇和所有金融市场，使用相同的强大架构和智能体框架。',
+    aboutVision:
+      '成为领先的通用AI交易操作系统，支持股票、期货、期权、外汇和所有金融市场，使用相同的强大架构和智能体框架。',
     aboutValuesTitle: '核心价值观',
     aboutValue1Title: '开源',
-    aboutValue1Desc: '我们相信透明度和社区驱动的开发。我们的代码在AGPL-3.0下开源，允许用户检查、修改和贡献。',
+    aboutValue1Desc:
+      '我们相信透明度和社区驱动的开发。我们的代码在AGPL-3.0下开源，允许用户检查、修改和贡献。',
     aboutValue2Title: '创新',
-    aboutValue2Desc: '我们不断推动AI交易技术的边界，实施前沿模型和策略以保持领先地位。',
+    aboutValue2Desc:
+      '我们不断推动AI交易技术的边界，实施前沿模型和策略以保持领先地位。',
     aboutValue3Title: '社区',
-    aboutValue3Desc: '我们的社区是我们所做一切的核心。我们重视来自全球交易者和开发者的反馈、贡献和协作。',
+    aboutValue3Desc:
+      '我们的社区是我们所做一切的核心。我们重视来自全球交易者和开发者的反馈、贡献和协作。',
     aboutValue4Title: '透明度',
-    aboutValue4Desc: '我们致力于在运营、代码和决策过程中的透明度。没有黑盒，没有隐藏议程。',
+    aboutValue4Desc:
+      '我们致力于在运营、代码和决策过程中的透明度。没有黑盒，没有隐藏议程。',
     aboutTeamTitle: '团队与支持',
-    aboutTeam1: 'AI Trading 24x7由一群致力于民主化自动化交易的工程师、交易者和AI研究人员开发。',
-    aboutTeam2: '我们的核心团队包括经验丰富的开发者和交易专业人士，他们了解算法交易的技术和实践方面。',
+    aboutTeam1:
+      'AI Trading 24x7由一群致力于民主化自动化交易的工程师、交易者和AI研究人员开发。',
+    aboutTeam2:
+      '我们的核心团队包括经验丰富的开发者和交易专业人士，他们了解算法交易的技术和实践方面。',
     aboutBackingTitle: '由Amber.ac支持',
-    aboutBacking: 'AI Trading 24x7由Amber.ac支持，为我们提供构建世界级交易平台所需的资源和支持。',
+    aboutBacking:
+      'AI Trading 24x7由Amber.ac支持，为我们提供构建世界级交易平台所需的资源和支持。',
     aboutOpenSourceTitle: '开源承诺',
-    aboutOpenSource1: 'AI Trading 24x7在AGPL-3.0许可证下完全开源。这意味着您可以查看、修改和分发源代码，但需遵守原始许可证和条款。',
-    aboutOpenSource2: '我们相信开源软件能带来更好的安全性、创新和社区参与。我们对开源的承诺确保平台保持透明和社区驱动。',
+    aboutOpenSource1:
+      'AI Trading 24x7在AGPL-3.0许可证下完全开源。这意味着您可以查看、修改和分发源代码，但需遵守原始许可证和条款。',
+    aboutOpenSource2:
+      '我们相信开源软件能带来更好的安全性、创新和社区参与。我们对开源的承诺确保平台保持透明和社区驱动。',
     aboutOpenSource3: '欢迎并感谢贡献者。所有贡献都有助于改善每个人的平台。',
     aboutCommunityTitle: '加入我们的社区',
-    aboutCommunity1: '我们有一个活跃的交易者、开发者和AI爱好者社区，他们分享知识、策略并相互支持。',
-    aboutCommunity2: '加入我们的Telegram社区，在GitHub上贡献，或在Twitter上关注我们以保持更新并与其他用户联系。',
+    aboutCommunity1:
+      '我们有一个活跃的交易者、开发者和AI爱好者社区，他们分享知识、策略并相互支持。',
+    aboutCommunity2:
+      '加入我们的Telegram社区，在GitHub上贡献，或在Twitter上关注我们以保持更新并与其他用户联系。',
 
     // Features Page
     featuresTitle: '功能',
@@ -1841,7 +2058,8 @@ export const translations = {
     securityTitle: '安全',
     securitySubtitle: '企业级安全措施，保护您的资金和数据',
     securityCommitmentTitle: '安全承诺',
-    securityCommitment: '我们非常重视安全。AI Trading 24x7处理真实资金和敏感的API凭证，因此我们实施多层安全措施来保护您的资产和数据。',
+    securityCommitment:
+      '我们非常重视安全。AI Trading 24x7处理真实资金和敏感的API凭证，因此我们实施多层安全措施来保护您的资产和数据。',
     securityEncryptionTitle: '数据加密',
     securityEncryptionDesc: '所有敏感数据在传输和存储时都经过加密',
     securityEncryption1: '所有网络通信使用TLS 1.3加密',
@@ -1868,25 +2086,34 @@ export const translations = {
     securityMonitoring4: '异常检测和威胁响应',
     securityBestPracticesTitle: '安全最佳实践',
     securityBestPractices1: '始终为您的账户使用强密码，并在可用时启用2FA。',
-    securityBestPractices2: '永远不要与任何人分享您的API密钥或凭证。尽可能使用只读API密钥。',
-    securityBestPractices3: '定期查看您的账户活动和交易日志。立即报告任何可疑活动。',
+    securityBestPractices2:
+      '永远不要与任何人分享您的API密钥或凭证。尽可能使用只读API密钥。',
+    securityBestPractices3:
+      '定期查看您的账户活动和交易日志。立即报告任何可疑活动。',
     securityReportingTitle: '报告安全问题',
-    securityReporting1: '如果您发现安全漏洞，请负责任地报告。在我们有时间修复之前，请不要公开披露漏洞。',
-    securityReporting2: '通过GitHub安全公告或Twitter DM联系@Web3Tinkle私下联系我们。',
-    securityReporting3: '我们感谢负责任的披露，并将感谢帮助改善我们平台的安全研究人员。',
+    securityReporting1:
+      '如果您发现安全漏洞，请负责任地报告。在我们有时间修复之前，请不要公开披露漏洞。',
+    securityReporting2:
+      '通过GitHub安全公告或Twitter DM联系@Web3Tinkle私下联系我们。',
+    securityReporting3:
+      '我们感谢负责任的披露，并将感谢帮助改善我们平台的安全研究人员。',
 
     // Contact Page
     contactTitle: '联系我们',
     contactSubtitle: '获取帮助、报告问题或联系我们的团队',
     contactEmailTitle: '发送邮件',
-    contactEmailDesc: '发送邮件给我们，咨询任何问题、支持请求、错误报告或一般询问',
+    contactEmailDesc:
+      '发送邮件给我们，咨询任何问题、支持请求、错误报告或一般询问',
     contactSupportTypesTitle: '支持类型',
     contactGeneralSupportTitle: '一般支持',
-    contactGeneralSupportDesc: '对于一般问题、功能请求或平台使用帮助，请发送邮件至contact@tjalam.com。',
+    contactGeneralSupportDesc:
+      '对于一般问题、功能请求或平台使用帮助，请发送邮件至contact@tjalam.com。',
     contactBugReportTitle: '错误报告',
-    contactBugReportDesc: '发现错误？请发送邮件至contact@tjalam.com，提供详细的复现步骤、预期行为和实际行为。如果可能，请包含日志和截图。',
+    contactBugReportDesc:
+      '发现错误？请发送邮件至contact@tjalam.com，提供详细的复现步骤、预期行为和实际行为。如果可能，请包含日志和截图。',
     contactSecurityTitle: '安全问题',
-    contactSecurityDesc: '对于安全漏洞，请发送邮件至contact@tjalam.com。在我们有时间修复之前，请不要公开披露漏洞。',
+    contactSecurityDesc:
+      '对于安全漏洞，请发送邮件至contact@tjalam.com。在我们有时间修复之前，请不要公开披露漏洞。',
     contactResponseTitle: '响应时间',
     contactResponse1: '我们致力于在48小时内回复所有询问。',
     contactResponse2: '对于关键安全问题，我们将在24小时内回复。',
@@ -1907,7 +2134,8 @@ export const translations = {
     parentTraders: '父交易员',
     autoRefresh: '自动刷新: 30秒',
     noFollowersTitle: '暂无跟随者',
-    noFollowersDescription: '您目前还没有跟随者。当其他用户复制您的交易员时，他们将显示在这里。',
+    noFollowersDescription:
+      '您目前还没有跟随者。当其他用户复制您的交易员时，他们将显示在这里。',
     errorLoadingFollowers: '加载跟随者失败',
     retry: '重试',
     owner: '所有者',
@@ -1949,7 +2177,7 @@ export const translations = {
     positionClosed: '成功平掉 {symbol} 的 {side} 仓位',
     closePositionFailed: '平仓失败',
     selectTraderFirst: '请先选择交易员',
-    
+
     // Pending Orders
     pendingOrders: '挂单',
     orderType: '订单类型',
@@ -1957,7 +2185,7 @@ export const translations = {
     limitOrder: '限价单',
     noPendingOrders: '无挂单',
     noPendingOrdersDesc: '当前没有待执行的止损/止盈订单',
-    
+
     equityChart: '净值曲线',
     performanceChart: '性能',
     comingSoon: '即将推出...',
@@ -2042,13 +2270,13 @@ export const translations = {
         customTfPlaceholder: '自定义周期（逗号分隔，例如 2h,6h）',
         initialBalanceLabel: '初始资金 (USDT)',
         feeLabel: '手续费 (bps)',
-      slippageLabel: '滑点 (bps)',
-      btcEthLeverageLabel: 'BTC/ETH 杠杆 (倍)',
-      altcoinLeverageLabel: '山寨币杠杆 (倍)',
-      fillPolicies: {
-        nextOpen: '下一根开盘价',
-        barVwap: 'K线 VWAP',
-        midPrice: '中间价',
+        slippageLabel: '滑点 (bps)',
+        btcEthLeverageLabel: 'BTC/ETH 杠杆 (倍)',
+        altcoinLeverageLabel: '山寨币杠杆 (倍)',
+        fillPolicies: {
+          nextOpen: '下一根开盘价',
+          barVwap: 'K线 VWAP',
+          midPrice: '中间价',
         },
         promptPresets: {
           baseline: '基础版',
@@ -2254,13 +2482,17 @@ export const translations = {
     sharpeStatusGood: '🟢 良好表现',
     sharpeStatusVolatile: '🟡 波动较大',
     sharpeStatusNeedsAdjustment: '🔴 需要调整',
-    sharpeAdviceExcellent: '✨ AI策略非常有效！风险调整后收益优异，可适度扩大仓位但保持纪律。',
+    sharpeAdviceExcellent:
+      '✨ AI策略非常有效！风险调整后收益优异，可适度扩大仓位但保持纪律。',
     sharpeAdviceGood: '✅ 策略表现稳健，风险收益平衡良好，继续保持当前策略。',
     sharpeAdviceVolatile: '⚠️ 收益为正但波动较大，AI正在优化策略，降低风险。',
-    sharpeAdvicePoor: '🚨 当前策略需要调整！AI已自动进入保守模式，减少仓位和交易频率。',
-    profitFactorAdviceExcellent: '🔥 盈利能力出色！每亏1 USDT能赚 {factor} USDT，AI策略表现优异。',
+    sharpeAdvicePoor:
+      '🚨 当前策略需要调整！AI已自动进入保守模式，减少仓位和交易频率。',
+    profitFactorAdviceExcellent:
+      '🔥 盈利能力出色！每亏1 USDT能赚 {factor} USDT，AI策略表现优异。',
     profitFactorAdviceGood: '✓ 策略稳定盈利，盈亏比健康，继续保持纪律性交易。',
-    profitFactorAdviceFair: '⚠️ 策略略有盈利但需优化，AI正在调整仓位和止损策略。',
+    profitFactorAdviceFair:
+      '⚠️ 策略略有盈利但需优化，AI正在调整仓位和止损策略。',
     profitFactorAdvicePoor: '❌ 平均亏损大于盈利，需要调整策略或降低交易频率。',
     hour: '小时',
     minute: '分',
@@ -2359,8 +2591,10 @@ export const translations = {
     enterLighterApiKeyPrivateKey: '請輸入 API Key 私鑰（40 字節，可選）',
     lighterWalletAddressDesc: '您的以太坊錢包地址，用於識別賬戶',
     lighterPrivateKeyDesc: 'L1 私鑰用於賬戶識別（32 字節 ECDSA 私鑰）',
-    lighterApiKeyPrivateKeyDesc: 'API Key 私鑰用於簽名交易（40 字節 Poseidon2 私鑰）',
-    lighterApiKeyOptionalNote: '如果不提供 API Key，系統將使用功能受限的 V1 模式',
+    lighterApiKeyPrivateKeyDesc:
+      'API Key 私鑰用於簽名交易（40 字節 Poseidon2 私鑰）',
+    lighterApiKeyOptionalNote:
+      '如果不提供 API Key，系統將使用功能受限的 V1 模式',
     lighterV1Description: '基本模式 - 功能受限，僅用於測試框架',
     lighterV2Description: '完整模式 - 支持 Poseidon2 簽名和真實交易',
     lighterPrivateKeyImported: 'LIGHTER 私鑰已導入',
@@ -2631,9 +2865,11 @@ export const translations = {
     configCopied: '✓ 已复制配置',
     copyFullConfig: '📋 复制完整配置',
     aiRejected: 'AI拒绝: ',
-    signalPriceMismatch: '信号价格{signalPrice}与当前市场价{marketPrice}严重不符（相差{diff}%）,信号明显过时或错误。',
+    signalPriceMismatch:
+      '信号价格{signalPrice}与当前市场价{marketPrice}严重不符（相差{diff}%）,信号明显过时或错误。',
     insufficientBalance: '账户资金仅{balance} USDT,无法满足最小交易要求。',
-    technicalAnalysisNotSupport: '当前技术面（{details}）也不支持{action}操作。',
+    technicalAnalysisNotSupport:
+      '当前技术面（{details}）也不支持{action}操作。',
     aiRejectionReasoning: 'AI拒绝原因',
     forgotPassword: '忘记密码？',
     rememberMe: '记住我',
@@ -2654,49 +2890,78 @@ export const translations = {
     termsViewTerms: '查看条款和条件',
     termsMustAccept: '您必须接受条款和条件才能继续',
     termsIntroductionTitle: '介绍',
-    termsIntroduction1: '欢迎使用 AI Trading 24x7。通过访问和使用本平台，您同意受这些条款和条件的约束。请在使用前仔细阅读。',
-    termsIntroduction2: '这些条款规定了您对我们多交易所AI交易平台的使用，包括提供的所有服务、功能和特性。',
+    termsIntroduction1:
+      '欢迎使用 AI Trading 24x7。通过访问和使用本平台，您同意受这些条款和条件的约束。请在使用前仔细阅读。',
+    termsIntroduction2:
+      '这些条款规定了您对我们多交易所AI交易平台的使用，包括提供的所有服务、功能和特性。',
     termsRiskWarningsTitle: '风险警告',
-    termsRiskWarnings1: '加密货币交易涉及重大损失风险，不适合所有投资者。您应根据自己的情况、知识和财务资源仔细考虑交易是否适合您。',
-    termsRiskWarnings2: '过往表现不能保证未来结果。投资价值可能下跌也可能上涨，您可能会损失全部或超过初始投资。',
+    termsRiskWarnings1:
+      '加密货币交易涉及重大损失风险，不适合所有投资者。您应根据自己的情况、知识和财务资源仔细考虑交易是否适合您。',
+    termsRiskWarnings2:
+      '过往表现不能保证未来结果。投资价值可能下跌也可能上涨，您可能会损失全部或超过初始投资。',
     termsRiskWarnings3: '交易加密货币存在重大风险，包括但不限于：',
-    termsRiskWarnings4: '市场波动性：加密货币价格可能极度波动，可能在短时间内大幅波动',
-    termsRiskWarnings5: '流动性风险：某些市场可能流动性有限，难以以期望价格执行交易',
-    termsRiskWarnings6: '杠杆风险：使用杠杆交易可能放大利润和损失，可能导致损失超过您的初始投资',
-    termsRiskWarnings7: '技术风险：系统故障、网络问题或网络攻击可能影响您的交易能力',
+    termsRiskWarnings4:
+      '市场波动性：加密货币价格可能极度波动，可能在短时间内大幅波动',
+    termsRiskWarnings5:
+      '流动性风险：某些市场可能流动性有限，难以以期望价格执行交易',
+    termsRiskWarnings6:
+      '杠杆风险：使用杠杆交易可能放大利润和损失，可能导致损失超过您的初始投资',
+    termsRiskWarnings7:
+      '技术风险：系统故障、网络问题或网络攻击可能影响您的交易能力',
     termsRiskWarnings8: '监管风险：法规变化可能影响加密货币交易的合法性或运营',
     termsPlatformDisclaimersTitle: '平台免责声明',
-    termsPlatformDisclaimers1: 'AI Trading 24x7 是一个非托管平台。我们不持有、存储或访问您的资金、私钥或交易凭证。您全权负责账户和凭证的安全。',
-    termsPlatformDisclaimers2: '本平台提供自动化交易的工具和基础设施，但不提供投资建议、交易建议或保证任何交易结果。所有交易决策由AI模型或您做出，您全权负责所有交易活动。',
-    termsPlatformDisclaimers3: '我们不保证或担保平台将始终可用、无错误或满足您的特定要求。平台按"现状"提供，不提供任何形式的保证。',
-    termsPlatformDisclaimers4: '本平台使用的AI模型由第三方提供，可能产生不正确或次优的交易决策。我们不对任何AI模型的准确性、可靠性或性能负责。',
+    termsPlatformDisclaimers1:
+      'AI Trading 24x7 是一个非托管平台。我们不持有、存储或访问您的资金、私钥或交易凭证。您全权负责账户和凭证的安全。',
+    termsPlatformDisclaimers2:
+      '本平台提供自动化交易的工具和基础设施，但不提供投资建议、交易建议或保证任何交易结果。所有交易决策由AI模型或您做出，您全权负责所有交易活动。',
+    termsPlatformDisclaimers3:
+      '我们不保证或担保平台将始终可用、无错误或满足您的特定要求。平台按"现状"提供，不提供任何形式的保证。',
+    termsPlatformDisclaimers4:
+      '本平台使用的AI模型由第三方提供，可能产生不正确或次优的交易决策。我们不对任何AI模型的准确性、可靠性或性能负责。',
     termsUserResponsibilitiesTitle: '用户责任',
     termsUserResponsibilities1: '通过使用本平台，您同意：',
-    termsUserResponsibilities2: '仅将平台用于合法目的，并遵守所有适用的法律法规',
-    termsUserResponsibilities3: '维护您的账户凭证、API密钥和私钥的机密性和安全性',
-    termsUserResponsibilities4: '定期监控您的交易活动和持仓，并在必要时采取适当行动',
-    termsUserResponsibilities5: '仅使用您能够承受损失的资金进行交易，永远不要投资超过您愿意损失的金额',
-    termsUserResponsibilities6: '如果您对交易或投资的任何方面不确定，请寻求独立的财务建议',
+    termsUserResponsibilities2:
+      '仅将平台用于合法目的，并遵守所有适用的法律法规',
+    termsUserResponsibilities3:
+      '维护您的账户凭证、API密钥和私钥的机密性和安全性',
+    termsUserResponsibilities4:
+      '定期监控您的交易活动和持仓，并在必要时采取适当行动',
+    termsUserResponsibilities5:
+      '仅使用您能够承受损失的资金进行交易，永远不要投资超过您愿意损失的金额',
+    termsUserResponsibilities6:
+      '如果您对交易或投资的任何方面不确定，请寻求独立的财务建议',
     termsLiabilityTitle: '责任限制',
-    termsLiability1: '在法律允许的最大范围内，AI Trading 24x7、其运营商、开发者和关联公司不对因您使用平台而产生的任何直接、间接、偶然、特殊、后果性或惩罚性损害承担责任。',
-    termsLiability2: '我们不对因交易活动、系统故障、安全漏洞或与使用本平台相关的任何其他问题而导致的任何损失、损害或成本负责。',
-    termsLiability3: '您承认交易加密货币涉及风险，您可能会损失全部或超过您的初始投资。您同意对所有交易决策和结果承担全部责任。',
+    termsLiability1:
+      '在法律允许的最大范围内，AI Trading 24x7、其运营商、开发者和关联公司不对因您使用平台而产生的任何直接、间接、偶然、特殊、后果性或惩罚性损害承担责任。',
+    termsLiability2:
+      '我们不对因交易活动、系统故障、安全漏洞或与使用本平台相关的任何其他问题而导致的任何损失、损害或成本负责。',
+    termsLiability3:
+      '您承认交易加密货币涉及风险，您可能会损失全部或超过您的初始投资。您同意对所有交易决策和结果承担全部责任。',
     termsTestingPhaseTitle: '测试阶段和开发状态',
     termsTestingPhase1: 'AI Trading 24x7目前处于积极开发和测试阶段。',
-    termsTestingPhase2: '平台及其所有功能，包括AI交易模型，都是实验性的，可能会在不通知的情况下发生变化。',
-    termsTestingPhase3: '用户必须仅使用小额资金进行测试，不得冒险使用无法承受损失的资金。',
-    termsTestingPhase4: '我们不对因平台错误、故障、错误、AI行为异常或技术故障而产生的任何损失、损害或问题承担责任。',
-    termsTestingPhase5: '通过使用本平台，您承认您正在参与测试阶段，并接受所有相关风险。',
+    termsTestingPhase2:
+      '平台及其所有功能，包括AI交易模型，都是实验性的，可能会在不通知的情况下发生变化。',
+    termsTestingPhase3:
+      '用户必须仅使用小额资金进行测试，不得冒险使用无法承受损失的资金。',
+    termsTestingPhase4:
+      '我们不对因平台错误、故障、错误、AI行为异常或技术故障而产生的任何损失、损害或问题承担责任。',
+    termsTestingPhase5:
+      '通过使用本平台，您承认您正在参与测试阶段，并接受所有相关风险。',
     termsLicenseTitle: '许可信息',
-    termsLicense1: '本软件根据 GNU Affero 通用公共许可证第3版（AGPL-3.0）许可。这意味着源代码是免费提供的，可以根据 AGPL-3.0 许可的条款进行修改和分发。',
-    termsLicense2: '如果您修改本软件并通过网络提供，您必须在相同的 AGPL-3.0 许可下向用户提供您的修改的源代码。',
+    termsLicense1:
+      '本软件根据 GNU Affero 通用公共许可证第3版（AGPL-3.0）许可。这意味着源代码是免费提供的，可以根据 AGPL-3.0 许可的条款进行修改和分发。',
+    termsLicense2:
+      '如果您修改本软件并通过网络提供，您必须在相同的 AGPL-3.0 许可下向用户提供您的修改的源代码。',
     termsLicense3: '有关许可的全文，请访问：',
     termsLicenseLink: 'GNU AGPL-3.0 许可证',
     termsAcceptanceTitle: '接受条款',
-    termsAcceptance1: '通过点击"我同意"或使用本平台，您承认您已阅读、理解并同意受这些条款和条件的约束。',
-    termsAcceptance2: '如果您不同意这些条款，您不得使用本平台。在这些条款的任何更改后继续使用平台即构成接受修改后的条款。',
+    termsAcceptance1:
+      '通过点击"我同意"或使用本平台，您承认您已阅读、理解并同意受这些条款和条件的约束。',
+    termsAcceptance2:
+      '如果您不同意这些条款，您不得使用本平台。在这些条款的任何更改后继续使用平台即构成接受修改后的条款。',
     termsContactTitle: '联系方式',
-    termsContact1: '如果您对这些条款和条件有任何疑问，请通过平台上提供的官方渠道联系我们。',
+    termsContact1:
+      '如果您对这些条款和条件有任何疑问，请通过平台上提供的官方渠道联系我们。',
     scanQRCode: '扫描二维码',
     enterOTPCode: '输入6位OTP验证码',
     verifyOTP: '验证OTP',
@@ -2743,7 +3008,8 @@ export const translations = {
     signIn: '登录',
     signUp: '注册',
     registrationClosed: '注册已关闭',
-    registrationClosedMessage: '平台当前不开放新用户注册，如需访问请联系管理员获取账号。',
+    registrationClosedMessage:
+      '平台当前不开放新用户注册，如需访问请联系管理员获取账号。',
 
     // Hero Section
     githubStarsInDays: '3 天内 2.5K+ GitHub Stars',
@@ -2765,7 +3031,8 @@ export const translations = {
     whyChooseNofx: '为什么选择 AI Trading 24x7？',
     openCommunityDriven: '透明、社区驱动的 AI 交易平台',
     openSourceSelfHosted: 'AI 交易平台',
-    openSourceDesc: '你的框架，你的规则。非黑箱，支持自定义提示词、多模型、跟单交易和 TradingView Webhook 集成。',
+    openSourceDesc:
+      '你的框架，你的规则。非黑箱，支持自定义提示词、多模型、跟单交易和 TradingView Webhook 集成。',
     openSourceFeatures1: '完全开源代码',
     openSourceFeatures2: '支持自托管部署',
     openSourceFeatures3: '自定义 AI 提示词',
@@ -2788,13 +3055,12 @@ export const translations = {
     // About Section
     aboutNofx: '关于 AI Trading 24x7',
     whatIsNofx: '什么是 AI Trading 24x7？',
-    nofxNotAnotherBot: "AI Trading 24x7 是一个强大的 AI 交易 SaaS 平台 ——",
+    nofxNotAnotherBot: 'AI Trading 24x7 是一个强大的 AI 交易 SaaS 平台 ——',
     nofxDescription1: "一个基于云端的服务，提供统一的 '决策-风险-执行'",
     nofxDescription2: '层，支持所有资产类别。',
     nofxDescription3:
       '从加密市场起步（24/7、高波动性完美测试场），未来扩展到股票、期货、外汇。核心：云端架构、AI',
-    nofxDescription4:
-      '达尔文主义（多代理自竞争、策略进化），以及',
+    nofxDescription4: '达尔文主义（多代理自竞争、策略进化），以及',
     nofxDescription5: '包括跟单交易和 TradingView Webhook 集成等高级功能。',
     youFullControl: '完全掌控',
     fullControlDesc: '完全掌控 AI 提示词、交易策略和资金',
@@ -2890,7 +3156,8 @@ export const translations = {
     appendPromptLabel: '附加提示词',
     customPromptPlaceholder: '输入完整的交易策略提示词...',
     appendPromptPlaceholder: '输入额外的交易策略提示...',
-    promptTemplateDescription: '选择预设的交易策略模板（包含交易哲学、风控原则等）',
+    promptTemplateDescription:
+      '选择预设的交易策略模板（包含交易哲学、风控原则等）',
     savingTrader: '正在保存…',
     traderSaved: '保存成功',
     traderSaveFailed: '保存失败',

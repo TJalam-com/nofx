@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Settings, Palette, Eye, Volume2, VolumeX, Zap, Brain } from 'lucide-react'
+import {
+  Settings,
+  Palette,
+  Eye,
+  Volume2,
+  VolumeX,
+  Zap,
+  Brain,
+} from 'lucide-react'
 import { StreamingConfig } from '../../types'
 
 interface AdminControlsProps {
@@ -80,7 +88,9 @@ export function AdminControls({
                 Streaming Controls
               </h3>
               <motion.button
-                onClick={() => updateConfig({ is_streaming: !config.is_streaming })}
+                onClick={() =>
+                  updateConfig({ is_streaming: !config.is_streaming })
+                }
                 className="px-3 py-1 rounded text-xs font-bold transition-all"
                 style={{
                   background: config.is_streaming
@@ -99,13 +109,18 @@ export function AdminControls({
             <div className="space-y-4" style={{ paddingBottom: '8px' }}>
               {/* Theme Selector */}
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#EAECEF' }}>
+                <label
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: '#EAECEF' }}
+                >
                   <Palette className="w-4 h-4 inline mr-2" />
                   Theme
                 </label>
                 <select
                   value={config.theme}
-                  onChange={(e) => updateConfig({ theme: e.target.value as any })}
+                  onChange={(e) =>
+                    updateConfig({ theme: e.target.value as any })
+                  }
                   className="w-full rounded px-3 py-2 text-sm"
                   style={{
                     background: 'var(--navy-primary)',
@@ -121,7 +136,10 @@ export function AdminControls({
 
               {/* Animation Speed */}
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#EAECEF' }}>
+                <label
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: '#EAECEF' }}
+                >
                   <Zap className="w-4 h-4 inline mr-2" />
                   Animation Speed: {config.animation_speed}x
                 </label>
@@ -131,10 +149,17 @@ export function AdminControls({
                   max="2"
                   step="0.1"
                   value={config.animation_speed}
-                  onChange={(e) => updateConfig({ animation_speed: parseFloat(e.target.value) })}
+                  onChange={(e) =>
+                    updateConfig({
+                      animation_speed: parseFloat(e.target.value),
+                    })
+                  }
                   className="w-full"
                 />
-                <div className="flex justify-between text-xs mt-1" style={{ color: '#848E9C' }}>
+                <div
+                  className="flex justify-between text-xs mt-1"
+                  style={{ color: '#848E9C' }}
+                >
                   <span>Slow</span>
                   <span>Fast</span>
                 </div>
@@ -142,7 +167,10 @@ export function AdminControls({
 
               {/* Widget Visibility */}
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#EAECEF' }}>
+                <label
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: '#EAECEF' }}
+                >
                   <Eye className="w-4 h-4 inline mr-2" />
                   Widget Visibility
                 </label>
@@ -154,16 +182,25 @@ export function AdminControls({
                     { key: 'metrics', label: 'Metrics' },
                     { key: 'ai_process', label: 'AI Process' },
                   ].map(({ key, label }) => (
-                    <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 text-sm cursor-pointer"
+                    >
                       <input
                         type="checkbox"
-                        checked={config.widget_visibility[key as keyof typeof config.widget_visibility]}
-                        onChange={(e) => updateConfig({
-                          widget_visibility: {
-                            ...config.widget_visibility,
-                            [key]: e.target.checked,
-                          },
-                        })}
+                        checked={
+                          config.widget_visibility[
+                            key as keyof typeof config.widget_visibility
+                          ]
+                        }
+                        onChange={(e) =>
+                          updateConfig({
+                            widget_visibility: {
+                              ...config.widget_visibility,
+                              [key]: e.target.checked,
+                            },
+                          })
+                        }
                       />
                       <span style={{ color: '#EAECEF' }}>{label}</span>
                     </label>
@@ -173,12 +210,17 @@ export function AdminControls({
 
               {/* Layout Mode */}
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#EAECEF' }}>
+                <label
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: '#EAECEF' }}
+                >
                   Layout Mode
                 </label>
                 <select
                   value={config.layout_type}
-                  onChange={(e) => updateConfig({ layout_type: e.target.value as any })}
+                  onChange={(e) =>
+                    updateConfig({ layout_type: e.target.value as any })
+                  }
                   className="w-full rounded px-3 py-2 text-sm"
                   style={{
                     background: 'var(--navy-primary)',
@@ -194,7 +236,10 @@ export function AdminControls({
 
               {/* Sound Effects */}
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium" style={{ color: '#EAECEF' }}>
+                <label
+                  className="text-sm font-medium"
+                  style={{ color: '#EAECEF' }}
+                >
                   {config.sound_enabled ? (
                     <Volume2 className="w-4 h-4 inline mr-2" />
                   ) : (
@@ -203,7 +248,9 @@ export function AdminControls({
                   Sound Effects
                 </label>
                 <button
-                  onClick={() => updateConfig({ sound_enabled: !config.sound_enabled })}
+                  onClick={() =>
+                    updateConfig({ sound_enabled: !config.sound_enabled })
+                  }
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     config.sound_enabled ? 'bg-green-500' : 'bg-gray-600'
                   }`}
@@ -219,19 +266,28 @@ export function AdminControls({
               {/* Auto-Switch Charts */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium" style={{ color: '#EAECEF' }}>
+                  <label
+                    className="text-sm font-medium"
+                    style={{ color: '#EAECEF' }}
+                  >
                     <Zap className="w-4 h-4 inline mr-2" />
                     Auto-Switch Charts
                   </label>
                   <button
-                    onClick={() => updateConfig({ auto_switch_charts: !config.auto_switch_charts })}
+                    onClick={() =>
+                      updateConfig({
+                        auto_switch_charts: !config.auto_switch_charts,
+                      })
+                    }
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       config.auto_switch_charts ? 'bg-green-500' : 'bg-gray-600'
                     }`}
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        config.auto_switch_charts ? 'translate-x-6' : 'translate-x-1'
+                        config.auto_switch_charts
+                          ? 'translate-x-6'
+                          : 'translate-x-1'
                       }`}
                     />
                   </button>
@@ -239,7 +295,10 @@ export function AdminControls({
 
                 {config.auto_switch_charts && (
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: '#EAECEF' }}>
+                    <label
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: '#EAECEF' }}
+                    >
                       Switch Interval (seconds)
                     </label>
                     <input
@@ -248,12 +307,21 @@ export function AdminControls({
                       max="30"
                       step="5"
                       value={config.auto_switch_interval}
-                      onChange={(e) => updateConfig({ auto_switch_interval: parseInt(e.target.value) })}
+                      onChange={(e) =>
+                        updateConfig({
+                          auto_switch_interval: parseInt(e.target.value),
+                        })
+                      }
                       className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
                     />
-                    <div className="flex justify-between text-xs mt-1" style={{ color: '#848E9C' }}>
+                    <div
+                      className="flex justify-between text-xs mt-1"
+                      style={{ color: '#848E9C' }}
+                    >
                       <span>5s</span>
-                      <span className="font-bold">{config.auto_switch_interval}s</span>
+                      <span className="font-bold">
+                        {config.auto_switch_interval}s
+                      </span>
                       <span>30s</span>
                     </div>
                   </div>
@@ -262,21 +330,30 @@ export function AdminControls({
 
               {/* Auto-Scroll AI Analysis */}
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium" style={{ color: '#EAECEF' }}>
+                <label
+                  className="text-sm font-medium"
+                  style={{ color: '#EAECEF' }}
+                >
                   <Brain className="w-4 h-4 inline mr-2" />
                   Auto-Scroll AI Analysis
                 </label>
                 <button
                   onClick={() => {
-                    updateConfig({ auto_scroll_ai_analysis: !config.auto_scroll_ai_analysis })
+                    updateConfig({
+                      auto_scroll_ai_analysis: !config.auto_scroll_ai_analysis,
+                    })
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    config.auto_scroll_ai_analysis ? 'bg-green-500' : 'bg-gray-600'
+                    config.auto_scroll_ai_analysis
+                      ? 'bg-green-500'
+                      : 'bg-gray-600'
                   }`}
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      config.auto_scroll_ai_analysis ? 'translate-x-6' : 'translate-x-1'
+                      config.auto_scroll_ai_analysis
+                        ? 'translate-x-6'
+                        : 'translate-x-1'
                     }`}
                   />
                 </button>
@@ -284,7 +361,10 @@ export function AdminControls({
 
               {/* Auto-Scroll Page */}
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium" style={{ color: '#EAECEF' }}>
+                <label
+                  className="text-sm font-medium"
+                  style={{ color: '#EAECEF' }}
+                >
                   <Brain className="w-4 h-4 inline mr-2" />
                   Auto-Scroll Page (human-like)
                 </label>
@@ -298,7 +378,9 @@ export function AdminControls({
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      config.auto_scroll_page ? 'translate-x-6' : 'translate-x-1'
+                      config.auto_scroll_page
+                        ? 'translate-x-6'
+                        : 'translate-x-1'
                     }`}
                   />
                 </button>
@@ -306,8 +388,12 @@ export function AdminControls({
 
               {config.auto_scroll_page && (
                 <div className="mt-2">
-                  <label className="block text-sm font-medium mb-2" style={{ color: '#EAECEF' }}>
-                    Page Scroll Speed ({config.auto_scroll_page_speed.toFixed(1)}x)
+                  <label
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: '#EAECEF' }}
+                  >
+                    Page Scroll Speed (
+                    {config.auto_scroll_page_speed.toFixed(1)}x)
                   </label>
                   <input
                     type="range"
@@ -315,10 +401,17 @@ export function AdminControls({
                     max="2"
                     step="0.1"
                     value={config.auto_scroll_page_speed}
-                    onChange={(e) => updateConfig({ auto_scroll_page_speed: parseFloat(e.target.value) })}
+                    onChange={(e) =>
+                      updateConfig({
+                        auto_scroll_page_speed: parseFloat(e.target.value),
+                      })
+                    }
                     className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
                   />
-                  <div className="flex justify-between text-xs mt-1" style={{ color: '#848E9C' }}>
+                  <div
+                    className="flex justify-between text-xs mt-1"
+                    style={{ color: '#848E9C' }}
+                  >
                     <span>0.5x</span>
                     <span className="font-bold">1x</span>
                     <span>2x</span>
@@ -328,13 +421,18 @@ export function AdminControls({
 
               {/* Watermark */}
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#EAECEF' }}>
+                <label
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: '#EAECEF' }}
+                >
                   Watermark Text
                 </label>
                 <input
                   type="text"
                   value={config.watermark_text}
-                  onChange={(e) => updateConfig({ watermark_text: e.target.value })}
+                  onChange={(e) =>
+                    updateConfig({ watermark_text: e.target.value })
+                  }
                   className="w-full rounded px-3 py-2 text-sm"
                   style={{
                     background: 'var(--navy-primary)',
@@ -351,4 +449,3 @@ export function AdminControls({
     </motion.div>
   )
 }
-

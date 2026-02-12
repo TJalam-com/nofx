@@ -19,27 +19,37 @@ export function StrategyStudioPage() {
     if (!dateString || dateString.trim() === '') {
       return language === 'zh' ? '未知日期' : 'Unknown date'
     }
-    
+
     try {
       // Handle SQLite datetime format "2006-01-02 15:04:05" or ISO format
       let date: Date
-      
+
       // Try parsing SQLite format first (YYYY-MM-DD HH:MM:SS)
-      const sqliteMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}):(\d{2}))?/)
+      const sqliteMatch = dateString.match(
+        /^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}):(\d{2}))?/
+      )
       if (sqliteMatch) {
-        const [, year, month, day, hour = '0', minute = '0', second = '0'] = sqliteMatch
-        date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second))
+        const [, year, month, day, hour = '0', minute = '0', second = '0'] =
+          sqliteMatch
+        date = new Date(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day),
+          parseInt(hour),
+          parseInt(minute),
+          parseInt(second)
+        )
       } else {
         // Try standard Date parsing
         date = new Date(dateString)
       }
-      
+
       // Check if date is invalid or is the zero date (0001-01-01)
       if (isNaN(date.getTime()) || date.getFullYear() < 1900) {
         console.warn('Invalid date string:', dateString)
         return language === 'zh' ? '无效日期' : 'Invalid date'
       }
-      
+
       return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
         year: 'numeric',
         month: 'numeric',
@@ -68,18 +78,27 @@ export function StrategyStudioPage() {
   }
 
   const handleDelete = async (strategy: Strategy) => {
-    if (!confirm(language === 'zh' 
-      ? `确定要删除策略 "${strategy.name}" 吗？` 
-      : `Are you sure you want to delete strategy "${strategy.name}"?`)) {
+    if (
+      !confirm(
+        language === 'zh'
+          ? `确定要删除策略 "${strategy.name}" 吗？`
+          : `Are you sure you want to delete strategy "${strategy.name}"?`
+      )
+    ) {
       return
     }
 
     try {
       await api.deleteStrategy(strategy.id)
-      toast.success(language === 'zh' ? '策略删除成功' : 'Strategy deleted successfully')
+      toast.success(
+        language === 'zh' ? '策略删除成功' : 'Strategy deleted successfully'
+      )
       mutateStrategies()
     } catch (error: any) {
-      toast.error(error.message || (language === 'zh' ? '删除策略失败' : 'Failed to delete strategy'))
+      toast.error(
+        error.message ||
+          (language === 'zh' ? '删除策略失败' : 'Failed to delete strategy')
+      )
     }
   }
 
@@ -94,9 +113,14 @@ export function StrategyStudioPage() {
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
-      toast.success(language === 'zh' ? '策略导出成功' : 'Strategy exported successfully')
+      toast.success(
+        language === 'zh' ? '策略导出成功' : 'Strategy exported successfully'
+      )
     } catch (error: any) {
-      toast.error(error.message || (language === 'zh' ? '导出策略失败' : 'Failed to export strategy'))
+      toast.error(
+        error.message ||
+          (language === 'zh' ? '导出策略失败' : 'Failed to export strategy')
+      )
     }
   }
 
@@ -109,11 +133,16 @@ export function StrategyStudioPage() {
       const text = await file.text()
       const strategyData = JSON.parse(text)
       await api.importStrategy(strategyData)
-      toast.success(language === 'zh' ? '策略导入成功' : 'Strategy imported successfully')
+      toast.success(
+        language === 'zh' ? '策略导入成功' : 'Strategy imported successfully'
+      )
       mutateStrategies()
       setShowImportModal(false)
     } catch (error: any) {
-      toast.error(error.message || (language === 'zh' ? '导入策略失败' : 'Failed to import strategy'))
+      toast.error(
+        error.message ||
+          (language === 'zh' ? '导入策略失败' : 'Failed to import strategy')
+      )
     }
   }
 
@@ -144,15 +173,23 @@ export function StrategyStudioPage() {
         quant_data_url: strategy.quant_data_url,
       }
       await api.createStrategy(duplicateData)
-      toast.success(language === 'zh' ? '策略复制成功' : 'Strategy duplicated successfully')
+      toast.success(
+        language === 'zh' ? '策略复制成功' : 'Strategy duplicated successfully'
+      )
       mutateStrategies()
     } catch (error: any) {
-      toast.error(error.message || (language === 'zh' ? '复制策略失败' : 'Failed to duplicate strategy'))
+      toast.error(
+        error.message ||
+          (language === 'zh' ? '复制策略失败' : 'Failed to duplicate strategy')
+      )
     }
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--navy-background)' }}>
+    <div
+      className="min-h-screen"
+      style={{ background: 'var(--navy-background)' }}
+    >
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
@@ -161,8 +198,8 @@ export function StrategyStudioPage() {
               {language === 'zh' ? '策略' : 'Strategy'}
             </h1>
             <p className="text-sm sm:text-base text-[#848E9C]">
-              {language === 'zh' 
-                ? '创建、管理和分享您的交易策略' 
+              {language === 'zh'
+                ? '创建、管理和分享您的交易策略'
                 : 'Create, manage, and share your trading strategies'}
             </p>
           </div>
@@ -170,21 +207,23 @@ export function StrategyStudioPage() {
             <button
               onClick={handleImport}
               className="px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm sm:text-base whitespace-nowrap"
-              style={{ 
-                background: 'var(--navy-primary)', 
+              style={{
+                background: 'var(--navy-primary)',
                 border: '1px solid var(--panel-border)',
-                color: '#EAECEF'
+                color: '#EAECEF',
               }}
             >
               <Upload className="w-4 h-4" />
-              <span className="hidden sm:inline">{language === 'zh' ? '导入' : 'Import'}</span>
+              <span className="hidden sm:inline">
+                {language === 'zh' ? '导入' : 'Import'}
+              </span>
             </button>
             <button
               onClick={handleCreate}
               className="px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm sm:text-base whitespace-nowrap"
-              style={{ 
-                background: 'var(--green-primary)', 
-                color: 'var(--navy-primary)'
+              style={{
+                background: 'var(--green-primary)',
+                color: 'var(--navy-primary)',
               }}
             >
               <Plus className="w-4 h-4" />
@@ -195,16 +234,24 @@ export function StrategyStudioPage() {
 
         {/* Strategies Grid */}
         {!strategies || strategies.length === 0 ? (
-          <div className="text-center py-16 rounded-lg" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
+          <div
+            className="text-center py-16 rounded-lg"
+            style={{
+              background: 'var(--navy-primary)',
+              border: '1px solid var(--panel-border)',
+            }}
+          >
             <p className="text-[#848E9C] mb-4">
-              {language === 'zh' ? '还没有策略，创建第一个吧！' : 'No strategies yet. Create your first one!'}
+              {language === 'zh'
+                ? '还没有策略，创建第一个吧！'
+                : 'No strategies yet. Create your first one!'}
             </p>
             <button
               onClick={handleCreate}
               className="px-6 py-2 rounded-lg flex items-center gap-2 mx-auto transition-colors"
-              style={{ 
-                background: 'var(--green-primary)', 
-                color: 'var(--navy-primary)'
+              style={{
+                background: 'var(--green-primary)',
+                color: 'var(--navy-primary)',
               }}
             >
               <Plus className="w-4 h-4" />
@@ -217,7 +264,10 @@ export function StrategyStudioPage() {
               <div
                 key={strategy.id}
                 className="rounded-lg p-5 transition-all hover:scale-[1.02]"
-                style={{ background: 'var(--navy-dark)', border: '1px solid var(--panel-border)' }}
+                style={{
+                  background: 'var(--navy-dark)',
+                  border: '1px solid var(--panel-border)',
+                }}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
@@ -234,34 +284,57 @@ export function StrategyStudioPage() {
 
                 <div className="flex flex-wrap gap-2 mb-4">
                   {strategy.system_prompt_template && (
-                    <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--navy-background)', color: '#848E9C' }}>
+                    <span
+                      className="text-xs px-2 py-1 rounded"
+                      style={{
+                        background: 'var(--navy-background)',
+                        color: '#848E9C',
+                      }}
+                    >
                       {strategy.system_prompt_template}
                     </span>
                   )}
                   {strategy.use_coin_pool && (
-                    <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--navy-background)', color: '#848E9C' }}>
+                    <span
+                      className="text-xs px-2 py-1 rounded"
+                      style={{
+                        background: 'var(--navy-background)',
+                        color: '#848E9C',
+                      }}
+                    >
                       Coin Pool
                     </span>
                   )}
                   {strategy.use_oi_top && (
-                    <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--navy-background)', color: '#848E9C' }}>
+                    <span
+                      className="text-xs px-2 py-1 rounded"
+                      style={{
+                        background: 'var(--navy-background)',
+                        color: '#848E9C',
+                      }}
+                    >
                       OI Top
                     </span>
                   )}
                 </div>
 
                 <div className="text-xs text-[#848E9C] mb-4">
-                  {language === 'zh' ? '更新于' : 'Updated'} {strategy.updated_at ? formatDate(strategy.updated_at) : (language === 'zh' ? '未知日期' : 'Unknown date')}
+                  {language === 'zh' ? '更新于' : 'Updated'}{' '}
+                  {strategy.updated_at
+                    ? formatDate(strategy.updated_at)
+                    : language === 'zh'
+                      ? '未知日期'
+                      : 'Unknown date'}
                 </div>
 
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEdit(strategy)}
                     className="flex-1 px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors"
-                    style={{ 
-                      background: 'var(--navy-background)', 
+                    style={{
+                      background: 'var(--navy-background)',
                       border: '1px solid var(--panel-border)',
-                      color: '#EAECEF'
+                      color: '#EAECEF',
                     }}
                   >
                     <Edit className="w-3 h-3" />
@@ -270,10 +343,10 @@ export function StrategyStudioPage() {
                   <button
                     onClick={() => handleDuplicate(strategy)}
                     className="px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors"
-                    style={{ 
-                      background: 'var(--navy-background)', 
+                    style={{
+                      background: 'var(--navy-background)',
                       border: '1px solid var(--panel-border)',
-                      color: '#EAECEF'
+                      color: '#EAECEF',
                     }}
                     title={language === 'zh' ? '复制' : 'Duplicate'}
                   >
@@ -282,10 +355,10 @@ export function StrategyStudioPage() {
                   <button
                     onClick={() => handleExport(strategy)}
                     className="px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors"
-                    style={{ 
-                      background: 'var(--navy-background)', 
+                    style={{
+                      background: 'var(--navy-background)',
                       border: '1px solid var(--panel-border)',
-                      color: '#EAECEF'
+                      color: '#EAECEF',
                     }}
                     title={language === 'zh' ? '导出' : 'Export'}
                   >
@@ -294,10 +367,10 @@ export function StrategyStudioPage() {
                   <button
                     onClick={() => handleDelete(strategy)}
                     className="px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors hover:bg-red-500/20"
-                    style={{ 
-                      background: 'var(--navy-background)', 
+                    style={{
+                      background: 'var(--navy-background)',
                       border: '1px solid var(--panel-border)',
-                      color: '#EAECEF'
+                      color: '#EAECEF',
                     }}
                     title={language === 'zh' ? '删除' : 'Delete'}
                   >
@@ -331,7 +404,13 @@ export function StrategyStudioPage() {
         {/* Import Modal */}
         {showImportModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="rounded-lg p-6 max-w-md w-full mx-4" style={{ background: 'var(--navy-primary)', border: '1px solid var(--panel-border)' }}>
+            <div
+              className="rounded-lg p-6 max-w-md w-full mx-4"
+              style={{
+                background: 'var(--navy-primary)',
+                border: '1px solid var(--panel-border)',
+              }}
+            >
               <h2 className="text-xl font-semibold text-[#EAECEF] mb-4">
                 {language === 'zh' ? '导入策略' : 'Import Strategy'}
               </h2>
@@ -350,10 +429,10 @@ export function StrategyStudioPage() {
                 <button
                   onClick={() => setShowImportModal(false)}
                   className="px-4 py-2 rounded transition-colors"
-                  style={{ 
-                    background: 'var(--navy-background)', 
+                  style={{
+                    background: 'var(--navy-background)',
                     border: '1px solid var(--panel-border)',
-                    color: '#EAECEF'
+                    color: '#EAECEF',
                   }}
                 >
                   {language === 'zh' ? '取消' : 'Cancel'}
@@ -366,4 +445,3 @@ export function StrategyStudioPage() {
     </div>
   )
 }
-

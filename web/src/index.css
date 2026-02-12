@@ -32,7 +32,7 @@ html {
 }
 
 .tradingview-widget-container .ticker-tape-item {
-  color: #EAECEF !important;
+  color: #eaecef !important;
 }
 
 .tradingview-widget-container .ticker-tape-item:hover {
@@ -41,61 +41,61 @@ html {
 
 :root {
   /* Primary Colors - Navy Blue */
-  --navy-primary: #001F3F;
-  --navy-dark: #00152E;
+  --navy-primary: #001f3f;
+  --navy-dark: #00152e;
   --navy-light: #003366;
-  
+
   /* Primary Colors - Bright Green */
-  --green-primary: #00FF7F;
-  --green-dark: #00CC66;
-  --green-light: #33FF99;
+  --green-primary: #00ff7f;
+  --green-dark: #00cc66;
+  --green-light: #33ff99;
   --green-glow: rgba(0, 255, 127, 0.2);
-  
+
   /* Primary Colors - White */
-  --white: #FFFFFF;
-  
+  --white: #ffffff;
+
   /* Secondary Colors - Grays */
   --gray-medium: #808080;
-  --gray-light: #A9A9A9;
+  --gray-light: #a9a9a9;
   --gray-dark: #404040;
-  
+
   /* Secondary Colors - Gold (mapped to green) */
-  --gold-primary: #00FF7F;
-  --gold-dark: #00CC66;
-  --gold-light: #33FF99;
+  --gold-primary: #00ff7f;
+  --gold-dark: #00cc66;
+  --gold-light: #33ff99;
   --gold-glow: rgba(0, 255, 127, 0.2);
-  
+
   /* Background System */
-  --background: #0B0E11;
+  --background: #0b0e11;
   --header-bg: rgba(0, 31, 63, 0.95);
   --background-elevated: var(--navy-dark);
-  --foreground: #EAECEF;
-  --panel-bg: #1E2329;
-  --panel-bg-hover: #2B3139;
-  --panel-border: #2B3139;
-  --panel-border-hover: #474D57;
-  
+  --foreground: #eaecef;
+  --panel-bg: #1e2329;
+  --panel-bg-hover: #2b3139;
+  --panel-border: #2b3139;
+  --panel-border-hover: #474d57;
+
   /* Text Colors */
-  --text-primary: #EAECEF;
-  --text-secondary: #848E9C;
-  --text-tertiary: #5E6673;
-  --text-disabled: #474D57;
-  
+  --text-primary: #eaecef;
+  --text-secondary: #848e9c;
+  --text-tertiary: #5e6673;
+  --text-disabled: #474d57;
+
   /* Functional Colors */
   --success: var(--green-primary);
   --success-bg: rgba(0, 255, 127, 0.1);
   --success-border: rgba(0, 255, 127, 0.2);
-  --error: #FF4444;
+  --error: #ff4444;
   --error-bg: rgba(255, 68, 68, 0.1);
   --error-border: rgba(255, 68, 68, 0.2);
   --warning: var(--gold-primary);
   --info: var(--green-primary);
-  
+
   /* Chart Colors */
   --grid-stroke: var(--gray-dark);
   --axis-tick: var(--gray-medium);
   --ref-line: var(--gray-medium);
-  
+
   /* Shadows - Navy-based */
   --shadow-sm: 0 1px 2px 0 rgba(0, 31, 63, 0.3);
   --shadow-md:
@@ -112,19 +112,19 @@ html {
   --accent-yellow-bg: rgba(0, 255, 127, 0.15);
   --accent-yellow-border: rgba(0, 255, 127, 0.3);
   --accent-yellow-glow: rgba(0, 255, 127, 0.2);
-  
+
   /* Text Colors - Extended Palette */
-  --text-gray-light: #848E9C;
-  --text-gray-medium: #A9A9A9;
+  --text-gray-light: #848e9c;
+  --text-gray-medium: #a9a9a9;
   --text-gray-dark: #404040;
-  --text-white: #EAECEF;
-  
+  --text-white: #eaecef;
+
   /* Background Colors - Extended Palette */
-  --bg-dark: #0B0E11;
-  --bg-darker: #1E2329;
-  --bg-darkest: #252B35;
-  --bg-panel: #2B3139;
-  
+  --bg-dark: #0b0e11;
+  --bg-darker: #1e2329;
+  --bg-darkest: #252b35;
+  --bg-panel: #2b3139;
+
   /* Accent Colors - Additional UI Colors */
   --accent-yellow: var(--green-primary);
   --accent-yellow-dark: var(--green-dark);
@@ -132,30 +132,30 @@ html {
   --accent-yellow-bg: rgba(0, 255, 127, 0.15);
   --accent-yellow-border: rgba(0, 255, 127, 0.3);
   --accent-yellow-glow: rgba(0, 255, 127, 0.2);
-  
+
   /* Text Colors - Extended Palette */
-  --text-gray-light: #848E9C;
-  --text-gray-medium: #A9A9A9;
+  --text-gray-light: #848e9c;
+  --text-gray-medium: #a9a9a9;
   --text-gray-dark: #404040;
-  --text-white: #EAECEF;
-  
+  --text-white: #eaecef;
+
   /* Background Colors - Extended Palette */
-  --bg-dark: #0B0E11;
-  --bg-darker: #1E2329;
-  --bg-darkest: #252B35;
-  --bg-panel: #2B3139;
-  
+  --bg-dark: #0b0e11;
+  --bg-darker: #1e2329;
+  --bg-darkest: #252b35;
+  --bg-panel: #2b3139;
+
   /* Binance Brand Colors */
-  --brand-yellow: #00FF7F;
+  --brand-yellow: #00ff7f;
   --brand-black: var(--navy-primary);
-  --brand-dark-gray: #1E2329;
-  --brand-light-gray: #EAECEF;
-  --brand-white: #FFFFFF;
+  --brand-dark-gray: #1e2329;
+  --brand-light-gray: #eaecef;
+  --brand-white: #ffffff;
 
   /* Premium Theme Colors */
-  --binance-yellow: #00FF7F;
-  --binance-yellow-dark: #00CC66;
-  --binance-yellow-light: #33FF99;
+  --binance-yellow: #00ff7f;
+  --binance-yellow-dark: #00cc66;
+  --binance-yellow-light: #33ff99;
   --binance-yellow-glow: rgba(0, 255, 127, 0.15);
 
   /* Glass effect variables */
@@ -163,10 +163,10 @@ html {
   --glass-border: rgba(255, 255, 255, 0.08);
 
   /* Trading Colors */
-  --binance-green: #0ECB81;
+  --binance-green: #0ecb81;
   --binance-green-bg: rgba(14, 203, 129, 0.12);
   --binance-green-border: rgba(14, 203, 129, 0.3);
-  --binance-red: #F6465D;
+  --binance-red: #f6465d;
   --binance-red-bg: rgba(246, 70, 93, 0.12);
   --binance-red-border: rgba(246, 70, 93, 0.3);
 
@@ -195,8 +195,16 @@ body {
   min-height: 100vh;
   background-color: var(--background);
   background-image:
-    radial-gradient(circle at 15% 50%, rgba(0, 255, 127, 0.08), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(14, 203, 129, 0.05), transparent 25%);
+    radial-gradient(
+      circle at 15% 50%,
+      rgba(0, 255, 127, 0.08),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 85% 30%,
+      rgba(14, 203, 129, 0.05),
+      transparent 25%
+    );
   background-attachment: fixed;
   overflow-x: hidden;
 }
@@ -204,7 +212,7 @@ body {
 /* Premium Selection Styles */
 ::selection {
   background: rgba(0, 255, 127, 0.3);
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 #root {
@@ -300,11 +308,13 @@ body {
 @keyframes trophy-glow {
   0%,
   100% {
-    box-shadow: 0 4px 14px var(--green-glow),
+    box-shadow:
+      0 4px 14px var(--green-glow),
       0 0 20px rgba(0, 255, 127, 0.2);
   }
   50% {
-    box-shadow: 0 4px 20px rgba(0, 255, 127, 0.6),
+    box-shadow:
+      0 4px 20px rgba(0, 255, 127, 0.6),
       0 0 30px rgba(0, 255, 127, 0.4);
   }
 }
@@ -665,7 +675,7 @@ button:disabled {
 .dev-custom-toast {
   padding: 12px 18px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #00FF7F, #00CC66);
+  background: linear-gradient(135deg, #00ff7f, #00cc66);
   color: var(--navy-primary);
   font-weight: 600;
 }
@@ -690,12 +700,12 @@ button:disabled {
 
 /* Input styles */
 .input,
-input[type="text"],
-input[type="number"],
-input[type="datetime-local"],
-input[type="url"],
-input[type="password"],
-input[type="email"],
+input[type='text'],
+input[type='number'],
+input[type='datetime-local'],
+input[type='url'],
+input[type='password'],
+input[type='email'],
 select,
 textarea {
   background: var(--navy-dark);
@@ -708,12 +718,12 @@ textarea {
 }
 
 .input:focus,
-input[type="text"]:focus,
-input[type="number"]:focus,
-input[type="datetime-local"]:focus,
-input[type="url"]:focus,
-input[type="password"]:focus,
-input[type="email"]:focus,
+input[type='text']:focus,
+input[type='number']:focus,
+input[type='datetime-local']:focus,
+input[type='url']:focus,
+input[type='password']:focus,
+input[type='email']:focus,
 select:focus,
 textarea:focus {
   outline: none;
@@ -735,12 +745,12 @@ select option:hover {
 }
 
 .input::placeholder,
-input[type="text"]::placeholder,
-input[type="number"]::placeholder,
-input[type="datetime-local"]::placeholder,
-input[type="url"]::placeholder,
-input[type="password"]::placeholder,
-input[type="email"]::placeholder,
+input[type='text']::placeholder,
+input[type='number']::placeholder,
+input[type='datetime-local']::placeholder,
+input[type='url']::placeholder,
+input[type='password']::placeholder,
+input[type='email']::placeholder,
 textarea::placeholder {
   color: var(--text-secondary);
 }
@@ -891,7 +901,7 @@ textarea::placeholder {
 /* Danger Button - Red for close position actions */
 .btn-danger {
   background: rgba(246, 70, 93, 0.1);
-  color: #F6465D;
+  color: #f6465d;
   border: 1px solid rgba(246, 70, 93, 0.3);
   border-radius: 4px;
   cursor: pointer;
@@ -1128,7 +1138,11 @@ tr:hover {
 }
 
 .rank-badge-gold {
-  background: linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--green-primary) 0%,
+    var(--green-light) 100%
+  );
   color: var(--navy-primary);
   box-shadow: 0 4px 12px var(--green-glow);
 }
@@ -1152,13 +1166,15 @@ tr:hover {
     rgba(0, 21, 46, 1) 100%
   );
   border: 1px solid rgba(0, 255, 127, 0.4);
-  box-shadow: 0 4px 20px rgba(0, 255, 127, 0.15),
+  box-shadow:
+    0 4px 20px rgba(0, 255, 127, 0.15),
     0 0 0 1px rgba(0, 255, 127, 0.2);
 }
 
 .leaderboard-item-top:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(0, 255, 127, 0.25),
+  box-shadow:
+    0 6px 25px rgba(0, 255, 127, 0.25),
     0 0 0 1px rgba(0, 255, 127, 0.3);
 }
 
@@ -1322,7 +1338,7 @@ body {
     min-width: unset;
     max-width: 100%;
   }
-  
+
   .article-featured-image {
     width: 95%;
     max-width: 100%;
@@ -1345,13 +1361,13 @@ body {
 }
 
 .prose a {
-  color: var(--green-primary, #00FF7F);
+  color: var(--green-primary, #00ff7f);
   text-decoration: underline;
   transition: color 0.2s;
 }
 
 .prose a:hover {
-  color: var(--green-light, #33FF99);
+  color: var(--green-light, #33ff99);
 }
 
 .prose ul,
@@ -1367,7 +1383,7 @@ body {
 }
 
 .prose blockquote {
-  border-left: 4px solid var(--green-primary, #00FF7F);
+  border-left: 4px solid var(--green-primary, #00ff7f);
   padding-left: 1em;
   margin: 1.5em 0;
   font-style: italic;
@@ -1375,16 +1391,16 @@ body {
 }
 
 .prose code {
-  background-color: var(--navy-dark, #00152E);
+  background-color: var(--navy-dark, #00152e);
   padding: 0.2em 0.4em;
   border-radius: 4px;
   font-size: 0.875em;
-  color: var(--green-primary, #00FF7F);
+  color: var(--green-primary, #00ff7f);
 }
 
 .prose pre {
-  background-color: var(--navy-dark, #00152E);
-  border: 1px solid var(--panel-border, #2B3139);
+  background-color: var(--navy-dark, #00152e);
+  border: 1px solid var(--panel-border, #2b3139);
   border-radius: 8px;
   padding: 1em;
   overflow-x: auto;
@@ -1425,13 +1441,13 @@ body {
 /* Dark mode prose adjustments */
 @media (prefers-color-scheme: dark) {
   .prose {
-    color: var(--text-primary, #EAECEF);
+    color: var(--text-primary, #eaecef);
   }
-  
+
   .prose h1,
   .prose h2,
   .prose h3,
   .prose h4 {
-    color: var(--text-primary, #EAECEF);
+    color: var(--text-primary, #eaecef);
   }
 }

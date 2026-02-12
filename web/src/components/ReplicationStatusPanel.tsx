@@ -35,7 +35,11 @@ export function ReplicationStatusPanel({
   const [sendingSignal, setSendingSignal] = useState(false)
   const [expandedFollowers, setExpandedFollowers] = useState<string[]>([])
 
-  const { data: status, mutate, error } = useSWR<ReplicationStatus>(
+  const {
+    data: status,
+    mutate,
+    error,
+  } = useSWR<ReplicationStatus>(
     traderId ? `replication-status-${traderId}` : null,
     () => api.getReplicationStatus(traderId),
     { refreshInterval: 5000 }
@@ -90,156 +94,160 @@ export function ReplicationStatusPanel({
         </div>
       ) : (
         <>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
-          <Users size={20} />
-          Replication Status
-        </h3>
-        <button
-          onClick={() => mutate()}
-          className="p-2 rounded hover:bg-gray-800 transition-colors"
-          title="Refresh"
-        >
-          <RefreshCw size={16} />
-        </button>
-      </div>
-
-      {/* Parent Trader Info (if this is a child) */}
-      {status.is_child && status.parent && (
-        <div
-          className="mb-4 p-3 rounded"
-          style={{
-            background: 'rgba(59, 130, 246, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <UserCheck size={16} style={{ color: '#3b82f6' }} />
-            <span className="font-semibold">Following:</span>
-            <span>{status.parent.trader_name}</span>
-            {status.parent.is_running ? (
-              <span
-                className="px-2 py-0.5 rounded text-xs"
-                style={{
-                  background: 'rgba(14, 203, 129, 0.1)',
-                  color: '#0ECB81',
-                }}
-              >
-                Running
-              </span>
-            ) : (
-              <span
-                className="px-2 py-0.5 rounded text-xs"
-                style={{
-                  background: 'rgba(246, 70, 93, 0.1)',
-                  color: '#F6465D',
-                }}
-              >
-                Stopped
-              </span>
-            )}
-          </div>
-          {status.parent.error && (
-            <div className="text-xs text-red-400 mt-1">
-              ⚠️ {status.parent.error}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Followers List (if this is a parent) */}
-      {status.is_parent && status.followers && status.followers.length > 0 && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-semibold">
-              Followers ({status.followers.length}):
-            </span>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Users size={20} />
+              Replication Status
+            </h3>
             <button
-              onClick={() => setShowTestModal(true)}
-              className="px-3 py-1.5 rounded text-sm font-medium flex items-center gap-2 transition-colors"
-              style={{
-                background: 'var(--brand-yellow)',
-                color: 'var(--navy-primary)',
-              }}
+              onClick={() => mutate()}
+              className="p-2 rounded hover:bg-gray-800 transition-colors"
+              title="Refresh"
             >
-              <Send size={14} />
-              Test Signal
+              <RefreshCw size={16} />
             </button>
           </div>
-          <div className="space-y-2">
-            {status.followers.map((follower) => (
-              <div
-                key={follower.trader_id}
-                className="p-2 rounded"
-                style={{
-                  background: 'rgba(43, 49, 57, 0.5)',
-                  border: '1px solid rgb(43, 49, 57)',
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleFollower(follower.trader_id)}
-                      className="p-1 hover:bg-gray-700 rounded"
-                    >
-                      {expandedFollowers.includes(follower.trader_id) ? (
-                        <ChevronUp size={14} />
-                      ) : (
-                        <ChevronDown size={14} />
-                      )}
-                    </button>
-                    <span className="font-medium">{follower.trader_name}</span>
-                    {follower.is_running ? (
-                      <span
-                        className="px-2 py-0.5 rounded text-xs"
-                        style={{
-                          background: 'rgba(14, 203, 129, 0.1)',
-                          color: '#0ECB81',
-                        }}
-                      >
-                        Running
-                      </span>
-                    ) : (
-                      <span
-                        className="px-2 py-0.5 rounded text-xs"
-                        style={{
-                          background: 'rgba(246, 70, 93, 0.1)',
-                          color: '#F6465D',
-                        }}
-                      >
-                        Stopped
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-400">
-                    ID: {follower.trader_id.slice(0, 8)}...
+
+          {/* Parent Trader Info (if this is a child) */}
+          {status.is_child && status.parent && (
+            <div
+              className="mb-4 p-3 rounded"
+              style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+              }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <UserCheck size={16} style={{ color: '#3b82f6' }} />
+                <span className="font-semibold">Following:</span>
+                <span>{status.parent.trader_name}</span>
+                {status.parent.is_running ? (
+                  <span
+                    className="px-2 py-0.5 rounded text-xs"
+                    style={{
+                      background: 'rgba(14, 203, 129, 0.1)',
+                      color: '#0ECB81',
+                    }}
+                  >
+                    Running
                   </span>
-                </div>
-                {follower.error && (
-                  <div className="text-xs text-red-400 mt-1 ml-6">
-                    ⚠️ {follower.error}
-                  </div>
+                ) : (
+                  <span
+                    className="px-2 py-0.5 rounded text-xs"
+                    style={{
+                      background: 'rgba(246, 70, 93, 0.1)',
+                      color: '#F6465D',
+                    }}
+                  >
+                    Stopped
+                  </span>
                 )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              {status.parent.error && (
+                <div className="text-xs text-red-400 mt-1">
+                  ⚠️ {status.parent.error}
+                </div>
+              )}
+            </div>
+          )}
 
-      {/* No followers message */}
-      {status.is_parent &&
-        (!status.followers || status.followers.length === 0) && (
-          <div className="text-sm text-gray-400 text-center py-4">
-            No followers yet
-          </div>
-        )}
+          {/* Followers List (if this is a parent) */}
+          {status.is_parent &&
+            status.followers &&
+            status.followers.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold">
+                    Followers ({status.followers.length}):
+                  </span>
+                  <button
+                    onClick={() => setShowTestModal(true)}
+                    className="px-3 py-1.5 rounded text-sm font-medium flex items-center gap-2 transition-colors"
+                    style={{
+                      background: 'var(--brand-yellow)',
+                      color: 'var(--navy-primary)',
+                    }}
+                  >
+                    <Send size={14} />
+                    Test Signal
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {status.followers.map((follower) => (
+                    <div
+                      key={follower.trader_id}
+                      className="p-2 rounded"
+                      style={{
+                        background: 'rgba(43, 49, 57, 0.5)',
+                        border: '1px solid rgb(43, 49, 57)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleFollower(follower.trader_id)}
+                            className="p-1 hover:bg-gray-700 rounded"
+                          >
+                            {expandedFollowers.includes(follower.trader_id) ? (
+                              <ChevronUp size={14} />
+                            ) : (
+                              <ChevronDown size={14} />
+                            )}
+                          </button>
+                          <span className="font-medium">
+                            {follower.trader_name}
+                          </span>
+                          {follower.is_running ? (
+                            <span
+                              className="px-2 py-0.5 rounded text-xs"
+                              style={{
+                                background: 'rgba(14, 203, 129, 0.1)',
+                                color: '#0ECB81',
+                              }}
+                            >
+                              Running
+                            </span>
+                          ) : (
+                            <span
+                              className="px-2 py-0.5 rounded text-xs"
+                              style={{
+                                background: 'rgba(246, 70, 93, 0.1)',
+                                color: '#F6465D',
+                              }}
+                            >
+                              Stopped
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          ID: {follower.trader_id.slice(0, 8)}...
+                        </span>
+                      </div>
+                      {follower.error && (
+                        <div className="text-xs text-red-400 mt-1 ml-6">
+                          ⚠️ {follower.error}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-      {/* Not a parent or child */}
-      {!status.is_parent && !status.is_child && (
-        <div className="text-sm text-gray-400 text-center py-4">
-          This trader is not following anyone and has no followers
-        </div>
-      )}
+          {/* No followers message */}
+          {status.is_parent &&
+            (!status.followers || status.followers.length === 0) && (
+              <div className="text-sm text-gray-400 text-center py-4">
+                No followers yet
+              </div>
+            )}
+
+          {/* Not a parent or child */}
+          {!status.is_parent && !status.is_child && (
+            <div className="text-sm text-gray-400 text-center py-4">
+              This trader is not following anyone and has no followers
+            </div>
+          )}
 
           {/* Test Signal Modal */}
           {showTestModal && (
@@ -317,14 +325,17 @@ export function ReplicationStatusPanel({
                       />
                     </div>
                     <div>
-                      <label className="block text-sm mb-1">Position Size (USD)</label>
+                      <label className="block text-sm mb-1">
+                        Position Size (USD)
+                      </label>
                       <input
                         type="number"
                         value={testSignal.position_size_usd || ''}
                         onChange={(e) =>
                           setTestSignal({
                             ...testSignal,
-                            position_size_usd: parseFloat(e.target.value) || undefined,
+                            position_size_usd:
+                              parseFloat(e.target.value) || undefined,
                           })
                         }
                         className="w-full px-3 py-2 rounded"
@@ -366,7 +377,8 @@ export function ReplicationStatusPanel({
                         onChange={(e) =>
                           setTestSignal({
                             ...testSignal,
-                            take_profit: parseFloat(e.target.value) || undefined,
+                            take_profit:
+                              parseFloat(e.target.value) || undefined,
                           })
                         }
                         className="w-full px-3 py-2 rounded"
@@ -384,7 +396,10 @@ export function ReplicationStatusPanel({
                     <textarea
                       value={testSignal.reasoning || ''}
                       onChange={(e) =>
-                        setTestSignal({ ...testSignal, reasoning: e.target.value })
+                        setTestSignal({
+                          ...testSignal,
+                          reasoning: e.target.value,
+                        })
                       }
                       className="w-full px-3 py-2 rounded"
                       style={{
@@ -438,4 +453,3 @@ export function ReplicationStatusPanel({
     </div>
   )
 }
-

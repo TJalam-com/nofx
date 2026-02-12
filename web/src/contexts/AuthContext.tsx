@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from 'react'
 import { getSystemConfig } from '../lib/config'
 import { reset401Flag, httpClient } from '../lib/httpClient'
 import { api } from '../lib/api'
@@ -76,7 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userInfo = await api.getCurrentUser()
       console.log('🔄 Refreshed user info from backend - Role:', userInfo.role)
-      const updatedUser = { id: userInfo.id, email: userInfo.email, role: userInfo.role }
+      const updatedUser = {
+        id: userInfo.id,
+        email: userInfo.email,
+        role: userInfo.role,
+      }
       setUser(updatedUser)
       localStorage.setItem('auth_user', JSON.stringify(updatedUser))
       console.log('✅ User role refreshed:', updatedUser.role)
@@ -98,11 +108,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const savedUser = localStorage.getItem('auth_user')
         if (savedToken && savedUser) {
           const parsedUser = JSON.parse(savedUser)
-          console.log('🔐 Restored user from localStorage - Role:', parsedUser.role)
+          console.log(
+            '🔐 Restored user from localStorage - Role:',
+            parsedUser.role
+          )
           console.log('🔐 Full restored user:', parsedUser)
           setToken(savedToken)
           setUser(parsedUser)
-          
+
           // Immediately refresh user from backend to get latest role
           // This ensures we have the most up-to-date role if it was changed in the database
           console.log('🔄 Refreshing user from backend to get latest role...')
@@ -112,7 +125,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setIsLoading(false)
             })
             .catch((err) => {
-              console.warn('⚠️ Failed to refresh user from backend, using cached data:', err)
+              console.warn(
+                '⚠️ Failed to refresh user from backend, using cached data:',
+                err
+              )
               // Fall back to cached data if refresh fails (e.g., backend unavailable)
               setIsLoading(false)
             })
@@ -131,16 +147,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const parsedUser = JSON.parse(savedUser)
           setToken(savedToken)
           setUser(parsedUser)
-          
+
           // Try to refresh user from backend even if system config failed
-          console.log('🔄 Attempting to refresh user from backend after system config error...')
+          console.log(
+            '🔄 Attempting to refresh user from backend after system config error...'
+          )
           refreshUser()
             .then(() => {
               console.log('✅ User refreshed from backend successfully')
               setIsLoading(false)
             })
             .catch((refreshErr) => {
-              console.warn('⚠️ Failed to refresh user from backend, using cached data:', refreshErr)
+              console.warn(
+                '⚠️ Failed to refresh user from backend, using cached data:',
+                refreshErr
+              )
               setIsLoading(false)
             })
         } else {
@@ -343,7 +364,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         reset401Flag()
 
         // 登录成功，保存token和用户信息
-        const userInfo = { id: data.user_id, email: data.email, role: data.role || 'user' }
+        const userInfo = {
+          id: data.user_id,
+          email: data.email,
+          role: data.role || 'user',
+        }
         console.log('🔐 Login successful - User role:', userInfo.role)
         console.log('🔐 Full user info:', userInfo)
         setToken(data.token)
@@ -356,12 +381,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(storedUser)
           console.log('✅ Role stored in localStorage:', parsed.role)
         }
-        
+
         // Debug: Log role detection
         console.log('🔍 Role Detection:', {
           role: userInfo.role,
           isFollower: userInfo.role === 'follower',
-          storedUser: JSON.parse(localStorage.getItem('auth_user') || '{}')
+          storedUser: JSON.parse(localStorage.getItem('auth_user') || '{}'),
         })
 
         // Check and redirect to returnUrl if exists
@@ -381,7 +406,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: data.error }
       }
     } catch (error) {
-      return { success: false, message: 'OTP verification failed, please try again' }
+      return {
+        success: false,
+        message: 'OTP verification failed, please try again',
+      }
     }
   }
 
@@ -402,7 +430,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         reset401Flag()
 
         // 注册完成，自动登录
-        const userInfo = { id: data.user_id, email: data.email, role: data.role || 'user' }
+        const userInfo = {
+          id: data.user_id,
+          email: data.email,
+          role: data.role || 'user',
+        }
         console.log('🔐 Registration complete - User role:', userInfo.role)
         console.log('🔐 Full user info:', userInfo)
         setToken(data.token)
@@ -433,7 +465,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: data.error }
       }
     } catch (error) {
-      return { success: false, message: 'Registration completion failed, please try again' }
+      return {
+        success: false,
+        message: 'Registration completion failed, please try again',
+      }
     }
   }
 

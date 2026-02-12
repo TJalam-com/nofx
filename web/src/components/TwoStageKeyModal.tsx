@@ -66,8 +66,8 @@ export function TwoStageKeyModal({
 
   // UX improvement: Use 58 + 6 split (most of the key + last 6 chars)
   // Advantage: Second stage only requires entering 6 characters, much easier to count
-  const expectedPart1Length = expectedLength - 6  // 64 - 6 = 58
-  const expectedPart2Length = 6  // Last 6 characters
+  const expectedPart1Length = expectedLength - 6 // 64 - 6 = 58
+  const expectedPart2Length = 6 // Last 6 characters
 
   // Track mounted state and cleanup on unmount
   useEffect(() => {
@@ -79,8 +79,7 @@ export function TwoStageKeyModal({
         onCancel()
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen])
+  }, [isOpen, onCancel])
 
   useEffect(() => {
     if (isOpen && stage === 1 && stage1Ref.current) {
@@ -126,7 +125,10 @@ export function TwoStageKeyModal({
             ...obfuscationLog,
             `Stage 1: ${new Date().toISOString()} - Auto copy failed, manual required`,
           ])
-          toast.error(t('twoStageKey.copyFailed', language) || 'Copy failed, please manually copy the obfuscation string')
+          toast.error(
+            t('twoStageKey.copyFailed', language) ||
+              'Copy failed, please manually copy the obfuscation string'
+          )
         }
       } else {
         setClipboardStatus('failed')
@@ -134,7 +136,10 @@ export function TwoStageKeyModal({
           ...obfuscationLog,
           `Stage 1: ${new Date().toISOString()} - Clipboard API not available`,
         ])
-        toast(t('twoStageKey.clipboardNotSupported', language) || 'Current browser does not support auto-copy, please copy manually')
+        toast(
+          t('twoStageKey.clipboardNotSupported', language) ||
+            'Current browser does not support auto-copy, please copy manually'
+        )
       }
 
       setTimeout(() => {
@@ -192,7 +197,10 @@ export function TwoStageKeyModal({
     if (!isOpen) return null
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0, 31, 63, 0.8)' }}>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center"
+        style={{ background: 'rgba(0, 31, 63, 0.8)' }}
+      >
         <div className="bg-gray-900 p-8 rounded-xl max-w-lg w-full mx-4 border border-gray-700">
           <div className="text-center mb-6">
             <h2 className="text-xl font-bold text-white mb-2">

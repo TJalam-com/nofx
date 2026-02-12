@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { api } from '../lib/api'
@@ -6,7 +6,16 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth, isAdmin } from '../contexts/AuthContext'
 import { toast } from 'sonner'
 import { t } from '../i18n/translations'
-import { Play, Square, Users, Bot, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Play,
+  Square,
+  Users,
+  Bot,
+  RefreshCw,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 
 interface Trader {
   trader_id: string
@@ -32,22 +41,25 @@ export default function StatsPage() {
   const navigate = useNavigate()
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set())
   const [togglingTraders, setTogglingTraders] = useState<Set<string>>(new Set())
-  
+
   // Search and pagination state for traders
   const [traderSearchQuery, setTraderSearchQuery] = useState('')
   const [traderCurrentPage, setTraderCurrentPage] = useState(1)
   const tradersPerPage = 10
-  
+
   // Search and pagination state for users
   const [userSearchQuery, setUserSearchQuery] = useState('')
   const [userCurrentPage, setUserCurrentPage] = useState(1)
   const usersPerPage = 10
 
-  // Redirect if not admin
-  if (!isAdmin(user)) {
-    navigate('/traders')
-    return null
-  }
+  const isUserAdmin = isAdmin(user)
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!isUserAdmin) {
+      navigate('/traders')
+    }
+  }, [isUserAdmin, navigate])
 
   // Fetch all traders
   const {
@@ -55,7 +67,7 @@ export default function StatsPage() {
     mutate: mutateTraders,
     isLoading: tradersLoading,
   } = useSWR<Trader[]>(
-    user ? 'admin-traders' : null,
+    isUserAdmin ? 'admin-traders' : null,
     () => api.getAllTraders(),
     { refreshInterval: 5000 }
   )
@@ -66,9 +78,11 @@ export default function StatsPage() {
     mutate: mutateUsers,
     isLoading: usersLoading,
   } = useSWR<User[]>(
-    user ? 'admin-users' : null,
+    isUserAdmin ? 'admin-users' : null,
     () => api.getAllUsers(),
-    { refreshInterval: 10000 }
+    {
+      refreshInterval: 10000,
+    }
   )
 
   const handleToggleTrader = useCallback(
@@ -134,7 +148,8 @@ export default function StatsPage() {
       }, 500)
     } catch (error) {
       console.error('Failed to update user role:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error'
       toast.error(`Failed to update user role: ${errorMessage}`)
     } finally {
       setUpdatingRoles((prev) => {
@@ -149,7 +164,7 @@ export default function StatsPage() {
   const filteredTraders = useMemo(() => {
     if (!traders) return []
     if (!traderSearchQuery.trim()) return traders
-    
+
     const query = traderSearchQuery.toLowerCase()
     return traders.filter(
       (trader) =>
@@ -172,7 +187,7 @@ export default function StatsPage() {
   const filteredUsers = useMemo(() => {
     if (!users) return []
     if (!userSearchQuery.trim()) return users
-    
+
     const query = userSearchQuery.toLowerCase()
     return users.filter(
       (user) =>
@@ -203,7 +218,10 @@ export default function StatsPage() {
   return (
     <div className="max-w-[1920px] mx-auto px-6 py-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--brand-yellow)' }}>
+        <h1
+          className="text-3xl font-bold mb-2"
+          style={{ color: 'var(--brand-yellow)' }}
+        >
           Admin Statistics
         </h1>
         <p style={{ color: 'var(--text-secondary)' }}>
@@ -216,15 +234,24 @@ export default function StatsPage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Bot className="w-6 h-6" style={{ color: 'var(--brand-yellow)' }} />
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--brand-light-gray)' }}>
+            <h2
+              className="text-2xl font-bold"
+              style={{ color: 'var(--brand-light-gray)' }}
+            >
               All Traders
             </h2>
             {tradersLoading && (
-              <RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--text-secondary)' }} />
+              <RefreshCw
+                className="w-5 h-5 animate-spin"
+                style={{ color: 'var(--text-secondary)' }}
+              />
             )}
           </div>
           <div className="relative flex-1 max-w-md ml-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
+              style={{ color: 'var(--text-secondary)' }}
+            />
             <input
               type="text"
               value={traderSearchQuery}
@@ -248,7 +275,10 @@ export default function StatsPage() {
           }}
         >
           {tradersLoading ? (
-            <div className="p-8 text-center" style={{ color: 'var(--text-secondary)' }}>
+            <div
+              className="p-8 text-center"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               Loading traders...
             </div>
           ) : filteredTraders.length > 0 ? (
@@ -256,26 +286,49 @@ export default function StatsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid var(--panel-border)' }}>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                    <tr
+                      style={{ borderBottom: '1px solid var(--panel-border)' }}
+                    >
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Trader Name
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Owner
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         AI Model
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Exchange
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Status
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Balance
                       </th>
-                      <th className="px-4 py-3 text-center text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-center text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Actions
                       </th>
                     </tr>
@@ -285,82 +338,131 @@ export default function StatsPage() {
                       <tr
                         key={trader.trader_id}
                         style={{
-                          borderBottom: index < paginatedTraders.length - 1 ? '1px solid var(--panel-border)' : 'none',
+                          borderBottom:
+                            index < paginatedTraders.length - 1
+                              ? '1px solid var(--panel-border)'
+                              : 'none',
                         }}
                       >
-                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--brand-light-gray)' }}>
-                        {trader.trader_name}
-                      </td>
-                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        {trader.user_email}
-                      </td>
-                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        {trader.ai_model}
-                      </td>
-                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        {trader.exchange_id}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="px-2 py-1 rounded text-xs font-semibold"
-                          style={{
-                            background: trader.is_running
-                              ? 'rgba(0, 200, 83, 0.2)'
-                              : 'rgba(242, 153, 74, 0.2)',
-                            color: trader.is_running ? '#00C853' : '#F2994A',
-                          }}
+                        <td
+                          className="px-4 py-3 text-sm"
+                          style={{ color: 'var(--brand-light-gray)' }}
                         >
-                          {trader.is_running ? 'Running' : 'Stopped'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--brand-light-gray)' }}>
-                        ${trader.initial_balance.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => handleToggleTrader(trader.trader_id, trader.is_running)}
-                          disabled={togglingTraders.has(trader.trader_id)}
-                          className="px-3 py-1.5 rounded text-sm font-semibold transition-all hover:opacity-80 flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                          style={{
-                            background: trader.is_running
-                              ? 'var(--binance-red-bg)'
-                              : 'rgba(0, 200, 83, 0.2)',
-                            color: trader.is_running ? 'var(--binance-red)' : '#00C853',
-                          }}
+                          {trader.trader_name}
+                        </td>
+                        <td
+                          className="px-4 py-3 text-sm"
+                          style={{ color: 'var(--text-secondary)' }}
                         >
-                          {togglingTraders.has(trader.trader_id) ? (
-                            <span key={`loading-${trader.trader_id}`} className="flex items-center gap-2">
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                              {trader.is_running ? t('stoppingTrader', language) : t('startingTrader', language)}
-                            </span>
-                          ) : trader.is_running ? (
-                            <span key={`stop-${trader.trader_id}`} className="flex items-center gap-2">
-                              <Square className="w-4 h-4" />
-                              Stop
-                            </span>
-                          ) : (
-                            <span key={`start-${trader.trader_id}`} className="flex items-center gap-2">
-                              <Play className="w-4 h-4" />
-                              Start
-                            </span>
-                          )}
-                        </button>
-                      </td>
-                    </tr>
+                          {trader.user_email}
+                        </td>
+                        <td
+                          className="px-4 py-3 text-sm"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {trader.ai_model}
+                        </td>
+                        <td
+                          className="px-4 py-3 text-sm"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {trader.exchange_id}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className="px-2 py-1 rounded text-xs font-semibold"
+                            style={{
+                              background: trader.is_running
+                                ? 'rgba(0, 200, 83, 0.2)'
+                                : 'rgba(242, 153, 74, 0.2)',
+                              color: trader.is_running ? '#00C853' : '#F2994A',
+                            }}
+                          >
+                            {trader.is_running ? 'Running' : 'Stopped'}
+                          </span>
+                        </td>
+                        <td
+                          className="px-4 py-3 text-sm"
+                          style={{ color: 'var(--brand-light-gray)' }}
+                        >
+                          ${trader.initial_balance.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() =>
+                              handleToggleTrader(
+                                trader.trader_id,
+                                trader.is_running
+                              )
+                            }
+                            disabled={togglingTraders.has(trader.trader_id)}
+                            className="px-3 py-1.5 rounded text-sm font-semibold transition-all hover:opacity-80 flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                              background: trader.is_running
+                                ? 'var(--binance-red-bg)'
+                                : 'rgba(0, 200, 83, 0.2)',
+                              color: trader.is_running
+                                ? 'var(--binance-red)'
+                                : '#00C853',
+                            }}
+                          >
+                            {togglingTraders.has(trader.trader_id) ? (
+                              <span
+                                key={`loading-${trader.trader_id}`}
+                                className="flex items-center gap-2"
+                              >
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                {trader.is_running
+                                  ? t('stoppingTrader', language)
+                                  : t('startingTrader', language)}
+                              </span>
+                            ) : trader.is_running ? (
+                              <span
+                                key={`stop-${trader.trader_id}`}
+                                className="flex items-center gap-2"
+                              >
+                                <Square className="w-4 h-4" />
+                                Stop
+                              </span>
+                            ) : (
+                              <span
+                                key={`start-${trader.trader_id}`}
+                                className="flex items-center gap-2"
+                              >
+                                <Play className="w-4 h-4" />
+                                Start
+                              </span>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              
+
               {/* Pagination for Traders */}
               {traderTotalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: 'var(--panel-border)' }}>
-                  <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    Showing {(traderCurrentPage - 1) * tradersPerPage + 1} to {Math.min(traderCurrentPage * tradersPerPage, filteredTraders.length)} of {filteredTraders.length} traders
+                <div
+                  className="flex items-center justify-between px-4 py-3 border-t"
+                  style={{ borderColor: 'var(--panel-border)' }}
+                >
+                  <div
+                    className="text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    Showing {(traderCurrentPage - 1) * tradersPerPage + 1} to{' '}
+                    {Math.min(
+                      traderCurrentPage * tradersPerPage,
+                      filteredTraders.length
+                    )}{' '}
+                    of {filteredTraders.length} traders
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setTraderCurrentPage((prev) => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setTraderCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
                       disabled={traderCurrentPage === 1}
                       className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       style={{
@@ -373,37 +475,58 @@ export default function StatsPage() {
                       Previous
                     </button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, traderTotalPages) }, (_, i) => {
-                        let pageNum: number
-                        if (traderTotalPages <= 5) {
-                          pageNum = i + 1
-                        } else if (traderCurrentPage <= 3) {
-                          pageNum = i + 1
-                        } else if (traderCurrentPage >= traderTotalPages - 2) {
-                          pageNum = traderTotalPages - 4 + i
-                        } else {
-                          pageNum = traderCurrentPage - 2 + i
+                      {Array.from(
+                        { length: Math.min(5, traderTotalPages) },
+                        (_, i) => {
+                          let pageNum: number
+                          if (traderTotalPages <= 5) {
+                            pageNum = i + 1
+                          } else if (traderCurrentPage <= 3) {
+                            pageNum = i + 1
+                          } else if (
+                            traderCurrentPage >=
+                            traderTotalPages - 2
+                          ) {
+                            pageNum = traderTotalPages - 4 + i
+                          } else {
+                            pageNum = traderCurrentPage - 2 + i
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setTraderCurrentPage(pageNum)}
+                              className={`px-3 py-1.5 rounded text-sm font-semibold transition-all ${
+                                traderCurrentPage === pageNum
+                                  ? 'border-2'
+                                  : 'border'
+                              }`}
+                              style={{
+                                background:
+                                  traderCurrentPage === pageNum
+                                    ? 'var(--brand-yellow)'
+                                    : 'var(--navy-dark)',
+                                borderColor:
+                                  traderCurrentPage === pageNum
+                                    ? 'var(--brand-yellow)'
+                                    : 'var(--panel-border)',
+                                color:
+                                  traderCurrentPage === pageNum
+                                    ? 'var(--navy-primary)'
+                                    : 'var(--text-primary)',
+                              }}
+                            >
+                              {pageNum}
+                            </button>
+                          )
                         }
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setTraderCurrentPage(pageNum)}
-                            className={`px-3 py-1.5 rounded text-sm font-semibold transition-all ${
-                              traderCurrentPage === pageNum ? 'border-2' : 'border'
-                            }`}
-                            style={{
-                              background: traderCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--navy-dark)',
-                              borderColor: traderCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-border)',
-                              color: traderCurrentPage === pageNum ? 'var(--navy-primary)' : 'var(--text-primary)',
-                            }}
-                          >
-                            {pageNum}
-                          </button>
-                        )
-                      })}
+                      )}
                     </div>
                     <button
-                      onClick={() => setTraderCurrentPage((prev) => Math.min(traderTotalPages, prev + 1))}
+                      onClick={() =>
+                        setTraderCurrentPage((prev) =>
+                          Math.min(traderTotalPages, prev + 1)
+                        )
+                      }
                       disabled={traderCurrentPage === traderTotalPages}
                       className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       style={{
@@ -420,8 +543,13 @@ export default function StatsPage() {
               )}
             </>
           ) : (
-            <div className="p-8 text-center" style={{ color: 'var(--text-secondary)' }}>
-              {traderSearchQuery ? 'No traders found matching your search' : 'No traders found'}
+            <div
+              className="p-8 text-center"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {traderSearchQuery
+                ? 'No traders found matching your search'
+                : 'No traders found'}
             </div>
           )}
         </div>
@@ -431,16 +559,28 @@ export default function StatsPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Users className="w-6 h-6" style={{ color: 'var(--brand-yellow)' }} />
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--brand-light-gray)' }}>
+            <Users
+              className="w-6 h-6"
+              style={{ color: 'var(--brand-yellow)' }}
+            />
+            <h2
+              className="text-2xl font-bold"
+              style={{ color: 'var(--brand-light-gray)' }}
+            >
               All Users
             </h2>
             {usersLoading && (
-              <RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--text-secondary)' }} />
+              <RefreshCw
+                className="w-5 h-5 animate-spin"
+                style={{ color: 'var(--text-secondary)' }}
+              />
             )}
           </div>
           <div className="relative flex-1 max-w-md ml-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
+              style={{ color: 'var(--text-secondary)' }}
+            />
             <input
               type="text"
               value={userSearchQuery}
@@ -464,7 +604,10 @@ export default function StatsPage() {
           }}
         >
           {usersLoading ? (
-            <div className="p-8 text-center" style={{ color: 'var(--text-secondary)' }}>
+            <div
+              className="p-8 text-center"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               Loading users...
             </div>
           ) : filteredUsers.length > 0 ? (
@@ -472,20 +615,37 @@ export default function StatsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid var(--panel-border)' }}>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                    <tr
+                      style={{ borderBottom: '1px solid var(--panel-border)' }}
+                    >
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Email
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         User ID
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Role
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Created
                       </th>
-                      <th className="px-4 py-3 text-center text-sm font-semibold" style={{ color: 'var(--brand-light-gray)' }}>
+                      <th
+                        className="px-4 py-3 text-center text-sm font-semibold"
+                        style={{ color: 'var(--brand-light-gray)' }}
+                      >
                         Actions
                       </th>
                     </tr>
@@ -495,83 +655,112 @@ export default function StatsPage() {
                       <tr
                         key={userItem.id}
                         style={{
-                          borderBottom: index < paginatedUsers.length - 1 ? '1px solid var(--panel-border)' : 'none',
+                          borderBottom:
+                            index < paginatedUsers.length - 1
+                              ? '1px solid var(--panel-border)'
+                              : 'none',
                         }}
                       >
-                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--brand-light-gray)' }}>
-                        {userItem.email}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {userItem.id}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="px-2 py-1 rounded text-xs font-semibold"
-                          style={{
-                            background:
-                              userItem.role === 'admin'
-                                ? 'rgba(0, 255, 127, 0.2)'
-                                : userItem.role === 'follower'
-                                  ? 'rgba(74, 144, 226, 0.2)'
-                                  : 'rgba(255, 255, 255, 0.1)',
-                            color:
-                              userItem.role === 'admin'
-                                ? 'var(--brand-yellow)'
-                                : userItem.role === 'follower'
-                                  ? '#4A90E2'
-                                  : 'var(--brand-light-gray)',
-                          }}
+                        <td
+                          className="px-4 py-3 text-sm"
+                          style={{ color: 'var(--brand-light-gray)' }}
                         >
-                          {userItem.role || 'user'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        {(() => {
-                          try {
-                            const date = new Date(userItem.created_at)
-                            if (isNaN(date.getTime())) {
+                          {userItem.email}
+                        </td>
+                        <td
+                          className="px-4 py-3 text-sm font-mono text-xs"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {userItem.id}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className="px-2 py-1 rounded text-xs font-semibold"
+                            style={{
+                              background:
+                                userItem.role === 'admin'
+                                  ? 'rgba(0, 255, 127, 0.2)'
+                                  : userItem.role === 'follower'
+                                    ? 'rgba(74, 144, 226, 0.2)'
+                                    : 'rgba(255, 255, 255, 0.1)',
+                              color:
+                                userItem.role === 'admin'
+                                  ? 'var(--brand-yellow)'
+                                  : userItem.role === 'follower'
+                                    ? '#4A90E2'
+                                    : 'var(--brand-light-gray)',
+                            }}
+                          >
+                            {userItem.role || 'user'}
+                          </span>
+                        </td>
+                        <td
+                          className="px-4 py-3 text-sm"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {(() => {
+                            try {
+                              const date = new Date(userItem.created_at)
+                              if (isNaN(date.getTime())) {
+                                return 'Invalid date'
+                              }
+                              return date.toLocaleDateString()
+                            } catch (error) {
                               return 'Invalid date'
                             }
-                            return date.toLocaleDateString()
-                          } catch (error) {
-                            return 'Invalid date'
-                          }
-                        })()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={userItem.role || 'user'}
-                          onChange={(e) => handleRoleChange(userItem.id, e.target.value)}
-                          disabled={updatingRoles.has(userItem.id)}
-                          className="px-3 py-1.5 rounded text-sm font-semibold transition-all"
-                          style={{
-                            background: 'var(--navy-dark)',
-                            border: '1px solid var(--panel-border)',
-                            color: 'var(--brand-light-gray)',
-                            cursor: updatingRoles.has(userItem.id) ? 'not-allowed' : 'pointer',
-                            opacity: updatingRoles.has(userItem.id) ? 0.6 : 1,
-                          }}
-                        >
-                          <option value="user">User</option>
-                          <option value="follower">Follower</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </td>
-                    </tr>
+                          })()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={userItem.role || 'user'}
+                            onChange={(e) =>
+                              handleRoleChange(userItem.id, e.target.value)
+                            }
+                            disabled={updatingRoles.has(userItem.id)}
+                            className="px-3 py-1.5 rounded text-sm font-semibold transition-all"
+                            style={{
+                              background: 'var(--navy-dark)',
+                              border: '1px solid var(--panel-border)',
+                              color: 'var(--brand-light-gray)',
+                              cursor: updatingRoles.has(userItem.id)
+                                ? 'not-allowed'
+                                : 'pointer',
+                              opacity: updatingRoles.has(userItem.id) ? 0.6 : 1,
+                            }}
+                          >
+                            <option value="user">User</option>
+                            <option value="follower">Follower</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              
+
               {/* Pagination for Users */}
               {userTotalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: 'var(--panel-border)' }}>
-                  <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    Showing {(userCurrentPage - 1) * usersPerPage + 1} to {Math.min(userCurrentPage * usersPerPage, filteredUsers.length)} of {filteredUsers.length} users
+                <div
+                  className="flex items-center justify-between px-4 py-3 border-t"
+                  style={{ borderColor: 'var(--panel-border)' }}
+                >
+                  <div
+                    className="text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    Showing {(userCurrentPage - 1) * usersPerPage + 1} to{' '}
+                    {Math.min(
+                      userCurrentPage * usersPerPage,
+                      filteredUsers.length
+                    )}{' '}
+                    of {filteredUsers.length} users
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setUserCurrentPage((prev) => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setUserCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
                       disabled={userCurrentPage === 1}
                       className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       style={{
@@ -584,37 +773,55 @@ export default function StatsPage() {
                       Previous
                     </button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, userTotalPages) }, (_, i) => {
-                        let pageNum: number
-                        if (userTotalPages <= 5) {
-                          pageNum = i + 1
-                        } else if (userCurrentPage <= 3) {
-                          pageNum = i + 1
-                        } else if (userCurrentPage >= userTotalPages - 2) {
-                          pageNum = userTotalPages - 4 + i
-                        } else {
-                          pageNum = userCurrentPage - 2 + i
+                      {Array.from(
+                        { length: Math.min(5, userTotalPages) },
+                        (_, i) => {
+                          let pageNum: number
+                          if (userTotalPages <= 5) {
+                            pageNum = i + 1
+                          } else if (userCurrentPage <= 3) {
+                            pageNum = i + 1
+                          } else if (userCurrentPage >= userTotalPages - 2) {
+                            pageNum = userTotalPages - 4 + i
+                          } else {
+                            pageNum = userCurrentPage - 2 + i
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setUserCurrentPage(pageNum)}
+                              className={`px-3 py-1.5 rounded text-sm font-semibold transition-all ${
+                                userCurrentPage === pageNum
+                                  ? 'border-2'
+                                  : 'border'
+                              }`}
+                              style={{
+                                background:
+                                  userCurrentPage === pageNum
+                                    ? 'var(--brand-yellow)'
+                                    : 'var(--navy-dark)',
+                                borderColor:
+                                  userCurrentPage === pageNum
+                                    ? 'var(--brand-yellow)'
+                                    : 'var(--panel-border)',
+                                color:
+                                  userCurrentPage === pageNum
+                                    ? 'var(--navy-primary)'
+                                    : 'var(--text-primary)',
+                              }}
+                            >
+                              {pageNum}
+                            </button>
+                          )
                         }
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setUserCurrentPage(pageNum)}
-                            className={`px-3 py-1.5 rounded text-sm font-semibold transition-all ${
-                              userCurrentPage === pageNum ? 'border-2' : 'border'
-                            }`}
-                            style={{
-                              background: userCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--navy-dark)',
-                              borderColor: userCurrentPage === pageNum ? 'var(--brand-yellow)' : 'var(--panel-border)',
-                              color: userCurrentPage === pageNum ? 'var(--navy-primary)' : 'var(--text-primary)',
-                            }}
-                          >
-                            {pageNum}
-                          </button>
-                        )
-                      })}
+                      )}
                     </div>
                     <button
-                      onClick={() => setUserCurrentPage((prev) => Math.min(userTotalPages, prev + 1))}
+                      onClick={() =>
+                        setUserCurrentPage((prev) =>
+                          Math.min(userTotalPages, prev + 1)
+                        )
+                      }
                       disabled={userCurrentPage === userTotalPages}
                       className="px-3 py-1.5 rounded border text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       style={{
@@ -631,8 +838,13 @@ export default function StatsPage() {
               )}
             </>
           ) : (
-            <div className="p-8 text-center" style={{ color: 'var(--text-secondary)' }}>
-              {userSearchQuery ? 'No users found matching your search' : 'No users found'}
+            <div
+              className="p-8 text-center"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {userSearchQuery
+                ? 'No users found matching your search'
+                : 'No users found'}
             </div>
           )}
         </div>
@@ -640,4 +852,3 @@ export default function StatsPage() {
     </div>
   )
 }
-
