@@ -456,11 +456,19 @@ func main() {
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println()
 
-	// Get API server port (priority: environment variable > database configuration > default value)
+	// Get API server port (priority: PORT (Render/PaaS) > NOFX_BACKEND_PORT > database config > default)
 	apiPort := 8080 // Default port
 
-	// 1. Prioritize reading from environment variable NOFX_BACKEND_PORT
-	if envPort := strings.TrimSpace(os.Getenv("NOFX_BACKEND_PORT")); envPort != "" {
+	// 1. Highest priority: PORT env var (set by Render.com and other PaaS platforms)
+	if envPort := strings.TrimSpace(os.Getenv("PORT")); envPort != "" {
+		if port, err := strconv.Atoi(envPort); err == nil && port > 0 {
+			apiPort = port
+			log.Printf("🔌 Using PORT environment variable: %d (PaaS/Render)", apiPort)
+		} else {
+			log.Printf("⚠️  PORT environment variable is invalid: %s", envPort)
+		}
+	} else if envPort := strings.TrimSpace(os.Getenv("NOFX_BACKEND_PORT")); envPort != "" {
+		// 2. NOFX_BACKEND_PORT (Docker Compose / manual deployment)
 		if port, err := strconv.Atoi(envPort); err == nil && port > 0 {
 			apiPort = port
 			log.Printf("🔌 Using environment variable port: %d (NOFX_BACKEND_PORT)", apiPort)
@@ -468,7 +476,7 @@ func main() {
 			log.Printf("⚠️  Environment variable NOFX_BACKEND_PORT is invalid: %s", envPort)
 		}
 	} else if apiPortStr != "" {
-		// 2. Read from database configuration (synced from config.json)
+		// 3. Read from database configuration (synced from config.json)
 		if port, err := strconv.Atoi(apiPortStr); err == nil && port > 0 {
 			apiPort = port
 			log.Printf("🔌 Using database configuration port: %d (api_server_port)", apiPort)
