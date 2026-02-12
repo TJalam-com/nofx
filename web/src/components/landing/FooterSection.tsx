@@ -1,10 +1,5 @@
 import Footer from '../Footer'
-import { Language } from '../../i18n/translations'
 
-interface FooterSectionProps {
-  language: Language
-}
-
-export default function FooterSection({ language }: FooterSectionProps) {
-  return <Footer variant="full" language={language} />
+export default function FooterSection() {
+  return <Footer variant="full" />
 }
