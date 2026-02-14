@@ -520,6 +520,31 @@ func sanitizeNumericValue(v interface{}) (float64, bool) {
 	}
 }
 
+// keysOf returns the map keys for logging (avoids iterating for log messages).
+func keysOf(m map[string]interface{}) []string {
+	if len(m) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// mapDirectionToAction maps direction/side strings to "buy" or "sell".
+func mapDirectionToAction(direction string) string {
+	d := strings.ToLower(strings.TrimSpace(direction))
+	switch d {
+	case "buy", "long", "l", "bid":
+		return "buy"
+	case "sell", "short", "s", "ask":
+		return "sell"
+	default:
+		return ""
+	}
+}
+
 // normalizeSymbol normalizes symbol format (handles perpetuals, removes suffixes, etc.)
 func normalizeSymbol(symbol string) string {
 	if symbol == "" {
@@ -675,28 +700,53 @@ func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 	// Extract and normalize trader_ids (support both trader_id string and trader_ids array)
 	traderIDs, err := s.extractTraderIDs(payload, user.ID)
 	if err != nil {
+		log.Printf("⚠️ Webhook 400: extractTraderIDs failed: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	log.Printf("📋 Webhook received: %d trader(s) to process: %v", len(traderIDs), traderIDs)
 
-	// Validate required fields
-	symbol, ok := payload["symbol"].(string)
-	if !ok || symbol == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid symbol field"})
-		return
+	// Symbol: accept "symbol" or TradingView-style "ticker"
+	symbol, _ := payload["symbol"].(string)
+	if symbol == "" {
+		if ticker, ok := payload["ticker"].(string); ok && ticker != "" {
+			symbol = ticker
+			payload["symbol"] = symbol
+		}
 	}
-
-	// Normalize symbol (in case it wasn't normalized during sanitization)
 	symbol = normalizeSymbol(symbol)
 	payload["symbol"] = symbol
-
-	action, ok := payload["action"].(string)
-	if !ok || (action != "buy" && action != "sell") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid action field (must be buy or sell)"})
+	if symbol == "" {
+		log.Printf("⚠️ Webhook 400: Missing or invalid symbol/ticker field (payload keys: %v)", keysOf(payload))
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Missing or invalid symbol field",
+			"hint":  "Include 'symbol' or 'ticker' in your JSON (e.g. \"symbol\": \"BTCUSDT\" or \"ticker\": \"{{ticker}}\"). For TradingView use {\"ticker\": \"{{ticker}}\", \"action\": \"buy\", \"apikey\": \"your_key\"}",
+		})
 		return
 	}
+
+	// Action: accept "action", or "direction"/"side" (map long->buy, short->sell)
+	action, _ := payload["action"].(string)
+	if action != "buy" && action != "sell" {
+		if dir, ok := payload["direction"].(string); ok {
+			action = mapDirectionToAction(dir)
+		}
+		if action != "buy" && action != "sell" {
+			if side, ok := payload["side"].(string); ok {
+				action = mapDirectionToAction(side)
+			}
+		}
+	}
+	if action != "buy" && action != "sell" {
+		log.Printf("⚠️ Webhook 400: Missing or invalid action field (got %q; payload keys: %v)", payload["action"], keysOf(payload))
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Missing or invalid action field (must be buy or sell)",
+			"hint":  "Include 'action' in your JSON: \"action\": \"buy\" or \"action\": \"sell\". TradingView strategy: \"action\": \"{{strategy.order.action}}\"",
+		})
+		return
+	}
+	payload["action"] = strings.ToLower(action)
 
 	// Process traders in parallel
 	var wg sync.WaitGroup
