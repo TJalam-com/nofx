@@ -670,7 +670,7 @@ func (tm *TraderManager) GetComparisonData() (map[string]interface{}, error) {
 func (tm *TraderManager) GetCompetitionData(database *config.Database) (map[string]interface{}, error) {
 	// Check if cache is valid (within 10 seconds, ensure running status is updated timely)
 	tm.competitionCache.mu.RLock()
-	if time.Since(tm.competitionCache.timestamp) < 10*time.Second && len(tm.competitionCache.data) > 0 {
+	if time.Since(tm.competitionCache.timestamp) < 30*time.Second && len(tm.competitionCache.data) > 0 {
 		// Return cached data
 		cachedData := make(map[string]interface{})
 		for k, v := range tm.competitionCache.data {

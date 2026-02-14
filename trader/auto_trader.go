@@ -2963,15 +2963,15 @@ func (at *AutoTrader) startDrawdownMonitor() {
 
 // Check position drawdown situation
 func (at *AutoTrader) checkPositionDrawdown() {
-	// Detect and log position closures (SL/TP)
-	at.detectAndLogPositionClosures()
-
-	// Get current positions
+	// Get current positions once and share between closure detection and drawdown logic
 	positions, err := at.trader.GetPositions()
 	if err != nil {
 		log.Printf("❌ Drawdown monitoring: failed to get positions: %v", err)
 		return
 	}
+
+	// Detect and log position closures (SL/TP) using same position data
+	at.detectAndLogPositionClosuresFromData(positions)
 
 	for _, pos := range positions {
 		// Safe type assertions to prevent nil interface conversion panic
@@ -3211,15 +3211,19 @@ func (at *AutoTrader) isPositionAlreadyClosedInDB(db *cfg.Database, position *cf
 	return false
 }
 
-// detectAndLogPositionClosures detects positions that were closed by SL/TP and logs them as auto-close actions
+// detectAndLogPositionClosures detects positions that were closed by SL/TP and logs them as auto-close actions.
+// It fetches current positions and delegates to detectAndLogPositionClosuresFromData.
 func (at *AutoTrader) detectAndLogPositionClosures() {
-// Get current positions
 	currentPositions, err := at.trader.GetPositions()
 	if err != nil {
 		log.Printf("⚠️ Position closure detection: failed to get positions: %v", err)
-return
+		return
 	}
+	at.detectAndLogPositionClosuresFromData(currentPositions)
+}
 
+// detectAndLogPositionClosuresFromData runs closure detection using the provided position data (avoids duplicate GetPositions calls).
+func (at *AutoTrader) detectAndLogPositionClosuresFromData(currentPositions []map[string]interface{}) {
 	// Build current position keys map (symbol_side -> true)
 	currentPositionKeys := make(map[string]bool)
 	currentPositionsMap := make(map[string]map[string]interface{})

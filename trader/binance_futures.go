@@ -57,8 +57,12 @@ type FuturesTrader struct {
 	positionsCacheTime  time.Time
 	positionsCacheMutex sync.RWMutex
 
-	// Cache validity duration (15 seconds)
+	// Cache validity duration
 	cacheDuration time.Duration
+
+	// Rate limit ban tracking (Binance -1003: IP banned until timestamp ms)
+	bannedUntil time.Time
+	bannedMutex sync.RWMutex
 }
 
 // NewFuturesTrader Create futures trader
@@ -74,7 +78,7 @@ func NewFuturesTrader(apiKey, secretKey string, userId string) *FuturesTrader {
 	syncBinanceServerTime(client)
 	trader := &FuturesTrader{
 		client:        client,
-		cacheDuration: 15 * time.Second, // 15秒缓存
+		cacheDuration: 60 * time.Second, // 60s cache to reduce Binance API load and avoid rate limit bans
 	}
 
 	// Set dual-side position mode (Hedge Mode)
@@ -122,6 +126,54 @@ func syncBinanceServerTime(client *futures.Client) {
 	log.Printf("⏱ Binance server time synced, offset %dms", offset)
 }
 
+// isBanned returns true if the client is currently within a Binance rate-limit ban window.
+func (t *FuturesTrader) isBanned() bool {
+	t.bannedMutex.RLock()
+	defer t.bannedMutex.RUnlock()
+	return time.Now().Before(t.bannedUntil)
+}
+
+// parseBanExpiry extracts "banned until <ms>" from Binance -1003 error and sets bannedUntil.
+// Error format: "Way too many requests; IP(...) banned until 1771078198525. Please use the websocket..."
+func (t *FuturesTrader) parseBanExpiry(err error) {
+	if err == nil {
+		return
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "-1003") && !strings.Contains(msg, "banned until") {
+		return
+	}
+	prefix := "banned until "
+	if i := strings.Index(msg, prefix); i >= 0 {
+		rest := msg[i+len(prefix):]
+		var ms int64
+		for j := 0; j < len(rest); j++ {
+			if rest[j] >= '0' && rest[j] <= '9' {
+				ms = ms*10 + int64(rest[j]-'0')
+			} else {
+				break
+			}
+		}
+		if ms > 0 {
+			until := time.UnixMilli(ms)
+			t.bannedMutex.Lock()
+			if until.After(t.bannedUntil) {
+				t.bannedUntil = until
+				log.Printf("⚠️ Binance rate limit ban recorded until %s", until.UTC().Format(time.RFC3339))
+			}
+			t.bannedMutex.Unlock()
+		}
+	}
+}
+
+// InvalidatePositionCache clears the position cache so the next GetPositions() call fetches fresh data.
+// Call after opening or closing positions so monitoring sees updated state.
+func (t *FuturesTrader) InvalidatePositionCache() {
+	t.positionsCacheMutex.Lock()
+	t.positionsCacheTime = time.Time{}
+	t.positionsCacheMutex.Unlock()
+}
+
 // GetBalance gets account balance (with cache)
 func (t *FuturesTrader) GetBalance() (map[string]interface{}, error) {
 	// First check if cache is valid
@@ -132,12 +184,26 @@ func (t *FuturesTrader) GetBalance() (map[string]interface{}, error) {
 		log.Printf("✓ Using cached account balance (cached %.1f seconds ago)", cacheAge.Seconds())
 		return t.cachedBalance, nil
 	}
+	hasStaleBalance := t.cachedBalance != nil
+	staleBalance := t.cachedBalance
 	t.balanceCacheMutex.RUnlock()
+
+	// If we are rate-limited by Binance, avoid new API calls: return stale cache or fail
+	if t.isBanned() {
+		if hasStaleBalance && staleBalance != nil {
+			log.Printf("✓ Using stale account balance (Binance rate limit ban active)")
+			return staleBalance, nil
+		}
+		return nil, fmt.Errorf("Binance rate limit ban active and no cached balance")
+	}
 
 	// Cache expired or doesn't exist, call API
 	log.Printf("🔄 Cache expired, calling Binance API to get account balance...")
-	account, err := t.client.NewGetAccountService().Do(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	account, err := t.client.NewGetAccountService().Do(ctx)
 	if err != nil {
+		t.parseBanExpiry(err)
 		log.Printf("❌ Binance API call failed: %v", err)
 		return nil, fmt.Errorf("failed to get account info: %w", err)
 	}
@@ -171,12 +237,26 @@ func (t *FuturesTrader) GetPositions() ([]map[string]interface{}, error) {
 		log.Printf("✓ Using cached position info (cache age: %.1fs)", cacheAge.Seconds())
 		return t.cachedPositions, nil
 	}
+	hasStalePositions := t.cachedPositions != nil
+	stalePositions := t.cachedPositions
 	t.positionsCacheMutex.RUnlock()
+
+	// If we are rate-limited by Binance, avoid new API calls: return stale cache or fail
+	if t.isBanned() {
+		if hasStalePositions && stalePositions != nil {
+			log.Printf("✓ Using stale position info (Binance rate limit ban active)")
+			return stalePositions, nil
+		}
+		return nil, fmt.Errorf("Binance rate limit ban active and no cached positions")
+	}
 
 	// Cache expired or missing, call API
 	log.Printf("🔄 Cache expired, calling Binance API to get position info...")
-	positions, err := t.client.NewGetPositionRiskService().Do(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	positions, err := t.client.NewGetPositionRiskService().Do(ctx)
 	if err != nil {
+		t.parseBanExpiry(err)
 		return nil, fmt.Errorf("failed to get positions: %w", err)
 	}
 
@@ -399,6 +479,7 @@ func (t *FuturesTrader) OpenLong(symbol string, quantity float64, leverage int) 
 	log.Printf("✓ Long position opened successfully: %s quantity: %s", symbol, quantityStr)
 	log.Printf("  Order ID: %d", order.OrderID)
 
+	t.InvalidatePositionCache()
 	result := make(map[string]interface{})
 	result["orderId"] = order.OrderID
 	result["symbol"] = order.Symbol
@@ -454,6 +535,7 @@ func (t *FuturesTrader) OpenShort(symbol string, quantity float64, leverage int)
 	log.Printf("✓ Short position opened successfully: %s quantity: %s", symbol, quantityStr)
 	log.Printf("  Order ID: %d", order.OrderID)
 
+	t.InvalidatePositionCache()
 	result := make(map[string]interface{})
 	result["orderId"] = order.OrderID
 	result["symbol"] = order.Symbol
@@ -504,6 +586,7 @@ func (t *FuturesTrader) CloseLong(symbol string, quantity float64) (map[string]i
 
 	log.Printf("✓ Long position closed successfully: %s quantity: %s", symbol, quantityStr)
 
+	t.InvalidatePositionCache()
 	// Cancel all pending orders for this symbol after closing (stop loss/take profit orders)
 	if err := t.CancelAllOrders(symbol); err != nil {
 		log.Printf("  ⚠ Failed to cancel orders: %v", err)
@@ -559,6 +642,7 @@ func (t *FuturesTrader) CloseShort(symbol string, quantity float64) (map[string]
 
 	log.Printf("✓ Short position closed successfully: %s quantity: %s", symbol, quantityStr)
 
+	t.InvalidatePositionCache()
 	// Cancel all pending orders for this symbol after closing (stop loss/take profit orders)
 	if err := t.CancelAllOrders(symbol); err != nil {
 		log.Printf("  ⚠ Failed to cancel orders: %v", err)
