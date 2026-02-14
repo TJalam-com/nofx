@@ -485,10 +485,12 @@ func (s *Server) getTraderFromQuery(c *gin.Context) (*manager.TraderManager, str
 	userID := c.GetString("user_id")
 	traderID := c.Query("trader_id")
 
-	// Ensure user's traders are loaded into memory
-	err := s.traderManager.LoadUserTraders(s.database, userID)
-	if err != nil {
-		log.Printf("⚠️ Failed to load traders for user %s: %v", userID, err)
+	// Ensure user's traders are loaded into memory (skip when no auth, e.g. public equity-history)
+	if userID != "" {
+		err := s.traderManager.LoadUserTraders(s.database, userID)
+		if err != nil {
+			log.Printf("⚠️ Failed to load traders for user %s: %v", userID, err)
+		}
 	}
 
 	if traderID == "" {
