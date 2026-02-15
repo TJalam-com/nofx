@@ -295,6 +295,7 @@ type Decision struct {
 	PositionSizeUSD float64 `json:"position_size_usd,omitempty"`
 	StopLoss        float64 `json:"stop_loss,omitempty"`
 	TakeProfit      float64 `json:"take_profit,omitempty"`
+	EntryPrice      float64 `json:"entry_price,omitempty"` // Optional; used for RR calculation when set (e.g. from webhook)
 
 	// Adjustment parameters (new)
 	NewStopLoss     float64 `json:"new_stop_loss,omitempty"`    // For update_stop_loss
@@ -380,6 +381,7 @@ func GetFullDecisionWithCustomPrompt(ctx *Context, mcpClient mcp.AIClient, custo
 		ctx.AltcoinLeverage,
 		config,
 		ctx.Account.PositionCount,
+		ctx.Account.MarginUsedPct,
 		ctx.Positions,
 	)
 
@@ -907,7 +909,7 @@ func buildUserPrompt(ctx *Context) string {
 }
 
 // parseFullDecisionResponse Parses AI's complete decision response
-func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig, positionCount int, positions []PositionInfo) (*FullDecision, error) {
+func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig, positionCount int, marginUsedPct float64, positions []PositionInfo) (*FullDecision, error) {
 	// 1. Extract reasoning chain
 	cotTrace := extractCoTTrace(aiResponse)
 
@@ -921,7 +923,7 @@ func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthL
 	}
 
 	// 3. Validate decisions
-	if err := validateDecisions(decisions, accountEquity, btcEthLeverage, altcoinLeverage, config, positionCount, positions); err != nil {
+	if err := validateDecisions(decisions, accountEquity, btcEthLeverage, altcoinLeverage, config, positionCount, marginUsedPct, positions); err != nil {
 		return &FullDecision{
 			CoTTrace:  cotTrace,
 			Decisions: decisions,
@@ -944,6 +946,7 @@ func ParseFullDecisionResponse(ctx *Context, aiResponse string, config StrategyC
 		ctx.AltcoinLeverage,
 		config,
 		ctx.Account.PositionCount,
+		ctx.Account.MarginUsedPct,
 		ctx.Positions,
 	)
 }
@@ -1405,7 +1408,7 @@ func compactArrayOpen(s string) string {
 }
 
 // validateDecisions Validates all decisions (requires account information, leverage configuration, and position context)
-func validateDecisions(decisions []Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig, positionCount int, positions []PositionInfo) error {
+func validateDecisions(decisions []Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, config StrategyConfig, positionCount int, marginUsedPct float64, positions []PositionInfo) error {
 	// Enforce maximum position count at batch level (strategy-studio is single source of truth)
 	newOpens := 0
 	for _, d := range decisions {
@@ -1420,6 +1423,10 @@ func validateDecisions(decisions []Decision, accountEquity float64, btcEthLevera
 	if newOpens > 0 && config.MaxPositions > 0 && positionCount+newOpens > config.MaxPositions {
 		return fmt.Errorf("opening too many positions: existing=%d, new=%d, max allowed=%d (strategy-studio limit)",
 			positionCount, newOpens, config.MaxPositions)
+	}
+	// Enforce margin usage limit (strategy-studio single source of truth)
+	if config.MarginUsageLimit > 0 && marginUsedPct >= config.MarginUsageLimit {
+		return fmt.Errorf("margin usage %.1f%% >= limit %.1f%% (strategy-studio MarginUsageLimit)", marginUsedPct, config.MarginUsageLimit)
 	}
 
 	for i, decision := range decisions {

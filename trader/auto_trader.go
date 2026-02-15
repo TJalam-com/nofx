@@ -1055,8 +1055,123 @@ func (at *AutoTrader) ExecuteDecisionWithRecord(decision *decision.Decision, act
 	return at.executeDecisionWithRecord(decision, actionRecord)
 }
 
+// enforceStrategyGuardrails applies strategy-studio limits as a universal gate before any open_long/open_short execution.
+// Called from executeDecisionWithRecord so every path (AI, direct webhook, periodic scan) is gated.
+func (at *AutoTrader) enforceStrategyGuardrails(d *decision.Decision) error {
+	if d.Action != "open_long" && d.Action != "open_short" {
+		return nil
+	}
+
+	config := at.getStrategyConfig()
+
+	// 1. Max positions check
+	positions, err := at.trader.GetPositions()
+	if err != nil {
+		return fmt.Errorf("failed to get positions for guardrail: %w", err)
+	}
+	if config.MaxPositions > 0 && len(positions) >= config.MaxPositions {
+		return fmt.Errorf("max positions reached: %d/%d (strategy-studio)", len(positions), config.MaxPositions)
+	}
+
+	// 2. Margin usage limit check
+	balance, err := at.trader.GetBalance()
+	if err != nil {
+		return fmt.Errorf("failed to get balance for guardrail: %w", err)
+	}
+	totalWalletBalance := 0.0
+	if wallet, ok := balance["totalWalletBalance"].(float64); ok {
+		totalWalletBalance = wallet
+	} else if equity, ok := balance["total_equity"].(float64); ok {
+		totalWalletBalance = equity
+	}
+	totalUnrealizedProfit := 0.0
+	if unrealized, ok := balance["totalUnrealizedProfit"].(float64); ok {
+		totalUnrealizedProfit = unrealized
+	} else if unrealized, ok := balance["unrealized_pnl"].(float64); ok {
+		totalUnrealizedProfit = unrealized
+	}
+	totalEquity := totalWalletBalance + totalUnrealizedProfit
+	marginUsedPct := 0.0
+	if marginUsed, ok := balance["margin_used"].(float64); ok && totalEquity > 0 {
+		marginUsedPct = (marginUsed / totalEquity) * 100
+	}
+	if config.MarginUsageLimit > 0 && marginUsedPct >= config.MarginUsageLimit {
+		return fmt.Errorf("margin usage %.1f%% >= limit %.1f%% (strategy-studio)", marginUsedPct, config.MarginUsageLimit)
+	}
+
+	// 3. Min opening amount check
+	minPositionSizeGeneral := config.MinOpeningAmount
+	minPositionSizeBTCETH := config.MinOpeningAmountBTCETH
+	if d.Symbol == "BTCUSDT" || d.Symbol == "ETHUSDT" {
+		if d.PositionSizeUSD < minPositionSizeBTCETH {
+			return fmt.Errorf("%s opening amount too small (%.2f USDT), must be >= %.2f USDT (strategy-studio)", d.Symbol, d.PositionSizeUSD, minPositionSizeBTCETH)
+		}
+	} else {
+		if d.PositionSizeUSD < minPositionSizeGeneral {
+			return fmt.Errorf("opening amount too small (%.2f USDT), must be >= %.2f USDT (strategy-studio)", d.PositionSizeUSD, minPositionSizeGeneral)
+		}
+	}
+
+	// 4. Position size cap (vs account equity * config multiplier)
+	maxLeverage := at.config.AltcoinLeverage
+	maxPositionValue := totalEquity * config.AltcoinPositionMax
+	if d.Symbol == "BTCUSDT" || d.Symbol == "ETHUSDT" {
+		maxLeverage = at.config.BTCETHLeverage
+		maxPositionValue = totalEquity * config.BTCETHPositionMax
+	}
+	tolerance := maxPositionValue * 0.01
+	if d.PositionSizeUSD > maxPositionValue+tolerance {
+		return fmt.Errorf("position size %.2f USDT exceeds strategy limit (max %.0f USDT)", d.PositionSizeUSD, maxPositionValue)
+	}
+
+	// 5. Min risk-reward ratio (use EntryPrice if set, else estimate)
+	var entryPrice float64
+	if d.EntryPrice > 0 {
+		entryPrice = d.EntryPrice
+	} else {
+		if d.Action == "open_long" {
+			entryPrice = d.StopLoss + (d.TakeProfit-d.StopLoss)*0.2
+		} else {
+			entryPrice = d.StopLoss - (d.StopLoss-d.TakeProfit)*0.2
+		}
+	}
+	var riskRewardRatio float64
+	if d.Action == "open_long" {
+		riskPercent := (entryPrice - d.StopLoss) / entryPrice * 100
+		rewardPercent := (d.TakeProfit - entryPrice) / entryPrice * 100
+		if riskPercent > 0 {
+			riskRewardRatio = rewardPercent / riskPercent
+		}
+	} else {
+		riskPercent := (d.StopLoss - entryPrice) / entryPrice * 100
+		rewardPercent := (entryPrice - d.TakeProfit) / entryPrice * 100
+		if riskPercent > 0 {
+			riskRewardRatio = rewardPercent / riskPercent
+		}
+	}
+	if config.MinRiskRewardRatio > 0 && riskRewardRatio > 0 && riskRewardRatio < config.MinRiskRewardRatio {
+		return fmt.Errorf("risk-reward ratio too low (%.2f:1), must be >= %.2f:1 (strategy-studio)", riskRewardRatio, config.MinRiskRewardRatio)
+	}
+
+	// 6. Leverage cap (clamp to trader config, don't reject)
+	if d.Leverage <= 0 {
+		d.Leverage = maxLeverage
+	}
+	if d.Leverage > maxLeverage {
+		log.Printf("  [Guardrail] %s leverage %d exceeds limit %d, clamping", d.Symbol, d.Leverage, maxLeverage)
+		d.Leverage = maxLeverage
+	}
+
+	return nil
+}
+
 // executeDecisionWithRecord executes AI decision and records detailed information
 func (at *AutoTrader) executeDecisionWithRecord(decision *decision.Decision, actionRecord *logger.DecisionAction) error {
+	// Universal strategy guardrail gate (strategy-studio single source of truth)
+	if err := at.enforceStrategyGuardrails(decision); err != nil {
+		return fmt.Errorf("strategy guardrail rejected: %w", err)
+	}
+
 	var err error
 
 	switch decision.Action {
@@ -4729,6 +4844,7 @@ func (at *AutoTrader) convertAlertToDecision(alert cfg.TradingViewAlert) *decisi
 		PositionSizeUSD: positionSizeUSD,
 		StopLoss:        alert.SL,
 		TakeProfit:      alert.TP,
+		EntryPrice:      alert.Entry,
 		Reasoning:       fmt.Sprintf("TradingView alert: %s %s @ %.2f", alert.Symbol, action, alert.Entry),
 	}
 }
