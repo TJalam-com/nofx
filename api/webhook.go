@@ -16,77 +16,66 @@ import (
 	"github.com/google/uuid"
 )
 
-// extractTraderIDs extracts and normalizes trader IDs from payload
-// Supports both trader_id (string) and trader_ids (array) for backward compatibility
+// extractTraderIDs extracts and normalizes trader IDs from payload. Type-safe: accepts string, array, or coercible types.
 func (s *Server) extractTraderIDs(payload map[string]interface{}, userID string) ([]string, error) {
 	var traderIDs []string
 
-	// Debug: Log what we received
-	if traderIDsRaw, exists := payload["trader_ids"]; exists {
-		log.Printf("🔍 extractTraderIDs: Found trader_ids field, type=%T, value=%v", traderIDsRaw, traderIDsRaw)
-	}
-	if traderIDRaw, exists := payload["trader_id"]; exists {
-		log.Printf("🔍 extractTraderIDs: Found trader_id field, type=%T, value=%v", traderIDRaw, traderIDRaw)
-	}
-
-	// Check for trader_ids array first (new format)
-	// Handle both []interface{} and []string types from JSON unmarshaling
-	if traderIDsRaw, exists := payload["trader_ids"]; exists {
-		log.Printf("🔍 extractTraderIDs: Found trader_ids field, type=%T", traderIDsRaw)
-
-		// Try []interface{} first (common case)
-		if traderIDsArray, ok := traderIDsRaw.([]interface{}); ok && len(traderIDsArray) > 0 {
-			log.Printf("🔍 extractTraderIDs: Successfully parsed trader_ids as []interface{}, count=%d", len(traderIDsArray))
-			for _, tid := range traderIDsArray {
-				if tidStr, ok := tid.(string); ok && tidStr != "" {
-					// Verify trader belongs to this user
-					_, _, _, err := s.database.GetTraderConfig(userID, tidStr)
-					if err != nil {
-						log.Printf("⚠️ Trader %s does not belong to user %s", tidStr, userID)
-						continue // Skip invalid trader IDs but continue processing others
-					}
-					traderIDs = append(traderIDs, tidStr)
-				}
-			}
-			if len(traderIDs) > 0 {
-				log.Printf("🔍 extractTraderIDs: Returning %d trader IDs from trader_ids array: %v", len(traderIDs), traderIDs)
-				return traderIDs, nil
-			}
-		} else if traderIDsStringArray, ok := traderIDsRaw.([]string); ok && len(traderIDsStringArray) > 0 {
-			// Handle []string type (alternative JSON unmarshaling)
-			log.Printf("🔍 extractTraderIDs: Successfully parsed trader_ids as []string, count=%d", len(traderIDsStringArray))
-			for _, tidStr := range traderIDsStringArray {
-				if tidStr != "" {
-					// Verify trader belongs to this user
-					_, _, _, err := s.database.GetTraderConfig(userID, tidStr)
-					if err != nil {
-						log.Printf("⚠️ Trader %s does not belong to user %s", tidStr, userID)
-						continue // Skip invalid trader IDs but continue processing others
-					}
-					traderIDs = append(traderIDs, tidStr)
-				}
-			}
-			if len(traderIDs) > 0 {
-				log.Printf("🔍 extractTraderIDs: Returning %d trader IDs from trader_ids []string array: %v", len(traderIDs), traderIDs)
-				return traderIDs, nil
-			}
-		} else {
-			log.Printf("⚠️ extractTraderIDs: trader_ids found but not a valid array type (got %T)", traderIDsRaw)
+	// Helper: resolve one trader ID (any type), verify ownership, return id or empty
+	resolveOne := func(tidStr string) string {
+		tidStr = strings.TrimSpace(tidStr)
+		if tidStr == "" {
+			return ""
 		}
-	} else {
-		log.Printf("🔍 extractTraderIDs: trader_ids field not found in payload")
-	}
-
-	// Fallback to single trader_id (backward compatibility)
-	if tid, ok := payload["trader_id"].(string); ok && tid != "" {
-		log.Printf("🔍 extractTraderIDs: Using single trader_id: %s", tid)
-		// Verify trader belongs to this user
-		_, _, _, err := s.database.GetTraderConfig(userID, tid)
+		_, _, _, err := s.database.GetTraderConfig(userID, tidStr)
 		if err != nil {
-			log.Printf("⚠️ Trader %s does not belong to user %s", tid, userID)
-			return nil, fmt.Errorf("invalid trader_id")
+			log.Printf("⚠️ Trader %s does not belong to user %s", tidStr, userID)
+			return ""
 		}
-		return []string{tid}, nil
+		return tidStr
+	}
+
+	// trader_ids: array ([]interface{} or []string) or single string/number
+	if traderIDsRaw, exists := payload["trader_ids"]; exists && traderIDsRaw != nil {
+		switch v := traderIDsRaw.(type) {
+		case []interface{}:
+			for _, item := range v {
+				tidStr := resolveOne(webhookSafeString(item))
+				if tidStr != "" {
+					traderIDs = append(traderIDs, tidStr)
+				}
+			}
+			if len(traderIDs) > 0 {
+				log.Printf("🔍 extractTraderIDs: Returning %d trader IDs from trader_ids array", len(traderIDs))
+				return traderIDs, nil
+			}
+		case []string:
+			for _, tidStr := range v {
+				tidStr = resolveOne(tidStr)
+				if tidStr != "" {
+					traderIDs = append(traderIDs, tidStr)
+				}
+			}
+			if len(traderIDs) > 0 {
+				log.Printf("🔍 extractTraderIDs: Returning %d trader IDs from trader_ids []string", len(traderIDs))
+				return traderIDs, nil
+			}
+		default:
+			// Single value: string, number, or anything coercible
+			tidStr := resolveOne(webhookSafeString(traderIDsRaw))
+			if tidStr != "" {
+				log.Printf("🔍 extractTraderIDs: Using trader_ids as single value: %s", tidStr)
+				return []string{tidStr}, nil
+			}
+		}
+	}
+
+	// Fallback: trader_id (any type coercible to string)
+	if v, exists := payload["trader_id"]; exists && v != nil {
+		tidStr := resolveOne(webhookSafeString(v))
+		if tidStr != "" {
+			log.Printf("🔍 extractTraderIDs: Using trader_id: %s", tidStr)
+			return []string{tidStr}, nil
+		}
 	}
 
 	// If no trader IDs provided, auto-assign first trader with TradingView enabled
@@ -532,6 +521,46 @@ func keysOf(m map[string]interface{}) []string {
 	return keys
 }
 
+// webhookSafeString coerces common JSON types to a non-empty string (so webhook never breaks on type).
+func webhookSafeString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	switch x := v.(type) {
+	case string:
+		return strings.TrimSpace(x)
+	case float64:
+		if x == math.Trunc(x) {
+			return strconv.FormatInt(int64(x), 10)
+		}
+		return strconv.FormatFloat(x, 'f', -1, 64)
+	case int:
+		return strconv.FormatInt(int64(x), 10)
+	case int64:
+		return strconv.FormatInt(x, 10)
+	case bool:
+		if x {
+			return "true"
+		}
+		return "false"
+	default:
+		return strings.TrimSpace(fmt.Sprint(v))
+	}
+}
+
+// getWebhookString returns first non-empty string from payload for the given keys (coerces types).
+func getWebhookString(payload map[string]interface{}, keys ...string) string {
+	for _, k := range keys {
+		if v, ok := payload[k]; ok {
+			s := webhookSafeString(v)
+			if s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
 // mapDirectionToAction maps direction/side strings to "buy" or "sell".
 func mapDirectionToAction(direction string) string {
 	d := strings.ToLower(strings.TrimSpace(direction))
@@ -639,41 +668,38 @@ func sanitizeWebhookPayload(payload map[string]interface{}) map[string]interface
 	return sanitized
 }
 
-// handleTradingViewWebhook handles TradingView webhook requests
+// handleTradingViewWebhook handles TradingView webhook requests. Panic-safe and accepts varied payload types.
 func (s *Server) handleTradingViewWebhook(c *gin.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("⚠️ Webhook panic recovered (request not broken): %v", r)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Webhook processing error",
+				"hint":  "Request was received but an internal error occurred. Check server logs.",
+			})
+		}
+	}()
+
 	var payload map[string]interface{}
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format", "details": err.Error()})
 		return
+	}
+	if payload == nil {
+		payload = make(map[string]interface{})
 	}
 
 	// Sanitize the payload (remove NaN values, normalize symbols, etc.)
 	payload = sanitizeWebhookPayload(payload)
 	log.Printf("🧹 Webhook payload sanitized (removed NaN values, normalized symbols)")
 
-	// Extract apikey (support multiple field name variations)
-	var apikey string
-	var ok bool
-
-	// Try different field name variations (case-insensitive)
-	if apikey, ok = payload["apikey"].(string); !ok || apikey == "" {
-		if apikey, ok = payload["api_key"].(string); !ok || apikey == "" {
-			if apikey, ok = payload["apiKey"].(string); !ok || apikey == "" {
-				if apikey, ok = payload["API_KEY"].(string); !ok || apikey == "" {
-					c.JSON(http.StatusBadRequest, gin.H{
-						"error": "Missing or invalid apikey field",
-						"hint":  "The payload must contain 'apikey', 'api_key', 'apiKey', or 'API_KEY' field",
-					})
-					return
-				}
-			}
-		}
-	}
-
-	// Trim whitespace from API key
-	apikey = strings.TrimSpace(apikey)
+	// Apikey: accept string or any type that coerces to non-empty string
+	apikey := getWebhookString(payload, "apikey", "api_key", "apiKey", "API_KEY")
 	if apikey == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "API key cannot be empty"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Missing or invalid apikey field",
+			"hint":  "The payload must contain 'apikey', 'api_key', 'apiKey', or 'API_KEY' (string)",
+		})
 		return
 	}
 
@@ -707,14 +733,8 @@ func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 
 	log.Printf("📋 Webhook received: %d trader(s) to process: %v", len(traderIDs), traderIDs)
 
-	// Symbol: accept "symbol" or TradingView-style "ticker"
-	symbol, _ := payload["symbol"].(string)
-	if symbol == "" {
-		if ticker, ok := payload["ticker"].(string); ok && ticker != "" {
-			symbol = ticker
-			payload["symbol"] = symbol
-		}
-	}
+	// Symbol: accept "symbol", "ticker", or any type that coerces to string
+	symbol := getWebhookString(payload, "symbol", "ticker")
 	symbol = normalizeSymbol(symbol)
 	payload["symbol"] = symbol
 	if symbol == "" {
@@ -726,20 +746,14 @@ func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 		return
 	}
 
-	// Action: accept "action", or "direction"/"side" (map long->buy, short->sell)
-	action, _ := payload["action"].(string)
-	if action != "buy" && action != "sell" {
-		if dir, ok := payload["direction"].(string); ok {
-			action = mapDirectionToAction(dir)
-		}
-		if action != "buy" && action != "sell" {
-			if side, ok := payload["side"].(string); ok {
-				action = mapDirectionToAction(side)
-			}
-		}
+	// Action: accept "action", "direction", "side" (any type); map long/short to buy/sell
+	actionRaw := getWebhookString(payload, "action", "direction", "side")
+	action := mapDirectionToAction(actionRaw)
+	if action == "" {
+		action = strings.ToLower(strings.TrimSpace(actionRaw))
 	}
 	if action != "buy" && action != "sell" {
-		log.Printf("⚠️ Webhook 400: Missing or invalid action field (got %q; payload keys: %v)", payload["action"], keysOf(payload))
+		log.Printf("⚠️ Webhook 400: Missing or invalid action field (got %q; payload keys: %v)", actionRaw, keysOf(payload))
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Missing or invalid action field (must be buy or sell)",
 			"hint":  "Include 'action' in your JSON: \"action\": \"buy\" or \"action\": \"sell\". TradingView strategy: \"action\": \"{{strategy.order.action}}\"",
@@ -757,7 +771,16 @@ func (s *Server) handleTradingViewWebhook(c *gin.Context) {
 		wg.Add(1)
 		go func(tid string) {
 			defer wg.Done()
-			result := s.processTraderWebhook(user.ID, tid, payload, symbol, action)
+			var result gin.H
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("⚠️ Webhook processTraderWebhook panic recovered for trader %s: %v", tid, r)
+						result = gin.H{"success": false, "trader_id": tid, "error": "Processing error (see server logs)"}
+					}
+				}()
+				result = s.processTraderWebhook(user.ID, tid, payload, symbol, action)
+			}()
 			mu.Lock()
 			results = append(results, result)
 			mu.Unlock()
