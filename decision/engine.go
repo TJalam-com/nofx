@@ -582,6 +582,16 @@ func BuildSystemPromptWithTradingView(accountEquity float64, btcEthLeverage, alt
 	sb.WriteString("- Consider current account status (balance, positions, margin usage rate, etc.)\n")
 	sb.WriteString("- If signal direction is correct but parameters are unreasonable, use \"modify\" and provide optimized parameters\n")
 	sb.WriteString("- If signal completely does not align with strategy or risk is too high, use \"reject\" and explain the reason\n\n")
+	sb.WriteString("## Confidence Score Calculation (CRITICAL)\n\n")
+	sb.WriteString("The TradingView signal only provides trade parameters (entry, SL, TP). **YOU must independently calculate the `confidence` score (0-100)** based on your own analysis.\n")
+	sb.WriteString("Do NOT default confidence to 0 or omit it — a missing/zero confidence will cause the trade to be rejected by the system.\n\n")
+	sb.WriteString("Evaluate confidence based on:\n")
+	sb.WriteString("1. **Trend alignment**: Does the signal direction match the current trend on multiple timeframes?\n")
+	sb.WriteString("2. **Indicator confluence**: Do MACD, RSI, EMA, volume, and OI support the signal direction?\n")
+	sb.WriteString("3. **Risk-reward quality**: Is the SL/TP ratio favorable?\n")
+	sb.WriteString("4. **Market conditions**: Volatility, funding rate, overall market sentiment\n")
+	sb.WriteString("5. **Account health**: Current margin usage, existing positions, drawdown status\n\n")
+	sb.WriteString("Confidence guidelines: 90+ = exceptional setup, 75-89 = strong setup, 60-74 = acceptable setup, <60 = weak/reject\n\n")
 
 	return sb.String(), nil
 }

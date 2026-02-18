@@ -5519,6 +5519,7 @@ func (at *AutoTrader) buildTradingViewUserPrompt(ctx *decision.Context, alert *c
 	sb.WriteString("If accepting, use ALL parameters provided by the signal, including Stop Loss and Take Profit.\n")
 	sb.WriteString("If modifying, you may ONLY adjust leverage and position_size_usd based on account risk; you MUST keep Stop Loss and Take Profit exactly equal to the values from the TradingView signal.\n")
 	sb.WriteString("The JSON output must include a signal_decision field (value: \"accept\", \"reject\", or \"modify\").\n")
+	sb.WriteString("**CRITICAL: You MUST include a `confidence` field (0-100) in your JSON output.** Calculate this independently by analyzing the market data, indicators, and signal quality. A confidence of 0 or missing confidence will cause the trade to be rejected.\n")
 	sb.WriteString("Now please analyze and output your decision (chain of thought + JSON)\n")
 
 	return sb.String()
